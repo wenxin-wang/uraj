@@ -2,7 +2,7 @@
        (name 'guix)
        (url "https://mirror.nju.edu.cn/git/guix.git")
        (branch "master")
-       (commit "8d17cec05c5210cca8fd703843727d01da279a69")
+       (commit "35d91e9e96472821294a9fe8146cae3c1fd64754")
        (introduction
         (make-channel-introduction
          "9edb3f66fd807b096b48283debdcddccfea34bad"
