@@ -2,7 +2,7 @@
        (name 'guix)
        (url "https://mirror.nju.edu.cn/git/guix.git")
        (branch "master")
-       (commit "35d91e9e96472821294a9fe8146cae3c1fd64754")
+       (commit "266a7b9707a8c98d778c07f351af1523fbbcd282")
        (introduction
         (make-channel-introduction
          "9edb3f66fd807b096b48283debdcddccfea34bad"
@@ -18,16 +18,6 @@
          "897c1a470da759236cc11798f4e0a5f7d4d59fbc"
          (openpgp-fingerprint
           "2A39 3FFF 68F4 EF7A 3D29  12AF 6F51 20A0 22FB B2D5"))))
-      (channel
-       (name 'bluebox)
-       (url "https://codeberg.org/lapislazuli/bluebox")
-       (branch "main")
-       (commit "f5c32b67e5abfa2ea8e9630c36dc0cfe3b29ebd4")
-       (introduction
-        (make-channel-introduction
-         "63350484aaacc362aea28fb14236019fced4050f"
-         (openpgp-fingerprint
-          "5132 3571 CEED 988F 52FC  467C 6F98 DBF3 EA7F 4B37"))))
       (channel
        (name 'rosenthal)
        (url "https://codeberg.org/hako/rosenthal.git")

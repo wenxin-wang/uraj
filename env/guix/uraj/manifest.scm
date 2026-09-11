@@ -11,8 +11,8 @@
 
 (concatenate-manifests
  (list (specifications->manifest
-        (list "blue"
-              "gnupg"
+        (list "gnupg"
+              "maak"
               "sops"
               ;; For Guix System installer.
               "guile-newt"
