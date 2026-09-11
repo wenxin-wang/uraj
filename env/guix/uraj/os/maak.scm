@@ -19,13 +19,12 @@
   (string-append project-root "/" relative))
 
 (define (update-channels-lock)
-  (let* ((tmp-output-filename (project-path "env/guix/uraj/channels-lock.scm.tmp"))
-         (update-result (with-output-to-file tmp-output-filename
-                          (lambda ()
-                            ($ `("guix" "time-machine" "-C"
-                                 ,(project-path "env/guix/uraj/channels.scm") "--"
-                                 "describe" "-f" "channels"))))))
-    (when (eq? update-result 0)
+  (let ((tmp-output-filename (project-path "env/guix/uraj/channels-lock.scm.tmp")))
+    (with-output-to-file tmp-output-filename
+      (lambda ()
+        (time-machine '("describe" "-f" "channels")
+                      #:channels (project-path "env/guix/uraj/channels.scm"))))
+    (unless (dry-run?)
       (rename-file tmp-output-filename (project-path "env/guix/uraj/channels-lock.scm")))))
 
 (define (guix-time-machine . cmd)

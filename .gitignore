@@ -1,3 +1,4 @@
 # -*- mode: conf -*-
 .blue-store/
 .nrepl-port
+.tmp
