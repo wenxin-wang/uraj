@@ -1,0 +1,26 @@
+#!/bin/sh
+# Shamelessly copied from https://codeberg.org/hako/Testament/src/branch/trunk/pre-inst-env.
+
+set -e
+
+TOP_DIR="$(dirname "$(realpath "$0")")"
+
+set_guix_env () {
+    channel_path="$TOP_DIR/$1"
+    export GUILE_LOAD_COMPILED_PATH="${channel_path}${GUILE_LOAD_PATH:+:}${GUILE_LOAD_PATH}"
+    export GUILE_LOAD_PATH="${channel_path}${GUILE_LOAD_PATH:+:}${GUILE_LOAD_PATH}"
+    export PATH="${channel_path}/scripts:$PATH"
+    export GUIX="${channel_path}/scripts/guix"
+    export GUIX_UNINSTALLED=1
+}
+
+set_channel_env () {
+    channel_path="$TOP_DIR/$1"
+    export GUILE_LOAD_PATH="${channel_path}${GUILE_LOAD_PATH:+:}${GUILE_LOAD_PATH}"
+    export GUIX_PACKAGE_PATH="${channel_path}${GUIX_PACKAGE_PATH:+:}${GUIX_PACKAGE_PATH}"
+}
+
+set_guix_env    channels/guix
+
+stat "$GUIX" >/dev/null
+exec "$@"

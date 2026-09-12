@@ -1,0 +1,3 @@
+[submodule "env/guix/uraj/channels/guix"]
+	path = env/guix/uraj/channels/guix
+	url = ssh://git@codeberg.org/wenxinwang/guix.git
