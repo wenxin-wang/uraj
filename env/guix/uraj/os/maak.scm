@@ -11,16 +11,9 @@
   #:use-module (srfi srfi-19)
   #:use-module (srfi srfi-26)
   #:use-module (uraj desktop env)
-  #:export (update-channels-lock guix guix-my compile-guix home-container))
-
-(define project-root
-  (canonicalize-path (string-append (dirname (current-filename)) "/../../../..")))
-
-(define (project-path relative)
-  (string-append project-root "/" relative))
-
-(define (guix-uraj-path relative)
-  (project-path (string-append "env/guix/uraj/" relative)))
+  #:use-module (uraj maak guix)
+  #:re-export (guix)
+  #:export (update-channels-lock compile-guix home-container))
 
 (define (update-channels-lock)
   (let ((tmp-output-filename (guix-uraj-path "channels-lock.scm.tmp")))
@@ -31,17 +24,6 @@
     (unless (dry-run?)
       (rename-file tmp-output-filename (guix-uraj-path "channels-lock.scm")))))
 
-(define* ($guix args #:key (fork? #f))
-  (if fork?
-      ($ `(,(guix-uraj-path "pre-inst-env") "guix" ,@args))
-      (time-machine args #:channels (guix-uraj-path "channels-lock.scm"))))
-
-(define* (guix . args)
-  ($guix args))
-
-(define* (guix-my . args)
-  ($guix args #:fork? #t))
-
 (define (compile-guix)
   ($ '("git" "submodule" "update" "--init"))
   (with-directory-excursion (guix-uraj-path "channels/guix")
@@ -50,17 +32,23 @@
       ($ '("./configure")))
     ($ `("make" "-j" ,(number->string (current-processor-count))))))
 
-(define* (home-container #:key (config-path (guix-uraj-path "os/home-example.scm"))
-                         (command '()))
+(define* (home-container #:key (fork? (my-fork?))
+                         (config-path (guix-uraj-path "os/home-example.scm"))
+                         (command '())
+                         . args)
   "Run the home environment in a container, sharing the host's display and audio."
-  (match (desktop-container-envs)
-    ((shares . env)
-     (let* ((script (and (pair? env)
-                         (string-append "'"
-                                        (string-join (map (cut string-append "export " <>) env) ";")
-                                        (if (null? command) ";exec /proc/self/exe'" ";'"))))
-            (head `("home" "container" ,config-path ,@shares))
-            (tail (cond ((pair? env)    `("--" ,script ,@command))
-                        ((pair? command) `("--" ,@command))
-                        (else            '()))))
-       ($guix (append head tail))))))
+  (let ((command* (if (pair? args) args command)))
+    (match (desktop-container-envs)
+      ((shares . env)
+       (let* ((script (and (pair? env)
+                           (string-append "'"
+                                          (string-join (map (cut string-append "export " <>) env) ";")
+                                          (if (null? command*) ";exec /proc/self/exe'" ";'"))))
+              (head `("home" "container" ,config-path
+                      ;; Only the fork supports this option.
+                      ,@(if fork? '("--keep-host-uid-gid") '())
+                      ,@shares))
+              (tail (cond ((pair? env)    `("--" ,script ,@command*))
+                          ((pair? command*) `("--" ,@command*))
+                          (else            '()))))
+         ($guix (append head tail) #:fork? fork?))))))
