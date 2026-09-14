@@ -16,17 +16,17 @@
   #:export (update-channels-lock compile-guix system-vm home-container home-reconfigure))
 
 (define (update-channels-lock)
-  (let ((tmp-output-filename (guix-uraj-path "channels-lock.scm.tmp")))
+  (let ((tmp-output-filename (guix-env-path "channels-lock.scm.tmp")))
     (with-output-to-file tmp-output-filename
       (lambda ()
         (time-machine '("describe" "-f" "channels")
-                      #:channels (guix-uraj-path "channels.scm"))))
+                      #:channels (guix-env-path "channels.scm"))))
     (unless (dry-run?)
-      (rename-file tmp-output-filename (guix-uraj-path "channels-lock.scm")))))
+      (rename-file tmp-output-filename (guix-env-path "channels-lock.scm")))))
 
 (define (compile-guix)
   ($ '("git" "submodule" "update" "--init"))
-  (with-directory-excursion (guix-uraj-path "channels/guix")
+  (with-directory-excursion (guix-env-path "channels/guix")
     (unless (file-exists? "Makefile")
       ($ '("./bootstrap"))
       ($ '("./configure")))
@@ -35,10 +35,10 @@
 (define extra-guix-args
   `("-L" ,(project-path "src/guix")))
 
-(define* (system-vm #:optional (config-path (guix-uraj-path "os/qemu-example.scm")))
+(define* (system-vm #:optional (config-path (guix-env-path "os/qemu-example.scm")))
   ($guix `("system" "vm" ,@extra-guix-args ,config-path)))
 
-(define* (home-container #:optional (config-path (guix-uraj-path "os/home-example.scm"))
+(define* (home-container #:optional (config-path (guix-env-path "os/home-example.scm"))
 	                 #:key (fork? (my-fork?))
                          (command '())
                          . args)
@@ -59,5 +59,5 @@
                           (else            '()))))
          ($guix (append head tail) #:fork? fork?))))))
 
-(define* (home-reconfigure #:optional (config-path (guix-uraj-path "os/home-example.scm")))
+(define* (home-reconfigure #:optional (config-path (guix-env-path "os/home-example.scm")))
   ($guix `("home" "reconfigure" ,@extra-guix-args ,config-path)))
