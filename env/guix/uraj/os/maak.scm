@@ -13,7 +13,7 @@
   #:use-module (uraj desktop env)
   #:use-module (uraj maak guix)
   #:re-export (guix)
-  #:export (update-channels-lock compile-guix home-container))
+  #:export (update-channels-lock compile-guix home-container home-reconfigure))
 
 (define (update-channels-lock)
   (let ((tmp-output-filename (guix-uraj-path "channels-lock.scm.tmp")))
@@ -32,8 +32,11 @@
       ($ '("./configure")))
     ($ `("make" "-j" ,(number->string (current-processor-count))))))
 
-(define* (home-container #:key (fork? (my-fork?))
-                         (config-path (guix-uraj-path "os/home-example.scm"))
+(define extra-guix-args
+  `("-L" ,(project-path "src/guix")))
+
+(define* (home-container #:optional (config-path (guix-uraj-path "os/home-example.scm"))
+	                 #:key (fork? (my-fork?))
                          (command '())
                          . args)
   "Run the home environment in a container, sharing the host's display and audio."
@@ -44,7 +47,7 @@
                            (string-append "'"
                                           (string-join (map (cut string-append "export " <>) env) ";")
                                           (if (null? command*) ";exec /proc/self/exe'" ";'"))))
-              (head `("home" "container" ,config-path
+              (head `("home" "container" ,@extra-guix-args ,config-path
                       ;; Only the fork supports this option.
                       ,@(if fork? '("--keep-host-uid-gid") '())
                       ,@shares))
@@ -52,3 +55,6 @@
                           ((pair? command*) `("--" ,@command*))
                           (else            '()))))
          ($guix (append head tail) #:fork? fork?))))))
+
+(define* (home-reconfigure #:optional (config-path (guix-uraj-path "os/home-example.scm")))
+  ($guix `("home" "reconfigure" ,@extra-guix-args ,config-path)))

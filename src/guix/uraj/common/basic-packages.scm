@@ -1,4 +1,6 @@
-(use-modules (gnu packages base))
+(define-module (uraj common basic-packages)
+  #:use-module (gnu packages base)
+  #:export (glibc-common-locales))
 
 (define glibc-common-locales
   (make-glibc-utf8-locales
