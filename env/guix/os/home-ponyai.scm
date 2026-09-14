@@ -9,7 +9,9 @@
              (gnu services)
              (guix gexp)
              (gnu home services shells)
-             (uraj common basic-packages))
+             (uraj common basic-packages)
+             (uraj common basic-services)
+             (uraj utils file path))
 
 (home-environment
   ;; Below is the list of packages that will show up in your
@@ -20,8 +22,11 @@
             (specifications->packages
             (list "flameshot"))))
 
-  ;; Below is the list of Home services.  To search for available
-  ;; services, run 'guix home search KEYWORD' in a terminal.
+ ;; Below is the list of Home services.  To search for available
+ ;; services, run 'guix home search KEYWORD' in a terminal.
+ (services
+  (append (my-dotfiles-services (list (project-path "env/dotfiles/common")))
+          %base-home-services)))
   ;; (services
   ;;  (append (list (service home-bash-service-type
   ;;                         (home-bash-configuration
@@ -49,5 +54,4 @@
   ;;                                                          "bash_profile")))
   ;;                          (bash-logout (list (local-file "./.bash_logout"
   ;;                                                         "bash_logout"))))))
-  ;;          %base-home-services))
-  )
+  ;;          %base-home-services)))
