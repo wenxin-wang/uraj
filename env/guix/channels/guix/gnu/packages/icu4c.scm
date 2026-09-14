@@ -1,0 +1,351 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2013 Andreas Enge <andreas@enge.fr>
+;;; Copyright © 2015, 2016 Mark H Weaver <mhw@netris.org>
+;;; Copyright © 2016, 2017, 2020, 2022, 2025 Efraim Flashner <efraim@flashner.co.il>
+;;; Copyright © 2017 Clément Lassieur <clement@lassieur.org>
+;;; Copyright © 2017 Ricardo Wurmus <rekado@elephly.net>
+;;; Copyright © 2019, 2020, 2022 Marius Bakke <marius@gnu.org>
+;;; Copyright © 2019 Mathieu Othacehe <m.othacehe@gmail.com>
+;;; Copyright © 2020 Björn Höfling <bjoern.hoefling@bjoernhoefling.de>
+;;; Copyright © 2020 Julien Lepiller <julien@lepiller.eu>
+;;; Copyright © 2021 Guillaume Le Vaillant <glv@posteo.net>
+;;; Copyright © 2023 Nicolas Graves <ngraves@ngraves.fr>
+;;; Copyright © 2024 Zheng Junjie <873216071@qq.com>
+;;; Copyright © 2025 Maxim Cournoyer <maxim@guixotic.coop>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (gnu packages icu4c)
+  #:use-module (gnu packages)
+  #:use-module (gnu packages cpio)
+  #:use-module (gnu packages java)
+  #:use-module (gnu packages perl)
+  #:use-module (gnu packages pkg-config)
+  #:use-module (gnu packages python)
+  #:use-module (guix gexp)
+  #:use-module (guix licenses)
+  #:use-module (guix packages)
+  #:use-module (guix utils)
+  #:use-module (guix download)
+  #:use-module (guix git-download)
+  #:use-module (guix build-system ant)
+  #:use-module (guix build-system gnu))
+
+(define (icu4c-uri version)
+  (string-append
+   "https://github.com/unicode-org/icu/releases/download/release-"
+   (string-map (lambda (x) (if (char=? x #\.) #\- x)) version)
+   "/icu4c-"
+   (string-map (lambda (x) (if (char=? x #\.) #\_ x)) version)
+   "-src.tgz"))
+
+;; The URI format has changed starting with 78.1.
+(define (icu4c-uri->=78 version)
+  (string-append
+   "https://github.com/unicode-org/icu/releases/download/release-"
+   version "/icu4c-" version "-sources.tgz"))
+
+(define-public icu4c-73
+  (package
+    (name "icu4c")
+    (version "73.1")
+    (source (origin
+              (method url-fetch)
+              (uri (icu4c-uri version))
+              (sha256
+               (base32 "0iccpdvc0kvpww5a31k9gjkqigyz016i7v80r9zamd34w4fl6mx4"))
+              (patches
+               (search-patches
+                "icu4c-icu-22132-fix-vtimezone.patch"
+                "icu4c-fix-TestHebrewCalendarInTemporalLeapYear.patch"))))
+    (build-system gnu-build-system)
+    (native-inputs
+     (append (list python-minimal)
+             (if (%current-target-system)
+                 ;; When cross-compiling, this package needs a source directory
+                 ;; of a native-build of itself.
+                 (list icu4c-build-root)
+                 '())))
+    (inputs
+     (list perl))
+    (arguments
+     (list
+      #:configure-flags
+      #~(list
+         "--enable-rpath"
+         #$@(if (%current-target-system)
+                #~((string-append "--with-cross-build="
+                                  #+(this-package-native-input
+                                     "icu4c-build-root")))
+                #~()))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'chdir-to-source
+            (lambda _ (chdir "source")))
+          (add-after 'chdir-to-source 'update-LDFLAGS
+            (lambda _
+              ;; Do not create a "data-only" libicudata.so because it causes
+              ;; problems on some architectures (notably armhf and MIPS).
+              (substitute* "config/mh-linux"
+                (("LDFLAGSICUDT=-nodefaultlibs -nostdlib")
+                 "LDFLAGSICUDT="))))
+          #$@(if (target-riscv64?)
+                 #~((add-after 'unpack 'disable-failing-test
+                      ;; It is unknown why this test is failing.
+                      (lambda _
+                        (substitute* "source/test/intltest/numbertest_api.cpp"
+                          (("(TESTCASE_AUTO\\(unitUsage\\));" all)
+                           (string-append "//" all))))))
+                 #~())
+          #$@(if (target-x86-32?)
+                 #~((add-after 'unpack 'disable-failing-test
+                      (lambda _
+                        ;; The test reports 18 errors but it's woefully
+                        ;; unclear which tests actually fail or how to disable
+                        ;; individual tests.
+                        (substitute* "source/test/Makefile.in"
+                          ((" intltest ") " ")))))
+                 #~())
+          #$@(if (target-arm32?)
+                 #~((add-after 'unpack 'disable-failing-test
+                      (lambda _
+                        ;; The caltest test started to fail to compile after
+                        ;; the upgrade to gcc-14 but it's unclear which test is
+                        ;; failing or how to disable just that one test.
+                        ;; Error: co-processor offset out of range
+                        (substitute* "source/test/Makefile.in"
+                          ((" intltest ") " ")))))
+                 #~())
+          (add-after 'install 'avoid-coreutils-reference
+            ;; Don't keep a reference to the build tools.
+            (lambda _
+              (substitute* (find-files (string-append #$output "/lib/icu")
+                                       "\\.inc$")
+                (("INSTALL_CMD=.*/bin/install") "INSTALL_CMD=install")))))))
+    (synopsis "International Components for Unicode")
+    (description
+     "ICU is a set of C/C++ and Java libraries providing Unicode and
+globalisation support for software applications.  This package contains the
+C/C++ part.")
+    (license x11)
+    (home-page "https://icu.unicode.org/")))
+
+(define-public icu4c icu4c-73)
+
+(define-public icu4c-76
+  (package
+    (inherit icu4c)
+    (name "icu4c")
+    (version "76.1")
+    (source (origin
+              (method url-fetch)
+              (uri (icu4c-uri version))
+              (sha256
+               (base32
+                "0gjg1zrnqk4vmidqgqx4xbz05898px212gnff8242is7zrmv9b6z"))))))
+
+(define-public icu4c-77
+  (package
+    (inherit icu4c)
+    (name "icu4c")
+    (version "77.1")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (icu4c-uri version))
+       (sha256
+        (base32
+         "0qa0yapkypywhzx8ai1p27125h9v1qy89f7v3w1kjz1jfwgl73jq"))
+       (patches
+        (search-patches
+         ;; These are the relevant patches Firefox applies (see
+         ;; <https://github.com/mozilla-firefox/firefox/tree/main/intl/icu-patches>).
+         ;; The 'intl/icu' prefix in the file names must be stripped.  These
+         ;; are necessary to ensure applications like Icedove run correctly.
+         "icu4c-22132-standardize-vtzone-output.patch"
+         "icu4c-20548-dateinterval-timezone.patch"
+         "icu4c-23069-rosh-hashanah-postponement.patch"
+         "icu4c-dayperiod-fractional-seconds.patch"
+         "icu4c-double-conversion.patch"
+         "icu4c-dtitvfmt-adopt-calendar.patch"
+         "icu4c-wasi-workaround.patch"))))))
+
+(define-public icu4c-78
+  (package
+    (inherit icu4c-77)
+    (name "icu4c")
+    (version "78.2")
+    (source
+     (origin
+       (inherit (package-source icu4c-77))
+       (uri (icu4c-uri->=78 version))
+       (sha256 (base32 "0dfzi4yf0wmng1866y2yd22cj1lrnzmx5qihjqh4npa3bixni69y"))
+       (patches
+        (search-patches
+         "icu4c-bug-1706949-wasi-workaround.patch"
+         "icu4c-bug-1790071-ICU-22132-standardize-vtzone-output.patch"
+         "icu4c-bug-1856290-ICU-20548-dateinterval-timezone.patch"
+         "icu4c-bug-1954138-dtitvfmt-adopt-calendar.patch"
+         "icu4c-bug-1972781-chinese-based-calendar.patch"
+         "icu4c-bug-2000225-ICU-23264-increase-measure-unit-capacity.patch"
+         "icu4c-78-double-conversion.patch"
+         "icu4c-suppress-warnings.patch"))))))
+
+(define-public icu4c-build-root
+  (package
+    (inherit icu4c)
+    (name "icu4c-build-root")
+    (arguments
+     (substitute-keyword-arguments arguments
+       ((#:tests? _ #f)
+         #f)
+        ((#:out-of-source? _ #t)
+         #t)
+        ((#:phases phases)
+         #~(modify-phases #$phases
+             (replace 'install
+               (lambda _
+                 (copy-recursively "../build" #$output)))))))
+    (native-inputs '())))
+
+(define-public java-icu4j
+  (package
+    (name "java-icu4j")
+    (version "70.1")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "https://github.com/unicode-org/icu/releases/download/release-"
+                    (string-map (lambda (x) (if (char=? x #\.) #\- x)) version)
+                    "/icu4j-"
+                    (string-map (lambda (x) (if (char=? x #\.) #\_ x)) version)
+                    ".tgz"))
+              (sha256
+               (base32 "0qrs75iyzn19kf54q55jn8wf6xjlpkrihdwqpxm39jdh2hz4cgvj"))))
+    (build-system ant-build-system)
+    (arguments
+     `(#:make-flags
+       ,#~(list
+           (string-append "-Djunit.core.jar="
+                          (car (find-files
+                                #$(this-package-native-input "java-junit")
+                                ".*.jar$")))
+           (string-append "-Djunit.junitparams.jar="
+                          (car (find-files
+                                #$(this-package-native-input "java-junitparams")
+                                ".*.jar$")))
+           (string-append "-Djunit.hamcrest.jar="
+                          (car (find-files
+                                #$(this-package-native-input "java-hamcrest-core")
+                                ".*.jar$"))))
+       #:phases
+       (modify-phases %standard-phases
+         (add-before 'configure 'chdir
+           (lambda _
+             (chdir "..")))
+         (add-before 'build 'remove-ivy
+           (lambda _
+             ;; This target wants to download ivy and use it to download
+             ;; junit.
+             (substitute* "build.xml"
+               (("depends=\"test-init-junit-dependency\"") ""))))
+         (replace 'install
+           (lambda* (#:key outputs #:allow-other-keys)
+             (let ((share (string-append (assoc-ref outputs "out")
+                                         "/share/java/")))
+               (mkdir-p share)
+               (install-file "icu4j.jar" share)))))))
+    (native-inputs
+     (list java-junit java-junitparams java-hamcrest-core))
+    (home-page "http://site.icu-project.org/")
+    (synopsis "International Components for Unicode")
+    (description
+     "ICU is a set of C/C++ and Java libraries providing Unicode and
+globalisation support for software applications.  This package contains the
+Java part.")
+    (license x11)))
+
+(define-public icu4c-for-skia
+  ;; The current version of skia needs this exact commit
+  ;; for its test dependencies.
+  (let ((commit "a0718d4f121727e30b8d52c7a189ebf5ab52421f")
+        (revision "0"))
+    (package
+      (inherit icu4c)
+      (name "icu4c-for-skia")
+      (version "skia")
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+               (url "https://chromium.googlesource.com/chromium/deps/icu.git")
+               (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32 "1qxws2p91f6dmhy7d3967r5ygz06r88pkmpm97px067x0zzdz384"))))
+      (arguments
+       (list
+        #:make-flags #~(list (string-append "DESTDIR=" #$output))
+        #:configure-flags #~(list "--prefix=" "--exec-prefix=")
+        #:phases
+        #~(modify-phases %standard-phases
+            (add-after 'unpack 'chdir-to-source
+              (lambda _ (chdir "source")))
+            (replace 'configure
+              (lambda* (#:key inputs parallel-build? configure-flags
+                        #:allow-other-keys)
+                (setenv "CONFIG_SHELL" (which "sh"))
+                (setenv "OPTS" (string-join configure-flags))
+                (invoke "./runConfigureICU" "Linux/gcc"
+                        "--disable-layout" "--disable-tests")))
+            (add-after 'install 'install-cleanup
+              (lambda* (#:key make-flags #:allow-other-keys)
+                (with-directory-excursion "data"
+                  (apply invoke "make" "clean" make-flags))))
+            (add-after 'install-cleanup 'configure-filtered-data
+              (lambda* (#:key configure-flags #:allow-other-keys)
+                (setenv "OPTS" (string-join configure-flags))
+                (setenv "ICU_DATA_FILTER_FILE"
+                        (string-append (getcwd) "/../filters/common.json"))
+                (invoke "./runConfigureICU" "Linux/gcc"
+                        "--disable-layout" "--disable-tests")))
+            (add-after 'configure-filtered-data 'build-filtered-data
+              (lambda* (#:key parallel-build? make-flags #:allow-other-keys)
+                (let ((job-count (if parallel-build?
+                                     (number->string (parallel-job-count))
+                                     "1")))
+                  (apply invoke "make" "-j" job-count make-flags)
+                  (setenv "DESTDIR" #$output)
+                  (invoke "bash" "../scripts/copy_data.sh" "common"))))
+            (add-after 'build-filtered-data 'install-scripts-and-data
+              (lambda _
+                (let* ((share (string-append #$output "/share"))
+                       (scripts (string-append share "/scripts"))
+                       (data (string-append share "/data/common")))
+                  ;; Install scripts.
+                  (mkdir-p scripts)
+                  (copy-recursively "../scripts/" scripts)
+                  ;; Install data.
+                  (mkdir-p data)
+                  (copy-recursively "./dataout/common/data/out/tmp" data)
+                  (symlink (string-append data "/icudt69l.dat")
+                           (string-append data "/icudtl.dat")))))
+            (add-before 'check 'disable-failing-uconv-test
+              (lambda _
+                (substitute* "extra/uconv/Makefile.in"
+                  (("check: check-local")
+                   "")))))))
+      (native-inputs (list cpio pkg-config python)))))

@@ -1,0 +1,5238 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2019, 2020 John Soo <jsoo1@asu.edu>
+;;; Copyright © 2019-2026 Efraim Flashner <efraim@flashner.co.il>
+;;; Copyright © 2020 Jakub Kądziołka <kuba@kadziolka.net>
+;;; Copyright © 2020 Michael Rohleder <mike@rohleder.de>
+;;; Copyright © 2020 Leo Famulari <leo@famulari.name>
+;;; Copyright © 2020 Mark H Weaver <mhw@netris.org>
+;;; Copyright © 2020 Gabriel Arazas <foo.dogsquared@gmail.com>
+;;; Copyright © 2020-2026 Nicolas Goaziou <mail@nicolasgoaziou.fr>
+;;; Copyright © 2020 Arun Isaac <arunisaac@systemreboot.net>
+;;; Copyright © 2021 Tobias Geerinckx-Rice <me@tobias.gr>
+;;; Copyright © 2021 Sharlatan Hellseher <sharlatanus@gmail.ccom>
+;;; Copyright © 2021, 2022, 2025, 2026 Zheng Junjie <z572@z572.online>
+;;; Copyright © 2021 Alexandru-Sergiu Marton <brown121407@posteo.ro>
+;;; Copyright © 2021, 2023-2025 Maxim Cournoyer <maxim@guixotic.coop>
+;;; Copyright © 2021, 2022 Petr Hodina <phodina@protonmail.com>
+;;; Copyright © 2021, 2026 jgart <jgart@dismail.de>
+;;; Copyright © 2021 Nicolas Graves <ngraves@ngraves.fr>
+;;; Copyright © 2022 Aleksandr Vityazev <avityazev@posteo.org>
+;;; Copyright © 2022 Gabriel Arazas <foo.dogsquared@gmail.com>
+;;; Copyright © 2022 Ricardo Wurmus <rekado@elephly.net>
+;;; Copyright © 2022 Mathieu Laparie <mlaparie@disr.it>
+;;; Copyright © 2022 ( <paren@disroot.org>
+;;; Copyright © 2022, 2025, 2026 John Kehayias <john.kehayias@protonmail.com>
+;;; Copyright © 2022 Greg Hogan <code@greghogan.com>
+;;; Copyright © 2023 Arnav Andrew Jose <arnav.jose@gmail.com>
+;;; Copyright © 2023 Wilko Meyer <w@wmeyer.eu>
+;;; Copyright © 2023, 2024 Jaeme Sifat <jaeme@runbox.com>
+;;; Copyright © 2023 Steve George <steve@futurile.net>
+;;; Copyright © 2024 Troy Figiel <troy@troyfigiel.com>
+;;; Copyright © 2024 Herman Rimm <herman@rimm.ee>
+;;; Copyright © 2024 Tomas Volf <~@wolfsden.cz>
+;;; Copyright © 2024 Suhail Singh <suhail@bayesians.ca>
+;;; Copyright © 2024 Jordan Moore <lockbox@struct.foo>
+;;; Copyright © 2024 muradm <mail@muradm.net>
+;;; Copyright © 2024 normally_js <normally_js@posteo.net>
+;;; Copyright © 2025 Divya Ranjan Pattanaik <divya@subvertising.org>
+;;; Copyright © 2025 Andrew Wong <wongandj@icloud.com>
+;;; Copyright © 2024 Danny Milosavljevic <dannym@friendly-machines.com>
+;;; Copyright © 2024 David Elsing <david.elsing@posteo.net>
+;;; Copyright © 2025 Gabriel Santos <gabrielsantosdesouza@disroot.org>
+;;; Copyright © 2025 Timo Wilken <guix@twilken.net>
+;;; Copyright © 2025 Igorj Gorjaĉev <igor@goryachev.org>
+;;; Copyright © 2025 Raven Hallsby <karl@hallsby.com>
+;;; Copyright © 2025 Samuel Sehnert <mail@buffersquid.com>
+;;; Copyright © 2025 Julian Flake <julian@flake.de>
+;;; Copyright © 2025 Ahmad Jarara <ajarara@fastmail.com>
+;;; Copyright © 2025 Cayetano Santos <csantosb@disroot.org>
+;;; Copyright © 2025 dan <i@dan.games>
+;;; Copyright © 2026 Daniel Khodabakhsh <d@niel.khodabakh.sh>
+;;; Copyright © 2026 Luis Guilherme Coelho <lgcoelho@disroot.org>
+;;; Copyright © 2026 Sughosha <sughosha@disroot.org>
+;;; Copyright © 2026 Ashish SHUKLA <ashish.is@lostca.se>
+;;; Copyright © 2026 Daniel Martins <email@danielfm.me>
+;;; Copyright © 2026 Yappaholic <sav.boyar@gmail.com>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (gnu packages rust-apps)
+  #:use-module (guix build-system cargo)
+  #:use-module (guix build-system copy)
+  #:use-module (guix build-system glib-or-gtk)
+  #:use-module (guix build-system meson)
+  #:use-module (guix build-system pyproject)
+  #:use-module (guix deprecation)
+  #:use-module (guix download)
+  #:use-module (guix gexp)
+  #:use-module (guix git-download)
+  #:use-module ((guix licenses) #:prefix license:)
+  #:use-module (guix packages)
+  #:use-module (guix utils)
+  #:use-module (gnu packages)
+  #:use-module (gnu packages admin)
+  #:use-module (gnu packages base)
+  #:use-module (gnu packages bash)
+  #:use-module (gnu packages build-tools)
+  #:use-module (gnu packages c)
+  #:use-module (gnu packages cmake)
+  #:use-module (gnu packages compression)
+  #:use-module (gnu packages crypto)
+  #:use-module (gnu packages curl)
+  #:use-module (gnu packages databases)
+  #:use-module (gnu packages documentation)
+  #:use-module (gnu packages emacs)
+  #:use-module (gnu packages engineering)
+  #:use-module (gnu packages fontutils)
+  #:use-module (gnu packages freedesktop)
+  #:use-module (gnu packages haskell-xyz)
+  #:use-module (gnu packages glib)
+  #:use-module (gnu packages gnome)
+  #:use-module (gnu packages gnupg)
+  #:use-module (gnu packages gtk)
+  #:use-module (gnu packages ibus)
+  #:use-module (gnu packages icu4c)
+  #:use-module (gnu packages image)
+  #:use-module (gnu packages jemalloc)
+  #:use-module (gnu packages kde-internet)
+  #:use-module (gnu packages libusb)
+  #:use-module (gnu packages libunwind)
+  #:use-module (gnu packages linux)
+  #:use-module (gnu packages llvm)
+  #:use-module (gnu packages libffi)
+  #:use-module (gnu packages lua)
+  #:use-module (gnu packages ncurses)
+  #:use-module (gnu packages networking)
+  #:use-module (gnu packages shells)
+  #:use-module (gnu packages ssh)
+  #:use-module (gnu packages pcre)
+  #:use-module (gnu packages pdf)
+  #:use-module (gnu packages perl)
+  #:use-module (gnu packages pkg-config)
+  #:use-module (gnu packages protobuf)
+  #:use-module (gnu packages pulseaudio)
+  #:use-module (gnu packages python)
+  #:use-module (gnu packages python-build)
+  #:use-module (gnu packages python-xyz)
+  #:use-module (gnu packages ruby-xyz)
+  #:use-module (gnu packages regex)
+  #:use-module (gnu packages rust)
+  #:use-module (gnu packages security-token)
+  #:use-module (gnu packages sqlite)
+  #:use-module (gnu packages terminals)
+  #:use-module (gnu packages tls)
+  #:use-module (gnu packages tree-sitter)
+  #:use-module (gnu packages version-control)
+  #:use-module (gnu packages webkit)
+  #:use-module (gnu packages video)
+  #:use-module (gnu packages xdisorg)
+  #:use-module (gnu packages xorg)
+  #:use-module (gnu packages wxwidgets))
+
+(define-public aardvark-dns
+  (package
+    (name "aardvark-dns")
+    (version "2.0.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "aardvark-dns" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "0ypbiqkzdlw8zk36ggkzmglqgyq6ya7g7zz4fxf2qy0j9w1l48j2"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:install-source? #f))
+    (inputs (cargo-inputs 'aardvark-dns))
+    (home-page "https://github.com/containers/aardvark-dns")
+    (synopsis "Container-focused DNS A/AAAA record server")
+    (description
+     "Aardvark-dns is an authoritative DNS server for A/AAAA container
+records.  It can forward other requests to configured resolvers.")
+    (license license:asl2.0)))
+
+(define-public agate
+  (package
+    (name "agate")
+    (version "3.3.14")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "agate" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "1g1zrk3zmyckafcy8rjqjpk9hmas8wgxydhgm70cirsxhz661as6"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:install-source? #f))
+    (native-inputs (list pkg-config))
+    (inputs (cons openssl (cargo-inputs 'agate)))
+    (home-page "https://github.com/mbrubeck/agate")
+    (synopsis "Very simple server for the Gemini hypertext protocol")
+    (description
+     "Agate is a server for the Gemini network protocol, built with the Rust
+programming language.  It has very few features, and can only serve static
+files.  It uses async I/O, and should be quite efficient even when running on
+low-end hardware and serving many concurrent requests.")
+    (license (list license:expat license:asl2.0))))
+
+(define-public age-plugin-yubikey
+  (package
+    (name "age-plugin-yubikey")
+    (version "0.5.1")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "age-plugin-yubikey" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "02cjphgj6c355yixd2ickzpb6jal95iyzp65yfry1kq1nbqcwams"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:install-source? #f
+       #:phases
+       ,@(if (%current-target-system)
+             `(%standard-phases)
+             `((modify-phases %standard-phases
+                 (add-after 'install 'install-extras
+                   (lambda* (#:key outputs #:allow-other-keys)
+                     (invoke "cargo" "run" "--example" "generate-docs")
+                     (install-file "target/manpages/age-plugin-yubikey.1.gz"
+                                   (string-append (assoc-ref outputs "out")
+                                                  "/share/man/man1")))))))))
+    (native-inputs (list pkg-config))
+    (inputs (cons* pcsc-lite openssl
+                   (cargo-inputs 'age-plugin-yubikey)))
+    (home-page "https://github.com/str4d/age-plugin-yubikey")
+    (synopsis "YubiKey plugin for age clients")
+    (description
+     "This package provides @code{YubiKey} plugin for age clients.")
+    (license (list license:expat license:asl2.0))))
+
+(define-public alfis
+  (package
+    (name "alfis")
+    (version "0.8.5")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/Revertron/Alfis")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "189dqgcnl11fdmd6242h1pbawlq7jdm22zykc1kkcj1dv6s55nvs"))
+       (snippet
+        #~(begin (use-modules (guix build utils))
+                 ;; Use a packaged version of web-view.
+                 (substitute* "Cargo.toml"
+                   (("git = .*web-view\",") "version = \"*\",")
+                   ((", git = .*ureq\"") "")
+                   (("git = .*ecies-ed25519-ng.*version") "version"))))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:install-source? #f
+       #:cargo-test-flags
+       '("--release" "--"
+         "--skip=dns::client::tests::test_tcp_client"
+         "--skip=dns::client::tests::test_udp_client")))
+    (native-inputs
+     (list pkg-config))
+    (inputs
+     (cons* at-spi2-core
+            gtk
+            glib
+            pango
+            sqlite
+            webkitgtk-with-libsoup2
+            (cargo-inputs 'alfis)))
+    (home-page "https://github.com/Revertron/Alfis")
+    (synopsis "Alternative Free Identity System")
+    (description
+     "This project represents a minimal blockchain without cryptocurrency,
+capable of sustaining any number of domain names in a bunch of original
+alternative zones.")
+    (license license:agpl3+)))
+
+(define-public ast-grep
+  (package
+    (name "ast-grep")
+    (version "0.42.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/ast-grep/ast-grep")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1h6335dq768vn7gfyhi90j1ljawpsf7wzgqzysgbwrwnk6h67mad"))
+       (snippet
+        #~(begin (use-modules (guix build utils))
+                 (delete-file-recursively "fixtures")))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:cargo-install-paths ''("crates/cli")
+      #:cargo-test-flags
+      ''("--"
+         ;; These tests require the bundled shared libraries.
+         "--skip=test::test_load_parser"
+         "--skip=test::test_register_lang")
+      #:modules '((guix build cargo-build-system)
+                  (guix build utils)
+                  (ice-9 match))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'install 'install-completions
+            (lambda* (#:key native-inputs #:allow-other-keys)
+              (for-each
+                (match-lambda
+                  ((shell . path)
+                   (mkdir-p (in-vicinity #$output (dirname path)))
+                   (let ((binary
+                           (if #$(%current-target-system)
+                               (search-input-file native-inputs "bin/ast-grep")
+                               (in-vicinity #$output "bin/ast-grep"))))
+                     (with-output-to-file (in-vicinity #$output path)
+                       (lambda _
+                         (invoke binary "completions" shell))))))
+                '(("bash" . "share/bash-completion/completions/ast-grep")
+                  ("elvish" . "share/elvish/lib/ast-grep")
+                  ("fish" . "share/fish/vendor_completions.d/ast-grep.fish")
+                  ("zsh" . "share/zsh/site-functions/_ast-grep")))))
+          (add-after 'install 'wrap-sg
+            (lambda _
+              ;; sg needs ast-grep to be in its PATH.
+              (wrap-program (in-vicinity #$output "bin/sg")
+                `("PATH" ":" prefix
+                  (,(dirname (in-vicinity #$output "bin/ast-grep"))))))))))
+    (native-inputs
+     (if (%current-target-system)
+         (list this-package)
+         '()))
+    (inputs (cons* bash-minimal (cargo-inputs 'ast-grep)))
+    (home-page "https://github.com/ast-grep/ast-grep")
+    (synopsis "CLI tool for code structural search, lint, and rewriting")
+    (description
+     "@code{ast-grep} is an abstract syntax tree based tool to search code by
+pattern code.  Think of it as your old-friend grep, but matching AST nodes
+instead of text.  Write patterns as if you are writing ordinary code.  It will
+match all code that has the same syntactical structure.  You can use @code{$}
+and upper case letters as a wildcard, e.g. @code{$MATCH}, to match any single
+AST node.  Think of it as regular expression dot @code{.}, except it is not
+textual.")
+    (license license:expat)))
+
+(define-public atuin
+  (package
+    (name "atuin")
+    (version "18.16.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/atuinsh/atuin")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1q4d7z9yhdz7adxr0fp80acnay47zr47mcchbwdkpvgcsdx4bcjy"))
+       (snippet
+        #~(begin
+            (use-modules (guix build utils))
+            ;; No new Rust features are actually used.
+            (substitute* "Cargo.toml"
+              (("^rust-version = \"1\\.95\\.0\"") "rust-version = \"1.93.0\""))))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:modules
+      '((guix build cargo-build-system)
+        (guix build utils)
+        (ice-9 match))
+      #:install-source? #f
+      #:cargo-test-flags
+      '(list "--no-default-features"
+             ;; Include all workspace tests except features we disable and an
+             ;; unused benchmark.
+             "--workspace"
+             "--exclude=atuin-nucleo-bench"
+             "--exclude=atuin-ai"
+             "--exclude=atuin-daemon"
+             "--exclude=atuin-pty-proxy"
+             "--"
+             ;; These tests require a Postgresql database connection.
+             "--skip=sync"
+             "--skip=change_password"
+             "--skip=multi_user_test"
+             "--skip=registration")
+      ;; Atuin’s workspace members explicitly include all package
+      ;; subdirectories, meaning cargo build will build each package
+      ;; regardless of feature selection and install paths. Specify just the
+      ;; top level package so we don’t build unused packages.
+      #:cargo-build-flags
+      '(list "--no-default-features" "--package" "atuin")
+      #:cargo-install-paths ''("crates/atuin")
+      ;; Disable experimental daemon, ai, and pty-proxy features. Disable
+      ;; check-update since updates are managed by Guix.
+      #:features
+      '(list "client"
+             "sync"
+             "clipboard")
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'patch-references
+            (lambda _
+              (substitute* (find-files "crates/atuin/src/shell")
+                (("atuin (uuid|history|search)" all)
+                 (string-append #$output "/bin/" all)))))
+          (add-before 'check 'pre-check
+            (lambda _
+              (setenv "HOME" "/tmp")))
+          ;; The 'check phase doesn't honor #:features
+          (replace 'check
+            (lambda* (#:key features cargo-test-flags #:allow-other-keys
+                      #:rest args)
+              (apply (assoc-ref %standard-phases 'check)
+                     (append
+                       args
+                       (list #:cargo-test-flags
+                             (append (list "--features"
+                                           (string-join features))
+                                     cargo-test-flags))))))
+          ;; The 'install phase can't pass '--no-default-features'
+          (replace 'install
+            (lambda* (#:key cargo-install-paths features #:allow-other-keys)
+              (mkdir-p #$output)
+              (setenv "CARGO_TARGET_DIR" "./target")
+              (for-each
+                (lambda (path)
+                  (invoke "cargo" "install" "--offline" "--no-track"
+                          "--path" path "--root" #$output
+                          "--no-default-features"
+                          "--features" (string-join features)))
+                (if (null? cargo-install-paths)
+                    '(".")
+                    cargo-install-paths))))
+          (add-after 'install 'install-completions
+            (lambda* (#:key native-inputs #:allow-other-keys)
+              (for-each
+               (match-lambda
+                 ((shell . path)
+                  (mkdir-p (in-vicinity #$output (dirname path)))
+                  (let ((binary
+                         (if #$(%current-target-system)
+                             (search-input-file native-inputs "bin/atuin")
+                             (in-vicinity #$output "bin/atuin"))))
+                    (with-output-to-file (in-vicinity #$output path)
+                      (lambda _
+                        (invoke binary "gen-completions" "--shell" shell))))))
+               '(("bash"    . "share/bash-completion/completions/atuin")
+                 ("elvish"  . "share/elvish/lib/atuin")
+                 ("fish"    . "share/fish/vendor_completions.d/atuin.fish")
+                 ("nushell" . "share/nushell/vendor/autoload/atuin")
+                 ("zsh"     . "share/zsh/site-functions/_atuin"))))))))
+    (native-inputs
+     (if (%current-target-system)
+         (list this-package)
+         '()))
+    (inputs (cons* sqlite
+                   (cargo-inputs 'atuin)))
+    (home-page "https://atuin.sh")
+    (synopsis "Shell history tool")
+    (description "Atuin replaces your existing shell history with a SQLite
+database, and records additional context for your commands.  With this context,
+Atuin gives you faster and better search of your shell history.
+
+Additionally, Atuin (optionally) syncs your shell history between all of your
+machines, fully end-to-end encrypted.
+
+Please note the Guix package currently disables several default features,
+including the daemon, PTY proxy, and Atuin AI.")
+    (license (list license:expat license:mpl2.0))))
+
+(define-public bacon
+  (package
+    (name "bacon")
+    (version "3.25.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "bacon" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "1w6wsmvmflb82xfxgga4is1rr96gqknbv02590qvjg2ddkak1hxi"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list #:install-source? #f))
+    (inputs (cargo-inputs 'bacon))
+    (home-page "https://github.com/Canop/bacon")
+    (synopsis "Background code checker")
+    (description "@command{bacon} is a background code checker.  It lets
+registered commands, like @code{cargo test} or @code{cargo clippy}, to run each
+time files on your project change.  Originally meant to support only tools
+used for Rust development it also supports tools from other languages, like
+@command{go} and @command{cpp}.")
+    (license license:agpl3)))
+
+(define-public bat
+  (package
+    (name "bat")
+    (version "0.26.1")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "bat" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "028d7gqblrlwab6d7y46f5xm199nky9x9f4l2vz7m0mn9lbd0rng"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:imported-modules (append %copy-build-system-modules
+                                 %cargo-build-system-modules)
+      #:modules '((guix build cargo-build-system)
+                  ((guix build copy-build-system) #:prefix copy:)
+                  (guix build utils))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-before 'build 'pre-build
+            (lambda _
+              (setenv "BAT_ASSETS_GEN_DIR" (string-append (getcwd) "/target"))))
+          (add-after 'install 'install-extras
+            (lambda args
+              (apply (assoc-ref copy:%standard-phases 'install)
+                     #:install-plan
+                     '(("target/assets/completions/bat.bash"
+                        "share/bash-completion/completions/bat")
+                       ("target/assets/completions/bat.fish"
+                        "share/fish/vendor_completions.d/")
+                       ("target/assets/completions/bat.zsh"
+                        "share/zsh/site-functions/_bat")
+                       ("target/assets/manual/bat.1" "share/man/man1/"))
+                     args))))))
+    (native-inputs (list pkg-config))
+    (inputs (cons* libgit2-1.9 oniguruma zlib (cargo-inputs 'bat)))
+    (home-page "https://github.com/sharkdp/bat")
+    (synopsis "@command{cat} clone with syntax highlighting and git integration")
+    (description
+     "@command{bat} is a drop-in @command{cat} replacement featuring syntax
+highlighting for a large number of languages, git integration, and automatic
+paging.")
+    (license (list license:expat license:asl2.0))))
+
+(define-public bibtex-format
+  (let ((commit "dae63e9f756cb7dc62dd4912ee4cbdd2fe59e603")
+        (revision "0"))
+    (package
+      (name "bibtex-format")
+      (version (git-version "0.2.0" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+               (url "https://gitlab.com/smaller-infinity/bibtex-format.git/")
+               (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32 "19ax1minkxzcncmlrsnj5dbfwq7v3w1h1vwrwk2rhj49binjz96j"))))
+      (build-system cargo-build-system)
+      (arguments
+       (list
+        #:install-source? #f))
+      (inputs (cargo-inputs 'bibtex-format))
+      (home-page "https://gitlab.com/smaller-infinity/bibtex-format")
+      (synopsis "BibTeX formatter that is compliant with Emacs's bibtex-mode")
+      (description
+       "A fast Bibtex formatter that is (largely) compliant with emacs's
+bibtex-mode.  This project aims to help with that by building a new formatter
+in Rust that is fast but follows the same (or at least similar) behavior as
+the emacs formatter.")
+      (license license:mpl2.0))))
+
+(define-public bottom
+  (package
+    (name "bottom")
+    (version "0.12.3")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "bottom" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "0vnm6l527pzlpk3jb6qai4jhs7l5c9d9vagxgzc6m7kws8srkqii"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+       #:install-source? #f
+       #:cargo-test-flags
+       '(list "--"
+              "--skip=valid_config_tests::test_all_proc"
+              "--skip=valid_config_tests::test_basic"
+              "--skip=valid_config_tests::test_cpu_doughnut"
+              "--skip=valid_config_tests::test_empty"
+              "--skip=valid_config_tests::test_filtering"
+              "--skip=valid_config_tests::test_many_proc"
+              "--skip=valid_config_tests::test_styling_sanity_check"
+              "--skip=valid_config_tests::test_styling_sanity_check_2"
+              "--skip=valid_config_tests::test_linux_only"
+              "--skip=valid_config_tests::test_new_default"
+              "--skip=valid_config_tests::test_proc_columns"
+              "--skip=valid_config_tests::test_theme")
+       #:imported-modules (append %copy-build-system-modules
+                                  %cargo-build-system-modules)
+       #:modules '((guix build cargo-build-system)
+                   ((guix build copy-build-system) #:prefix copy:)
+                   (guix build utils))
+       #:phases
+       #~(modify-phases %standard-phases
+           (add-after 'unpack 'enable-building-completions
+             (lambda _
+               (setenv "BTM_GENERATE" "true")))
+           (add-after 'install 'install-extras
+             (lambda args
+               (apply (assoc-ref copy:%standard-phases 'install)
+                      #:install-plan
+                      '(("target/tmp/bottom/completion/btm.bash"
+                         "share/bash-completion/completions/btm")
+                        ("target/tmp/bottom/completion/btm.elv"
+                         "share/elvish/lib/btm")
+                        ("target/tmp/bottom/completion/btm.fish"
+                         "share/fish/vendor_completions.d/")
+                        ("target/tmp/bottom/completion/btm.nu"
+                         "share/nushell/vendor/autoload/btm")
+                        ("target/tmp/bottom/completion/_btm"
+                         "share/zsh/site-functions/_btm")
+                        ("target/tmp/bottom/manpage/btm.1" "share/man/man1/"))
+                      args))))))
+    (inputs (cargo-inputs 'bottom))
+    (home-page "https://github.com/ClementTsang/bottom")
+    (synopsis "Customizable graphical process/system monitor for the terminal")
+    (description
+     "This package provides a customizable graphical process/system monitor for
+the terminal.")
+    (license license:expat)))
+
+(define-public bzmenu
+  (package
+    (name "bzmenu")
+    (version "0.4.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/e-tho/bzmenu")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+          "0mdfbp69az6i6lb4nlr0ahwz2894qls5v6lbkpqmg8y0szyq5i1v"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list #:install-source? #f))
+    (native-inputs (list pkg-config))
+    (inputs (cons* dbus (cargo-inputs 'bzmenu)))
+    (home-page "https://github.com/e-tho/bzmenu")
+    (synopsis "Launcher-driven Bluetooth manager")
+    (description
+     "@code{bzmenu} (BlueZ Menu) manages Bluetooth through your launcher of
+choice.  Supported launchers are: dmenu, fuzzel, rofi, walker and custom.")
+    (license license:gpl3)))
+
+;; Note: It has expat license.
+;; Note: That is supposedly the (unreleased) version 0.6.3.
+(define %tinycbor-source
+  (origin
+    (method git-fetch)
+    (uri (git-reference
+          (url "https://github.com/intel/tinycbor")
+          (commit "d393c16f3eb30d0c47e6f9d92db62272f0ec4dc7")))
+    (file-name "tinycbor-src")
+    (sha256
+     (base32
+      "0w38lzj0rz36skc1cn3shllc82c7nn32h88frb8f164a8haq3hkw"))))
+
+(define-public c2rust
+  (package
+    (name "c2rust")
+    (version "0.22.1")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "c2rust" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "0frzcnyah3a1srdwyx2rcpbh7hpwy6608cvhsqz5z9hdc08z8cg3"))))
+    (build-system cargo-build-system)
+    (native-inputs (list clang-13 cmake-minimal %tinycbor-source))
+    (inputs (cons llvm-13 (cargo-inputs 'c2rust)))
+    (arguments
+     (list #:install-source? #f
+           #:phases
+           #~(modify-phases %standard-phases
+               (add-before 'build 'patch
+                 (lambda _
+                   ;; The build process will slightly patch the sources.
+                   (copy-recursively
+                    #+(this-package-native-input "tinycbor-src")
+                    "/tmp/tinycbor")
+                   (substitute*
+                       (string-append "guix-vendor/rust-c2rust-ast-exporter-"
+                                      #$(package-version this-package)
+                                      ".tar.gz/src/CMakeLists.txt")
+                     (("GIT_TAG .*") "")
+                     (("GIT_REPOSITORY .*")
+                      "SOURCE_DIR \"/tmp/tinycbor\"\n")))))))
+    (home-page "https://c2rust.com/")
+    (synopsis "C to Rust translation, refactoring, and cross-checking")
+    (description
+     "This package provides C to Rust translation, refactoring, and cross-checking.")
+    (license license:bsd-3)))
+
+(define-public catppuccin-whiskers
+  (package
+    (name "catppuccin-whiskers")
+    (version "2.9.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "catppuccin-whiskers" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "0hyiac3436494grgajaznr7dbrfbjzcan5ih5dym1g599ajsavlj"))))
+    (build-system cargo-build-system)
+    (arguments '(#:install-source? #f))
+    (inputs (cargo-inputs 'catppuccin-whiskers))
+    (home-page "https://github.com/catppuccin/whiskers")
+    (synopsis "Soothing port creation tool for the high-spirited")
+    (description
+     "Whiskers is a helper tool that is custom-built to create ports of the
+Catppuccin color theme, allowing developers to define template files which
+the palette can be injected into.")
+    (license license:expat)))
+
+(define-public cargo-audit
+  (package
+    (name "cargo-audit")
+    (version "0.22.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "cargo-audit" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "18akvsm5zlc8352phs8sifks1n9s1dp7q209slbfdb9d0zz3xa9i"))))
+    (build-system cargo-build-system)
+    (arguments (list #:install-source? #f))
+    (inputs (cargo-inputs 'cargo-audit))
+    (home-page "https://rustsec.org/")
+    (synopsis "Audit Cargo.lock for crates with security vulnerabilities")
+    (description
+     "This package provides a Cargo subcommand, @command{cargo audit}, to
+audit @file{Cargo.lock} for crates with security vulnerabilities.")
+    (license (list license:asl2.0 license:expat))))
+
+(define-public cargo-auditable
+  (package
+    (name "cargo-auditable")
+    (version "0.7.4")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/rust-secure-code/cargo-auditable")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1z1bi1mx4db44mlsda4pfr25sk4r5jjq02wqmvn9vdlvmfllkgdd"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:cargo-install-paths ''("cargo-auditable")
+      #:cargo-test-flags
+      '(list "--"
+             ;; error: output of --print=file-names missing
+             "--skip=test_wasm")
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'remove-cargo.lock
+            (lambda _
+              (for-each delete-file
+                        (find-files "." "Cargo\\.lock"))))
+          (add-after 'install 'install-manpage
+            (lambda _
+              (install-file "cargo-auditable/cargo-auditable.1"
+                            (string-append #$output "/share/man/man1/")))))))
+    (inputs (cargo-inputs 'cargo-auditable))
+    (home-page "https://github.com/rust-secure-code/cargo-auditable")
+    (synopsis "Make production Rust binaries auditable")
+    (description
+     "Know the exact crate versions used to build your Rust executable.  Audit
+binaries for known bugs or security vulnerabilities in production, at scale,
+with zero bookkeeping.
+
+This works by embedding data about the dependency tree in JSON format into a
+dedicated linker section of the compiled executable.
+
+The end goal is to get Cargo itself to encode this information in binaries.
+There is an RFC for an implementation within Cargo, for which this project paves
+the way: @url{https://github.com/rust-lang/rfcs/pull/2801,
+rust-lang/rfcs#2801}.")
+    (license (list license:expat license:asl2.0))))
+
+(define-public cargo-bloat
+  (package
+    (name "cargo-bloat")
+    (version "0.12.1")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "cargo-bloat" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "0zhimclamvy4dggwnciras6w5ilc0wg0c0f7q8hq1qsmmf1w9qjn"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:install-source? #f))
+    (inputs (cargo-inputs 'cargo-bloat))
+    (home-page "https://github.com/RazrFalcon/cargo-bloat")
+    (synopsis "Find out what takes most of the space in your executable")
+    (description
+     "This package provides a way to find out what takes most of the space
+in your executable.")
+    (license license:expat)))
+
+(define-public cargo-license
+  (package
+    (name "cargo-license")
+    (version "0.6.1")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "cargo-license" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "0jw9sn91a23ry6sx3337gi6d56vykgar0i9rrrxgxh93mvdw0qgh"))))
+    (build-system cargo-build-system)
+    (arguments (list #:install-source? #f))
+    (inputs (cargo-inputs 'cargo-license))
+    (home-page "https://github.com/onur/cargo-license")
+    (synopsis "Cargo subcommand to see license of dependencies")
+    (description
+     "This package provides a Cargo subcommand, @command{cargo license}, to see
+license of dependencies.")
+    (license license:expat)))
+
+(define-public cargo-machete
+  (package
+    (name "cargo-machete")
+    (version "0.8.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri name version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "1f9dlc2db5kak85fpq4m31ca0jcb66v3vdjfkwj96h9q3q2hphn1"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:cargo-test-flags
+       '("--"
+         ;; Not all files are included.
+         "--skip=search_unused::test_crate_renaming_works"
+         "--skip=search_unused::test_false_positive_macro_use"
+         "--skip=search_unused::test_ignore_deps_works"
+         "--skip=search_unused::test_ignore_deps_workspace_works"
+         "--skip=search_unused::test_just_unused"
+         "--skip=search_unused::test_just_unused_with_manifest"
+         "--skip=search_unused::test_unused_kebab_spec"
+         "--skip=search_unused::test_unused_renamed_in_registry"
+         "--skip=search_unused::test_unused_renamed_in_spec"
+         "--skip=search_unused::test_unused_transitive"
+         "--skip=search_unused::test_with_bench"
+         "--skip=search_unused::test_workspace_from_relative_path"
+         "--skip=test_ignore_target")
+       #:install-source? #f))
+    (inputs (cargo-inputs 'cargo-machete))
+    (home-page "https://github.com/bnjbvr/cargo-machete")
+    (synopsis "Find unused dependencies in Cargo.toml")
+    (description "@code{cargo-machete} finds unused dependencies in Cargo.toml.")
+    (license (list license:expat license:asl2.0))))
+
+(define-public cargo-readme
+  (package
+    (name "cargo-readme")
+    (version "3.3.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/webern/cargo-readme.git")
+             (commit (string-append "v" version))))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "1jwh2j4lw1hk08aflgk7pamnhdbrzr47dc0ipzczn48k6008fm8l"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:install-source? #f
+       #:phases
+       (modify-phases %standard-phases
+         (add-before 'check 'fix-test-warnings
+           (lambda _
+             ;; Otherwise the test case will see the warning being emitted
+             ;; that "config" is deprecated.
+             (when (file-exists? ".cargo/config")
+               (rename-file ".cargo/config"
+                            ".cargo/config.toml")))))))
+    (inputs (cargo-inputs 'cargo-readme))
+    (home-page "https://github.com/webern/cargo-readme")
+    (synopsis
+     "Cargo subcommand to generate README.md content from doc comments")
+    (description
+     "This package provides a Cargo subcommand to generate README.md content from doc
+comments.")
+    (license (list license:expat license:asl2.0))))
+
+(define-public cargo-remark
+  (package
+    (name "cargo-remark")
+    (version "0.1.2")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "cargo-remark" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "0hfg3drsmyif7g8sqc40a5nzkzygqr9gqdajhaydh7dah2w8gkyq"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:install-source? #f))
+    (inputs
+     (cons mimalloc (cargo-inputs 'cargo-remark)))
+    (home-page "https://github.com/kobzol/cargo-remark")
+    (synopsis
+     "Cargo subcommand for displaying LLVM optimization remarks from compiling Rust programs")
+    (description
+     "This package provides a Cargo subcommand for displaying LLVM optimization remarks from
+compiling Rust programs.")
+    (license license:expat)))
+
+(define-public cargo-show-asm
+  (package
+    (name "cargo-show-asm")
+    (version "0.2.57")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "cargo-show-asm" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "1h2mq0f7ch8a70q7g1z4p01ipknlswx1d003ph8z6kqfsx58vqyr"))))
+    (build-system cargo-build-system)
+    (inputs
+     (cons capstone (cargo-inputs 'cargo-show-asm)))
+    (arguments
+     `(#:install-source? #f))
+    (home-page "https://github.com/pacak/cargo-show-asm")
+    (synopsis
+     "Cargo subcommand that displays the generated assembly of Rust source code")
+    (description
+     "This package provides a cargo subcommand that displays the generated assembly of
+Rust source code.")
+    (license (list license:expat license:asl2.0))))
+
+(define-public cargo-with
+  (package
+    (name "cargo-with")
+    (version "0.3.2")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/cbourjau/cargo-with.git")
+             (commit "2eb3cbd87f221f24e780b84306574541de38a1e4")))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "127ifblgp7v2vv8iafl88y1cjyskymqdi0nzsavnyab0x9jiskcr"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:install-source? #f))
+    (inputs (cargo-inputs 'cargo-with))
+    (home-page "https://github.com/cbourjau/cargo-with/")
+    (synopsis
+     "Cargo extension to run build artifacts through tools like `gdb`.")
+    (description
+     "This package provides a Cargo extension to run the build artifacts
+through tools like `gdb`.")
+    (license license:gpl3)))
+
+(define-public cocogitto
+  (package
+    (name "cocogitto")
+    (version "6.5.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "cocogitto" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "0wpsvrws2lwy1kix0xfs5dqs8b7j5ixnaz2x25apfbnh6gf99vda"))
+       (snippet
+        #~(begin (use-modules (guix build utils))
+                 (delete-file-recursively "website")))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:cargo-test-flags
+      '(list "--"
+             ;; Disable tests that depend on being run inside of the source repository
+             "--skip=conventional::changelog::release::test::should_get_a_release"
+             "--skip=git::hook::tests::add_all"
+             "--skip=git::hook::tests::add_pre_commit_hook"
+             "--skip=git::hook::tests::overwrite_pre_commit_hook"
+             "--skip=git::rev::cache::test::init_cache_ok"
+             "--skip=git::rev::revwalk::test::all_commits"
+             "--skip=git::rev::revwalk::test::from_previous_to_tag"
+             "--skip=git::rev::revwalk::test::from_tag_to_head"
+             "--skip=git::rev::revwalk::test::from_tag_to_tag_ok"
+             "--skip=git::rev::revwalk::test::get_release_range_integration_test"
+             "--skip=git::rev::revwalk::test::recursive_from_origin_to_head"
+             "--skip=cog_tests::changelog::get_changelog_range"
+             "--skip=cog_tests::commit::should_run_git_hooks")
+      #:modules '((guix build cargo-build-system)
+                  (guix build utils)
+                  (ice-9 match))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-before 'check 'prepare-for-tests
+            (lambda _
+              ;; The tests try to run git as if it were already set up.
+              (setenv "HOME" (getcwd))
+              (invoke "git" "config" "--global" "user.email" "git@example.com")
+              (invoke "git" "config" "--global" "user.name" "Guix")))
+          (add-after 'install 'install-completions
+            (lambda* (#:key native-inputs #:allow-other-keys)
+              (for-each
+                (match-lambda
+                  ((shell . path)
+                   (mkdir-p (in-vicinity #$output (dirname path)))
+                   (let ((binary
+                           (if #$(%current-target-system)
+                               (search-input-file native-inputs "bin/cog")
+                               (in-vicinity #$output "bin/cog"))))
+                     (with-output-to-file (in-vicinity #$output path)
+                       (lambda _
+                         (invoke binary "generate-completions" shell))))))
+                '(("bash" . "share/bash-completion/completions/cog")
+                  ("elvish" . "share/elvish/lib/cog")
+                  ("fish" . "share/fish/vendor_completions.d/cog.fish")
+                  ("nu" . "share/nushell/vendor/autoload/cog")
+                  ("zsh" . "share/zsh/site-functions/_cog"))))))))
+    (native-inputs
+     (append (if (%current-target-system)
+                 (list this-package)
+                 '())
+             (list git-minimal/pinned
+                   gnupg
+                   openssh
+                   pkg-config)))
+    (inputs (cons* libgit2-1.9
+                   libssh2
+                   openssl
+                   zlib
+                   (cargo-inputs 'cocogitto)))
+    (home-page "https://github.com/cocogitto/cocogitto")
+    (synopsis
+     "Set of CLI tools for the Conventional Commit and SemVer specifications")
+    (description
+     "This package provides Cocogitto, a set of CLI tools for the Conventional
+Commit and SemVer specifications.")
+    (license license:expat)))
+
+(define-public codeberg-cli
+  (package
+    (name "codeberg-cli")
+    (version "0.5.5")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://codeberg.org/Aviac/codeberg-cli")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0xmbxaqagpscxzb4f4r819ik2nz638c0w7rgnf87pxpfhhpq0dfa"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+       #:install-source? #f
+       #:modules
+       '((guix build cargo-build-system)
+         (guix build utils)
+         (ice-9 match))
+       #:phases
+       #~(modify-phases %standard-phases
+           (add-after 'install 'install-completions
+            (lambda* (#:key native-inputs #:allow-other-keys)
+              (for-each
+               (match-lambda
+                 ((shell . path)
+                  (mkdir-p (in-vicinity #$output (dirname path)))
+                  (let ((binary
+                         (if #$(%current-target-system)
+                             (search-input-file native-inputs "bin/berg")
+                             (in-vicinity #$output "bin/berg"))))
+                    (with-output-to-file (in-vicinity #$output path)
+                      (lambda _
+                        (invoke binary "completion" shell))))))
+               '(("bash"   . "share/bash-completion/completions/berg")
+                 ("elvish" . "share/elvish/lib/berg")
+                 ("fish"   . "share/fish/vendor_completions.d/berg.fish")
+                 ("zsh"    . "share/zsh/site-functions/_berg"))))))))
+    (native-inputs
+     (append
+       (if (%current-target-system)
+           (list this-package)
+           '())
+      (list pkg-config)))
+    (inputs
+     (cons* libgit2-1.9 libssh2 openssl zlib (cargo-inputs 'codeberg-cli)))
+    (home-page "https://codeberg.org/Aviac/codeberg-cli")
+    (synopsis "CLI Tool for codeberg similar to gh and glab")
+    (description
+     "This package provides CLI Tool for codeberg similar to gh and glab.")
+    (license license:agpl3+)))
+
+(define-public complgen
+  (package
+    (name "complgen")
+    (version "0.8.3")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/adaszko/complgen")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "034ld2qxgafm21xlhq93pdmimg08x2x507m5sdvll2zgxgcx326g"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f))
+    (native-inputs (list git-minimal/pinned))
+    (inputs (cargo-inputs 'complgen))
+    (home-page "https://github.com/adaszko/complgen")
+    (synopsis "Declarative bash/fish/zsh completions without writing shell
+scripts")
+    (description
+     "@command{complgen} is a tool that allows you to generate
+completion scripts for all major shells (@code{bash}, @code{fish}, @code{zsh})
+from a single, concise, @code{EBNF}-like grammar.")
+    (license license:asl2.0)))
+
+(define-public cyme
+  (package
+    (name "cyme")
+    (version "1.7.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "cyme" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "0qss8cpsdbxlljscd046a14d624k5kcawwlw9n9r60shk9gljqpj"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:install-source? #f
+       #:cargo-test-flags '("--release" "--"
+                            ;; Disable tests as they try to access host USB.
+                            "--skip=test_list"
+                            "--skip=test_list_filtering"
+                            "--skip=test_run"
+                            "--skip=test_tree"
+                            "--skip=test_tree_filtering"
+                            "--skip=test_lsusb_device"
+                            "--skip=test_lsusb_list"
+                            "--skip=test_lsusb_show"
+                            "--skip=test_lsusb_tree"
+                            "--skip=test_lsusb_tree_verbose"
+                            "--skip=test_lsusb_vidpid"
+                            ;; unable to find hwdb.bin database file
+                            "--skip=udev::hwdb::get")
+       #:phases
+       (modify-phases %standard-phases
+         (add-after 'install 'install-extras
+            (lambda* (#:key outputs #:allow-other-keys)
+              (let ((out (assoc-ref outputs "out")))
+                (install-file "doc/cyme.1" (string-append out "/share/man/man1"))
+                (mkdir-p (string-append out "/etc/bash_completion.d"))
+                (copy-file "doc/cyme.bash"
+                           (string-append out "/etc/bash_completion.d/cyme"))
+                (install-file "doc/cyme.fish"
+                              (string-append out "/share/fish/vendor_completions.d"))
+                (install-file "doc/_cyme"
+                              (string-append out "/share/zsh/site-functions"))))))))
+    (inputs (cons libusb (cargo-inputs 'cyme)))
+    (native-inputs (list pkg-config))
+    (home-page "https://github.com/tuna-f1sh/cyme")
+    (synopsis "List system USB buses and devices")
+    (description
+     "This package provides a CLI tool to list system USB buses and devices
+similar to lsusb.")
+    (license license:gpl3+)))
+
+(define-public popsicle
+  (package
+    (name "popsicle")
+    (version "1.3.3")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/pop-os/popsicle")
+             (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1hf1pdid2nhr5i0x2xdr36zfd6pcvnqr9q70lpzgaxp8zrm0sr5i"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:cargo-build-flags
+      ''("--release" "-p" "popsicle_cli")
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'use-guix-vendored-dependencies
+            (lambda _
+              (substitute* "cli/Cargo.toml"
+                (("git =.*pb\", branch = \"write\"")
+                 "version = \"*\""))
+              (substitute* "gtk/Cargo.toml"
+                (("git = .*dbus-udisks2\"") "version = \"*\"")
+                (("git = .*iso9660-rs\"") "version = \"*\""))))
+          (replace 'install
+            (lambda _
+              (install-file "target/release/popsicle"
+                            (string-append #$output "/bin")))))))
+    (inputs (cargo-inputs 'popsicle))
+    (home-page "https://github.com/pop-os/popsicle")
+    (synopsis "Multiple USB file flasher")
+    (description
+     "Popsicle is a utility for flashing multiple devices in parallel, written
+in rust.")
+    (license license:expat)))
+
+(define-public popsicle-gtk
+  (package/inherit popsicle
+    (name "popsicle-gtk")
+    (arguments
+     (substitute-keyword-arguments arguments
+       ((#:cargo-build-flags _ '())
+        ''("--release" "-p" "popsicle_gtk"))
+       ((#:phases phases)
+        #~(modify-phases #$phases
+            (replace 'install
+              (lambda _
+                (install-file "target/release/popsicle-gtk"
+                              (string-append #$output "/bin"))
+                (install-file "gtk/assets/com.system76.Popsicle.desktop"
+                              (string-append #$output "/share/applications"))
+                (install-file "gtk/assets/com.system76.Popsicle.appdata.xml"
+                              (string-append #$output "/share/metainfo"))
+                (copy-recursively "gtk/assets/icons"
+                                  (string-append #$output
+                                                 "/share/icons/hicolor"))))))))
+    (native-inputs (list clang `(,glib "bin") pkg-config))
+    (inputs (modify-inputs inputs (append gtk+)))))
+
+(define-public diffr
+  (package
+    (name "diffr")
+    (version "0.1.5")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (crate-uri "diffr" version))
+        (file-name (string-append name "-" version ".tar.gz"))
+        (sha256
+          (base32 "1kdngd5g1ssdiq7d10jr3jwg0sx740x3vmhq3j594a5kd467ikib"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:install-source? #f
+       ;; https://github.com/mookid/diffr/issues/79
+       #:cargo-test-flags
+       '("--release" "--"
+         "--skip=tests_cli::color_invalid_attribute_name"
+         "--skip=tests_cli::color_invalid_color_not_done"
+         "--skip=tests_cli::color_invalid_color_value_ansi"
+         "--skip=tests_cli::color_invalid_color_value_name"
+         "--skip=tests_cli::color_invalid_color_value_rgb"
+         "--skip=tests_cli::color_invalid_face_name"
+         "--skip=tests_cli::color_ok"
+         "--skip=tests_cli::color_ok_multiple"
+         "--skip=tests_cli::color_only_face_name"
+         "--skip=tests_cli::debug_flag"
+         "--skip=tests_cli::line_numbers_style"
+         "--skip=tests_cli::test_bad_argument")))
+    (inputs (cargo-inputs 'diffr))
+    (home-page "https://github.com/mookid/diffr")
+    (synopsis "Longest Common Sequence based diff highlighting tool")
+    (description
+     "This package provides an @acronym{LCS, longest common sequence} based diff
+highlighting tool to ease code review from your terminal.")
+    (license license:expat)))
+
+(define-public difftastic
+  (package
+    (name "difftastic")
+    (version "0.69.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "difftastic" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "1wa2vhp26vbim8qp3rlahxmf65lzgacc5p6czc4hqsl3gglg0fs5"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:cargo-test-flags
+      '(list "--"
+             "--skip=display::side_by_side::tests::test_display_hunks"
+             "--skip=display::style")
+      #:phases
+      #~(modify-phases %standard-phases
+          ;; jemalloc needs unbundling for tikv-jemallocator-sys
+          (add-before 'build 'override-jemalloc
+            (lambda* (#:key inputs #:allow-other-keys)
+              (let ((jemalloc (assoc-ref inputs "jemalloc")))
+                ;; This flag is needed when not using the bundled jemalloc.
+                ;; https://github.com/tikv/jemallocator/issues/19
+                (setenv
+                 "CARGO_FEATURE_UNPREFIXED_MALLOC_ON_SUPPORTED_PLATFORMS" "1")
+                (setenv "JEMALLOC_OVERRIDE"
+                        (string-append jemalloc "/lib/libjemalloc.so"))))))))
+    (inputs
+     (cons jemalloc (cargo-inputs 'difftastic)))
+    (home-page "https://difftastic.wilfred.me.uk/")
+    (synopsis "Structural diff command that understands syntax")
+    (description
+     "@command{difft} provides a structural diff that understands syntax.  It
+compares files using the syntax, not line-by-line providing accurate diffs
+that are easier to read.  It works with a variety of languages including
+Javascript, Python, Rust and Scheme.")
+    (license license:expat)))
+
+(define-public drill
+  (package
+    (name "drill")
+    (version "0.8.2")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (crate-uri "drill" version))
+        (file-name (string-append name "-" version ".tar.gz"))
+        (sha256
+          (base32 "0jp9r19zc9m3hgxc7a98fhyi1ga0qwjprxjsqaxiykmjpb86bxf3"))))
+    (build-system cargo-build-system)
+    (arguments
+      `(#:install-source? #f))
+    (native-inputs
+     (list pkg-config))
+    (inputs
+     (cons openssl (cargo-inputs 'drill)))
+    (home-page "https://github.com/fcsonline/drill")
+    (synopsis "HTTP load testing application")
+    (description
+     "Drill is a HTTP load testing application written in Rust inspired by
+Ansible syntax.  Benchmark files can be written in YAML.")
+    (license license:gpl3)))
+
+(define-public dumbpipe
+  (package
+    (name "dumbpipe")
+    (version "0.32.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "dumbpipe" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "1z3jxjylb2w3lgqf7g1dirnk7f37scim27xliii4pz4dx9lv33jf"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      ;; Tests require network access.
+      #:tests? #f))
+    (inputs (cargo-inputs 'dumbpipe))
+    (home-page "https://github.com/n0-computer/dumbpipe")
+    (synopsis "CLI tool to pipe data over the network, with NAT hole punching")
+    (description
+     "This package provides a cli tool to pipe data over the network, with NAT
+hole punching.  It uses iroh to establish peer-to-peer connections between
+systems.")
+    (license (list license:expat license:asl2.0))))
+
+(define-public dutree
+  (package
+    (name "dutree")
+    (version "0.2.18")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (crate-uri "dutree" version))
+        (file-name (string-append name "-" version ".tar.gz"))
+        (sha256
+         (base32 "1611h27i8fm3jndscd6w65z8z7w09nnrm61vdgs9kb8ln57gqm8x"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:install-source? #f))
+    (inputs (cargo-inputs 'dutree))
+    (home-page "https://ownyourbits.com/2018/03/25/analyze-disk-usage-with-dutree/")
+    (synopsis "Command line tool to analyze disk usage")
+    (description
+     "@command{dutree} is command line tool to analyze disk usage.
+Features include:
+@enumerate
+@item coloured output, according to the @code{LS_COLORS} environment variable.
+@item display the file system tree.
+@item ability to aggregate small files.
+@item ability to exclude files or directories.
+@item ability to compare different directories.
+@item fast, written in Rust.
+@end enumerate\n")
+    (license license:gpl3)))
+
+(define-public emacs-lsp-booster
+  (package
+    (name "emacs-lsp-booster")
+    (version "0.2.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/blahgeek/emacs-lsp-booster")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "12vrgqyvm1841i9ld9b3axa9ybgqf3kr6nbfd0l4zdnhyljz3zxq"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list #:install-source? #f))
+    (native-inputs (list emacs))    ; Not emacs-minimal
+    (inputs (cargo-inputs 'emacs-lsp-booster))
+    (home-page "https://github.com/blahgeek/emacs-lsp-booster")
+    (synopsis "Emacs LSP performance booster")
+    (description
+     "@code{emacs-lsp-booster} improves the performance of @code{lsp-mode} and
+@code{eglot} Emacs packages using a wrapper executable.  See the home-page for
+configuration instructions.")
+    (license license:expat)))
+
+(define-public evremap
+  (let ((commit "cc618e8b973f5c6f66682d1477b3b868a768c545")) ;version bump
+    (package
+      (name "evremap")
+      (version "0.1.0")
+      (source (origin
+                (method git-fetch)
+                (uri (git-reference
+                      (url "https://github.com/wez/evremap")
+                      (commit commit)))
+                (file-name (git-file-name name version))
+                (sha256
+                 (base32
+                  "182ry573q8kjsxx2hvxk9d6clahpll1vh50zvs5g652jd6a2f038"))))
+      (build-system cargo-build-system)
+      (arguments (list #:install-source? #f))
+      (native-inputs (list pkg-config))
+      (inputs (cons libevdev (cargo-inputs 'evremap)))
+      (home-page "https://github.com/wez/evremap")
+      (synopsis "Keyboard input remappper")
+      (description
+       "Evremap is a keyboard input remapper.  It works by grabbing exclusive
+access to an input device and maintaining a model of the keys that are
+pressed.  It then applies your remapping configuration to produce the
+effective set of pressed keys and emits appropriate changes to a virtual
+output device.
+
+Its remapping is effective system-wide: in Wayland, X11 and the Linux
+console.")
+      (license license:expat))))
+
+(define-public eza
+  (package
+    (name "eza")
+    (version "0.23.5")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "eza" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "1bz9g96l0jhlabki496yva15z9agyi2qm21x5ldghqcq0nl9jh9k"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:imported-modules (append %copy-build-system-modules
+                                 %cargo-build-system-modules)
+      #:modules '((guix build cargo-build-system)
+                  ((guix build copy-build-system) #:prefix copy:)
+                  (guix build utils))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'install 'install-manual
+            (lambda* (#:key inputs #:allow-other-keys #:rest args)
+              (when (assoc-ref inputs "pandoc")
+                (map (lambda (page)
+                       (with-output-to-file page
+                         (lambda _
+                           (invoke "pandoc" "--standalone"
+                                   "-f" "markdown"
+                                   "-t" "man"
+                                   (string-append "man/" page ".md")))))
+                     (list "eza.1"
+                           "eza_colors.5"
+                           "eza_colors-explanation.5"))
+                (apply (assoc-ref copy:%standard-phases 'install)
+                       #:install-plan
+                       '(("eza.1" "share/man/man1/")
+                         ("eza_colors.5" "share/man/man5/")
+                         ("eza_colors-explanation.5" "share/man/man5/"))
+                       args))))
+          (add-after 'install 'install-completions
+            (lambda args
+              (apply (assoc-ref copy:%standard-phases 'install)
+                     #:install-plan
+                     '(("completions/bash/eza"
+                        "share/bash-completion/completions/")
+                       ("completions/fish/eza.fish"
+                        "share/fish/vendor_completions.d/")
+                       ("completions/nush/eza.nu"
+                        "share/nushell/vendor/autoload/")
+                       ("completions/zsh/_eza"
+                        "share/zsh/site-functions/"))
+                     args))))))
+    (native-inputs
+     (append (list pkg-config)
+             (if (supported-package? pandoc)
+                 (list pandoc)
+                 '())))
+    (inputs (cons* libgit2-1.9 zlib (cargo-inputs 'eza)))
+    (home-page "https://eza.rocks/")
+    (synopsis "Modern replacement for ls")
+    (description
+     "@code{eza} is a modern replacement for the command-line
+program @code{ls}.  It uses colours to distinguish file types and
+metadata.  It also knows about symlinks, extended attributes, and Git.
+This package is the community maintained fork of @code{exa}.")
+    (license license:eupl1.2)))
+
+(define-public fclones
+  (package
+    (name "fclones")
+    (version "0.35.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "fclones" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "1danl1sn7l1b5wz27aqbx43nnvsm9nflly8l8xqf41c4ainq5j07"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:modules
+      '((guix build cargo-build-system)
+        (guix build utils)
+        (ice-9 match))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'install 'install-completions
+            (lambda* (#:key native-inputs #:allow-other-keys)
+              (for-each
+               (match-lambda
+                 ((shell . path)
+                  (mkdir-p (in-vicinity #$output (dirname path)))
+                  (let ((binary
+                         (if #$(%current-target-system)
+                             (search-input-file native-inputs "bin/fclones")
+                             (in-vicinity #$output "bin/fclones"))))
+                    (with-output-to-file (in-vicinity #$output path)
+                      (lambda _
+                        (invoke binary "complete" shell))))))
+               '(("bash"   . "share/bash-completion/completions/fclones")
+                 ("elvish" . "share/elvish/lib/fclones")
+                 ("fish"   . "share/fish/vendor_completions.d/fclones.fish")
+                 ("zsh"    . "share/zsh/site-functions/_fclones"))))))))
+    (native-inputs
+     (if (%current-target-system)
+         (list this-package)
+         '()))
+    (inputs (cargo-inputs 'fclones))
+    (home-page "https://github.com/pkolaczk/fclones")
+    (synopsis "Find and operate on duplicate files")
+    (description
+     "@command{fclones} is a command line utility that identifies groups of
+identical files and gets rid of the file copies you no longer need.  It comes
+with plenty of configuration options for controlling the search scope and
+offers many ways of removing duplicates.  For maximum flexibility, it
+integrates well with other Unix utilities like @command{find} and it speaks
+JSON, so you have a lot of control over the search and cleanup process.")
+    (license license:expat)))
+
+(define-public fd
+  (package
+    (name "fd")
+    (version "10.4.2")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "fd-find" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32
+         "0dh4n15778l9bmdy4cxaqhbgi5gfdcgq05bpsjklc11yyp8xfpmr"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:cargo-test-flags
+      ;; No user 'root' in the build environment.
+      '(list "--release" "--"
+             "--skip=test_owner_root")
+      #:install-source? #f
+      #:modules
+      '((guix build cargo-build-system)
+        (guix build utils)
+        (ice-9 match))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'override-jemalloc
+            (lambda* (#:key inputs #:allow-other-keys)
+              (let ((jemalloc (assoc-ref inputs "jemalloc")))
+                ;; This flag is needed when not using the bundled jemalloc.
+                ;; https://github.com/tikv/jemallocator/issues/19
+                (setenv "CARGO_FEATURE_UNPREFIXED_MALLOC_ON_SUPPORTED_PLATFORMS" "1")
+                (setenv "JEMALLOC_OVERRIDE"
+                        (string-append jemalloc "/lib/libjemalloc.so")))))
+          (add-after 'install 'install-extras
+            (lambda* (#:key native-inputs #:allow-other-keys)
+              (install-file "doc/fd.1" (string-append #$output "/share/man/man1"))
+              (for-each
+               (match-lambda
+                 ((shell . path)
+                  (mkdir-p (in-vicinity #$output (dirname path)))
+                  (let ((binary
+                         (if #$(%current-target-system)
+                             (search-input-file native-inputs "bin/fd")
+                             (in-vicinity #$output "bin/fd"))))
+                    (with-output-to-file (in-vicinity #$output path)
+                      (lambda _
+                        (invoke binary "--gen-completions" shell))))))
+               '(("bash"   . "share/bash-completion/completions/fd")
+                 ("elvish" . "share/elvish/lib/fd")
+                 ("fish"   . "share/fish/vendor_completions.d/fd.fish")
+                 ("zsh"    . "share/zsh/site-functions/_fd"))))))))
+     (inputs (cons jemalloc (cargo-inputs 'fd)))
+     (native-inputs
+      (if (%current-target-system)
+          (list this-package)
+          '()))
+     (home-page "https://github.com/sharkdp/fd")
+     (synopsis "Simple, fast and user-friendly alternative to find")
+     (description
+      "@code{fd} is a simple, fast and user-friendly alternative to @code{find}.
+While it does not seek to mirror all of find's powerful functionality, it provides
+defaults for 80% of the use cases.")
+     (license (list license:expat license:asl2.0))))
+
+(define-public forgejo-cli
+  (package
+    (name "forgejo-cli")
+    (version "0.5.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://codeberg.org/forgejo-contrib/forgejo-cli/")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1x3v56my22lckrpkcnpmf90vrn8m45ysdn0k12dfssldr8cjxapa"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:modules
+      '((guix build cargo-build-system)
+        (guix build utils)
+        (ice-9 match))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'install 'install-completions
+            (lambda* (#:key native-inputs #:allow-other-keys)
+              (setenv "HOME" (getcwd))
+              (for-each
+               (match-lambda
+                 ((shell . path)
+                  (mkdir-p (in-vicinity #$output (dirname path)))
+                  (let ((binary
+                         (if #$(%current-target-system)
+                             (search-input-file native-inputs "bin/fj")
+                             (in-vicinity #$output "bin/fj"))))
+                    (with-output-to-file (in-vicinity #$output path)
+                      (lambda _
+                        (invoke binary "completion" shell))))))
+               '(("bash"    . "share/bash-completion/completions/fj")
+                 ("elvish"  . "share/elvish/lib/fj")
+                 ("fish"    . "share/fish/vendor_completions.d/fj.fish")
+                 ("nushell" . "share/nushell/vendor/autoload/fj")
+                 ("zsh"     . "share/zsh/site-functions/_fj"))))))))
+    (native-inputs
+     (append
+       (if (%current-target-system)
+           (list this-package)
+           '())
+       (list pkg-config)))
+    (inputs
+     (cons* libgit2-1.9
+            libssh2
+            openssl
+            zlib
+            (cargo-inputs 'forgejo-cli)))
+    (home-page "https://codeberg.org/forgejo-contrib/forgejo-cli/")
+    (synopsis "CLI tool for Forgejo")
+    (description "This package provides a CLI tool for Forgejo.")
+    (license (list license:asl2.0 license:expat))))
+
+(define-public gitlogue
+  (package
+    (name "gitlogue")
+    (version "0.9.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/unhappychoice/gitlogue")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "008cqcc4kjandfi6pqrnr689xb11d6fdhcb48kbv0227v3f5gvn3"))
+       (modules '((guix build utils)))
+       (snippet
+        '(begin
+           (substitute* "Cargo.toml"
+             ;; Remove the features from git2.
+             (("git2 = (\\{ version = )(\".*\"), features.*" _ _ version)
+              (string-append "git2 = " version "\n")))
+           (delete-file-recursively "docs")))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'setenv
+            (lambda _
+              (setenv "LIBGIT2_NO_VENDOR" "1"))))))
+    (native-inputs (list pkg-config))
+    (inputs (cons* libgit2-1.9 libssh2 openssl zlib
+                   (cargo-inputs 'gitlogue)))
+    (home-page "https://github.com/unhappychoice/gitlogue")
+    (synopsis "Git history screensaver")
+    (description
+     "Gitlogue is a Git history screensaver - watch your code rewrite itself.")
+    (license license:isc)))
+
+(define-public gitoxide
+  (package
+    (name "gitoxide")
+    (version "0.52.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "gitoxide" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "0712ny094bnxcydk2v3a9wwjp315b3q2ljf36ycsrwzw3xi81dki"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:modules
+      '((guix build cargo-build-system)
+        (guix build utils)
+        (ice-9 match))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'install 'install-extras
+            (lambda* (#:key native-inputs #:allow-other-keys)
+              (for-each
+               (match-lambda
+                 ((shell . path)
+                  (mkdir-p (in-vicinity #$output (dirname path)))
+                  (let ((binary
+                         (if #$(%current-target-system)
+                             (search-input-file native-inputs "bin/gix")
+                             (in-vicinity #$output "bin/gix"))))
+                    (with-output-to-file (in-vicinity #$output path)
+                      (lambda _
+                        (invoke binary "completions" "--shell" shell))))))
+               '(("bash"   . "share/bash-completion/completions/gix")
+                 ("elvish" . "share/elvish/lib/gix")
+                 ("fish"   . "share/fish/vendor_completions.d/gix.fish")
+                 ("zsh"    . "share/zsh/site-functions/_gix")))
+              (for-each
+               (match-lambda
+                 ((shell . path)
+                  (mkdir-p (in-vicinity #$output (dirname path)))
+                  (let ((binary
+                         (if #$(%current-target-system)
+                             (search-input-file native-inputs "bin/ein")
+                             (in-vicinity #$output "bin/ein"))))
+                    (with-output-to-file (in-vicinity #$output path)
+                      (lambda _
+                        (invoke binary "completions" "--shell" shell))))))
+               '(("bash"   . "share/bash-completion/completions/ein")
+                 ("elvish" . "share/elvish/lib/ein")
+                 ("fish"   . "share/fish/vendor_completions.d/ein.fish")
+                 ("zsh"    . "share/zsh/site-functions/_ein"))))))))
+    (native-inputs
+     (append
+       (if (%current-target-system)
+           (list this-package)
+           '())
+       (list pkg-config)))
+    (inputs (cons* curl openssl sqlite zlib (cargo-inputs 'gitoxide)))
+    (home-page "https://github.com/GitoxideLabs/gitoxide")
+    (synopsis "command-line application for interacting with git repositories")
+    (description
+     "This package provides a command-line application for interacting with git
+repositories.")
+    (license (list license:expat license:asl2.0))))
+
+(define-public gitui
+  (package
+    (name "gitui")
+    (version "0.28.1")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "gitui" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "1fg7cmksm626vqpcbv913y8gg855r5adcvsm33rxsmgqbabaam6r"))
+       (modules '((guix build utils)))
+       (snippet
+        '(begin
+           (delete-file-recursively "wix")
+           (substitute* "Cargo.toml"
+             ;; Remove vendor-openssl from the default features.
+             ((".*\"vendor-openssl\",.*") ""))))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:cargo-test-flags
+       '("--release" "--"
+         ;; this test fails with permission denied error
+         "--skip=test_symbolic_links")
+       #:install-source? #f
+       #:phases
+       (modify-phases %standard-phases
+         (add-after 'unpack 'set-release-variable
+           (lambda _
+             (setenv "GITUI_RELEASE" "true")
+             (setenv "BUILD_GIT_COMMIT_ID" "GNUGUIX"))))))
+    (native-inputs (list cmake-minimal pkg-config))
+    (inputs (cons* libgit2-1.9 libssh2 openssl zlib (cargo-inputs 'gitui)))
+    (home-page "https://github.com/extrawurst/gitui")
+    (synopsis "Terminal UI for git")
+    (description "This package provides a fast Terminal UI for git.")
+    (license license:expat)))
+
+(define-public helvum
+  (package
+    (name "helvum")
+    (version "0.5.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://gitlab.freedesktop.org/pipewire/helvum")
+             (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1q8gkx7djrfdl8fykppsqkxiadsq47v0xhj612nxlrvjz8n77ygn"))))
+    (build-system meson-build-system)
+    (arguments
+     (list
+      #:imported-modules `(,@%meson-build-system-modules
+                           ,@%cargo-build-system-modules)
+      #:modules '(((guix build cargo-build-system) #:prefix cargo:)
+                  (guix build meson-build-system)
+                  (guix build utils))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'prepare-for-build
+            (lambda _
+              (substitute* "meson.build"
+                (("gtk_update_icon_cache: true")
+                 "gtk_update_icon_cache: false")
+                (("update_desktop_database: true")
+                 "update_desktop_database: false"))
+              (delete-file "Cargo.lock")))
+          ;; The meson 'configure phase changes to a different directory and
+          ;; we need it created before unpacking the crates.
+          (add-after 'configure 'prepare-cargo-build-system
+            (lambda args
+              (for-each
+               (lambda (phase)
+                 (format #t "Running cargo phase: ~a~%" phase)
+                 (apply (assoc-ref cargo:%standard-phases phase)
+                        #:vendor-dir "vendor"
+                        args))
+               '(unpack-rust-crates
+                 configure
+                 check-for-pregenerated-files
+                 patch-cargo-checksums)))))))
+    (native-inputs (list clang-13 pkg-config rust `(,rust "cargo")))
+    (inputs (cons* glib gtk libadwaita pipewire (cargo-inputs 'helvum)))
+    (home-page "https://gitlab.freedesktop.org/pipewire/helvum")
+    (synopsis "GTK patchbay for pipewire")
+    (description "This package provides a GTK patchbay for pipewire.")
+    (license license:gpl3)))
+
+(define-public hexyl
+  (package
+    (name "hexyl")
+    (version "0.16.0")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (crate-uri "hexyl" version))
+        (file-name (string-append name "-" version ".tar.gz"))
+        (sha256
+         (base32 "1y2yrr8nh3idya5wviqqnvz57y4mvw1jx3gi57acddkj9386vma3"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:install-source? #f
+      #:phases
+      (modify-phases %standard-phases
+        (add-after 'install 'install-manual
+          (lambda* (#:key inputs outputs #:allow-other-keys)
+            (let ((man1 (string-append (assoc-ref outputs "out")
+                                       "/share/man/man1")))
+              (when (assoc-ref inputs "pandoc")
+                (mkdir-p man1)
+                (with-output-to-file (string-append man1 "/hexyl.1")
+                  (lambda _
+                    (invoke "pandoc" "--standalone"
+                            "--from" "markdown"
+                            "--to" "man"
+                            "doc/hexyl.1.md"))))))))))
+    (native-inputs
+     (if (supported-package? pandoc)
+         (list pandoc)
+         '()))
+    (inputs (cargo-inputs 'hexyl))
+    (home-page "https://github.com/sharkdp/hexyl")
+    (synopsis "Command-line hex viewer")
+    (description
+     "This package provides a command line hex viewer.  It uses a colored output
+for distinguishing different kinds of bytes such as NULL bytes, printable ASCII
+characters, ASCII whitespace characters, other ASCII characters and non-ASCII.")
+    (license (list license:expat license:asl2.0))))
+
+(define-public hyperfine
+  (package
+    (name "hyperfine")
+    (version "1.20.0")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (crate-uri "hyperfine" version))
+        (file-name (string-append name "-" version ".tar.gz"))
+        (sha256
+         (base32
+          "0b0jhpqg7hamf8zkzw8cwim9550hj3w7cq43702d4yyxdxz6kzn5"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:imported-modules (append %copy-build-system-modules
+                                 %cargo-build-system-modules)
+      #:modules '((guix build cargo-build-system)
+                  ((guix build copy-build-system) #:prefix copy:)
+                  (guix build utils))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-before 'build 'pre-build
+            (lambda _
+              (setenv "SHELL_COMPLETIONS_DIR" (string-append (getcwd) "/target"))))
+          (add-after 'install 'install-extras
+            (lambda args
+              (apply (assoc-ref copy:%standard-phases 'install)
+                     #:install-plan
+                     '(("target/hyperfine.bash"
+                        "share/bash-completion/completions/hyperfine")
+                       ("target/hyperfine.elv"
+                        "share/elvish/lib/hyperfine")
+                       ("target/hyperfine.fish"
+                        "share/fish/vendor_completions.d/")
+                       ("target/_hyperfine"
+                        "share/zsh/site-functions/"))
+                     args))))))
+    (inputs (cargo-inputs 'hyperfine))
+    (home-page "https://github.com/sharkdp/hyperfine")
+    (synopsis "Command-line benchmarking tool")
+    (description
+     "This package provides a command-line benchmarking tool.")
+    (license (list license:expat license:asl2.0))))
+
+(define-public i3status-rust
+  (package
+    (name "i3status-rust")
+    (version "0.33.2")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/greshake/i3status-rust")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "17fl0gx17mqc05jvr35g031d8z43cnlvqmjdwdbybl0lq4rbi6f4"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:install-source? #f
+       #:phases
+       (modify-phases %standard-phases
+         (add-after 'unpack 'fix-resources-path
+           (lambda* (#:key outputs #:allow-other-keys)
+             (let* ((out (assoc-ref outputs "out"))
+                    (share (string-append out "/share")))
+               (substitute* "src/util.rs"
+                 (("/usr/share/i3status-rust") share)))))
+         (add-after 'unpack 'substitute-package-paths
+           (lambda* (#:key inputs #:allow-other-keys)
+             (define* (substitute-command-block* file command full-command)
+               (substitute* file
+                 (((string-append "Command::new\\(\"" command "\"\\)"))
+                  (string-append "Command::new(\"" full-command "\")"))))
+             (substitute-command-block* "src/blocks/keyboard_layout/set_xkb_map.rs"
+               "setxkbmap" (search-input-file inputs "/bin/setxkbmap"))
+             (substitute-command-block* "src/blocks/sound/alsa.rs"
+               "alsactl" (search-input-file inputs "/sbin/alsactl"))
+             (substitute-command-block* "src/blocks/sound/alsa.rs"
+               "amixer" (search-input-file inputs "/bin/amixer"))
+             (substitute-command-block* "src/blocks/speedtest.rs"
+               "speedtest-cli" (search-input-file inputs "/bin/speedtest-cli"))
+             (substitute-command-block* "src/blocks/xrandr.rs"
+               "xrandr" (search-input-file inputs "/bin/xrandr"))
+             (substitute-command-block* "src/util.rs"
+               "sh" (search-input-file inputs "/bin/sh"))
+             (substitute-command-block* "src/subprocess.rs"
+               "sh" (search-input-file inputs "/bin/sh"))))
+         (add-after 'install 'install-resources
+           (lambda* (#:key outputs #:allow-other-keys)
+             (let ((out (assoc-ref outputs "out")))
+               (copy-recursively "files" (string-append out "/share")))))
+         (add-after 'install 'wrap-i3status
+           (lambda* (#:key outputs inputs #:allow-other-keys)
+             (let ((out (assoc-ref outputs "out"))
+                   (paths (map
+                           (lambda (input)
+                             (string-append
+                               (assoc-ref inputs input) "/bin"))
+                           '("iproute2" "kdeconnect"))))
+               (wrap-program (string-append out "/bin/i3status-rs")
+                 `("PATH" prefix ,paths))))))))
+    (native-inputs
+     (list pkg-config))
+    (inputs
+     (cons* alsa-utils
+            bash-minimal
+            dbus
+            iproute
+            kdeconnect
+            (list lm-sensors "lib")
+            pulseaudio
+            openssl
+            setxkbmap
+            speedtest-cli
+            xrandr
+            (cargo-inputs 'i3status-rust)))
+    (home-page "https://github.com/greshake/i3status-rust/")
+    (synopsis "Replacement for i3status, written in Rust")
+    (description "@code{i3status-rs} is a feature-rich and resource-friendly
+replacement for i3status, written in pure Rust.  It provides a way to display
+@code{blocks} of system information (time, battery status, volume, etc) on the i3
+bar.  It is also compatible with sway.")
+    (license license:gpl3)))
+
+(define-public ianny
+  (package
+   (name "ianny")
+   (version "2.1.3")
+   (source (origin
+            (method git-fetch)
+            (uri (git-reference
+                  (url "https://github.com/zefr0x/ianny")
+                  (commit (string-append "v" version))))
+            (file-name (git-file-name name version))
+            (sha256
+             (base32 "14nmpz7nkjj2rr3g4f3npg8dd5b533wp73q90q4vgp06rf9mbyq8"))))
+   (build-system meson-build-system)
+   (arguments
+     (list
+      #:imported-modules `(,@%meson-build-system-modules
+                           ,@%cargo-build-system-modules)
+      #:modules '(((guix build cargo-build-system) #:prefix cargo:)
+                  (guix build meson-build-system)
+                  (guix build utils))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'prepare-for-build
+            (lambda* (#:key outputs #:allow-other-keys)
+              (substitute* "meson.build"
+                (("/etc/xdg/autostart")
+                 (string-append (assoc-ref outputs "out")
+                                "/etc/xdg/autostart")))
+              (delete-file "Cargo.lock")))
+          ;; The meson 'configure phase changes to a different directory and
+          ;; we need it created before unpacking the crates.
+          (add-after 'configure 'prepare-cargo-build-system
+            (lambda args
+              (for-each
+               (lambda (phase)
+                 (format #t "Running cargo phase: ~a~%" phase)
+                 (apply (assoc-ref cargo:%standard-phases phase)
+                        #:vendor-dir "vendor"
+                        args))
+               '(unpack-rust-crates
+                 configure
+                 check-for-pregenerated-files
+                 patch-cargo-checksums)))))))
+   (native-inputs (list pkg-config rust `(,rust "cargo")))
+   (inputs
+    (cons dbus (cargo-inputs 'ianny)))
+   (home-page "https://github.com/zefr0x/ianny")
+   (synopsis "RSI break timer for Wayland")
+   (description "Desktop utility that helps prevent repetitive strain injuries
+by keeping track of usage patterns and periodically reminding the user to take
+breaks.")
+   (license license:gpl3)))
+
+(define-public iwmenu
+  (package
+    (name "iwmenu")
+    (version "0.4.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/e-tho/iwmenu")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "1xig0g6sqxx4hh8fj8vd92mm0bmvjfx493kpiymaas30rn26nfnq"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list #:install-source? #f))
+    (inputs (cargo-inputs 'iwmenu))
+    (home-page "https://github.com/e-tho/iwmenu")
+    (synopsis "Launcher-driven Wi-Fi manager")
+    (description
+     "@code{iwmenu} (iNet Wireless Menu) manages Wi-Fi through your launcher of
+choice.  Supported launchers are: dmenu, fuzzel, rofi, walker and custom.")
+    (license license:gpl3)))
+
+(define-public jless
+  (package
+    (name "jless")
+    (version "0.9.0")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (crate-uri "jless" version))
+        (file-name (string-append name "-" version ".tar.gz"))
+        (sha256
+          (base32
+            "1mij8c0lp62mnfvcbzrhmf1g70fq29lj2s9l05qx7njsqs64xqkf"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:install-source? #f))
+    (native-inputs (list python pkg-config)) ;needed by rust-xcb
+    (inputs (cons* libx11 libxcb (cargo-inputs 'jless)))
+    (home-page "https://github.com/PaulJuliusMartinez/jless")
+    (synopsis "Command-line JSON viewer")
+    (description "This package provides a command-line JSON viewer.")
+    (license license:expat)))
+
+(define-public jni
+  (package
+    (name "jni")
+    (version "0.21.1")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "jni" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "15wczfkr2r45slsljby12ymf2hij8wi5b104ghck9byjnwmsm1qs"))))
+    (build-system cargo-build-system)
+    (inputs (cargo-inputs 'jni))
+    (home-page "https://github.com/jni-rs/jni-rs")
+    (synopsis "Rust bindings to the Java Native Interface")
+    (description "This package provides Rust bindings to the @acronym{JNI, Java Native
+Interface}.")
+    (license (list license:expat license:asl2.0))))
+
+(define-public jnv
+  (package
+    (name "jnv")
+    (version "0.6.2")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/ynqa/jnv")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "1pv7mnysh7bc1885xym8vlkywjsqqi7zqhhl4g1p8zmpk75z0vdi"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list #:install-source? #f))
+    (inputs (cargo-inputs 'jnv))
+    (home-page "https://github.com/ynqa/jnv")
+    (synopsis "JSON navigator and interactive jq filter editor")
+    (description "Jnv is designed for navigating JSON, offering an interactive
+JSON viewer and jq filter editor.")
+    (license license:expat)))
+
+(define-public jujutsu
+  (package
+    (name "jujutsu")
+    (version "0.41.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/jj-vcs/jj")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1jla0sjw8cyhrmkl83xkp8mp8nbplj4nmd0w16bprj1kd5xzkpc9"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:cargo-install-paths ''("cli")
+      #:cargo-test-flags
+      ''("--"
+         "--skip=test_gerrit_upload::test_gerrit_upload_rejected_by_remote"
+         "--skip=test_git_push::test_git_push_rejected_by_remote"
+         "--skip=test_git::test_push_updates_with_options"
+         "--skip=test_util_command::test_util_exec_sets_env")
+      #:modules
+      '((guix build cargo-build-system)
+        (guix build utils)
+        (ice-9 match))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'install 'install-completions
+            (lambda* (#:key native-inputs #:allow-other-keys)
+              ;; See the upstream documentation for more information about
+              ;; building the standard or dynamic shell completions.
+              ;; https://docs.jj-vcs.dev/v0.38.0/install-and-setup/#dynamic
+              (for-each
+               (match-lambda
+                 ((shell . path)
+                  (mkdir-p (in-vicinity #$output (dirname path)))
+                  (let ((binary
+                         (if #$(%current-target-system)
+                             (search-input-file native-inputs "bin/jj")
+                             (in-vicinity #$output "bin/jj"))))
+                    (setenv "COMPLETE" shell)
+                    (with-output-to-file (in-vicinity #$output path)
+                      (lambda _
+                        (invoke binary))))))
+               '(("bash"    . "share/bash-completion/completions/jj")
+                 ("elvish"  . "share/elvish/lib/jj")
+                 ("fish"    . "share/fish/vendor_completions.d/jj.fish")
+                 ;("nushell" . "share/nushell/vendor/autoload/jj")
+                 ("zsh"     . "share/zsh/site-functions/_jj"))))))))
+    (native-inputs
+     (append
+       (if (%current-target-system)
+           (list this-package)
+           '())
+       (list pkg-config
+             ;; For tests.
+             git-minimal/pinned
+             openssh-sans-x)))
+    (inputs (cons* zlib openssl libssh2 libgit2-1.9 (cargo-inputs 'jujutsu)))
+    (home-page "https://github.com/jj-vcs/jj")
+    (synopsis "Git-compatible distributed version control system")
+    (description
+     "Jujutsu is a version control system designed to be easy to use.  It uses a
+real commit to represent the working copy, records all operations performed on
+the repository and supports automatic conflict resolution.
+
+Although Jujutsu uses a Git repository as its storage backend, it internally
+abstracts the user interface and version control algorithms from the storage
+systems.  This opens possibility for it to serve as a version control system
+with other physical backends.")
+    (license license:asl2.0)))
+
+(define-public just
+  (package
+    (name "just")
+    (version "1.43.0")
+    (source (origin
+              (method url-fetch)
+              (uri (crate-uri "just" version))
+              (file-name (string-append name "-" version ".tar.gz"))
+              (sha256
+               (base32 "139l2pqnzhlmmn4frcp4j4a81vnv42w2470sf23rrsilid11dd6i"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:cargo-test-flags
+       '("--"
+         "--skip=backticks::trailing_newlines_are_stripped"
+         "--skip=completions::bash"
+         "--skip=functions::env_var_functions"
+         "--skip=string::shebang_backtick")
+       #:install-source? #f
+       #:phases
+       (modify-phases %standard-phases
+         (add-after 'unpack 'replace-hardcoded-paths
+           (lambda* (#:key inputs #:allow-other-keys)
+             (substitute* (cons "src/justfile.rs"
+                                (find-files "tests/" "\\.rs$"))
+               (("/bin/sh")
+                (search-input-file inputs "/bin/sh"))
+               (("/usr/bin/env sh")
+                (search-input-file inputs "/bin/sh"))
+               (("/usr/bin/env")
+                (search-input-file inputs "/bin/env"))
+               (("/bin/echo")
+                (search-input-file inputs "/bin/echo")))))
+         (add-after 'install 'install-extras
+           (lambda* (#:key native-inputs outputs #:allow-other-keys)
+             (let* ((out (assoc-ref outputs "out"))
+                    (share (string-append out "/share"))
+                    (man1 (string-append share "/man/man1"))
+                    (bash-completions-dir
+                     (string-append out "/etc/bash_completion.d/"))
+                    (zsh-completions-dir
+                     (string-append share "/zsh/site-functions"))
+                    (fish-completions-dir
+                     (string-append share "/fish/vendor_completions.d"))
+                    (elvish-completions-dir
+                     (string-append share "/elvish/lib"))
+                    (just (if ,(%current-target-system)
+                          (search-input-file native-inputs "/bin/just")
+                          (string-append out "/bin/just"))))
+               (mkdir "man")
+               (with-output-to-file "man/just.1"
+                 (lambda _ (invoke just "--man")))
+               (install-file "man/just.1" man1)
+
+               (mkdir-p bash-completions-dir)
+               (with-output-to-file
+                 (string-append bash-completions-dir "/just")
+                 (lambda _ (invoke just "--completions" "bash")))
+               (mkdir-p zsh-completions-dir)
+               (with-output-to-file
+                 (string-append zsh-completions-dir "/_just")
+                 (lambda _ (invoke just "--completions" "zsh")))
+               (mkdir-p fish-completions-dir)
+               (with-output-to-file
+                 (string-append fish-completions-dir "/just.fish")
+                 (lambda _ (invoke just "--completions" "fish")))
+               (mkdir-p elvish-completions-dir)
+               (with-output-to-file
+                 (string-append elvish-completions-dir "/just")
+                 (lambda _ (invoke just "--completions" "elvish")))))))))
+    (native-inputs (if (%current-target-system)
+                       (list this-package)
+                       '()))
+    (inputs (cons* bash-minimal coreutils-minimal (cargo-inputs 'just)))
+    (home-page "https://github.com/casey/just")
+    (synopsis "Command runner")
+    (description "This package provides @code{just}, a command runner.
+@code{just} is a handy way to save and run project-specific commands.")
+    (license license:cc0)))
+
+(define-public kanata
+  (package
+    (name "kanata")
+    (version "1.11.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "kanata" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32
+         "13xv85bvrwkbnq596mdjynkv9kbhvm7k81k25sc6i1xw0wgb6vi5"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list #:install-source? #f))
+    (inputs (cargo-inputs 'kanata))
+    (home-page "https://github.com/jtroo/kanata")
+    (synopsis "Multi-layer keyboard customization")
+    (description
+     "Kanata is a keyboard re-mapper.  It supports multiple layers of key,
+and advanced key behavior customization, such as tap-hold, macros and
+Unicode.")
+    (license license:lgpl3)))
+
+(define-public kibi
+  (package
+    (name "kibi")
+    (version "0.3.3")
+    (source
+     (origin
+       ;; crates.io doesn't have the config files
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/ilai-deutel/kibi")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1ryk9vz0hdqcka8n90qnhh430rj2z4s7kh71bkc5lpdx5lassq5q"))
+       (snippet
+        #~(begin (use-modules (guix build utils))
+                 ;; Use a packaged version of tokei.
+                 (substitute* "xtask/Cargo.toml"
+                   (("git = .*tokei\", branch.*,") "version = \"*\","))))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:imported-modules (append %copy-build-system-modules
+                                 %cargo-build-system-modules)
+      #:modules '((guix build cargo-build-system)
+                  ((guix build copy-build-system) #:prefix copy:)
+                  (guix build utils))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'install 'install-extras
+            (lambda args
+              (apply (assoc-ref copy:%standard-phases 'install)
+                     #:install-plan
+                     '(("config_example.ini" "etc/kibi/config.ini")
+                       ("syntax.d" "share/kibi/")
+                       ("kibi.desktop" "share/applications/")
+                       ("assets/kibi.svg" "share/icons/hicolor/scalable/apps/"))
+                     args))))))
+    (inputs (cargo-inputs 'kibi))
+    (home-page "https://github.com/ilai-deutel/kibi")
+    (synopsis "Featureful text editor in less than 1024 lines of code")
+    (description
+     "Inspired by the kilo text editor in C, this package provides a text
+editor in less than 1024 lines of code with syntax highlighting, search and
+more.")
+    (license (list license:expat license:asl2.0))))
+
+(define-public lsd
+  (package
+    (name "lsd")
+    (version "1.2.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "lsd" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "0r1nbw4ljl4654kjw1vszf4gsp0cc1s3bp2y2azml988r740vl8s"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:imported-modules (append %copy-build-system-modules
+                                 %cargo-build-system-modules)
+      #:modules '((guix build cargo-build-system)
+                  ((guix build copy-build-system) #:prefix copy:)
+                  (guix build utils))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-before 'build 'pre-build
+            (lambda _
+              (setenv "SHELL_COMPLETIONS_DIR" "target/assets")))
+          (add-after 'install 'install-extras
+            (lambda args
+              (apply (assoc-ref copy:%standard-phases 'install)
+                     #:install-plan
+                     '(("target/assets/lsd.bash"
+                        "share/bash-completion/completions/lsd")
+                       ("target/assets/lsd.fish"
+                        "share/fish/vendor_completions.d/")
+                       ("target/assets/_lsd"
+                        "share/zsh/site-functions/"))
+                     args))))))
+    (native-inputs (list pkg-config
+                         ;; for tests
+                         git-minimal/pinned))
+    (inputs (cons* libgit2-1.9 zlib (cargo-inputs 'lsd)))
+    (home-page "https://github.com/lsd-rs/lsd")
+    (synopsis "Mostly ls compatible command with pretty colors")
+    (description
+     "This package provides An ls command with a lot of pretty colors
+and some other stuff.")
+    (license license:asl2.0)))
+
+(define-public macchina
+  (package
+    (name "macchina")
+    (version "6.4.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "macchina" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "0m1hkf81njdbx69c2k3hp3dslq6xfh14hs8v7iadw3cl44dshb7r"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:phases #~(modify-phases %standard-phases
+                   (add-after 'install 'install-extras
+                     (lambda* (#:key outputs #:allow-other-keys)
+                       (let* ((out (assoc-ref outputs "out"))
+                              (share (string-append out "/share"))
+                              (contrib (string-append share "/contrib")))
+                         (mkdir-p contrib)
+                         (copy-recursively "contrib" contrib)))))))
+    (native-inputs (list pkg-config))
+    (inputs (cons* libgit2 sqlite zlib (cargo-inputs 'macchina)))
+    (home-page "https://github.com/Macchina-CLI/macchina")
+    (synopsis "System information fetcher with an emphasis on performance")
+    (description
+     "This package provides a system information fetcher with an emphasis on
+performance.  Similar to neofetch, this package prints out system information
+on the terminal in a visually appealing way.")
+    (license license:expat)))
+
+(define-public matugen
+  (package
+    (name "matugen")
+    (version "4.0.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "matugen" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "0xn0i3vnwpxkxlccm8z7p4pmp2yrgvbmlpr18iffk694is9ik98r"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list #:install-source? #f))
+    (inputs (cargo-inputs 'matugen))
+    (home-page "https://github.com/InioX/matugen")
+    (synopsis "Generate themes using the 'Material You' palette")
+    (description
+     "@command{matugen} generates a 'Material You' color palette based on a
+specified image or color, easing the process of theme creation.")
+    (license license:gpl2)))
+
+;; Deprecated on <2026-08-12>.
+(define-deprecated/public-alias maturin (@ (gnu packages build-tools) maturin))
+
+(define-public mdopen
+  (package
+    (name "mdopen")
+    (properties '((commit . "3858a4d2222ac789b168729ac1ae7b726342526e")))
+    (version (git-version "0.5.0" "0"
+                          (assoc-ref properties
+                                     'commit)))
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/immanelg/mdopen")
+             (commit (assoc-ref properties
+                                'commit))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "024pv3wg6dg7yh8acpq3m0rrh046zfmcs940jivkjh8i9a5s2k3b"))))
+    (arguments
+     (list
+      #:install-source? #f
+      #:tests? #f)) ;tests are non-functional
+    (build-system cargo-build-system)
+    (inputs (cons* openssl oniguruma
+                   (cargo-inputs 'mdopen)))
+    (native-inputs (list pkg-config))
+    (home-page "https://github.com/immanelg/mdopen")
+    (synopsis "Markdown preview server")
+    (description "Quickly preview local markdown files in browser with
+GitHub-like look.")
+    (license license:gpl3+)))
+
+(define-public mise
+  (package
+    (name "mise")
+    (version "2026.4.4")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/jdx/mise")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1298fxd1hx0y86xpmrmbi6ps9bvp81b4r4cgyvgqzfzicn616l2j"))
+       (snippet
+        #~(begin (use-modules (guix build utils))
+                 (for-each delete-file-recursively
+                           '("crates/vfox/test/data"
+                             "docs"))
+                 ;; Don't try to vendor lua.
+                 (substitute* "crates/vfox/Cargo.toml"
+                   (("\"vendored-lua\", ") "")
+                   (("^vendored-lua.*") "vendored-lua = []\n"))))))
+    (build-system cargo-build-system)
+    (arguments
+     (list #:install-source? #f
+           #:cargo-install-paths ''(".")
+           #:parallel-tests? #f
+           ;; test_last_modified fails in the build sandbox because file
+           ;; timestamps are normalized.
+           #:cargo-test-flags ''("--" "--skip" "test_last_modified")
+           #:modules '((guix build cargo-build-system)
+                       (guix build utils)
+                       (ice-9 match))
+           #:phases
+           #~(modify-phases %standard-phases
+               (add-after 'install 'install-completions
+                 (lambda* (#:key native-inputs #:allow-other-keys)
+                   (let ((binary
+                          (if #$(%current-target-system)
+                              (search-input-file native-inputs "bin/mise")
+                              (in-vicinity #$output "bin/mise"))))
+                     (for-each
+                      (match-lambda
+                        ((args . path)
+                         (mkdir-p (in-vicinity #$output (dirname path)))
+                         (with-output-to-file (in-vicinity #$output path)
+                           (lambda _
+                             (apply invoke binary "completion" args)))))
+                      ;; Bash completions need --include-bash-completion-lib
+                      ;; to bundle the compatibility functions they rely on.
+                      '((("bash" "--include-bash-completion-lib")
+                         . "share/bash-completion/completions/mise")
+                        (("fish")
+                         . "share/fish/vendor_completions.d/mise.fish")
+                        (("zsh")
+                         . "share/zsh/site-functions/_mise")))))))))
+    (native-inputs
+     (append (if (%current-target-system)
+                 (list this-package)
+                 '())
+             (list pkg-config)))
+    (inputs (cons* bzip2 lua-5.1 openssl xz `(,zstd "lib") (cargo-inputs 'mise)))
+    (home-page "https://mise.jdx.dev")
+    (synopsis "Polyglot version manager, task runner, and environment manager")
+    (description "Mise manages dev tool versions (e.g., Node.js, Python, Ruby,
+Go) allowing you to switch between versions per project.  It also serves as a
+task runner and manages environment variables through @file{.mise.toml}
+configuration files.  It is compatible with asdf plugins and supports
+@file{.tool-versions} files.")
+    (license license:expat)))
+
+(define-public mitm-cache
+  (package
+    (name "mitm-cache")
+    (version "0.1.2")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://github.com/chayleaf/mitm-cache")
+                     (commit (string-append "v" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32 "0hbjzf3jb8gpisq3qi5z7wc20hawcgvjwnw2xp80bwq1cj12d3vr"))
+              (patches (search-patches "mitm-cache-head-requests.patch"))))
+    (build-system cargo-build-system)
+    (arguments
+     '(#:install-source? #f))
+    (inputs (cons `(,zstd "lib") (cargo-inputs 'mitm-cache)))
+    (native-inputs (list pkg-config))
+    (home-page "https://github.com/chayleaf/mitm-cache")
+    (synopsis "Man-in-the-middle caching proxy")
+    (description "This is a caching @acronym{MITM, man-in-the-middle} proxy
+for fetching the dependencies of poorly designed build systems.")
+    (license license:expat)))
+
+(define-public mollysocket
+  (package
+    (name "mollysocket")
+    (version "1.6.0")
+    (source (origin
+              (method url-fetch)
+              (uri (crate-uri "mollysocket" version))
+              (file-name (string-append name "-" version ".tar.gz"))
+              (sha256
+               (base32
+                "08kgcwc1b9s221sy2pjmzxz4i8iagkfj8wr1k2c6d4pbgzgwqm8y"))))
+    (build-system cargo-build-system)
+    (arguments
+     '(#:install-source? #f
+       #:tests? #f)) ; tests require internet
+    (inputs (cons* openssl sqlite (cargo-inputs 'mollysocket)))
+    (native-inputs (list pkg-config))
+    (home-page "https://github.com/mollyim/mollysocket")
+    (synopsis "Signal push notifications through UnifiedPush")
+    (description "MollySocket is a UnifiedPush provider that receives push
+notifications from Signal through the Molly app, and pushes them to a user's
+distributor.  Message encryption keys are never stored nor received by
+Mollysocket.")
+    (license license:agpl3+)))
+
+(define-public ncspot
+  (package
+    (name "ncspot")
+    (version "1.3.3")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://github.com/hrkfdn/ncspot")
+                     (commit (string-append "v" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "02i5v7jad80zx2ad9a2ppxg4ipd3faisys41gxcwmpy2kisrlssk"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list #:install-source? #f))
+    (inputs
+     (cons* dbus
+            libxcb
+            ncurses
+            openssl
+            pulseaudio
+            (cargo-inputs 'ncspot)))
+    (native-inputs
+     (list pkg-config python))
+    (home-page "https://github.com/hrkfdn/ncspot")
+    (synopsis "Ncurses Spotify client written in Rust")
+    (description
+     "@command{ncspot} is an ncurses Spotify client written in Rust using
+librespot.  It is heavily inspired by ncurses MPD clients, such as
+@command{ncmpc}.  It provides a simple and resource friendly alternative to
+the official client.")
+    (license license:bsd-2)))
+
+(define-public netavark
+  (package
+    (name "netavark")
+    (version "2.0.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "netavark" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "12ibyylgnwps6f298jjb49qnr3q9prahzdb4jskhx1gzxhyfxxil"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:install-source? #f))
+    (native-inputs (list protobuf))
+    (inputs (cargo-inputs 'netavark))
+    (home-page "https://github.com/containers/netavark")
+    (synopsis "Container network stack")
+    (description "Netavark is a rust based network stack for containers.  It
+is being designed to work with Podman but is also applicable for other OCI
+container management applications.")
+    (license license:asl2.0)))
+
+(define-public onefetch
+  (package
+    (name "onefetch")
+    (version "2.27.1")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "onefetch" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "0qxcrxvf6wkyx332nigcim5l136v9wsm5vx0wsacnsrhl0rkicdp"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:modules
+      '((guix build cargo-build-system)
+        (guix build utils)
+        (ice-9 match))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'install 'install-extras
+            (lambda* (#:key native-inputs #:allow-other-keys)
+              (for-each
+               (match-lambda
+                 ((shell . path)
+                  (mkdir-p (in-vicinity #$output (dirname path)))
+                  (let ((binary
+                          (if #$(%current-target-system)
+                              (search-input-file native-inputs "bin/onefetch")
+                              (in-vicinity #$output "bin/onefetch"))))
+                    (with-output-to-file (in-vicinity #$output path)
+                      (lambda _
+                        (invoke binary "--generate" shell))))))
+               '(("bash"   . "share/bash-completion/completions/onefetch")
+                 ("elvish" . "share/elvish/lib/onefetch")
+                 ("fish"   . "share/fish/vendor_completions.d/onefetch.fish")
+                 ("zsh"    . "share/zsh/site-functions/_onefetch"))))))))
+    (native-inputs
+     (append
+       (if (%current-target-system)
+           (list this-package)
+           '())
+       (list pkg-config
+             git-minimal/pinned))) ; For tests
+    (inputs (cons `(,zstd "lib")
+                  (cargo-inputs 'onefetch)))
+    (home-page "https://onefetch.dev")
+    (synopsis "Command-line Git information tool")
+    (description "Onefetch is a command-line Git information tool that
+displays project information and code statistics for a local Git repository
+directly in your terminal. The tool works completely offline with a focus on
+performance and customizability.")
+    (license license:expat)))
+
+(define-public ouch
+  (package
+    (name "ouch")
+    (version "0.6.1")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "ouch" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "1gslgyv63jq66w5pymsn7jnkmh2b8s8wzqvhs6k2iywzc4nm3gxd"))
+       (snippet
+        #~(begin (use-modules (guix build utils))
+                 (substitute* "Cargo.toml"
+                   ;; Don't try to use a bundled copy of bzip3.
+                   ((".*bundled.*") ""))))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:imported-modules (append %copy-build-system-modules
+                                 %cargo-build-system-modules)
+      #:modules '((guix build cargo-build-system)
+                  ((guix build copy-build-system) #:prefix copy:)
+                  (guix build utils))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-before 'build 'pre-build
+            (lambda* (#:key inputs #:allow-other-keys)
+              (setenv "OUCH_ARTIFACTS_FOLDER" "target")
+              ;; Uses nonfree library.
+              (invoke "cargo" "remove" "unrar")
+              ;; Set the location for bzip3
+              (setenv "BZIP3_LIB_DIR"
+                      (dirname (search-input-file inputs "/lib/libbzip3.so")))
+              (setenv "BZIP3_INCLUDE_DIR"
+                      (dirname (search-input-file inputs "/include/libbz3.h")))))
+          (add-after 'install 'install-extras
+            (lambda args
+              (apply (assoc-ref copy:%standard-phases 'install)
+                     #:install-plan
+                     '(("target/ouch.bash"
+                        "share/bash-completion/completions/ouch")
+                       ("target/ouch.elv"
+                        "share/elvish/lib/ouch")
+                       ("target/ouch.fish"
+                        "share/fish/vendor_completions.d/")
+                       ("target/_ouch"
+                        "share/zsh/site-functions/")
+                       ("target/" "share/man/man1/"
+                        #:include-regexp ("\\.1$")))
+                     args))))))
+    (native-inputs (list git-minimal/pinned pkg-config))
+    (inputs (cons* bzip2 bzip3-1.4 clang-13 xz zlib `(,zstd "lib")
+                   (cargo-inputs 'ouch)))
+    (home-page "https://github.com/ouch-org/ouch")
+    (synopsis "Compression and decompression utility")
+    (description
+     "This package provides a command-line utility for easily compressing and
+decompressing files and directories.")
+    (license license:expat)))
+
+(define-public pwmenu
+  (package
+    (name "pwmenu")
+    (version "0.4.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/e-tho/pwmenu")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0fzr60pn0yrw2fm055g9n0zs70g1w16w4dwrsnj95w0psidig9k9"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list #:install-source? #f))
+    (native-inputs (list clang-13 pkg-config))
+    (inputs (cons* pipewire
+                   (cargo-inputs 'pwmenu)))
+    (home-page "https://github.com/e-tho/pwmenu")
+    (synopsis "Launcher-driven Pipewire audio manager")
+    (description
+     "@code{pwmenu} (PipeWire Menu) manages audio through your launcher of
+choice.  Supported launchers are: dmenu, fuzzel, rofi, walker and custom.")
+    (license license:gpl3)))
+
+(define-public py-spy
+  (package
+    (name "py-spy")
+    (version "0.4.2")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "py-spy" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "15vccm4q0lqgpq0q9vrzriz58dcrxj2bqf9ac9s4n2bvdxy5f0va"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:modules
+      '((guix build cargo-build-system)
+        (guix build utils)
+        (ice-9 match))
+      #:cargo-test-flags
+      ;; python-numpy isn't in the build environment
+      ''("--" "--skip=test_local_vars")
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'install 'install-shell-completions
+            (lambda* (#:key native-inputs #:allow-other-keys)
+              (for-each
+               (match-lambda
+                 ((shell . path)
+                  (mkdir-p (in-vicinity #$output (dirname path)))
+                  (let ((binary
+                          (if #$(%current-target-system)
+                              (search-input-file native-inputs "bin/py-spy")
+                              (in-vicinity #$output "bin/py-spy"))))
+                    (with-output-to-file (in-vicinity #$output path)
+                      (lambda _
+                        (invoke binary "completions" shell))))))
+               '(("bash"   . "share/bash-completion/completions/py-spy")
+                 ("elvish" . "share/elvish/lib/py-spy")
+                 ("fish"   . "share/fish/vendor_completions.d/py-spy.fish")
+                 ("zsh"    . "share/zsh/site-functions/_py-spy"))))))))
+    (native-inputs
+     (append
+       (if (%current-target-system)
+           (list this-package)
+           '())
+       (list python-minimal-wrapper)))
+    (inputs (cargo-inputs 'py-spy))
+    (home-page "https://github.com/benfred/py-spy")
+    (synopsis "Sampling profiler for Python programs")
+    (description
+     "This package provides a sampling profiler for Python programs.")
+    (license license:expat)))
+
+(define-public rheo
+  (package
+    (name "rheo")
+    (version "0.1.2")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/freecomputinglab/rheo")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "17i7zsymjqp745476rdgq6w8hi40n4zca23xxp6s2hwpyjhgdkp4"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:cargo-test-flags
+        ''("--all-targets"
+           "--"
+           ;; The following tests require internet
+           "--skip=run_test_case_examples_slashcover_minusletter_full_stoptyp"
+           "--skip=run_test_case_examples_slashfcl_site"
+           "--skip=run_test_case_examples_slashrheo_docs"
+           "--skip=run_test_case_tests_slashcases_slashtarget_function_in_package")))
+    (inputs (cons* openssl (cargo-inputs 'rheo)))
+    (native-inputs (list pkg-config))
+    (synopsis "Typesetting and static site engine based on Typst")
+    (description
+     "Rheo is a typesetting and static site engine based on Typst.
+You can use it to compile folders containing Typst to PDF, HTML, and EPUB
+simultaneously.  Rheo is a standalone CLI tool that includes a development
+server for rapid website iteration.")
+    (home-page "https://rheo.ohrg.org")
+    (license (list license:asl2.0 license:expat))))
+
+(define-public ripgrep
+  (package
+    (name "ripgrep")
+    (version "15.1.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "ripgrep" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "0wrbv3bd2sz8y0bkbhl3n0a6d824k20mawv6m0l7qiw5byaw927k"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:modules
+      '((guix build cargo-build-system)
+        (guix build utils)
+        (ice-9 match))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'install 'install-extras
+            (lambda* (#:key native-inputs #:allow-other-keys)
+              (for-each
+               (match-lambda
+                 ((shell . path)
+                  (mkdir-p (in-vicinity #$output (dirname path)))
+                  (let ((binary
+                          (if #$(%current-target-system)
+                              (search-input-file native-inputs "bin/rg")
+                              (in-vicinity #$output "bin/rg"))))
+                    (with-output-to-file (in-vicinity #$output path)
+                      (lambda _
+                        (invoke binary "--generate" shell))))))
+               '(("complete-bash" . "share/bash-completion/completions/rg")
+                 ("complete-fish" . "share/fish/vendor_completions.d/rg.fish")
+                 ("complete-zsh"  . "share/zsh/site-functions/_rg")
+                 ("man"           . "share/man/man1/rg"))))))
+      #:features '(list "pcre2")))
+    (inputs (cons pcre2 (cargo-inputs 'ripgrep)))
+    (native-inputs (cons* pkg-config (if (%current-target-system)
+                                         (list this-package)
+                                         '())))
+    (home-page "https://github.com/BurntSushi/ripgrep")
+    (synopsis "Line-oriented search tool and Rust successor to @command{grep}")
+    (description
+     "@code{ripgrep} (@command{rg}) is a line-oriented search tool that
+recursively searches your current directory for a regex pattern while
+respecting your gitignore rules. @code{ripgrep} is similar to other popular
+search tools like The Silver Searcher, @command{ack} and @command{grep}.")
+    (license (list license:unlicense license:expat))))
+
+(define-public ripgrep-all
+  (package
+    (name "ripgrep-all")
+    (version "0.10.10")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/phiresky/ripgrep-all")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0vmdmv1np0r2khvg8j8i9z5zfy2h2ymhi93jzdhkn6wl3ns9wd3w"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:modules
+      '((srfi srfi-26)
+        (guix build utils)
+        (guix build cargo-build-system))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'install 'wrap-with-path
+            (lambda* (#:key inputs #:allow-other-keys)
+              (for-each
+               (lambda (bin)
+                 (wrap-program bin
+                   `("PATH" ":" prefix
+                     (,(string-join
+                        (map (compose dirname
+                                      (cut search-input-file inputs <>))
+                             '("bin/ffmpeg"
+                               "bin/fzf"
+                               "bin/pandoc"
+                               "bin/pdfinfo"
+                               "bin/rg"
+                               "bin/zip"))
+                        ":")))))
+               (find-files (string-append #$output "/bin"))))))))
+    (native-inputs
+     (list pkg-config xz))
+    (inputs
+     (cons* ffmpeg
+            fzf
+            pandoc
+            poppler
+            ripgrep
+            sqlite
+            zip
+            `(,zstd "lib")
+            (cargo-inputs 'ripgrep-all)))
+    (home-page "https://github.com/phiresky/ripgrep-all")
+    (synopsis "Line-oriented search tool for text and binary formats")
+    (description
+     "@command{rga} is a line-oriented search tool for searching in both text
+and binary formats.  It is a wrapper for @code{ripgrep} with adapters for common
+binary formats, enabling it to search in multitude of file types: pdf, docx,
+sqlite, jpg, movie subtitles (mkv, mp4), etc.
+
+This package also supports adding custom adapters in its configuration file,
+matching for mime types or extensions and executing arbitrary executables for
+the parsing.")
+    (license license:agpl3+)))
+
+(define-public rot8
+  (package
+    (name "rot8")
+    (version "1.0.0")
+    (source (origin
+              (method url-fetch)
+              (uri (crate-uri "rot8" version))
+              (file-name (string-append name "-" version ".tar.gz"))
+              (sha256
+               (base32
+                "1bvb87sr9pkf6sj5ghgmga4nrp5kwiqnllzi672da5vs915xh8li"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:install-source? #f))
+    (inputs (cargo-inputs 'rot8))
+    (home-page "https://github.com/efernau/rot8/")
+    (synopsis "Automatic display rotation using built-in accelerometer")
+    (description "@command{rot8} is a daemon that automates rotating screen and
+associated input devices using the built-in accelerometer; handy for convertible
+touchscreen devices.")
+    (license license:expat)))
+
+(define-public rusty
+  (package
+    (name "rusty")
+    (version "0.5.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/PLC-lang/rusty")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1a0gv247kzclya5i78mgxav21aqrya4bv5sylh7idnzhn1ap37nb"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:cargo-install-paths ''("compiler/plc_driver")
+      #:cargo-test-flags
+      ;; Some of the tests assume an x86_64-linux-gnu host or cross-compiler.
+      (if (target-x86-64?)
+          ''()
+          ''("--"
+             "--skip=integration::build_description_tests::build_empty_project"
+             "--skip=integration::build_description_tests::build_empty_project_debug"
+             "--skip=integration::build_description_tests::build_to_temp"
+             "--skip=integration::build_description_tests::build_with_library_link_path"
+             "--skip=integration::build_description_tests::build_with_separate_lib_folder"
+             "--skip=integration::build_description_tests::build_with_target_but_without_sysroot"
+             "--skip=integration::external_files::compile_external_file"
+             "--skip=integration::external_files::compile_external_file_with_encoding"
+             "--skip=integration::linking::link_as_pic_object"
+             "--skip=integration::linking::link_as_relocatable_object"
+             "--skip=integration::linking::link_as_shared_object"
+             "--skip=integration::linking::link_as_static_object"
+             "--skip=integration::linking::link_constants"
+             "--skip=integration::linking::link_files_with_same_name"
+             "--skip=integration::linking::link_files_with_same_name_but_different_extension"
+             "--skip=integration::linking::link_to_a_relative_location_with_no_parent"
+             "--skip=integration::linking::link_with_initial_values"))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'set-cc
+            ;; Tests assume `cc' is available in PATH, but Guix does not
+            ;; provide that with the `gcc' or `clang' packages.
+            (lambda _
+              (substitute* '("tests/integration/build_description_tests.rs"
+                             "compiler/plc_driver/src/cli.rs"
+                             "xtask/src/task.rs" "xtask/src/main.rs")
+                (("([=\"])cc(\")" _ prefix suffix)
+                 (string-append prefix #$(cc-for-target) suffix))))))))
+    (inputs (cons* libffi llvm-21
+                   (cargo-inputs 'rusty)))
+    (home-page "https://plc-lang.github.io/rusty/")
+    (synopsis "IEC 61131-3 structured text compiler")
+    (description
+     "RuSTy is a IEC 61131-3 @acronym{ST, Structured Text} compiler written in
+Rust.  It compiles ST down to native machine code, targeting most
+@code{llvm}-supported targets.")
+    (license (list license:lgpl3 license:gpl3))))
+
+(define-public rust-swc
+  (package
+    (name "rust-swc")
+    (version "1.2.129")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/swc-project/swc")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "06dda65mfm5p819lvzkpqnf7zm3migp5j3584znvq5ickax758br"))
+       (modules '((guix build utils)))
+       (snippet '(substitute* "Cargo.toml"
+                   ((".*git = .*") "")))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:install-source? #f
+       #:cargo-build-flags
+       '("--release" "-p" "swc_cli")
+       #:cargo-test-flags
+       '("--release" "-p" "swc_cli")
+       #:cargo-install-paths
+       '("crates/swc_cli")))
+    (inputs (cargo-inputs 'rust-swc))
+    (home-page "https://swc.rs/")
+    (synopsis "Typescript/javascript compiler")
+    (description "@code{rust-swc} is a typescript/javascript compiler.  It
+consumes a javascript or typescript file which uses recently added features
+like async-await and emits javascript code which can be executed on old
+browsers.")
+    (license (list license:expat
+                   license:asl2.0))))
+
+(define-deprecated rust-swc-1 rust-swc)
+
+(define-public rust-cargo-edit
+  (package
+    (name "rust-cargo-edit")
+    (version "0.13.10")
+    (source (origin
+              (method url-fetch)
+              (uri (crate-uri "cargo-edit" version))
+              (file-name (string-append name "-" version ".tar.gz"))
+              (sha256
+               (base32
+                "0m0bbrkk8lpliwji19cd7jxzgv7i7fcdimbv52icqyr9nl0xlnba"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list #:install-source? #f
+           ;; Not all files included.
+           #:cargo-test-flags ''("--" "--skip=::case")))
+    (native-inputs
+     (list pkg-config))
+    (inputs
+     (cons* curl
+            libgit2-1.9
+            libssh2
+            openssl
+            zlib
+            (cargo-inputs 'rust-cargo-edit)))
+    (home-page "https://github.com/killercup/cargo-edit")
+    (synopsis "Add and remove dependencies from the command line")
+    (description
+     "This package extends Cargo to allow you to add and remove dependencies
+by modifying your @file{Cargo.toml} file from the command line.")
+    (license (list license:asl2.0 license:expat))))
+
+(define-deprecated rust-cargo-edit-0.8 rust-cargo-edit)
+
+(define-public git-interactive-rebase-tool
+  (package
+    (name "git-interactive-rebase-tool")
+    (version "2.4.1")
+    (source
+     (origin
+       ;; crates.io does not provide the test data.
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/mitmaro/git-interactive-rebase-tool")
+             (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "1asf1nlnbd915hs288ga67sr6540slgi2a0kmvxy7q4skd4w8n9n"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:install-source? #f
+       #:phases
+       (modify-phases %standard-phases
+         (add-after 'unpack 'set-release-variable
+           (lambda _
+             (setenv "GIRT_BUILD_GIT_HASH" "GNUGUIX"))))))
+    (native-inputs
+     (list pkg-config))
+    (inputs
+     (cons* libgit2-1.7 zlib (cargo-inputs 'git-interactive-rebase-tool)))
+    (home-page "https://gitrebasetool.mitmaro.ca/")
+    (synopsis "Terminal based sequence editor for git interactive rebase")
+    (description
+     "This application is a terminal-based sequence editor for git interactive
+rebase.")
+    (license license:gpl3+)))
+
+(define-public pastel
+  (package
+    (name "pastel")
+    (version "0.12.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "pastel" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "0rcvas6xcjdl9whhjzbvj3pmr7q86masn5vnvc2bmn1c3788mh30"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:imported-modules (append %copy-build-system-modules
+                                 %cargo-build-system-modules)
+      #:modules '((guix build cargo-build-system)
+                  ((guix build copy-build-system) #:prefix copy:)
+                  (guix build utils))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-before 'build 'pre-build
+            (lambda _
+              (setenv "SHELL_COMPLETIONS_DIR" "target")))
+          (add-after 'install 'install-extras
+            (lambda args
+              (apply (assoc-ref copy:%standard-phases 'install)
+                     #:install-plan
+                     '(("target/pastel.bash"
+                        "share/bash-completion/completions/pastel")
+                       ("target/pastel.fish"
+                        "share/fish/vendor_completions.d/")
+                       ("target/_pastel"
+                        "share/zsh/site-functions/")
+                       ("target/" "share/man/man1/"
+                        #:include-regexp ("\\.1$")))
+                     args))))))
+    (inputs (cargo-inputs 'pastel))
+    (home-page "https://github.com/sharkdp/pastel")
+    (synopsis
+     "Command-line tool to generate, analyze, convert and manipulate colors")
+    (description
+     "Pastel is a command-line tool to generate, analyze, convert and
+manipulate colors.  It supports many different color formats and color spaces
+like RGB (sRGB), HSL, CIELAB, CIELCh as well as ANSI 8-bit and 24-bit
+representations.")
+    (license (list license:expat license:asl2.0))))
+
+(define-deprecated/public-alias prettypst
+  (@ (gnu packages typst) prettypst))
+
+(define-public procs
+  (package
+    (name "procs")
+    (version "0.14.10")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "procs" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "1s2vnfsfrzkqamd0xn7p1gh9m6ja3riksc4waw89hvjph9wng8pn"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:phases #~(modify-phases %standard-phases
+                   (add-after 'install 'install-manual-page
+                     (lambda* (#:key outputs #:allow-other-keys)
+                       (let* ((out (assoc-ref outputs "out"))
+                              (man (string-append out "/share/man/man1")))
+                         (mkdir-p man)
+                         (invoke "a2x"
+                                 "--no-xmllint"
+                                 "--doctype=manpage"
+                                 "--format=manpage"
+                                 "man/procs.1.adoc"
+                                 (string-append "--destination-dir=" man)))))
+                   (add-after 'install 'install-shell-completions
+                     (lambda* (#:key native-inputs outputs #:allow-other-keys)
+                       (let* ((out (assoc-ref outputs "out"))
+                              (share (string-append out "/share"))
+                              (bash-completions-dir
+                               (string-append out "/etc/bash_completion.d/"))
+                              (zsh-completions-dir
+                               (string-append share "/zsh/site-functions"))
+                              (fish-completions-dir
+                               (string-append share "/fish/vendor_completions.d"))
+                              (elvish-completions-dir
+                               (string-append share "/elvish/lib"))
+                              (procs (if #$(%current-target-system)
+                                         (search-input-file native-inputs "/bin/procs")
+                                         (string-append out "/bin/procs"))))
+                         (for-each mkdir-p
+                                   (list bash-completions-dir
+                                         zsh-completions-dir
+                                         fish-completions-dir
+                                         elvish-completions-dir))
+                         (with-output-to-file
+                           (string-append bash-completions-dir "/procs")
+                           (lambda _ (invoke procs "--gen-completion-out" "bash")))
+                         (with-output-to-file
+                           (string-append zsh-completions-dir "/_procs")
+                           (lambda _ (invoke procs "--gen-completion-out" "zsh")))
+                         (with-output-to-file
+                           (string-append fish-completions-dir "/procs.fish")
+                           (lambda _ (invoke procs "--gen-completion-out" "fish")))
+                         (with-output-to-file
+                           (string-append elvish-completions-dir "/procs")
+                           (lambda _ (invoke procs "--gen-completion-out" "elvish")))))))))
+    (native-inputs
+     (append
+       (if (%current-target-system)
+           (list this-package)
+           '())
+       (list asciidoc)))
+    (inputs (cargo-inputs 'procs))
+    (home-page "https://github.com/dalance/procs")
+    (synopsis "Modern replacement for @command{ps}")
+    (description "This package provides a  modern replacement for @command{ps}
+with colored output, multi-column keyword search, additional information, pager
+support, watch support (like @command{top}) and a tree view.")
+    (license license:expat)))
+
+(define-public rust-cbindgen-0.29
+  (package
+    (name "rust-cbindgen")
+    (version "0.29.4")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "cbindgen" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "085f02ma9cdz0alnl1p6b1x6bmr7i9nnasq2fjk7n5lw9i457jrf"))))
+    (build-system cargo-build-system)
+    (arguments (list #:install-source? #f))
+    (native-inputs (list python-cython))
+    (inputs (cargo-inputs 'rust-cbindgen-0.29))
+    (home-page "https://github.com/mozilla/cbindgen")
+    (synopsis "Tool for generating C bindings to Rust code")
+    (description
+     "This package provides a tool for generating C/C++ bindings to Rust code.")
+    (license license:mpl2.0)))
+
+(define-public rust-cbindgen-0.28
+  (package
+    (inherit rust-cbindgen-0.29)
+    (name "rust-cbindgen")
+    (version "0.28.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "cbindgen" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "1zyiaifg6mcd4wwhhbxk8adzhph6qz4wxzgagvg3ijp95j58dpga"))))
+    (inputs (cargo-inputs 'rust-cbindgen-0.28))))
+
+(define-public rust-cbindgen-0.27
+  (package
+    (inherit rust-cbindgen-0.28)
+    (name "rust-cbindgen")
+    (version "0.27.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "cbindgen" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "1sqm3axr678d72yihgmpr9d17mj99ccibxfqhw53mgzwzkbqvkiz"))))))
+
+(define-public rust-cbindgen-0.26
+  (package
+    (inherit rust-cbindgen-0.27)
+    (name "rust-cbindgen")
+    (version "0.26.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "cbindgen" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "0jdbxmn5h5nlr4bifx85gny309djv5djs9q78fa1d7sj0wdw2sys"))))
+    (inputs (cargo-inputs 'rust-cbindgen-0.26))))
+
+(define-public rust-cbindgen rust-cbindgen-0.29)
+
+(define-public rust-bindgen-cli
+  (package
+    (name "rust-bindgen-cli")
+    (version "0.71.1")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "bindgen-cli" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "1p2lmkl7vfhpr8gnav11p1jrwrqsmrqwr2fgwp5x1bsn17511vgx"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:install-source? #f
+       #:phases
+       (modify-phases %standard-phases
+         (replace 'install
+           (lambda* (#:key inputs outputs #:allow-other-keys)
+             (let* ((bin (string-append (assoc-ref outputs "out") "/bin"))
+                    (bindgen (string-append bin "/bindgen"))
+                    (clang   (assoc-ref inputs "clang"))
+                    (llvm-dir (string-append clang "/lib"))
+                    (clang-bin (string-append clang "/bin")))
+               (install-file "target/release/bindgen" bin)
+               (wrap-program bindgen
+                 `("LIBCLANG_PATH" = (,llvm-dir))
+                 ;; The bindgen binary requires clang, add one as a fallback.
+                 `("PATH" suffix (,clang-bin))))))
+         (add-after 'install 'install-completions
+           (lambda* (#:key native-inputs outputs #:allow-other-keys)
+             (let* ((out (assoc-ref outputs "out"))
+                    (share (string-append out "/share"))
+                    (bindgen (string-append out "/bin/bindgen")))
+               (mkdir-p (string-append out "/etc/bash_completion.d/"))
+               (with-output-to-file
+                 (string-append out "/etc/bash_completion.d/bindgen")
+                 (lambda _ (invoke bindgen "--generate-shell-completions" "bash")))
+               (mkdir-p (string-append share "/fish/vendor_completions.d"))
+               (with-output-to-file
+                 (string-append share "/fish/vendor_completions.d/bindgen.fish")
+                 (lambda _ (invoke bindgen "--generate-shell-completions" "fish")))
+               (mkdir-p (string-append share "/zsh/site-functions"))
+               (with-output-to-file
+                 (string-append share "/zsh/site-functions/_bindgen")
+                 (lambda _ (invoke bindgen "--generate-shell-completions" "zsh")))
+               (mkdir-p (string-append share "/elvish/lib"))
+               (with-output-to-file
+                 (string-append share "/elvish/lib/bindgen")
+                 (lambda _
+                   (invoke bindgen "--generate-shell-completions" "elvish")))))))))
+    ;; Ensure the same version for clang here, mesa's clang and llvm-for-mesa.
+    (inputs (cons* bash-minimal clang-18 (cargo-inputs 'rust-bindgen-cli)))
+    (home-page "https://rust-lang.github.io/rust-bindgen/")
+    (synopsis "Generate Rust FFI bindings to C and C++ libraries")
+    (description "This package can be used to automatically generate Rust FFI
+bindings to C and C++ libraries.  This package provides the @command{bindgen}
+command.")
+    (license license:bsd-3)))
+
+(define-public wasm-bindgen-cli
+  (package
+    (name "wasm-bindgen-cli")
+    (version "0.2.120")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/wasm-bindgen/wasm-bindgen")
+             (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0404jgzfcbmjvr1zl9jgw49nqs1s182cbvdzwh92i76qd2cpg166"))
+       (modules '((guix build utils)))
+       (snippet
+        '(begin
+           ;; Remove examples and benchmarks from workspace; they have
+           ;; unneeded git dependencies (e.g. raytracer) or bundled blobs.
+           (substitute* "Cargo.toml"
+             ((".*\"examples/[^\"]*\",?") "")
+             ((".*\"benchmarks[^\"]*\",?") ""))
+           (delete-file-recursively "examples")
+           (delete-file-recursively "benchmarks")))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+       #:install-source? #f
+       #:cargo-build-flags ''("--release" "-p" "wasm-bindgen-cli")
+       #:cargo-install-paths ''("crates/cli")))
+    (inputs (cargo-inputs 'wasm-bindgen-cli))
+    (home-page "https://github.com/wasm-bindgen/wasm-bindgen/")
+    (synopsis "Generate JavaScript bindings for Rust WASM modules")
+    (description "This package provides the @command{wasm-bindgen} command,
+which generates JavaScript glue code for communicating between WebAssembly
+modules and JavaScript.")
+    ;; Choose either license at your option.
+    (license (list license:expat license:asl2.0))))
+
+(define-public sniffglue
+  (package
+    (name "sniffglue")
+    (version "0.16.1")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "sniffglue" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32
+         "0dkkw8gwrgawd2s5bg47508i3kjnsv1dwmqa3hlijdvdw4wgm9gz"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:install-source? #f))
+    (inputs
+     (cons* libpcap libseccomp (cargo-inputs 'sniffglue)))
+    (home-page "https://github.com/kpcyrd/sniffglue")
+    (synopsis "Secure multithreaded packet sniffer")
+    (description
+     "This package provides a network sniffer written in Rust.  Packets
+are parsed concurrently using a thread pool to utilize all cpu cores.  A goal
+of the project is to be runnable on untrusted networks without crashing.")
+    (license license:gpl3)))
+
+(define-public soundcloud-tui
+  (package
+    (name "soundcloud-tui")
+    (version "0.1.10")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/7ito/soundcloud-tui")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0f2c98g3dhqh99xw1129jl3qw7ngfgiajhiq2c1vmc08qm0k36lc"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list #:install-source? #f))
+    (native-inputs
+     (list clang-13 pkg-config))
+    (inputs
+     (cons* alsa-lib ffmpeg
+            (cargo-inputs 'soundcloud-tui)))
+    (home-page "https://github.com/7ito/soundcloud-tui")
+    (synopsis "SoundCloud client for terminal")
+    (description "@command{soundcloud-tui} is a @uref{https://soundcloud.com,
+SoundCloud} client for terminal, written in Rust.  It can search for tracks,
+users and playlists, browse your feed, likes and playlists, play audio with
+bundled native streaming, manage a queue and add tracks to playlists or liked
+songs, and use a fullscreen visualizer and customizable settings and
+keybindings.")
+    (license license:expat)))
+
+(define-public speakersafetyd
+  (package
+    (name "speakersafetyd")
+    (version "1.1.2")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "speakersafetyd" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "1c4yk8mq8nazshdcasimlgnyhx27wzkad4wzicy5x43grq26b966"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'fix-paths
+            (lambda _
+              (substitute* "src/main.rs"
+                (("/usr/local") #$output))))
+          (add-after 'unpack 'remove-systemd-udev-rules
+            (lambda _
+              (substitute* "95-speakersafetyd.rules"
+                ((".*SYSTEMD_WANTS.*") ""))))
+          (add-before 'install 'prepare-to-install
+            (lambda _
+              (setenv "DESTDIR" #$output)
+              (setenv "SHAREDIR" "/share")
+              (setenv "SPEAKERSAFETYD_GROUP" "nixbld")
+              (setenv "SPEAKERSAFETYD_USER" "nixbld")
+              (invoke "make" "install"))))))
+    (inputs (cons alsa-lib (cargo-inputs 'speakersafetyd)))
+    (native-inputs (list pkg-config))
+    (home-page "https://github.com/AsahiLinux/speakersafetyd/")
+    (synopsis "Speaker protection daemon")
+    (description "Speakersafetyd is a userspace daemon written in Rust that
+implements an analogue of the Texas Instruments Smart Amp speaker protection
+model.")
+    (license license:expat)))
+
+(define-public systemd-lsp
+  (package
+    (name "systemd-lsp")
+    (version "0.1.1")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "systemd-lsp" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "0a9j93d89pnrmhsp2j219zppp0r0lkrapkf4wlqllycng90grjzb"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'install 'install-doc
+            (lambda* (#:key outputs #:allow-other-keys)
+              (let* ((out (assoc-ref outputs "out"))
+                     (doc (string-append out "/share/doc/" #$name "-" #$version)))
+                (copy-recursively "docs/" doc)))))))
+    (inputs (cargo-inputs 'systemd-lsp))
+    (home-page "https://github.com/jfryy/systemd-lsp")
+    (synopsis "Language Server Protocol implementation for systemd unit files")
+    (description
+     "A @acronym{LSP, Language Server Protocol} implementation for systemd unit
+files, providing editing support with syntax highlighting and analysis,
+diagnostics, autocompletion, documentation, and formatting.")
+    (license license:expat)))
+
+(define-public tectonic
+  (package
+    (name "tectonic")
+    (version "0.16.9")
+    (source
+     (origin
+       ;; Grab all the sources instead of each packaged crate in the workspace.
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/tectonic-typesetting/tectonic")
+             (commit (string-append name "@" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1v9rs8wq608dwyr5wza9jlh9y8d3adm7jxny8dq02zpbda362ap7"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+       #:install-source? #f
+       #:modules
+       '((guix build cargo-build-system)
+         (guix build utils)
+         (ice-9 match))
+       #:cargo-install-paths ''(".")
+       #:features '(list "external-harfbuzz")
+       #:cargo-test-flags '(list "--features" "external-harfbuzz"
+                                 "--"
+                                 "--skip=no_segfault_after_failed_compilation")
+       #:phases
+       #~(modify-phases %standard-phases
+           (add-after 'install 'install-doc
+             (lambda* (#:key outputs #:allow-other-keys)
+               (let* ((out (assoc-ref outputs "out"))
+                      (doc (string-append out "/share/doc/" #$name "-" #$version)))
+                 (copy-recursively "docs/src" doc))))
+           (add-after 'install 'install-completions
+             (lambda* (#:key native-inputs #:allow-other-keys)
+               (for-each
+                (match-lambda
+                  ((shell . path)
+                   (mkdir-p (in-vicinity #$output (dirname path)))
+                   (let ((binary
+                          (if #$(%current-target-system)
+                              (search-input-file native-inputs "bin/tectonic")
+                              (in-vicinity #$output "bin/tectonic"))))
+                     (with-output-to-file (in-vicinity #$output path)
+                       (lambda _
+                         (invoke binary "-X" "show" "shell-completions" shell))))))
+                '(("bash"   . "share/bash-completion/completions/tectonic")
+                  ("elvish" . "share/elvish/lib/tectonic")
+                  ("fish"   . "share/fish/vendor_completions.d/tectonic.fish")
+                  ("zsh"    . "share/zsh/site-functions/_tectonic"))))))))
+    (native-inputs
+     (list pkg-config))
+    (inputs
+     (cons* fontconfig
+            freetype
+            graphite2
+            harfbuzz
+            icu4c
+            openssl
+            (cargo-inputs 'tectonic)))
+    (home-page "https://tectonic-typesetting.github.io/")
+    (synopsis "Complete, embeddable TeX/LaTeX engine")
+    (description
+     "This package provides a modernized, complete, embeddable
+TeX/LaTeX engine.  Tectonic is forked from the XeTeX extension to the
+classic Web2C implementation of TeX and uses the TeXLive distribution
+of support files.")
+    (license license:expat)))
+
+(define-public treefmt
+  (package
+    (name "treefmt")
+    (version "0.6.1")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "treefmt" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "1pfx8kgaf0rc8ijps2fqb61gjnak3sf430hvg52bnby9qqyd51h8"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:install-source? #f))
+    (inputs (cargo-inputs 'treefmt))
+    (home-page "https://numtide.github.io/treefmt")
+    (synopsis "Command-line application to format the code tree")
+    (description
+     "This application provides a way to unify the formatting process of the
+codebase.  It is nice for large code trees where using multiple formatters are
+common.  @command{treefmt} comes with the following features.
+
+@itemize
+@item Unified CLI and output.
+@item Runs formatters in parallel.
+@item Cache changed files for performance.
+@end itemize
+
+The application does have some design decisions to keep in mind.
+
+@itemize
+@item The source code is kept under version control, making it possible to
+revert and check changes.
+@item Only one formatter per file, making outputs idempotent.
+@end itemize")
+    (license license:expat)))
+
+(define-public hex
+  (package
+    (name "hex")
+    (version "0.6.0")
+    (source
+     (origin
+       ;; crates.io does not provide the test data.
+       ;; Not all releases are pushed to crates.io.
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/sitkevij/hex")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0kv07ghibifs6rnskg1na6a0hdb0f8vqfbpv5k8g09lc2075gjv1"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:install-source? #f
+       #:cargo-test-flags '("--"
+                            ;; Not all files included.
+                            "--skip=tests::test_cli_arg_order_1"
+                            "--skip=tests::test_cli_arg_order_2"
+                            "--skip=tests::test_cli_input_directory"
+                            "--skip=tests::test_cli_input_missing_file"
+                            "--skip=tests::test_cli_input_stdin"
+                            "--skip=tests::test_cli_missing_param_value")
+       #:phases
+       (modify-phases %standard-phases
+         (add-after 'install 'install-more
+           (lambda* (#:key outputs #:allow-other-keys)
+             (let ((out (assoc-ref outputs "out")))
+               (install-file "hx.1" (string-append out "/share/man/man1"))))))))
+    (inputs (cargo-inputs 'hex))
+    (home-page "https://github.com/sitkevij/hex")
+    (synopsis "Hexadecimal colorized view of a file")
+    (description
+     "@command{hx} accepts a file path as input and outputs a hexadecimal
+colorized view to stdout.")
+    (license license:expat)))
+
+(define-public tokei
+  (package
+    (name "tokei")
+    (version "14.0.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "tokei" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "15v7ha13w4zrr2a6vlrj641qcrczvyjhvnqf147g64n3q1spipp4"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:cargo-test-flags
+       '("--"
+         ;; Tests directory not included in release.
+         "--skip=language::language_type::tests::lf_embedded_language_is_counted"
+         "--skip=language::language_type::tests::jupyter_notebook_has_correct_totals")
+       #:install-source? #f))
+    (native-inputs (list pkg-config))
+    (inputs (cons* libgit2-1.8 openssl zlib
+                   (cargo-inputs 'tokei)))
+    (home-page "https://github.com/XAMPPRocky/tokei")
+    (synopsis "Count code, quickly")
+    (description
+     "Tokei is a program that displays statistics about your code.  Tokei will
+show number of files, total lines within those files and code, comments, and
+blanks grouped by language.")
+    (license (list license:expat license:asl2.0))))
+
+;; Deprecated on 2026-08-20.
+(define-deprecated/public-alias typst
+  (@ (gnu packages typst) typst))
+
+;; Deprecated on 2026-08-20.
+(define-deprecated/public-alias typstyle
+  (@ (gnu packages typst) typstyle))
+
+(define-public vhdl-ls
+  (package
+    (name "vhdl-ls")
+    (version "0.87.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/VHDL-LS/rust_hdl")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "189ya2kxhykfx39yibp5cvdv8jk9whj81b9v6k0n6ihg9a4l21xm"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:cargo-install-paths ''("vhdl_ls")
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'install 'install-libraries
+            (lambda _
+              (mkdir-p (string-append #$output "/share/vhdl_libraries"))
+              (copy-recursively
+               "vhdl_libraries"
+               (string-append #$output "/share/vhdl_libraries")))))))
+    (inputs (cargo-inputs 'vhdl-ls))
+    (home-page "https://github.com/VHDL-LS/rust_hdl")
+    (synopsis "VHDL language server")
+    (description
+     "This package provides a VHDL language server protocol implementation with
+support for diagnostics, navigating to symbol, finding all references etc.")
+    (license license:mpl2.0)))
+
+(define-public vivid
+  (package
+    (name "vivid")
+    (version "0.10.1")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "vivid" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "1xynznf7drvhjhhnwdxrbjgr6qgfa5lzwxxqdclnjvzwkbhl2i2q"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:install-source? #f))
+    (inputs (cargo-inputs 'vivid))
+    (home-page "https://github.com/sharkdp/vivid")
+    (synopsis "LS_COLORS environment variable manager")
+    (description
+     "vivid is a generator for the @code{LS_COLORS} environment variable that
+controls the colorized output of ls, tree, fd, bfs, dust and many other tools.
+
+It uses a YAML configuration format for the filetype-database and the color
+themes.  In contrast to @command{dircolors}, the database and the themes are
+organized in different files.  This allows users to choose and customize color
+themes independent from the collection of file extensions.  Instead of using
+cryptic ANSI escape codes, colors can be specified in the RRGGBB format and
+will be translated to either truecolor (24-bit) ANSI codes or 8-bit codes for
+older terminal emulators.")
+    (license (list license:expat license:asl2.0))))
+
+(define-public vtracer
+  (package
+    (name "vtracer")
+    (version "0.6.5")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "vtracer" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "035x0dbbyi3nnyc2ajawdjq9j6slpsq2k2hmyf3p77n9qn3p2c62"))))
+    (build-system cargo-build-system)
+    (native-inputs (list (@ (gnu packages build-tools) maturin)
+                         python-wrapper))
+    (inputs (cargo-inputs 'vtracer))
+    (arguments
+     (list
+      #:install-source? #f
+      #:imported-modules
+       `(,@%cargo-build-system-modules ,@%pyproject-build-system-modules)
+      #:modules '((guix build cargo-build-system)
+                  ((guix build pyproject-build-system)
+                   #:prefix py:)
+                  (guix build utils))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'build 'build-python-module
+            (assoc-ref py:%standard-phases
+                       'build))
+          (add-after 'build-python-module 'install-python-module
+            (assoc-ref py:%standard-phases
+                       'install)))))
+    (home-page "http://www.visioncortex.org/vtracer")
+    (synopsis "Raster to vector graphics converter with Python bindings")
+    (description
+     "VTracer is a command-line tool and library to convert raster images (like
+PNG and JPEG) into vector graphics (SVG).")
+    (license (list license:expat license:asl2.0))))
+
+(define-public watchexec
+  (package
+    (name "watchexec")
+    (version "2.5.1")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "watchexec-cli" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "1p74v8m23ykvxyjgzz675vahpkwjjgbkqq9wfh0wap0aya22d5qz"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:install-source? #f
+       #:phases
+       (modify-phases %standard-phases
+         (add-after 'install 'install-completions
+           (lambda* (#:key outputs #:allow-other-keys)
+             (let* ((out (assoc-ref outputs "out"))
+                    (zsh (string-append out "/share/zsh/site-functions/_watchexec"))
+                    (doc (string-append out "/share/doc/watchexec-" ,version)))
+               (mkdir-p (dirname zsh))
+               ;; FIXME: The crates.io source does not provide zsh
+               ;; completions.  But the GitHub source does not compile.
+               ;;
+               ;; (copy-file "completions/zsh" zsh)
+               (install-file "README.md" doc)))))))
+    (inputs (cargo-inputs 'watchexec))
+    (home-page "https://github.com/watchexec/watchexec")
+    (synopsis "Executes commands in response to file modifications")
+    (description
+     "@command{watchexec} is a simple, standalone tool that watches a path and
+runs a command whenever it detects modifications.")
+    (license license:asl2.0)))
+
+(define-public rbw
+  (package
+    (name "rbw")
+    (version "1.15.0")
+    (outputs '("out" "scripts"))
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "rbw" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "1fg9jad5r255xcnc22ldmjra9ydf40yqvmpa7pwrzxncvf37v3l9"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+       #:install-source? #f
+       #:modules
+       '((guix build cargo-build-system)
+         (guix build utils)
+         (ice-9 match))
+       #:phases
+       #~(modify-phases %standard-phases
+           (add-after 'install 'install-completions
+            (lambda* (#:key native-inputs #:allow-other-keys)
+              (for-each
+               (match-lambda
+                 ((shell . path)
+                  (mkdir-p (in-vicinity #$output (dirname path)))
+                  (let ((binary
+                         (if #$(%current-target-system)
+                             (search-input-file native-inputs "bin/rbw")
+                             (in-vicinity #$output "bin/rbw"))))
+                    (with-output-to-file (in-vicinity #$output path)
+                      (lambda _
+                        (invoke binary "gen-completions" shell))))))
+               '(("bash"    . "share/bash-completion/completions/rbw")
+                 ("elvish"  . "share/elvish/lib/rbw")
+                 ("fish"    . "share/fish/vendor_completions.d/rbw.fish")
+                 ("nushell" . "share/nushell/vendor/autoload/rbw")
+                 ("zsh"     . "share/zsh/site-functions/_rbw")))))
+           (add-after 'install 'install-scripts
+             (lambda* (#:key inputs #:allow-other-keys)
+               (for-each
+                 (lambda (file)
+                   (wrap-script file
+                     ;; TODO: Do we want to wrap these with more programs?
+                     ;; pass git fzf libsecret xclip rofi
+                     `("PATH" prefix
+                       (,(string-append #$output "/bin")
+                        ,(dirname (search-input-file inputs "/bin/grep"))
+                        ,(dirname (search-input-file inputs "/bin/sed"))
+                        ,(dirname (search-input-file inputs "/bin/perl"))
+                        ,(dirname (search-input-file inputs "/bin/xargs"))
+                        ,(dirname (search-input-file inputs "/bin/sort")))))
+                   (install-file file (string-append #$output:scripts "/bin")))
+                 (find-files "bin")))))))
+    (native-inputs
+     (cons* perl (if (%current-target-system)
+                   (list this-package)
+                   '())))
+    (inputs
+     (cons* coreutils-minimal findutils grep perl sed (cargo-inputs 'rbw)))
+    (home-page "https://git.tozt.net/rbw")
+    (synopsis "Unofficial Bitwarden CLI")
+    (description "This package is an unofficial command line client for
+Bitwarden.  Although Bitwarden ships with a command line client, but
+it's limited by being stateless, which makes it very difficult to use.  This
+client avoids that problem by maintaining a background process which is able
+to hold the keys in memory, similar to the way that ssh-agent or gpg-agent
+work.  This allows the client to be used in a much simpler way, with the
+background agent taking care of maintaining the necessary state.")
+    (license license:expat)))
+
+;; Note: Keep it in sync with our current rust:cargo version.
+(define-public rust-cargo-c
+  (package
+    (name "rust-cargo-c")
+    (version "0.10.20+cargo-0.94.0")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (crate-uri "cargo-c" version))
+        (file-name (string-append name "-" version ".tar.gz"))
+        (sha256
+         (base32 "0q1198xlkcd50nxx722s18lpm6hacnvzqqacb0xdld8ll9z3m5ay"))))
+    (build-system cargo-build-system)
+    (arguments (list #:install-source? #f))
+    (native-inputs
+     (list pkg-config))
+    (inputs
+     (cons* curl
+            libgit2-1.9/pinned
+            libssh2
+            openssl
+            sqlite
+            zlib
+            (cargo-inputs 'rust-cargo-c)))
+    (home-page "https://github.com/lu-zero/cargo-c")
+    (synopsis "Build and install C-compatible libraries")
+    (description
+     "This package produces and installs a correct pkg-config file, a static
+library and a dynamic library, and a C header to be used by any C (and
+C-compatible) software.")
+    (license license:expat)))
+
+(define-public rtss
+  (package
+    (name "rtss")
+    (version "0.6.2")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "rtss" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "1r1b6fynkjnpj5p3k209sa13mjvh4k0ghzwnribm48dh9v7lfnnv"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:install-source? #f))
+    (inputs (cargo-inputs 'rtss))
+    (home-page "https://github.com/Freaky/rtss")
+    (synopsis "Annotate stdout/stderr with elapsed times")
+    (description "@code{rtss} annotates its output with relative durations between
+consecutive lines and since program start.")
+    (license license:expat)))
+
+(define-public sd
+  (package
+    (name "sd")
+    (version "1.0.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "sd" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "1a16p1s0j28n3vj006qm7b03k5s9mkr11cbbksvfb88wi10kqqbh"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:imported-modules (append %copy-build-system-modules
+                                 %cargo-build-system-modules)
+      #:modules '((guix build cargo-build-system)
+                  ((guix build copy-build-system) #:prefix copy:)
+                  (guix build utils))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'install 'install-extras
+            (lambda args
+               (apply (assoc-ref copy:%standard-phases 'install)
+                      #:install-plan
+                      '(("gen/sd.1" "share/man/man1/")
+                        ("gen/completions/sd.bash" "share/bash-completion/completions/sd")
+                        ("gen/completions/sd.elv" "share/elvish/lib/")
+                        ("gen/completions/sd.fish" "share/fish/vendor_completions.d/")
+                        ("gen/completions/_sd" "share/zsh/site-functions/"))
+                      args))))))
+    (inputs (cargo-inputs 'sd))
+    (home-page "https://github.com/chmln/sd")
+    (synopsis "Intuitive find & replace CLI")
+    (description "@code{sd} is an intuitive find & replace CLI with
+JavaScript/Python-style regular expressions, a string-literal mode, and smart,
+common-sense defaults.")
+    ;; CVE rejected by the project.
+    (properties `((lint-hidden-cve . ("CVE-2025-65807"))))
+    (license license:expat)))
+
+(define-public skim
+  (package
+    (name "skim")
+    (version "0.16.1")
+    (source
+     (origin
+       ;; crates.io doesn't have everything needed.
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/lotabout/skim")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "00k487pqhifcf9jvx7acwyhag34g5zrn49hry7xiwdflpqq4x1cl"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:install-source? #f
+       #:phases (modify-phases %standard-phases
+                  (replace 'install
+                    (lambda* (#:key outputs #:allow-other-keys)
+                      (let* ((out (assoc-ref outputs "out"))
+                             (bin (string-append out "/bin"))
+                             (sk  (car (find-files "target" "^sk$"))))
+                        (install-file sk bin))))
+                  (add-after 'build 'build-extras
+                    (lambda _
+                      ;; Delete the manpages and completions before rebuilding.
+                      (for-each delete-file '("man/man1/sk.1"
+                                              "shell/completion.bash"
+                                              "shell/completion.zsh"))
+                      (invoke "cargo" "run" "--package" "xtask" "mangen")
+                      (invoke "cargo" "run" "--package" "xtask" "compgen")))
+                  (add-after 'install 'install-extras
+                    (lambda* (#:key outputs #:allow-other-keys)
+                      (let* ((out (assoc-ref outputs "out"))
+                             (bin (string-append out "/bin"))
+                             (share (string-append out "/share"))
+                             (man (string-append out "/share/man"))
+                             (vimfiles (string-append share
+                                        "/vim/vimfiles/pack/guix/start/skim/plugin"))
+                             (bash-completion (string-append out
+                                               "/etc/bash_completion.d"))
+                             (zsh-site (string-append share
+                                                      "/zsh/site-functions"))
+                             (fish-vendor (string-append share
+                                           "/fish/vendor-completions.d")))
+                        ;; Binaries
+                        (for-each (lambda (binary)
+                                    (install-file binary bin))
+                                  (find-files "bin"))
+                        (mkdir-p share)
+                        ;; Manpages
+                        (copy-recursively "man" man)
+                        ;; Vim plugins
+                        (mkdir-p vimfiles)
+                        (copy-recursively "plugin" vimfiles)
+                        ;; Completions
+                        (mkdir-p bash-completion)
+                        (copy-file "shell/completion.bash"
+                                   (string-append bash-completion "/skim"))
+                        (copy-file "shell/key-bindings.bash"
+                                   (string-append bash-completion
+                                                  "/skim-bindings"))
+                        (mkdir-p zsh-site)
+                        (copy-file "shell/completion.zsh"
+                                   (string-append zsh-site "/_skim"))
+                        (copy-file "shell/key-bindings.zsh"
+                                   (string-append zsh-site "/_skim-bindings"))
+                        (mkdir-p fish-vendor)
+                        (copy-file "shell/key-bindings.fish"
+                                   (string-append fish-vendor
+                                                  "/skim-bindings.fish"))))))))
+    (inputs (cargo-inputs 'skim))
+    (home-page "https://github.com/lotabout/skim")
+    (synopsis "Fuzzy Finder in Rust")
+    (description "This package provides a fuzzy finder in Rust.")
+    (license license:expat)))
+
+(define-public spotifyd
+  (package
+    (name "spotifyd")
+    (version "0.4.2")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "spotifyd" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "1456kqv3yy4wqqfck3qfd46rjqscrz6z7cs3iyrbh6561338mv7w"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:install-source? #f
+       #:cargo-install-paths (list ".")
+       #:features (list "alsa_backend"
+                        "dbus_mpris"
+                        "pulseaudio_backend"
+                        "rodio_backend")))
+    (native-inputs (list pkg-config))
+    (inputs (cons* alsa-lib dbus openssl pulseaudio (cargo-inputs 'spotifyd)))
+    (home-page "https://github.com/Spotifyd/spotifyd")
+    (synopsis "Spotify streaming daemon with Spotify Connect support")
+    (description
+     "This package provides a light-weight daemon that connects to the Spotify
+music service.  A Spotifyd instance can be controlled by clients that use the
+Spotify Connect protocol, which includes the official Spotify mobile apps.")
+    (license license:gpl3)))
+
+(define-public svd2rust
+  (package
+    (name "svd2rust")
+    (version "0.36.1")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (crate-uri "svd2rust" version))
+        (file-name (string-append name "-" version ".tar.gz"))
+        (sha256
+         (base32 "0pfbvgxp49j04f1zxgq5n5csv7b1ysnnmafnyal08yisrvg476nw"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:install-source? #f))
+    (inputs (cargo-inputs 'svd2rust))
+    (home-page "https://github.com/rust-embedded/svd2rust/")
+    (synopsis "Generate Rust register maps (`struct`s) from SVD files")
+    (description
+     "This program can be used to generate Rust register maps (`struct`s) from SVD
+files.")
+    (license (list license:expat license:asl2.0))))
+
+(define-public swayhide
+  (package
+    (name "swayhide")
+    (version "0.2.1")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "swayhide" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "0synzfd35494vlp2wnqmqbzgc0vg2ivn90hnxvk6qak0w65xhxcv"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:install-source? #f
+       #:phases
+       (modify-phases %standard-phases
+         (add-after 'install 'install-completions
+           (lambda* (#:key outputs #:allow-other-keys)
+             (let* ((out  (assoc-ref outputs "out"))
+                    (bash (string-append out "/etc/bash_completion.d/"))
+                    (fish (string-append out "/share/fish/vendor_completions.d/"))
+                    (zsh  (string-append out "/share/zsh/site-functions/")))
+               (mkdir-p bash)
+               (mkdir-p zsh)
+               (copy-file "completions/swayhide.bash"
+                          (string-append bash "swayhide"))
+               (copy-file "completions/swayhide.zsh"
+                          (string-append zsh "_swayhide"))
+               (install-file "completions/swayhide.fish" fish)))))))
+    (inputs (cargo-inputs 'swayhide))
+    (home-page "https://github.com/NomisIV/swayhide/")
+    (synopsis "Swallow windows on swaywm")
+    (description "swayhide hides the currently active terminal (by moving it
+to the scratchpad), then it executes the supplied command.  When the child
+process has finished, the terminal is moved back.  This is useful if your
+workflow includes opening graphical programs from the terminal, as the locked
+terminal won't have to take up any space.")
+    (license license:gpl3+)))
+
+(define-public swayr
+  (package
+   (name "swayr")
+   (version "0.28.1")
+   (source
+    (origin
+     (method url-fetch)
+     (uri (crate-uri "swayr" version))
+     (file-name (string-append name "-" version ".tar.gz"))
+     (sha256
+      (base32 "1q3fim66q74pxsv9vhhcxgdnsjmkz08adsf4ng61sxxvf3hry3lf"))))
+   (build-system cargo-build-system)
+   (arguments
+    `(#:cargo-test-flags
+      '("--"
+        "--skip=config::test_load_swayr_config")
+      #:install-source? #f))
+   (inputs (cargo-inputs 'swayr))
+   (home-page "https://sr.ht/~tsdh/swayr/")
+   (synopsis "Window-switcher for the sway window manager")
+   (description
+    "This package provides a last-recently-used window-switcher for the sway
+window manager.  Swayr consists of a daemon, and a client.  The swayrd daemon
+records window/workspace creations, deletions, and focus changes using sway's
+JSON IPC interface.  The swayr client offers subcommands, and sends them to the
+daemon which executes them.")
+   (license license:gpl3+)))
+
+(define-public swayrbar
+  (package
+    (name "swayrbar")
+    (version "0.4.2")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "swayrbar" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "05jpa87i6q1cpikyqqliy3q2ksslj79kgin8jq9ls6073yk5q6z7"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:cargo-test-flags '("--release" "--"
+                            "--skip=config::test_load_swayrbar_config")
+       #:install-source? #f))
+    (inputs (cargo-inputs 'swayrbar))
+    (home-page "https://sr.ht/~tsdh/swayr/#swayrbar")
+    (synopsis "Swaybar-protocol implementation for sway/swaybar")
+    (description
+     "This package provides a swaybar-protocol implementation for sway/swaybar.")
+    (license license:gpl3+)))
+
+(define-public swaysome
+  (package
+    (name "swaysome")
+    (version "2.1.2")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "swaysome" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "12rqvjj9d12nm9zppgp4hvfw5l308gn9ljbbgbhi0cglpg11rnjk"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:install-source? #f
+       #:phases
+       (modify-phases %standard-phases
+         (add-after 'install 'install-more
+           (lambda* (#:key outputs #:allow-other-keys)
+             (let* ((out  (assoc-ref outputs "out"))
+                    (man1 (string-append out "/share/man/man1")))
+               (install-file "swaysome.1" man1)))))))
+    (inputs (cargo-inputs 'swaysome))
+    (home-page "https://gitlab.com/hyask/swaysome")
+    (synopsis "Manage your multiple outputs with the sway window manager")
+    (description
+     "This package provides a way to manage your multiple outputs with the sway
+window manager.")
+    (license license:expat)))
+
+(define-public tealdeer
+  (package
+    (name "tealdeer")
+    (version "1.8.1")
+    (source
+     (origin
+       ;; Completions aren't in the release tarball.
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/dbrgn/tealdeer")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "1d3877y9g1v6gi8a326d6wfz7z52qkrl70zi5ry7ybh5q6jha6a3"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+       #:phases
+       #~(modify-phases %standard-phases
+           (add-after 'install 'install-completions
+             (lambda args
+               (apply (assoc-ref copy:%standard-phases 'install)
+                      #:install-plan
+                      '(("completion/bash_tealdeer"
+                         "share/bash-completion/completions/tealdeer")
+                        ("completion/fish_tealdeer"
+                         "share/fish/vendor_completions.d/tealdeer.fish")
+                        ("completion/zsh_tealdeer"
+                         "share/zsh/site-functions/_tealdeer"))
+                      args))))
+       #:install-source? #f
+       #:imported-modules (append %copy-build-system-modules
+                                  %cargo-build-system-modules)
+       #:modules '((guix build cargo-build-system)
+                   ((guix build copy-build-system) #:prefix copy:)
+                   (guix build utils))
+       #:cargo-test-flags
+       '(list "--"
+              ;; These tests go to the network
+              "--skip=test_quiet_old_cache"
+              "--skip=test_quiet_cache"
+              "--skip=test_quiet_failures"
+              "--skip=test_pager_flag_enable"
+              "--skip=test_markdown_rendering"
+              "--skip=test_spaces_find_command"
+              "--skip=test_autoupdate_cache"
+              "--skip=test_update_language_arg"
+              "--skip=test_update_cache"
+              "--skip=test_create_cache_directory_path")))
+    (native-inputs
+     (list pkg-config))
+    (inputs
+     (cargo-inputs 'tealdeer))
+    (home-page "https://github.com/dbrgn/tealdeer/")
+    (synopsis "Fetch and show tldr help pages for many CLI commands")
+    (description
+     "This package fetches and shows tldr help pages for many CLI commands.
+Full featured offline client with caching support.")
+    (license (list license:expat license:asl2.0))))
+
+;;; TODO: Remove when 2027/03 comes.
+(define-deprecated/public-alias uv
+  (@ (gnu packages build-tools) uv))
+
+(define-public git-absorb
+  (package
+    (name "git-absorb")
+    (version "0.9.0")
+    (source
+     (origin
+       ;; crates.io does not include the manual page.
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/tummychow/git-absorb")
+             (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1xr1bjia3sx2i7hw99r2s950xi4fa996bcg3n7j9arcjmrb7w14c"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:modules
+      '((guix build cargo-build-system)
+        (guix build utils)
+        (ice-9 match))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'install 'install-manual-page
+            (lambda* (#:key outputs #:allow-other-keys)
+              (let* ((out (assoc-ref outputs "out"))
+                     (man (string-append out "/share/man/man1")))
+                (with-directory-excursion "Documentation"
+                  (invoke "a2x"
+                          "--no-xmllint"
+                          "--doctype=manpage"
+                          "--format=manpage"
+                          "git-absorb.adoc"))
+                (install-file "Documentation/git-absorb.1" man))))
+          (add-after 'install 'install-completions
+            (lambda* (#:key native-inputs #:allow-other-keys)
+              (for-each
+               (match-lambda
+                 ((shell . path)
+                  (mkdir-p (in-vicinity #$output (dirname path)))
+                  (let ((binary
+                         (if #$(%current-target-system)
+                             (search-input-file native-inputs "bin/git-absorb")
+                             (in-vicinity #$output "bin/git-absorb"))))
+                    (with-output-to-file (in-vicinity #$output path)
+                      (lambda _
+                        (invoke binary "--gen-completions" shell))))))
+               '(("bash"    . "share/bash-completion/completions/git-absorb")
+                 ("elvish"  . "share/elvish/lib/git-absorb")
+                 ("fish"    . "share/fish/vendor_completions.d/git-absorb.fish")
+                 ("nushell" . "share/nushell/vendor/autoload/git-absorb")
+                 ("zsh"     . "share/zsh/site-functions/_git-absorb"))))))))
+    (native-inputs
+     (append
+       (if (%current-target-system)
+           (list this-package)
+           '())
+       (list asciidoc git-minimal/pinned pkg-config)))
+    (inputs
+     (cons* libgit2-1.9 zlib (cargo-inputs 'git-absorb)))
+    (home-page "https://github.com/tummychow/git-absorb")
+    (synopsis "Git tool for making automatic fixup commits")
+    (description
+     "@code{git absorb} automatically absorbs staged changes into their
+current branch.  @code{git absorb} will automatically identify which commits
+are safe to modify, and which staged changes belong to each of those commits.
+It will then write @code{fixup!} commits for each of those changes.")
+    (license license:bsd-3)))
+
+(define-public git-delta
+  (package
+    (name "git-delta")
+    (version "0.19.2")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "git-delta" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "0g5d8pqw54yd6jivnjyg0q08f5y0zgbw2vwvvwic6c05mrbl9xkz"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:imported-modules (append %copy-build-system-modules
+                                 %cargo-build-system-modules)
+      #:modules '((guix build cargo-build-system)
+                  ((guix build copy-build-system) #:prefix copy:)
+                  (guix build utils))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'install 'install-extras
+            (lambda args
+              (apply (assoc-ref copy:%standard-phases 'install)
+                     #:install-plan
+                     '(("etc/completion/completion.bash"
+                        "share/bash-completion/completions/delta")
+                       ("etc/completion/completion.fish"
+                        "share/fish/vendor_completions.d/delta.fish")
+                       ("etc/completion/completion.zsh"
+                        "share/zsh/site-functions/_delta"))
+                     args))))))
+    (native-inputs (list git-minimal/pinned pkg-config))
+    (inputs
+     (cons* libgit2-1.9
+            oniguruma
+            openssl
+            zlib
+            (cargo-inputs 'git-delta)))
+    (home-page "https://github.com/dandavison/delta")
+    (synopsis "Syntax-highlighting pager for git")
+    (description
+     "This package provides a syntax-highlighting pager for @command{git}.  It
+uses @command{bat} for syntax highlighting and provides many features such as
+advanced keybindings, word-level diff highlighting, syntax highlighting for
+@command{grep} and a stylized box presentation.")
+    (license license:expat)))
+
+(define-public wallust
+  (package
+    (name "wallust")
+    (version "3.4.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "wallust" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "1yh55l0pqmg0wciji6nlgvmpcfpi8kd7r3ay02gpi2vbhyhch3mx"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:features '(list "buildgen")
+      #:imported-modules (append %copy-build-system-modules
+                                 %cargo-build-system-modules)
+      #:modules '((guix build cargo-build-system)
+                  ((guix build copy-build-system) #:prefix copy:)
+                  (guix build utils))
+      #:install-source? #f
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'install 'install-extras
+            (lambda args
+              (apply (assoc-ref copy:%standard-phases 'install)
+                     #:install-plan
+                     '(("completions/wallust.bash"
+                        "share/bash-completion/completions/wallust")
+                       ("completions/wallust.elv"
+                        "share/elvish/lib/wallust")
+                       ("completions/wallust.fish"
+                        "share/fish/vendor_completions.d/")
+                       ("completions/_wallust"
+                        "share/zsh/site-functions/")
+                       ("man/" "share/man/man1/" #:include-regexp ("\\.1$"))
+                       ("man/" "share/man/man5/" #:include-regexp ("\\.5$")))
+                     args))))))
+    (native-inputs (list pkg-config))
+    (inputs (cons* libgit2-1.9 zlib (cargo-inputs 'wallust)))
+    (home-page "https://explosion-mental.codeberg.page/wallust")
+    (synopsis "Generate themes from images with advanced templating")
+    (description
+     "Wallust is a rust-based successor to \"pywal\" which generates color
+themes from images with advanced templating and generation options.
+Templates are made using either a subset of Jinja2 or pywal syntax.
+Color generation may be constrained to obey ANSI color standards, meet
+minimum contrast levels, and more.")
+    (license license:expat)))
+
+(define-public rabbitmqadmin
+  (package
+    (name "rabbitmqadmin")
+    (version "2.25.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/rabbitmq/rabbitmqadmin-ng")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1js79z4darfc0a16qq3m3c82yfpv3z7r2vpwkwk907vhvg5r1xjw"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:tests? #f   ;Tests require local instance of RabbitMQ broker.
+      #:install-source? #f
+      #:modules
+      '((guix build cargo-build-system)
+        (guix build utils)
+        (ice-9 match))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'install 'install-completions
+            (lambda* (#:key native-inputs #:allow-other-keys)
+              (for-each
+               (match-lambda
+                 ((shell . path)
+                  (mkdir-p (in-vicinity #$output (dirname path)))
+                  (let ((binary
+                         (if #$(%current-target-system)
+                             (search-input-file native-inputs "bin/rabbitmqadmin")
+                             (in-vicinity #$output "bin/rabbitmqadmin"))))
+                    (with-output-to-file (in-vicinity #$output path)
+                      (lambda _
+                        (invoke binary "shell" "completions" "--shell" shell))))))
+               '(("bash"    . "share/bash-completion/completions/rabbitmqadmin")
+                 ("elvish"  . "share/elvish/lib/rabbitmqadmin")
+                 ("fish"    . "share/fish/vendor_completions.d/rabbitmqadmin.fish")
+                 ("nushell" . "share/nushell/vendor/autoload/rabbitmqadmin")
+                 ("zsh"     . "share/zsh/site-functions/_rabbitmqadmin"))))))))
+    (inputs (cons* mimalloc (cargo-inputs 'rabbitmqadmin)))
+    (native-inputs
+     (if (%current-target-system)
+         (list this-package)
+         '()))
+    (home-page "https://www.rabbitmq.com/docs/management-cli")
+    (synopsis "Manage RabbitMQ broker via the management plugin")
+    (description
+      "@command{rabbitmqadmin} is a tool to manage RabbitMQ broker via
+management plugin.
+
+It supports many of the operations available in the management UI:
+
+@itemize
+@item Listing objects like virtual hosts, users, queues, streams, permissions,
+policies, and so on.
+@item Creating objects.
+@item Deleting objects.
+@item Access to cluster and node metrics.
+@item Run health checks.
+@item Listing feature flag state.
+@item Listing deprecated features in use across the cluster.
+@item Definition export, transformations, and import.
+@item Operations on shovels.
+@item Operations on federation upstreams and links.
+@item Closing connections.
+@item Rebalancing of queue leaders across cluster nodes.
+@end itemize")
+    (license (list license:asl2.0 license:expat))))
+
+(define-public radicle
+  (package
+    (name "radicle")
+    (version "1.10.2")
+    (source
+     (origin
+       (method url-fetch/tarbomb)
+       (uri (string-append
+             "https://files.radicle.dev/releases/"
+             version "/heartwood-" version ".tar.gz"))
+       (sha256
+        (base32 "1xqg2v0jrs8byqrdzyjx703pldzawiyd85ls3hwhcixjrx7152sf"))
+       (modules '((guix build utils)))
+       (snippet
+        '(begin
+           (for-each delete-file
+                     (find-files "build" "^macos-sdk"))
+           (substitute* (find-files "." "^Cargo\\.toml$")
+             (("\"vendored-libgit2\"")
+              ""))))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      ;; Parallel testing will open too many files
+      #:parallel-tests? #f
+      #:cargo-install-paths ''("crates/radicle-cli"
+                               "crates/radicle-node"
+                               "crates/radicle-remote-helper")
+      #:cargo-test-flags
+      '(list "--"
+             ;; Different order of fields in expected vs actual JSON
+             "--skip=commands::utility::rad_config")
+      #:modules
+      '((guix build cargo-build-system)
+        (guix build utils)
+        (ice-9 match))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'setenv
+            (lambda _
+              (setenv "RADICLE_VERSION" #$(package-version this-package))
+              (setenv "LIBGIT2_NO_VENDOR" "1")
+              (setenv "HOME" (getcwd))
+              (setenv "TMPDIR" "/tmp")))
+          (add-after 'install 'install-completions
+            (lambda* (#:key native-inputs #:allow-other-keys)
+              (for-each
+               (match-lambda
+                 ((shell . path)
+                 (mkdir-p (in-vicinity #$output (dirname path)))
+                  (let ((binary
+                         #$@(if (%current-target-system)
+                                #~((search-input-file native-inputs "bin/rad"))
+                                #~((in-vicinity #$output "bin/rad")))))
+                    (with-output-to-file (in-vicinity #$output path)
+                      (lambda _
+                        (invoke binary "completion" shell))))))
+               '(("bash"   . "share/bash-completion/completions/rad")
+                 ("elvish" . "share/elvish/lib/rad")
+                 ("fish"   . "share/fish/vendor_completions.d/rad.fish")
+                 ("zsh"    . "share/zsh/site-functions/_rad")))))
+          #$@(if (this-package-native-input "ruby-asciidoctor")
+                 #~((add-before 'build 'build-doc
+                      (lambda _
+                        (apply invoke "scripts/build-man-pages.sh" "."
+                               (find-files "." "\\.adoc$"))
+                        (let ((man1 (string-append #$output "/share/man/man1")))
+                          (mkdir-p man1)
+                          (for-each (lambda (file)
+                                      (install-file file man1))
+                                    (find-files "." "\\.1$"))))))
+                 #~()))))
+    (native-inputs
+     (append
+      (if (supported-package? ruby-asciidoctor)
+          (list ruby-asciidoctor)
+          '())
+      (if (%current-target-system)
+          (list this-package)
+          '())
+      (list pkg-config
+            ;; for test
+            git-minimal/pinned)))
+    (inputs (cons* libgit2-1.9.7 sqlite-next (cargo-inputs 'radicle)))
+    (home-page "https://radicle.dev/")
+    (synopsis "Peer-to-peer code collaboration stack")
+    (description
+     "Radicle is a peer-to-peer code collaboration stack built on Git.  Unlike
+centralized code hosting platforms, there is no single entity controlling the
+network.  Repositories are replicated across peers in a decentralized manner,
+and users are in full control of their data and workflow.")
+    (license (list license:asl2.0 license:expat))))
+
+(define-public rust-xremap
+  (package
+    (name "rust-xremap")
+    (version "0.10.17")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "xremap" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32
+         "07hva0dy1d88bcrddm5jg54jlspf1cgbpxb1v9za6crk7bks3c9p"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:features '(list)
+      #:install-source? #f
+      #:modules
+      '((guix build cargo-build-system)
+        (guix build utils)
+        (ice-9 match))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'install 'install-completions
+            (lambda* (#:key native-inputs #:allow-other-keys)
+              (for-each
+               (match-lambda
+                 ((shell . path)
+                  (mkdir-p (in-vicinity #$output (dirname path)))
+                  (let ((binary
+                         (if #$(%current-target-system)
+                             (search-input-file native-inputs "bin/xremap")
+                             (in-vicinity #$output "bin/xremap"))))
+                    (with-output-to-file (in-vicinity #$output path)
+                      (lambda _
+                        (invoke binary "--completions" shell))))))
+               '(("bash"   . "share/bash-completion/completions/xremap")
+                 ("elvish" . "share/elvish/lib/xremap")
+                 ("fish"   . "share/fish/vendor_completions.d/xremap.fish")
+                 ("zsh"    . "share/zsh/site-functions/_xremap"))))))))
+    (inputs (cargo-inputs 'rust-xremap))
+    (native-inputs
+     (if (%current-target-system)
+         (list this-package)
+         '()))
+    (home-page "https://github.com/xremap/xremap")
+    (synopsis "Dynamic key remapper for X and Wayland")
+    (description "This package provides dynamic key remapper for X and Wayland.")
+    (license license:expat)))
+
+(define-public xremap-gnome
+  (package
+    (inherit rust-xremap)
+    (name "xremap-gnome")
+    (arguments
+     (substitute-keyword-arguments arguments
+       ((#:features _) '(list "gnome"))))))
+
+(define-public xremap-hyprland
+  (package
+    (inherit rust-xremap)
+    (name "xremap-hyprland")
+    (arguments
+     (substitute-keyword-arguments arguments
+       ((#:features _) '(list "hypr"))))))
+
+(define-public xremap-kde
+  (package
+    (inherit rust-xremap)
+    (name "xremap-kde")
+    (arguments
+     (substitute-keyword-arguments arguments
+       ((#:features _) '(list "kde"))))))
+
+(define-public xremap-niri
+  (package
+    (inherit rust-xremap)
+    (name "xremap-niri")
+    (arguments
+     (substitute-keyword-arguments arguments
+       ((#:features _) '(list "niri"))))))
+
+(define-public xremap-wlroots
+  (package
+    (inherit rust-xremap)
+    (name "xremap-wlroots")
+    (arguments
+     (substitute-keyword-arguments arguments
+       ((#:features _) '(list "wlroots"))))))
+
+(define-public xremap-x11
+  (package
+    (inherit rust-xremap)
+    (name "xremap-x11")
+    (arguments
+     (substitute-keyword-arguments arguments
+       ((#:features _) '(list "x11"))))))
+
+(define-public xsv
+  (package
+    (name "xsv")
+    (version "0.13.0")
+    (source (origin
+              (method url-fetch)
+              (uri (crate-uri "xsv" version))
+              (file-name (string-append name "-" version ".tar.gz"))
+              (sha256
+               (base32
+                "0pvzr7x5phlya6m5yikvy13vgbazshw0plysckz9zmf2ly5x4jl8"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:install-source? #f))
+    (inputs (cargo-inputs 'xsv))
+    (home-page "https://github.com/BurntSushi/xsv")
+    (synopsis "High performance CSV command line toolkit")
+    (description
+     "This package provides a high performance CSV command line toolkit.")
+    (license (list license:unlicense license:expat))))
+
+(define-public zola
+  (package
+    (name "zola")
+    (version "0.22.1")
+    (source
+     (origin
+       (method git-fetch)
+       (file-name (git-file-name name version))
+       (uri (git-reference
+             (url "https://github.com/getzola/zola")
+             (commit (string-append "v" version))))
+       (sha256
+        (base32 "145gag7y26fgwfznm3s48ml1p554zx52vk26zw7qgv24s9ffhacv"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:modules
+      '((guix build cargo-build-system)
+        (guix build utils)
+        (ice-9 match))
+      #:phases
+      #~(modify-phases %standard-phases
+         (replace 'install
+           (lambda _
+             (let ((bin (string-append #$output "/bin")))
+               (install-file "target/release/zola" bin))))
+          (add-after 'install 'install-completions
+            (lambda* (#:key native-inputs #:allow-other-keys)
+              (for-each
+               (match-lambda
+                 ((shell . path)
+                  (mkdir-p (in-vicinity #$output (dirname path)))
+                  (let ((binary
+                         (if #$(%current-target-system)
+                             (search-input-file native-inputs "bin/zola")
+                             (in-vicinity #$output "bin/zola"))))
+                    (with-output-to-file (in-vicinity #$output path)
+                      (lambda _
+                        (invoke binary "completion" shell))))))
+               '(("bash"   . "share/bash-completion/completions/zola")
+                 ("elvish" . "share/elvish/lib/zola")
+                 ("fish"   . "share/fish/vendor_completions.d/zola.fish")
+                 ("zsh"    . "share/zsh/site-functions/_zola"))))))))
+    (native-inputs
+     (append
+       (if (%current-target-system)
+           (list this-package)
+           '())
+       (list pkg-config)))
+    (inputs (cons* libwebp oniguruma
+                   (cargo-inputs 'zola)))
+    (synopsis "Static site generator")
+    (description
+     "Zola generates static websites from Markdown content and Tera templates.
+It supports taxonomies, shortcodes, and live reloading.")
+    (home-page "https://www.getzola.org/")
+    (license license:expat)))
+
+(define-public zoxide
+  (package
+    (name "zoxide")
+    (version "0.9.9")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "zoxide" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "11yjqhjqmsmww9cdxwibwm0clzdz6lzrmvnk1w0lyv4vn3jpw62m"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list #:install-source? #f
+           #:imported-modules (append %copy-build-system-modules
+                                      %cargo-build-system-modules)
+           #:modules '((guix build cargo-build-system)
+                       ((guix build copy-build-system) #:prefix copy:)
+                       (guix build utils))
+           #:phases
+           #~(modify-phases %standard-phases
+               (add-after 'unpack 'patch-references
+                 (lambda _
+                   (substitute* (find-files "templates")
+                     (("zoxide (add|query)" all)
+                      (string-append #$output "/bin/" all))
+                     (("(zoxide = \")(zoxide)" _ prefix suffix)
+                      (string-append prefix #$output "/bin/" suffix)))))
+               (add-after 'install 'install-more
+                 (lambda args
+                   (apply (assoc-ref copy:%standard-phases 'install)
+                          #:install-plan
+                          '(("contrib/completions/zoxide.bash"
+                             "share/bash-completion/completions/zoxide")
+                            ("contrib/completions/zoxide.elv"
+                             "share/elvish/lib/zoxide")
+                            ("contrib/completions/zoxide.fish"
+                             "share/fish/vendor_completions.d/")
+                            ("contrib/completions/zoxide.nu"
+                             "share/nushell/vendor/autoload/zoxide")
+                            ("contrib/completions/_zoxide"
+                             "share/zsh/site-functions/")
+                            ("man/man1" "share/man/"))
+                          args))))))
+    (inputs (cargo-inputs 'zoxide))
+    (home-page "https://github.com/ajeetdsouza/zoxide/")
+    (synopsis "Fast way to navigate your file system")
+    (description
+     "Zoxide is a fast replacement for your @command{cd} command.  It keeps
+track of the directories you use most frequently, and uses a ranking algorithm
+to navigate to the best match.")
+    (license license:expat)))
+
+(define-public htmlq
+  (package
+    (name "htmlq")
+    (version "0.4.0")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (crate-uri "htmlq" version))
+        (file-name (string-append name "-" version ".tar.gz"))
+        (sha256
+          (base32 "0912cdkz5xji1hzfj1cf42zh1kd860b52xmwwhb7q2jhp6qk25jh"))))
+    (build-system cargo-build-system)
+    (arguments
+      `(#:install-source? #f))
+    (inputs (cargo-inputs 'htmlq))
+    (home-page "https://github.com/mgdm/htmlq")
+    (synopsis "Like jq, but for HTML")
+    (description "Extract content from HTML files using CSS selectors.")
+    (license license:expat)))
+
+(define-public podlet
+  (package
+    (name "podlet")
+    (version "0.3.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "podlet" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "1j394gv9fpl1wii7l0v4y31mdni6r98l223wd6x2v3ia82091xg4"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:install-source? #f))
+    (inputs (cargo-inputs 'podlet))
+    (home-page "https://github.com/containers/podlet")
+    (synopsis
+     "Generate Podman Quadlet files from a Podman command, compose file,
+or existing object")
+    (description
+     "This package generates Podman Quadlet files from a Podman command,
+compose file, or existing object.")
+    (license license:mpl2.0)))
+
+(define-public espflash
+  (package
+    (name "espflash")
+    (version "3.2.0")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://github.com/esp-rs/espflash.git")
+                     (commit (string-append "v" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "0vmq3b66yinqypgzfpdivli2ipiyzingakxy84j31srzg70m7maz"))))
+    (build-system cargo-build-system)
+    (inputs
+     (cons eudev (cargo-inputs 'espflash)))
+    (native-inputs
+     (list pkg-config))
+    (arguments
+     `(#:install-source? #f
+       #:phases
+       (modify-phases %standard-phases
+         (add-after 'unpack 'chdir
+           (lambda _
+             (delete-file "Cargo.lock")
+             (chdir "espflash"))))))
+    (home-page "https://github.com/esp-rs/espflash")
+    (synopsis "Command-line tool for flashing Espressif devices")
+    (description
+     "This package provides a command-line tool for flashing Espressif devices.")
+    (license (list license:expat license:asl2.0))))
+
+(define-public espanso-x11
+  (package
+    (name "espanso-x11")
+    (version "2.3.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/espanso/espanso")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0fb83qqzdji5nn75j4h9v0pb9521xgqnsi65gj1a3hbicvwmbwas"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:cargo-install-paths ''("espanso")
+      #:features '(list "modulo" "vendored-tls")))
+    (native-inputs (list pkg-config))
+    (inputs (cons* dbus
+                   libx11
+                   libxkbcommon
+                   libxtst
+                   openssl
+                   wxwidgets
+                   xdo
+                   (cargo-inputs 'espanso)))
+    (home-page "https://espanso.org")
+    (synopsis "Cross-platform Text Expander written in Rust")
+    (description
+     "Espanso is a text expander.  A text expander is a program
+that detects when you type a specific keyword and replaces it with something
+else.
+
+To make espanso work, you need to allow @command{espanso} to read inputs.  This
+is a privileged operation, the capability @code{cap_dac_override+p} is
+required.  This can be achieved with @code{sudo setcap \"cap_dac_override+p\"
+$(which espanso)}.  On a Guix system, you can define the following in your
+ @code{operating-system} definition:
+@lisp
+(operating-system
+  ...
+  (privileged-programs
+    (append (list (privileged-program
+                  (program (file-append espanso \"/bin/espanso\"))
+                  (capabilities \"cap_dac_override+p\")))
+          %default-privileged-programs)))
+@end lisp")
+    (license license:gpl3+)))
+
+(define-public espanso-wayland
+  (package
+    (inherit espanso-x11)
+    (name "espanso-wayland")
+    (arguments
+     (list
+      #:install-source? #f
+      #:cargo-install-paths ''("espanso")
+      #:features '(list "modulo" "vendored-tls" "wayland")))
+    (inputs (modify-inputs inputs
+              (append wl-clipboard)))))

@@ -1,0 +1,606 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2017 Dave Love <fx@gnu.org>
+;;; Copyright © 2018, 2019, 2020 Tobias Geerinckx-Rice <me@tobias.gr>
+;;; Copyright © 2022 Ludovic Courtès <ludo@gnu.org>
+;;; Copyright © 2023 dan <i@dan.games>
+;;; Copyright © 2025 Luca Cirrottola <luca.cirro@gmail.com>
+;;; Copyright © 2025, 2026 Artyom V. Poptsov <poptsov.artyom@gmail.com>
+;;; Copyright © 2026 Cayetano Santos <csantosb@disroot.org>
+;;; Copyright @ 2026 Johannes Elsing <Johannes.Elsing@gmx.de>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (gnu packages profiling)
+  #:use-module (guix packages)
+  #:use-module (guix gexp)
+  #:use-module (guix git-download)
+  #:use-module ((guix licenses) #:prefix license:) ; avoid zlib, expat clashes
+  #:use-module (guix download)
+  #:use-module (guix utils)
+  #:use-module (guix build-system cmake)
+  #:use-module (guix build-system gnu)
+  #:use-module (gnu packages)
+  #:use-module (gnu packages autotools)
+  #:use-module (gnu packages base)      ;for "which"
+  #:use-module (gnu packages bash)      ;for "which"
+  #:use-module (gnu packages build-tools)
+  #:use-module (gnu packages bison)
+  #:use-module (gnu packages compression)
+  #:use-module (gnu packages documentation)
+  #:use-module (gnu packages engineering)
+  #:use-module (gnu packages fabric-management)
+  #:use-module (gnu packages compiler-tools)
+  #:use-module (gnu packages fontutils)
+  #:use-module (gnu packages freedesktop)
+  #:use-module (gnu packages gawk)
+  #:use-module (gnu packages gcc)
+  #:use-module (gnu packages gl)
+  #:use-module (gnu packages glib)
+  #:use-module (gnu packages haskell-xyz)
+  #:use-module (gnu packages libunwind)
+  #:use-module (gnu packages linux)
+  #:use-module (gnu packages llvm)
+  #:use-module (gnu packages mpi)
+  #:use-module (gnu packages ncurses)
+  #:use-module (gnu packages perl)
+  #:use-module (gnu packages protobuf)
+  #:use-module (gnu packages pkg-config)
+  #:use-module (gnu packages python)
+  #:use-module (gnu packages qt)
+  #:use-module (gnu packages xdisorg))
+
+;; Fixme: Separate out lib and fix resulting cycle errors; separate libpfm
+;; output(?); build libmsr and add that component.
+(define-public papi
+  (package
+    (name "papi")
+    (version "6.0.0.1")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "https://icl.utk.edu/projects/papi/downloads/papi-"
+                           version ".tar.gz"))
+       (sha256
+        (base32 "0zr83v51lp4ijgk997dz9fpph48prlsbml26dvb223avqr8fvmrw"))
+       (modules '((guix build utils)))
+       (snippet
+        '(begin
+           ;; Remove bundled software.
+           (for-each delete-file-recursively
+                     '("src/libpfm-3.y" "src/libpfm4"
+                       "src/perfctr-2.6.x"
+                       "src/perfctr-2.7.x"))
+
+           ;; Adjust include directives.
+           (substitute* "src/components/lmsensors/linux-lmsensors.c"
+             (("<sensors.h>")
+              "<sensors/sensors.h>"))))))
+    (build-system gnu-build-system)
+    (inputs
+     (list ncurses
+           rdma-core
+           libpfm4
+           `(,lm-sensors "lib")
+           `(,infiniband-diags "lib")
+           net-tools))
+    (native-inputs
+     (list gcc-13
+           gfortran-13))
+    (arguments
+     (list #:tests? #f                            ;no check target
+           #:configure-flags
+           ;; These are roughly per Fedora, but elide mx (assumed to be dead, even
+           ;; Open-MX) and add and powercap -- I don't know the pros/cons of
+           ;; infiniband and infiniband_mad, but you can't use them together, and
+           ;; the umad version needs at least one patch.
+           ;; Implicit enabled components: perf_event perf_event_uncore
+           #~`("--with-perf-events" "--with-shared-lib=yes" "--with-shlib"
+               "--with-static-lib=no" "--with-shlib-tools"
+               "--with-components=appio coretemp example lustre micpower net rapl \
+stealtime lmsensors infiniband powercap"
+               ;; So utils get rpath set correctly:
+               ,(string-append "LDFLAGS=-Xlinker -rpath -Xlinker "
+                               #$output "/lib")
+               ,(string-append "--with-pfm-prefix="
+                               #$(this-package-input "libpfm4")))
+
+           #:phases
+           #~(modify-phases %standard-phases
+               (add-after 'unpack 'change-directory
+                 (lambda _
+                   (chdir "src")
+
+                   ;; Work around a mistake whereby 'configure' would always error
+                   ;; out when passing '--with-static-lib=no'.
+                   (substitute* "configure"
+                     (("test \"\\$static_lib\" = \"no\"")
+                      "false"))))
+               (add-after 'install 'extra-doc
+                 (lambda* (#:key outputs #:allow-other-keys)
+                   (let ((doc (string-append (assoc-ref outputs "out")
+                                             "/share/doc/"
+                                             #$name "-" #$version)))
+                     (chdir "..")                   ; we went into src above
+                     (for-each (lambda (file)
+                                 (install-file file doc))
+                               '("README.md" "RELEASENOTES.txt"))))))))
+    (home-page "https://icl.utk.edu/papi/")
+    (synopsis "Performance Application Programming Interface")
+    (description
+     "PAPI provides the tool designer and application engineer with a consistent
+interface and methodology for use of the performance counter hardware found in
+most major microprocessors.  PAPI enables software engineers to see, in near
+real time, the relation between software performance and processor events.
+
+In addition, PAPI provides access to a collection of components that expose
+performance measurement opportunities across the hardware and software stack.")
+    (properties
+     '((release-monitoring-url
+        . "http://icl.cs.utk.edu/papi/software/")))
+    ;; See Debian papi copyright file.
+    (license (list license:bsd-3
+                   license:lgpl2.1+        ;src/components/infiniband/pscanf.h
+                   ;; not used in output
+                   license:gpl2+ ;src/components/appio/tests/iozone/gengnuplot.sh
+                   ))))
+
+(define-public ittapi
+  (package
+    (name "ittapi")
+    (version "3.28.2")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/intel/ittapi/")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "089q50ma8g3qxyxv37w3g8yxlpxah94lv06bi4r0l4p5v6w8a365"))))
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:tests? #f                       ;there are no tests
+      #:configure-flags #~(list "-DITT_API_IPT_SUPPORT=ON")))
+    (native-inputs
+     (list python-minimal-wrapper))
+    (home-page
+     "https://github.com/intel/ittapi/")
+    (synopsis "Intel instrumentation and tracing APIs")
+    (description
+     "This package provides the Intel @acronym{ITT, Instrumentation and
+Tracing Technology} and @acronym{JIT, Just-In-Time} profiling APIs, to
+generate and control the collection of trace data during program execution.")
+    (license license:gpl2)))
+
+;; NB. there's a potential name clash with libotf.
+(define-public otf2
+  (package
+    (name "otf2")
+    (version "3.1.1")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "https://perftools.pages.jsc.fz-juelich.de/cicd/otf2/tags/otf2-"
+                           version "/otf2-" version ".tar.gz"))
+       (sha256 (base32 "0vhai3xsb1kbqy2fqcvzv9pk886p1iq5pi9mzsadfkmca4x02kjs"))))
+    (native-inputs (list python))
+    (outputs '("doc"                              ; 21MB
+               "lib"
+               "out"))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:configure-flags '("--enable-shared" "--disable-static")
+       #:phases
+       (modify-phases %standard-phases
+         (add-after 'unpack 'normalize-pkgconfig-files-location
+           (lambda _
+             ;; Prevent lib/pkgconfig/otf2-backend.pc from referencing the
+             ;; prefix of output "out" from the "lib" store location.
+             (substitute* "otf2-build.pc.in"
+               (("^prefix=.*") "")
+               (("^exec_prefix=.*") ""))))
+         (add-after 'install 'licence
+           (lambda* (#:key outputs #:allow-other-keys)
+             (for-each (lambda (output)
+                         (let ((doc (string-append (assoc-ref outputs output)
+                                                   "/share/doc/otf2")))
+                           (install-file "COPYING" doc)))
+                       '("lib" "doc"))
+             #t)))))
+    (home-page "https://www.vi-hps.org/projects/score-p/")
+    (synopsis "Open Trace Format 2 library")
+    (description "The Open Trace Format 2 (@dfn{OTF2}) is a scalable,
+memory-efficient event trace data format plus support library.")
+    (license license:bsd-3)))
+
+(define-public opari2
+  (package
+    (name "opari2")
+    (version "2.0.9")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "https://perftools.pages.jsc.fz-juelich.de/cicd/opari2/tags/opari2-"
+                           version "/opari2-" version ".tar.gz"))
+       (sha256
+        (base32 "0yfpzxy70wp6mwi6pvvc9a6bkaal14yysiddmvx6lrn5azvkjwfm"))))
+    (build-system gnu-build-system)
+    (inputs (list gfortran))
+    (native-inputs (list gawk ; for tests
+                         which))
+    (home-page "https://www.vi-hps.org/projects/score-p")
+    (synopsis "OpenMP runtime performance measurement instrumenter")
+    (description "OPARI2 is a source-to-source instrumentation tool for OpenMP
+and hybrid codes.  It surrounds OpenMP directives and runtime library calls
+with calls to the POMP2 measurement interface.")
+    (license license:bsd-3)))
+
+;; Since version 4.4, CUBE has been split in three different packages: CubeW,
+;; CubeLib, CubeGUI. They are still released together, so we conventionally
+;; define cubew as the parent package for cubelib and cubegui to factorize
+;; common data.
+(define-public cubew
+  (package
+    (name "cubew")
+    (version "4.9")
+    (source
+     (origin
+       (method url-fetch)
+       (uri
+        (string-append "https://apps.fz-juelich.de/scalasca/releases/cube/"
+                       version "/dist/cubew-"
+                       version ".tar.gz"))
+       (sha256
+        (base32 "1pdcs8688y4nwcxshgs9773xmdajxahsbjsrfh8m7gv9qn0lxxsf"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:configure-flags
+      #~(list "--enable-shared" "--disable-static" "--disable-silent-rules"
+              (string-append "--with-frontend-zlib="
+                             #$(this-package-input "zlib") "/lib")
+              (string-append "--with-backend-zlib="
+                             #$(this-package-input "zlib") "/lib"))))
+    (inputs
+     (list zlib))
+    (home-page "https://www.scalasca.org/software/cube-4.x/download.html")
+    (synopsis "CUBE high performance C writer library")
+    (description
+     "CUBE (CUBE Uniform Behavioral Encoding) is a tool to display a variety
+of performance metrics for parallel programs including MPI and OpenMP
+applications.  CubeW is the high performance C writer library of the CUBE
+project.")
+    (license license:bsd-3)))
+
+(define-public cubelib
+  (package/inherit cubew
+    (name "cubelib")
+    (source
+     (origin
+       (method url-fetch)
+       (uri
+        (string-append "https://apps.fz-juelich.de/scalasca/releases/cube/"
+                       (package-version cubew) "/dist/cubelib-"
+                       (package-version cubew) ".tar.gz"))
+       (sha256
+        (base32 "0hwl0aihn6fgpl0qhqckxc3sslb78wq6xav5ykfgfjzpyddqyrd0"))))
+    (arguments
+     (substitute-keyword-arguments arguments
+       ((#:configure-flags flags)
+        #~(append #$flags
+                  (list "--with-compression=full")))
+       ((#:parallel-tests? _ #f) #f)))
+    (inputs
+     (list zlib))
+    (synopsis "CUBE C++ profile library")
+    (description
+     "CUBE (CUBE Uniform Behavioral Encoding) is a tool to display a variety
+of performance metrics for parallel programs including MPI and OpenMP
+applications.  CubeLib is the general purpose C++ library and tool of the CUBE
+project.")))
+
+(define-public cubegui
+  (package/inherit cubew
+    (name "cubegui")
+    (source
+     (origin
+       (method url-fetch)
+       (uri
+        (string-append "https://apps.fz-juelich.de/scalasca/releases/cube/"
+                       (package-version cubew) "/dist/cubegui-"
+                       (package-version cubew) ".tar.gz"))
+       (sha256
+        (base32 "04byhf00xnn1ppca914ag4hq2kjv37lhwyh8dl369ps47mp6viqh"))))
+    (arguments
+     (list
+      #:configure-flags
+      #~(list "--enable-shared" "--disable-static" "--disable-silent-rules"
+              (string-append "CXXFLAGS=-I" #$(this-package-input "dbus")
+                             "/include/dbus-1.0")
+              (string-append "LDFLAGS=-L" #$(this-package-input "dbus")
+                             "/lib"))))
+    (native-inputs
+     (list qtbase))
+    (inputs
+     (list cubelib
+           dbus
+           perl))
+    (synopsis "CUBE profile explorer GUI")
+    (description
+     "CUBE (CUBE Uniform Behavioral Encoding) is a tool to display a variety
+of performance metrics for parallel programs including MPI and OpenMP
+applications.  CubeGUI is the graphical explorer of the CUBE project.")))
+
+(define-public tracy-wayland
+  (package
+    (name "tracy-wayland")
+    (version "0.10")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/wolfpld/tracy")
+             (commit (string-append "v" version))))
+       (sha256
+        (base32
+         "1w50bckvs1nn68amzrkyrh769dhmlhk7w00kr8ac5h9ryk349p8c"))
+       (file-name (git-file-name "tracy" version))
+       (modules '((guix build utils)))
+       (snippet
+        '(begin
+           ;; XXX: Sadly, the ImGui loaders appear to have been customized by
+           ;; the project and the build fails when using the 'imgui' Guix
+           ;; package due to a missing GL_TEXTURE_WRAP_S definition, so keep
+           ;; the bundled copy.
+
+           ;; Unbundle Zstd.
+           (delete-file-recursively "zstd")
+           ;; Adjust the include directives.
+           (substitute* (find-files "server" "\\.(c|h)pp$")
+             (("#include \".*zstd/(zstd|zdict).h\"" _ header)
+              (format #f "#include \"~a.h\"" header)))
+           ;; De-register source files from Visual Code project.
+           (substitute* "profiler/build/win32/Tracy.vcxproj"
+             ((".*Include=\"..\\\\..\\\\..\\\\zstd\\\\.*") ""))))))
+    ;; Note: There is also CMake and Meson support, but only to build the
+    ;; tracy library, not the profiler command.
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? #f                       ;no test for the profiler
+      #:make-flags
+      #~(list (string-append "CC=" #$(cc-for-target))
+              (string-append "CFLAGS=-lzstd"))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-before 'build 'chdir
+            (lambda _
+              (chdir "profiler/build/unix")))
+          (delete 'configure)           ;the profiler has no configure script
+          (replace 'install
+            (lambda _
+              (let ((bin (string-append #$output "/bin"))
+                    (tracy (string-append #$output "/bin/tracy")))
+                (mkdir-p bin)
+                (copy-file "Tracy-release" tracy)))))))
+    (inputs (list capstone
+                  dbus
+                  freetype
+                  libxkbcommon
+                  mesa
+                  wayland
+                  `(,zstd "lib")))
+    (native-inputs (list gcc-13 pkg-config))
+    (home-page "https://github.com/wolfpld/tracy")
+    (synopsis "Frame profiler")
+    (description
+     "A real time, nanosecond resolution, remote telemetry, hybrid frame and
+sampling profiler for games and other applications.")
+    (license license:bsd-3)))
+
+(define-public tracy
+  (package;xb
+    (inherit tracy-wayland)
+    (name "tracy")
+    (arguments
+     (substitute-keyword-arguments arguments
+       ((#:make-flags flags #~'())
+        #~(append #$flags
+                  ;; The LEGACY flag indicate we want to build tracy with glfw.
+                  (list "LEGACY=1")))))
+    (inputs (modify-inputs inputs
+              (delete "libxkbcommon" "wayland")
+              (prepend glfw)))
+    (synopsis "Frame profiler (X11 version)")))
+
+(define-public scalasca
+  (package
+    (name "scalasca")
+    (version "2.6.2")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (string-append
+               "https://apps.fz-juelich.de/scalasca/releases/scalasca/2.6/"
+               "dist/scalasca-" version ".tar.gz"))
+        (sha256
+          (base32
+            "18022bzdlzdgngcc5zlmsakvsk9dfg14kvg4ancqfhxy13cjzrqp"))
+        ;; Remove bundled dependencies that can be replaced by inputs
+        (snippet
+          #~(begin
+              (use-modules (guix build utils))
+              (delete-file-recursively "vendor/cubew/")
+              (delete-file-recursively "vendor/otf2/")))))
+    (build-system gnu-build-system)
+    (arguments
+      (list
+        #:configure-flags
+        #~(list "--enable-shared" "--disable-static")
+        #:phases
+        #~(modify-phases %standard-phases
+          (add-after 'install 'wrap-scripts
+            ;; Use wrap-program on some outputs to resolve runtime dependency
+            ;; on coreutils, sed... without propagating these inputs.
+            (lambda* (#:key outputs #:allow-other-keys)
+              (with-directory-excursion
+                (string-append #$output "/bin")
+                (for-each
+                  (lambda (file)
+                    (wrap-program file
+                      `("PATH" ":" prefix ,(search-path-as-string->list
+                        (getenv "PATH")))))
+                  (list "scalasca" "skin" "square"))))))))
+    (inputs
+      (list openmpi
+            cubew
+            otf2
+            zlib
+            libiberty
+            which ; configure and runtime dependency
+            findutils ; runtime dependency
+            gawk ; runtime dependency
+            scorep-openmpi ; runtime dependency
+            cubelib ; otherwise "ERROR: cube_dump is not available!"
+            cubegui ; needed at runtime
+            bash-minimal)) ; needed for using "wrap-program" in the recipe
+    (home-page "https://scalasca.org")
+    (synopsis "Performance analysis of parallel programs through runtime
+measurements")
+    (description
+     "Scalasca targets mainly scientific and engineering applications based on
+the programming interfaces MPI and OpenMP, including hybrid applications based
+on a combination of the two.  Unlike Scalasca 1.x, the Scalasca 2.x release
+series is based on the community instrumentation and measurement infrastructure
+Score-P.  This significantly improves interoperability with other performance
+analysis tool suites such as Vampir and TAU due to the usage of the two common
+data formats CUBE4 for profiles and the Open Trace Format 2 (OTF2) for event
+trace data.")
+    (license license:bsd-3)))
+
+(define-public perfetto
+  (package
+    (name "perfetto")
+    (version "53.0")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://github.com/google/perfetto")
+                     (commit (string-append "v" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "1g2r90348pl173r3wp9k5546sdgan3pdw0002bqicaw028j3gq96"))
+              (modules '((guix build utils)))
+              (snippet
+               #~(for-each (lambda (name)
+                             (unless (string-suffix? "trigger.pzc.h" name)
+                               (delete-file name)))
+                           (find-files "." "\\.pzc")))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'build-documentation
+            (lambda _
+              (invoke "pandoc" "docs/reference/perfetto-cli.md"
+                      "--standalone" "-t" "man"
+                      "-o" "perfetto.1")))
+          (add-after 'build-documentation 'remove-origin-rpath
+            (lambda _
+              (substitute* "gn/standalone/BUILD.gn"
+                ((".*-rpath=.*ORIGIN.*") ""))))
+          (replace 'configure
+            (lambda _
+              (invoke "gn" "gen"
+                      (string-append
+                       "--args="
+                       "is_debug=false"
+                       " perfetto_use_pkgconfig=true"
+                       " perfetto_use_system_protobuf=true"
+                       " perfetto_use_system_zlib=true"
+                       " use_custom_libcxx=false"
+                       " skip_buildtools_check=true"
+                       " is_hermetic_clang=false"
+                       " is_system_compiler=true"
+                       " is_clang=false"
+                       (string-append " extra_ldflags=\""
+                                      "-Wl,-rpath=" #$output "/lib\""))
+                      "out/linux")))
+          (replace 'build
+            (lambda* (#:key parallel-build? #:allow-other-keys)
+              (invoke "ninja" "-j"
+                      (number->string (if parallel-build?
+                                          (parallel-job-count)
+                                          1))
+                      "-C" "out/linux"
+                      "perfetto"
+                      "protozero_c_plugin" ; for gen_c_protos
+                      "tracebox"
+                      "traced"
+                      "traced_probes")))
+          (add-after 'build 'generate-headers
+            (lambda _
+              (substitute* "tools/gen_c_protos"
+                ((".*call.*ninja.*") "")
+                (("def protoc_path.*")
+                 "def protoc_path(_):\n  return 'protoc'\n")
+                ((".*path.*clang-format not found.*")
+                 "    'BUILD.gn')\n  path='clang-format'\n"))
+              (invoke "tools/gen_c_protos" "out/linux")))
+          (delete 'check)
+          (replace 'install
+            (lambda _
+              (let ((bin (string-append #$output "/bin"))
+                    (include (string-append #$output "/include"))
+                    (lib (string-append #$output "/lib"))
+                    (doc (string-append #$output "/share/man/man1")))
+                (mkdir-p bin)
+                (mkdir-p include)
+                (mkdir-p lib)
+                (mkdir-p doc)
+                (copy-recursively "include/perfetto"
+                                  (string-append include "/perfetto"))
+                (for-each delete-file
+                          (filter (lambda (name)
+                                    (or (string=? "README.md" name)
+                                        (string=? "BUILD.gn" name)))
+                                  (find-files include)))
+                (install-file "out/linux/libperfetto.so" lib)
+                (install-file "out/linux/traced" bin)
+                (install-file "out/linux/traced_probes" bin)
+                (install-file "out/linux/perfetto" bin)
+                (install-file "out/linux/tracebox" bin)
+                (install-file "perfetto.1" doc)))))))
+    (native-inputs
+     (list clang-21 ; for clang-format used by gen_c_protos
+           gn
+           ninja
+           pandoc
+           pkg-config
+           protobuf
+           python-minimal-wrapper))
+    (inputs (list zlib))
+    (home-page "https://perfetto.dev/")
+    (synopsis "Framework for client-side tracing and profiling")
+    (description "Perfetto is a framework for performance instrumentation and
+trace analysis.  This package contains the library, the @code{traced} and
+@code{traced_probes} daemons as well as the @code{perfetto} command-line
+interface.")
+    (license license:asl2.0)))

@@ -1,0 +1,364 @@
+#include "store-api.hh"
+#include "globals.hh"
+#include "util.hh"
+
+#include <climits>
+#include <format>
+
+namespace nix {
+
+
+GCOptions::GCOptions()
+{
+    action = gcDeleteDead;
+    ignoreLiveness = false;
+    maxFreed = ULLONG_MAX;
+}
+
+
+bool isInStore(const Path & path)
+{
+    return isInDir(path, settings.nixStore);
+}
+
+
+bool isStorePath(const Path & path)
+{
+    return isInStore(path)
+        && path.find('/', settings.nixStore.size() + 1) == Path::npos;
+}
+
+
+bool isStoreName(const string & name, string & problemDescription)
+{
+    const string validChars = "+-._?=";
+    if (name.empty()) {
+        problemDescription = "empty string is not a valid name";
+        return false;
+    }
+    /* Disallow names starting with a dot for possible security
+       reasons (e.g., "." and ".."). */
+    if (name.starts_with(".")) {
+        problemDescription = std::format("invalid name: `{}' (can't begin with dot)",
+                                         name);
+        return false;
+    }
+    for (const auto& i : name)
+        if (!((i >= 'A' && i <= 'Z') ||
+              (i >= 'a' && i <= 'z') ||
+              (i >= '0' && i <= '9') ||
+              validChars.find(i) != string::npos))
+        {
+            problemDescription = std::format("invalid character `{}' in name `{}'",
+                                             i,
+                                             name);
+            return false;
+        }
+    return true;
+}
+
+
+bool isStoreName(const string & name)
+{
+    string problemDescription; /* Placeholder */
+    return isStoreName(name, problemDescription);
+}
+
+
+void checkStoreName(const string & name)
+{
+    string problemDescription;
+    if (!isStoreName(name, problemDescription))
+        throw Error(problemDescription);
+}
+
+
+bool isStoreBasenameStrict(const string & name)
+{
+    /* 1. At least 34 characters long
+       2. First 32 characters are all nix-base32 characters
+       3. 33rd character (index 32) is a dash
+       4. 34th character (index 33) and those following it form a valid store
+          name. */
+    return name.size() >= 34
+        && isHash32(string(name, 0, 32))
+        && name[32] == '-'
+        && isStoreName(string(name, 33));
+}
+
+
+bool isStorePathStrict(const Path & path)
+{
+    return isStorePath(path)
+        && isStoreBasenameStrict(string(path, settings.nixStore.size() + 1));
+}
+
+
+void assertStorePath(const Path & path)
+{
+    if (!isStorePath(path))
+        throw Error(std::format("path `{}' is not in the store", path));
+}
+
+
+void assertStorePathStrict(const Path & path)
+{
+    if (!isStorePathStrict(path))
+        throw Error(std::format("path `{}' is not a valid store path", path));
+}
+
+
+Path toStorePath(const Path & path)
+{
+    if (!isInStore(path))
+        throw Error(std::format("path `{}' is not in the store", path));
+    Path::size_type slash = path.find('/', settings.nixStore.size() + 1);
+    if (slash == Path::npos)
+        return path;
+    else
+        return Path(path, 0, slash);
+}
+
+
+string storePathToName(const Path & path)
+{
+    assertStorePath(path);
+    return string(path, settings.nixStore.size() + 34);
+}
+
+
+
+
+
+/* Store paths have the following form:
+
+   <store>/<h>-<name>
+
+   where
+
+   <store> = the location of the store, usually /gnu/store
+
+   <name> = a human readable name for the path, typically obtained
+     from the name attribute of the derivation, or the name of the
+     source file from which the store path is created.  For derivation
+     outputs other than the default "out" output, the string "-<id>"
+     is suffixed to <name>.
+
+   <h> = base-32 representation of the first 160 bits of a SHA-256
+     hash of <s>; the hash part of the store name
+
+   <s> = the string "<type>:sha256:<h2>:<store>:<name>";
+     note that it includes the location of the store as well as the
+     name to make sure that changes to either of those are reflected
+     in the hash (e.g. you won't get /nix/store/<h>-name1 and
+     /nix/store/<h>-name2 with equal hash parts).
+
+   <type> = one of:
+     "text:<r1>:<r2>:...<rN>"
+       for plain text files written to the store using
+       addTextToStore(); <r1> ... <rN> are the references of the
+       path.
+     "source"
+       for paths copied to the store using addToStore() when recursive
+       = true and hashAlgo = "sha256"
+     "output:<id>"
+       for either the outputs created by derivations, OR paths copied
+       to the store using addToStore() with recursive != true or
+       hashAlgo != "sha256" (in that case "source" is used; it's
+       silly, but it's done that way for compatibility).  <id> is the
+       name of the output (usually, "out").
+
+   <h2> = base-16 representation of a SHA-256 hash of:
+     if <type> = "text:...":
+       the string written to the resulting store path
+     if <type> = "source":
+       the serialisation of the path from which this store path is
+       copied, as returned by hashPath()
+     if <type> = "output:out":
+       for non-fixed derivation outputs:
+         the derivation (see hashDerivationModulo() in
+         primops.cc)
+       for paths copied by addToStore() or produced by fixed-output
+       derivations:
+         the string "fixed:out:<rec><algo>:<hash>:", where
+           <rec> = "r:" for recursive (path) hashes, or "" or flat
+             (file) hashes
+           <algo> = "md5", "sha1" or "sha256"
+           <hash> = base-16 representation of the path or flat hash of
+             the contents of the path (or expected contents of the
+             path for fixed-output derivations)
+
+   It would have been nicer to handle fixed-output derivations under
+   "source", e.g. have something like "source:<rec><algo>", but we're
+   stuck with this for now...
+
+   The main reason for this way of computing names is to prevent name
+   collisions (for security).  For instance, it shouldn't be feasible
+   to come up with a derivation whose output path collides with the
+   path for a copied source.  The former would have a <s> starting with
+   "output:out:", while the latter would have a <2> starting with
+   "source:".
+*/
+
+
+Path makeStorePath(const string & type,
+    const Hash & hash, const string & name)
+{
+    /* e.g., "source:sha256:1abc...:/nix/store:foo.tar.gz" */
+    string s = type + ":sha256:" + printHash(hash) + ":"
+        + settings.nixStore + ":" + name;
+
+    checkStoreName(name);
+
+    return settings.nixStore + "/"
+        + printHash32(compressHash(hashString(htSHA256, s), 20))
+        + "-" + name;
+}
+
+
+Path makeOutputPath(const string & id,
+    const Hash & hash, const string & name)
+{
+    return makeStorePath("output:" + id, hash,
+        name + (id == "out" ? "" : "-" + id));
+}
+
+
+Path makeFixedOutputPath(bool recursive,
+    HashType hashAlgo, Hash hash, string name)
+{
+    return hashAlgo == htSHA256 && recursive
+        ? makeStorePath("source", hash, name)
+        : makeStorePath("output:out", hashString(htSHA256,
+                "fixed:out:" + (recursive ? (string) "r:" : "") +
+                printHashType(hashAlgo) + ":" + printHash(hash) + ":"),
+            name);
+}
+
+
+/* Return the 'type' part of a text store item with the given REFERENCES.  */
+static string textTypeWithReferences(const PathSet & references)
+{
+    /* Stuff the references (if any) into the type.  This is a bit
+       hacky, but we can't put them in the file content since that would be
+       ambiguous. */
+    string type = "text";
+    for (const auto& i : references) {
+        type += ":";
+        type += i;
+    }
+    return type;
+}
+
+Path computeStorePathForText(const string & name, const string & s,
+    const PathSet & references)
+{
+    Hash hash = hashString(htSHA256, s);
+    string type = textTypeWithReferences(references);
+    return makeStorePath(type, hash, name);
+}
+
+bool isContentAddressedPath(const Path & path, const Hash & hash,
+			    const PathSet & references, bool recursive)
+{
+    /* Check whether PATH corresponds to something introduced by 'addToStore'
+       or by 'addTextToStore'.  For simplicity, anything with a hash other
+       than SHA256 is omitted: this returns false even though they are
+       content-addressed as well.  */
+    string name = storePathToName(path);
+    if (recursive) {
+      /* HASH is interpreted as the nar hash.  This can only come from
+	 'addToStore'.  */
+      return references.empty() &&
+	path == makeFixedOutputPath(true, htSHA256, hash, name);
+    } else {
+      /* HASH is interpreted as the content hash.  This can come from
+	 'addTextToStore' ("text" type, possibly with references) or from
+	 'addToStore' ("output:out" type).  */
+      string type = textTypeWithReferences(references);
+      return path == makeStorePath(type, hash, name)
+	|| (references.empty() &&
+	    path == makeFixedOutputPath(false, htSHA256, hash, name));
+    }
+}
+
+/* Return a string accepted by decodeValidPathInfo() that
+   registers the specified paths as valid.  Note: it's the
+   responsibility of the caller to provide a closure. */
+string StoreAPI::makeValidityRegistration(const PathSet & paths,
+    bool showDerivers, bool showHash)
+{
+    string s = "";
+
+    for (auto& i : paths) {
+        s += i + "\n";
+
+        ValidPathInfo info = queryPathInfo(i);
+
+        if (showHash) {
+            s += printHash(info.hash) + "\n";
+            s += std::format("{}\n", info.narSize);
+        }
+
+        Path deriver = showDerivers ? info.deriver : "";
+        s += deriver + "\n";
+
+        s += std::format("{}\n", info.references.size());
+
+        for (auto& j : info.references)
+            s += j + "\n";
+    }
+
+    return s;
+}
+
+string showPaths(const PathSet & paths)
+{
+    string s;
+    for (const auto& i : paths) {
+        if (s.size() != 0) s += ", ";
+        s += "`" + i + "'";
+    }
+    return s;
+}
+
+Path readStorePath(Source & from)
+{
+    Path path = readString(from);
+    assertStorePath(path);
+    return path;
+}
+
+
+template<class T> T readStorePaths(Source & from)
+{
+    T paths = readStrings<T>(from);
+    for (auto& i : paths) assertStorePath(i);
+    return paths;
+}
+
+
+template PathSet readStorePaths(Source & from);
+
+
+Path readStorePathStrict(Source & from)
+{
+    Path path = readString(from);
+    assertStorePathStrict(path);
+    return path;
+}
+
+
+template<class T> T readStorePathsStrict(Source & from)
+{
+    T paths = readStrings<T>(from);
+    for (auto& i : paths) assertStorePathStrict(i);
+    return paths;
+}
+
+
+template PathSet readStorePathsStrict(Source & from);
+
+}
+
+

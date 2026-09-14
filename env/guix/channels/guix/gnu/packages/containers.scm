@@ -1,0 +1,2221 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2018 宋文武 <iyzsong@envs.net>
+;;; Copyright © 2019 Leo Famulari <leo@famulari.name>
+;;; Copyright © 2018, 2019, 2021, 2022, 2024 Tobias Geerinckx-Rice <me@tobias.gr>
+;;; Copyright © 2020 Jelle Licht <jlicht@fsfe.org>
+;;; Copyright © 2020 Ludovic Courtès <ludo@gnu.org>
+;;; Copyright © 2021 Léo Le Bouter <lle-bout@zaclys.net>
+;;; Copyright © 2021 Maxim Cournoyer <maxim@guixotic.coop>
+;;; Copyright © 2021 Timmy Douglas <mail@timmydouglas.com>
+;;; Copyright © 2022 Michael Rohleder <mike@rohleder.de>
+;;; Copyright © 2022 Pierre Langlois <pierre.langlois@gmx.com>
+;;; Copyright © 2022 Zhu Zihao <all_but_last@163.com>
+;;; Copyright © 2023 Hilton Chain <hako@ultrarare.space>
+;;; Copyright © 2023 Ricardo Wurmus <rekado@elephly.net>
+;;; Copyright © 2023 Zongyuan Li <zongyuan.li@c0x0o.me>
+;;; Copyright © 2024 Ashish SHUKLA <ashish.is@lostca.se>
+;;; Copyright © 2024 Foundation Devices, Inc. <hello@foundation.xyz>
+;;; Copyright © 2024 Jean-Pierre De Jesus DIAZ <jean@foundation.xyz>
+;;; Copyright © 2024-2026 Sharlatan Hellseher <sharlatanus@gmail.com>
+;;; Copyright © 2024-2026 Tomas Volf <~@wolfsden.cz>
+;;; Copyright © 2025, 2026 Foster Hangdaan <foster@hangdaan.email>
+;;; Copyright © 2026 Giacomo Leidi <therewasa@fishinthecalculator.me>
+;;; Copyright © 2026 Konstantin Suntsov <protvin@disroot.org>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (gnu packages containers)
+  #:use-module (guix gexp)
+  #:use-module ((guix licenses) #:prefix license:)
+  #:use-module (guix modules)
+  #:use-module (gnu packages)
+  #:use-module (guix packages)
+  #:use-module (guix download)
+  #:use-module (guix git-download)
+  #:use-module (guix build-system copy)
+  #:use-module (guix build-system gnu)
+  #:use-module (guix build-system go)
+  #:use-module (guix build-system guile)
+  #:use-module (guix build-system meson)
+  #:use-module (guix build-system pyproject)
+  #:use-module ((guix search-paths) #:select ($GUIX_EXTENSIONS_PATH))
+  #:use-module (guix utils)
+  #:use-module (gnu packages admin)
+  #:use-module (gnu packages autotools)
+  #:use-module (gnu packages base)
+  #:use-module (gnu packages bash)
+  #:use-module (gnu packages check)
+  #:use-module (gnu packages compression)
+  #:use-module (gnu packages docker)
+  #:use-module (gnu packages glib)
+  #:use-module (gnu packages gcc)
+  #:use-module (gnu packages gettext)
+  #:use-module (gnu packages gnupg)
+  #:use-module (gnu packages golang)
+  #:use-module (gnu packages golang-build)
+  #:use-module (gnu packages golang-check)
+  #:use-module (gnu packages golang-compression)
+  #:use-module (gnu packages golang-crypto)
+  #:use-module (gnu packages golang-maths)
+  #:use-module (gnu packages golang-web)
+  #:use-module (gnu packages golang-xyz)
+  #:use-module (gnu packages guile)
+  #:use-module (gnu packages guile-xyz)
+  #:use-module (gnu packages linux)
+  #:use-module (gnu packages man)
+  #:use-module (gnu packages pcre)
+  #:use-module (gnu packages python)
+  #:use-module (gnu packages networking)
+  #:use-module (gnu packages package-management)
+  #:use-module (gnu packages pkg-config)
+  #:use-module (gnu packages prometheus)
+  #:use-module (gnu packages python-xyz)
+  #:use-module (gnu packages python-build)
+  #:use-module (gnu packages python-check)
+  #:use-module (gnu packages rust-apps)
+  #:use-module (gnu packages selinux)
+  #:use-module (gnu packages version-control)
+  #:use-module (gnu packages web)
+  #:use-module (gnu packages wget))
+
+;;; Code:
+
+;;;
+;;; Libraries:
+;;;
+
+(define-public go-github-com-checkpoint-restore-checkpointctl
+  (package
+    (name "go-github-com-checkpoint-restore-checkpointctl")
+    (version "1.5.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/checkpoint-restore/checkpointctl")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0qvgld9vji5f7h2idk6r3q30909hqws0rkpvgina43i57bsfh2sv"))
+       (snippet
+        #~(begin
+            (use-modules (guix build utils))
+            (delete-file-recursively "vendor")))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:skip-build? #t
+      #:import-path "github.com/checkpoint-restore/checkpointctl"))
+    (native-inputs
+     (list go-github-com-spf13-cobra))
+    (propagated-inputs
+     (list go-github-com-checkpoint-restore-go-criu-v8
+           go-github-com-containers-storage
+           go-github-com-opencontainers-runtime-spec
+           go-github-com-xlab-treeprint))
+    (home-page "https://github.com/checkpoint-restore/checkpointctl")
+    (synopsis "Tool for in-depth analysis of container checkpoints")
+    (description
+     "This package provides a Go library to read and manipulate checkpoint
+archives as created by Podman, CRI-O and containerd.")
+    (license license:asl2.0)))
+
+(define-public go-github-com-containerd-accelerated-container-image
+  (package
+    (name "go-github-com-containerd-accelerated-container-image")
+    (version "1.4.3")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/containerd/accelerated-container-image")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "086ywdk8mnqnjj3a07ggcyf52cqqsr8cbx2iw2qrncd1slb9l0vv"))
+       (modules '((guix build utils)))
+        (snippet
+         #~(begin
+            ;; It requires Windows-only packages in check phase
+            ;; (go-github-com-microsoft-hcsshim)
+            (delete-file-recursively "cmd/ctr")))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:skip-build? #t
+      #:import-path "github.com/containerd/accelerated-container-image"
+      #:test-flags
+      ;; Requires network connection
+      #~(list "-skip" "TestConvertReferrer")))
+    (native-inputs
+     (list go-github-com-containerd-log
+           go-github-com-prometheus-client-golang
+           go-github-com-sirupsen-logrus
+           go-github-com-spf13-cobra
+           go-github-com-urfave-cli-v2))
+    (propagated-inputs
+     (list go-github-com-containerd-containerd-api
+           go-github-com-containerd-containerd-v2
+           go-github-com-containerd-continuity
+           go-github-com-containerd-errdefs
+           go-github-com-containerd-go-cni
+           go-github-com-containerd-platforms
+           go-github-com-data-accelerator-zdfs
+           go-github-com-docker-go-units
+           go-github-com-go-sql-driver-mysql
+           go-github-com-moby-locker
+           go-github-com-moby-sys-mountinfo
+           go-github-com-opencontainers-go-digest
+           go-github-com-opencontainers-image-spec
+           go-github-com-opencontainers-runtime-spec
+           go-golang-org-x-sync
+           go-golang-org-x-sys
+           go-google-golang-org-grpc
+           go-oras-land-oras-go-v2))
+    (home-page "https://github.com/containerd/accelerated-container-image")
+    (synopsis "Remote container image format")
+    (description
+     "Accelerated Container Image is an implementation of paper
+@url{https://www.usenix.org/conference/atc20/presentation/li-huiba, DADI:
+Block-Level Image Service for Agile and Elastic Application Deployment. USENIX
+ATC'20}.")
+    (license license:asl2.0)))
+
+(define-public go-github-com-containerd-accelerated-container-image-pkg-types
+  ;; Submodule to break cycle in github.com/data-accelerator/zdfs.
+  (hidden-package
+   (package
+     (name "go-github-com-containerd-accelerated-container-image-pkg-types")
+     (version "1.4.3")
+     (source
+      (origin
+        (method git-fetch)
+        (uri (git-reference
+               (url "https://github.com/containerd/accelerated-container-image")
+               (commit (string-append "v" version))))
+        (file-name (git-file-name name version))
+        (sha256
+         (base32 "086ywdk8mnqnjj3a07ggcyf52cqqsr8cbx2iw2qrncd1slb9l0vv"))
+        (modules '((guix build utils)
+                   (ice-9 ftw)
+                   (srfi srfi-26)))
+        (snippet
+         #~(begin
+             (define (delete-all-but directory . preserve)
+               (define (directory? x)
+                 (and=> (stat x #f)
+                        (compose (cut eq? 'directory <>) stat:type)))
+               (with-directory-excursion directory
+                 (let* ((pred
+                         (negate (cut member <> (append '("." "..") preserve))))
+                        (items (scandir "." pred)))
+                   (for-each (lambda (item)
+                               (if (directory? item)
+                                   (delete-file-recursively item)
+                                   (delete-file item)))
+                             items))))
+             (delete-all-but "." "pkg")
+             (delete-all-but "pkg" "types")))))
+     (build-system go-build-system)
+     (arguments
+      (list
+       #:skip-build? #t
+       #:tests? #f
+       #:import-path "github.com/containerd/accelerated-container-image"))
+     (home-page "https://github.com/containerd/accelerated-container-image")
+     (synopsis "Remote container image format types")
+     (description
+      "This packages provides types from
+@url{https://github.com/containerd/accelerated-container-image}.")
+     (license license:asl2.0))))
+
+(define-public go-github-com-containerd-aufs
+  (package
+    (name "go-github-com-containerd-aufs")
+    (version "1.0.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/containerd/aufs")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0jyyyf6sr910m602axmp4h4j1l2n680cpp60z09pvprz55zi4ba0"))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:skip-build? #t  ;source only package
+      #:tests? #f
+      #:import-path "github.com/containerd/aufs"))
+    (propagated-inputs
+     (list ;; go-github-com-containerd-containerd       ; cycles
+           go-github-com-containerd-continuity
+           go-github-com-pkg-errors
+           go-golang-org-x-sys))
+    (home-page "https://github.com/containerd/aufs")
+    (synopsis "AUFS snapshotter containerd v1")
+    (description
+     "This package provides an @acronym{Advanced multi-layered Unification
+FilesyStem, AUFS} implementation of the snapshot interface for containerd.")
+    (license license:asl2.0)))
+
+(define-public go-github-com-containerd-containerd-v2
+  (package
+    (name "go-github-com-containerd-containerd-v2")
+    (version "2.2.3")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/containerd/containerd")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0wxy5np689571s6lw77mx63nw75fx85w5svi0jplksmqzmjqp8wd"))
+       (snippet
+        #~(begin (use-modules (guix build utils))
+         (delete-file-recursively "vendor")
+            ;; Submodules with their own go.mod files and packaged separately:
+            ;;
+            ;; - github.com/containerd/containerd/api
+            (delete-file-recursively "api")))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:skip-build? #t
+      #:import-path "github.com/containerd/containerd/v2"
+      #:test-subdirs
+      #~(list "cmd/protoc-gen-go-fieldpath/..."
+              "core/containers/..."
+              "core/content/..."
+              "core/diff"
+              "core/diff/apply"
+              "core/events/..."
+              "core/images/..."
+              "core/introspection/..."
+              "core/leases/..."
+              "core/metrics/..."
+              "core/remotes/..."
+              "core/sandbox/..."
+              "core/streaming/..."
+              "core/transfer"
+              "core/transfer/archive/..."
+              "core/transfer/image/..."
+              "core/transfer/local/..."
+              "core/transfer/plugins/..."
+              "core/transfer/streaming/..."
+              "core/unpack/..."
+              "internal/cleanup/..."
+              "internal/erofsutils/..."
+              "internal/eventq/..."
+              "internal/failpoint/..."
+              "internal/fsverity/..."
+              "internal/kmutex/..."
+              "internal/lazyregexp/..."
+              "internal/pprof/..."
+              "internal/randutil/..."
+              "internal/registrar/..."
+              "internal/tomlext/..."
+              "internal/truncindex/..."
+              "internal/userns/..."
+              "internal/wintls/..."
+              "pkg/apparmor/..."
+              "pkg/archive/..."
+              "pkg/atomicfile/..."
+              "pkg/blockio/..."
+              "pkg/cap/..."
+              "pkg/cio..."
+              "pkg/deprecation/..."
+              "pkg/dialer/..."
+              "pkg/display/..."
+              "pkg/epoch/..."
+              "pkg/fifosync/..."
+              "pkg/filters/..."
+              "pkg/gc/..."
+              "pkg/httpdbg/..."
+
+              ;; TODO: Check why these submodule fail to build.
+              ;; "client/..."
+              ;; "cmd/containerd-shim-runc-v2/..."
+              ;; "cmd/containerd-stress/..."
+              ;; "cmd/containerd/..."
+              ;; "cmd/ctr/..."
+              ;; "cmd/gen-manpages/..."
+              ;; "contrib/..."
+              ;; "core/diff/proxy"
+              ;; "core/metadata/..."
+              ;; "core/mount/..."
+              ;; "core/runtime/..."
+              ;; "core/snapshots/..."
+              ;; "core/transfer/proxy/..."
+              ;; "core/transfer/registry/..."
+              ;; "integration/..."
+              ;; "internal/cri/..."
+              ;; "internal/nri/..."
+              ;; "pkg/cdi/..."
+              #;"plugins/...")
+      #:test-flags
+      #~(list "-skip" (string-join
+                      ;; panic: cannot statfs cgroup root [recovered]
+                      (list "TestValidateConfig"
+                            ;; io_test.go:40: failed to start binary process:
+                            ;; fork/exec /bin/echo: no such file or directory
+                            "TestNewBinaryIO"
+                            ;; expected success: got executable file not found in $PATH
+                            "TestExecutorWithArgs"
+                            "TestSetEnv"
+                            "TestStdIOPipes"
+                            ;; panic: cannot statfs cgroup root
+                            "TestContainerCapabilities"
+                            "TestContainerSpecTty"
+                            "TestContainerSpecReadonlyRootfs"
+                            "TestContainerSpecWithExtraMounts"
+                            "TestContainerAndSandboxPrivileged"
+                            "TestPrivilegedBindMount"
+                            "TestCgroupNamespace"
+                            "TestPidNamespace/node_namespace_mode"
+                            ;; failed to apply b: invalid argument
+                            "TestDiffTar/IgnoreSockets"
+                            "TestBinDirVerifyImage/max_verifiers_=_-1,_with_timeout"
+                            "TestContainerSpecDefaultPath"
+                            ;; Error: Not equal:
+                            ;;        expected: 1000
+                            ;;        actual  : 123
+                            "TestSetPositiveOomScoreAdjustment")
+                       "|"))))
+    (native-inputs
+     (list go-github-com-stretchr-testify))
+    (propagated-inputs
+     (list go-dario-cat-mergo
+           go-github-com-adalogics-go-fuzz-headers
+           go-github-com-checkpoint-restore-checkpointctl
+           go-github-com-checkpoint-restore-go-criu-v7
+           go-github-com-containerd-btrfs-v2
+           go-github-com-containerd-cgroups-v3
+           go-github-com-containerd-console
+           go-github-com-containerd-containerd-api
+           go-github-com-containerd-continuity
+           go-github-com-containerd-errdefs
+           go-github-com-containerd-errdefs-pkg
+           go-github-com-containerd-fifo
+           go-github-com-containerd-go-cni
+           go-github-com-containerd-go-runc
+           go-github-com-containerd-imgcrypt-v2
+           go-github-com-containerd-log
+           go-github-com-containerd-nri
+           go-github-com-containerd-otelttrpc
+           go-github-com-containerd-platforms
+           go-github-com-containerd-plugin
+           go-github-com-containerd-ttrpc
+           go-github-com-containerd-typeurl-v2
+           go-github-com-containerd-zfs-v2
+           go-github-com-containernetworking-cni
+           go-github-com-containernetworking-plugins
+           go-github-com-coreos-go-systemd-v22
+           go-github-com-davecgh-go-spew
+           go-github-com-distribution-reference
+           go-github-com-docker-go-events
+           go-github-com-docker-go-metrics
+           go-github-com-docker-go-units
+           go-github-com-emicklei-go-restful-v3
+           go-github-com-fsnotify-fsnotify
+           go-github-com-google-certtostore
+           go-github-com-google-go-cmp
+           go-github-com-google-uuid
+           go-github-com-grpc-ecosystem-go-grpc-middleware-providers-prometheus
+           go-github-com-intel-goresctrl
+           go-github-com-klauspost-compress
+           go-github-com-mdlayher-vsock
+           ;;go-github-com-microsoft-go-winio ;Windows only
+           ;;go-github-com-microsoft-hcsshim ;Windows only
+           go-github-com-moby-locker
+           go-github-com-moby-sys-mountinfo
+           go-github-com-moby-sys-sequential
+           go-github-com-moby-sys-signal
+           go-github-com-moby-sys-symlink
+           go-github-com-moby-sys-user
+           go-github-com-moby-sys-userns
+           go-github-com-opencontainers-go-digest
+           go-github-com-opencontainers-image-spec
+           go-github-com-opencontainers-runtime-spec
+           go-github-com-opencontainers-runtime-tools
+           go-github-com-opencontainers-selinux
+           go-github-com-pelletier-go-toml-v2
+           go-github-com-prometheus-client-golang
+           go-github-com-sirupsen-logrus
+           go-github-com-tchap-go-patricia-v2
+           go-github-com-urfave-cli-v2
+           go-github-com-vishvananda-netlink
+           go-github-com-vishvananda-netns
+           go-go-etcd-io-bbolt
+           go-go-opentelemetry-io-contrib-instrumentation-google-golang-org-grpc-otelgrpc
+           go-go-opentelemetry-io-contrib-instrumentation-net-http-otelhttp
+           go-go-opentelemetry-io-otel
+           go-go-opentelemetry-io-otel-exporters-otlp-otlptrace
+           go-go-opentelemetry-io-otel-exporters-otlp-otlptrace-otlptracegrpc
+           go-go-opentelemetry-io-otel-exporters-otlp-otlptrace-otlptracehttp
+           go-go-opentelemetry-io-otel-sdk
+           go-go-opentelemetry-io-otel-trace
+           go-go-uber-org-goleak
+           go-golang-org-x-mod
+           go-golang-org-x-sync
+           go-golang-org-x-sys
+           go-golang-org-x-time
+           go-google-golang-org-genproto-googleapis-rpc
+           go-google-golang-org-grpc
+           go-google-golang-org-protobuf
+           go-gopkg-in-inf-v0
+           go-k8s-io-apimachinery
+           go-k8s-io-client-go
+           go-k8s-io-cri-api
+           go-k8s-io-klog-v2
+           go-tags-cncf-io-container-device-interface))
+    (home-page "https://containerd.io/")
+    (synopsis "Container runtime support daemon")
+    (description
+     "Containerd is a container runtime with an emphasis on simplicity,
+robustness, and portability.  It is available as a daemon, which can manage
+the complete container lifecycle of its host system: image transfer and
+storage, container execution and supervision, low-level storage and network
+attachments, etc.")
+    (license license:asl2.0)))
+
+(define-public go-github-com-containerd-stargz-snapshotter
+  (package
+    (name "go-github-com-containerd-stargz-snapshotter")
+    (version "0.18.2")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/containerd/stargz-snapshotter")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "06nksi5xpbys6bfqsfm7bax9lxnwynl7y3hw6pcxhv5hckxnb8fp"))
+       (modules '((guix build utils)))
+       (snippet
+        #~(begin
+            ;; Submodules with their own go.mod files and packaged separately:
+            (delete-file-recursively "cmd")
+            (delete-file-recursively "estargz")
+            (delete-file-recursively "ipfs")))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:skip-build? #t
+      #:import-path "github.com/containerd/stargz-snapshotter"
+      ;; TODO: Remove when all transitive inputs are packaged.
+      #:test-subdirs
+      #~(list "fs" "task" "cache" "estargz" "fs/layer" "fs/reader"
+              "fs/remote" "util/cacheutil" "metadata/memory"
+              "analyzer/recorder" "estargz/errorutil" "estargz/externaltoc"
+              "estargz/zstdchunked" "util/decompressutil")))
+    (propagated-inputs
+     (list go-github-com-containerd-console
+           go-github-com-containerd-containerd-v2
+           go-github-com-containerd-continuity
+           go-github-com-containerd-errdefs
+           go-github-com-containerd-log
+           go-github-com-containerd-platforms
+           go-github-com-containerd-plugin
+           go-github-com-distribution-reference
+           go-github-com-docker-cli
+           go-github-com-docker-go-metrics
+           go-github-com-gogo-protobuf
+           go-github-com-golang-groupcache
+           go-github-com-hanwen-go-fuse-v2
+           go-github-com-hashicorp-go-retryablehttp
+           go-github-com-klauspost-compress
+           go-github-com-moby-sys-mountinfo
+           go-github-com-opencontainers-go-digest
+           go-github-com-opencontainers-image-spec
+           go-github-com-opencontainers-runtime-spec
+           go-github-com-prometheus-client-golang
+           go-github-com-rs-xid
+           go-github-com-sirupsen-logrus
+           go-go-etcd-io-bbolt
+           go-golang-org-x-sync
+           go-golang-org-x-sys
+           go-google-golang-org-grpc
+           go-k8s-io-api
+           go-k8s-io-apimachinery
+           go-k8s-io-client-go
+           go-k8s-io-cri-api))
+    (home-page "https://github.com/containerd/stargz-snapshotter")
+    (synopsis "Fast container image distribution plugin with lazy pulling")
+    (description
+     "This package provides a container image distribution plugin with lazy
+pulling for Containerd implemented in @code{eStargz} - Standard-Compatible
+Extensions to Tar.gz Layers for Lazy Pulling Container Images.")
+    (license license:asl2.0)))
+
+(define-public go-github-com-containers-gvisor-tap-vsock
+  (package
+    (name "go-github-com-containers-gvisor-tap-vsock")
+    (version "0.8.9")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/containers/gvisor-tap-vsock")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1knivsg39x46i4zhbz7cjrcykdkg4xwqy0qf24zyd022hzjznykr"))
+       (modules '((guix build utils)))
+       (snippet
+        #~(begin
+            (delete-file-recursively "vendor")
+            ;; Submodules with their own go.mod files and packaged separately:
+            ;;
+            ;; - github.com/containers/gvisor-tap-vsock/tools
+            (delete-file-recursively "tools")))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:skip-build? #t
+      #:import-path "github.com/containers/gvisor-tap-vsock"
+      #:unpack-path "github.com/containers/gvisor-tap-vsock"
+      #:build-flags
+      #~(list (string-append "-ldflags="
+                             "-X github.com/containers/gvisor-tap-vsock"
+                             "/pkg/types.gitVersion=" #$version))
+      #:test-flags
+      #~(list "-skip"
+              (string-join
+               ;; Received unexpected error:
+               ;; listen unix /tmp/guix-.../test.sock: bind: invalid argument
+               (list "TestNotificationSender_Success"
+                     ;; Requires network
+                     "TestSuite"
+                     "TestDNS")
+               "|"))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'prune-tests
+            (lambda* (#:key unpack-path #:allow-other-keys)
+              (with-directory-excursion (string-append "src/" unpack-path)
+                ;; Requires working DNS.
+                (substitute* "pkg/services/dns/dns_test.go"
+                  (("Should pass DNS requests to default system DNS.*" all)
+                   (string-append all "\n" "ginkgo.Skip(\"No network.\");"))
+                  (("\"redhat.com\",")
+                   "\"localhost\",")
+                  (("\"52.200.142.250\"")
+                   "\"127.0.0.1\""))))))))
+    (native-inputs
+     (list go-github-com-stretchr-testify
+           go-github-com-foxcpp-go-mockdns))
+    (propagated-inputs
+     (list go-github-com-apparentlymart-go-cidr
+           go-github-com-containers-winquit
+           go-github-com-coreos-stream-metadata-go
+           go-github-com-dustin-go-humanize
+           go-github-com-google-gopacket
+           go-github-com-inetaf-tcpproxy
+           go-github-com-insomniacslk-dhcp
+           ;; go-github-com-linuxkit-virtsock  ;Windows only
+           go-github-com-mdlayher-vsock
+           ;; go-github-com-microsoft-go-winio ;Windows only
+           go-github-com-miekg-dns
+           go-github-com-onsi-ginkgo
+           go-github-com-onsi-gomega
+           go-github-com-opencontainers-go-digest
+           go-github-com-sirupsen-logrus
+           go-github-com-songgao-packets
+           go-github-com-songgao-water
+           go-github-com-vishvananda-netlink
+           go-golang-org-x-crypto
+           go-golang-org-x-mod
+           go-golang-org-x-sync
+           go-golang-org-x-sys
+           go-gopkg-in-yaml-v3
+           go-gvisor-dev-gvisor-source))
+    (home-page "https://github.com/containers/gvisor-tap-vsock")
+    (synopsis "Network stack for virtualization based on gVisor")
+    (description "This package provides a replacement for @code{libslirp} and
+@code{VPNKit}, written in pure Go.  It is based on the network stack of gVisor
+and brings a configurable DNS server and dynamic port forwarding.
+
+It can be used with QEMU, Hyperkit, Hyper-V and User-Mode Linux.
+
+The binary is called @command{gvproxy}.")
+    (license license:asl2.0)))
+
+(define-public go-github-com-data-accelerator-zdfs
+  (package
+    (name "go-github-com-data-accelerator-zdfs")
+    (version "0.1.5")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/data-accelerator/zdfs")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0j2xr9li2qciqdi6is82aw3fx1lm673bfddgfg3zhbpx3r95mwsy"))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:import-path "github.com/data-accelerator/zdfs"))
+    (native-inputs
+     (list go-github-com-stretchr-testify
+           go-github-com-containerd-accelerated-container-image-pkg-types))
+    (propagated-inputs
+     (list go-github-com-containerd-containerd-v2
+           go-github-com-containerd-continuity
+           go-github-com-distribution-reference
+           go-github-com-pkg-errors
+           go-github-com-sirupsen-logrus))
+    (home-page "https://github.com/data-accelerator/zdfs")
+    (synopsis "Extension package of Overlaybd-snapshotter")
+    (description
+     "This package provides an extension overlaybd-snapshotter.  It constructs
+the overlaybd image in OCIv1 tgz format through a tricky method which makes
+'overlaybd-snapshotter' adapter for a normal OCIv1 image.")
+    (license license:asl2.0)))
+
+(define-public go-github-com-opencontainers-image-spec-schema
+  (package
+    (name "go-github-com-opencontainers-image-spec-schema")
+    (version "0.0.0-20260514171043-13cff54902ec")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/opencontainers/image-spec")
+              (commit (go-version->git-ref version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0jg1wfbr6rva24cz6q6d73wgaridzkh9sclzm2dwxpiwmbkcas38"))
+         (modules '((guix build utils)
+                    (ice-9 ftw)
+                    (srfi srfi-26)))
+         (snippet
+          #~(begin
+              (define (delete-all-but directory . preserve)
+                (define (directory? x)
+                  (and=> (stat x #f)
+                         (compose (cut eq? 'directory <>) stat:type)))
+                (with-directory-excursion directory
+                  (let* ((pred
+                          (negate (cut member <> (append '("." "..") preserve))))
+                         (items (scandir "." pred)))
+                    (for-each (lambda (item)
+                                (if (directory? item)
+                                    (delete-file-recursively item)
+                                    (delete-file item)))
+                              items))))
+              (delete-all-but "." "schema")))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:embed-files
+      ;; For go-github-com-santhosh-tekuri-jsonschema-v6:
+      #~(list "applicator"
+              "content"
+              "core"
+              "format"
+              "format-annotation"
+              "format-assertion"
+              "meta-data"
+              "schema"
+              "unevaluated"
+              "validation")
+      #:import-path "github.com/opencontainers/image-spec/schema"
+      #:unpack-path "github.com/opencontainers/image-spec"))
+    (propagated-inputs
+     (list go-github-com-opencontainers-go-digest
+           go-github-com-opencontainers-image-spec
+           go-github-com-russross-blackfriday-v2
+           go-github-com-santhosh-tekuri-jsonschema-v6))
+    (home-page "https://github.com/opencontainers/image-spec")
+    (synopsis "OCI Image Format")
+    (description
+     "Package schema defines the OCI image media types, schema definitions and
+validation functions.")
+    (license license:asl2.0)))
+
+(define-public go-github-com-opencontainers-image-tools
+  (package
+    (name "go-github-com-opencontainers-image-tools")
+    (version "0.3.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/opencontainers/image-tools")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0drxjgcxm268cwv547anl23rv1jx7mvdfxp7nxr6fjbzpxav6bd2"))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:skip-build? #t
+      #:import-path "github.com/opencontainers/image-tools"))
+    (home-page "https://github.com/opencontainers/image-tools")
+    (synopsis "OCI Image Tooling")
+    (description
+     "@code{oci-image-tool} is a collection of tools for working with the
+@url{https://github.com/opencontainers/image-spec, OCI image format
+specification}.")
+    (license license:asl2.0)))
+
+(define-public go-github-com-rootless-containers-rootlesskit-v3
+  (package
+    (name "go-github-com-rootless-containers-rootlesskit-v3")
+    (version "3.0.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/rootless-containers/rootlesskit")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0giw1whjpm64h8f1iamgym246rr3wl01w7zgw4lygrj7dqk3clmb"))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:skip-build? #t
+      #:import-path "github.com/rootless-containers/rootlesskit/v3"))
+    (propagated-inputs
+     (list go-github-com-containernetworking-plugins
+           go-github-com-containers-gvisor-tap-vsock
+           go-github-com-gofrs-flock
+           go-github-com-google-uuid
+           go-github-com-gorilla-mux
+           go-github-com-insomniacslk-dhcp
+           go-github-com-masterminds-semver-v3
+           go-github-com-moby-sys-mountinfo
+           go-github-com-moby-vpnkit
+           go-github-com-sirupsen-logrus
+           go-github-com-songgao-water
+           go-github-com-urfave-cli-v2
+           go-golang-org-x-sync
+           go-golang-org-x-sys
+           go-gotest-tools-v3))
+    (home-page "https://github.com/rootless-containers/rootlesskit")
+    (synopsis "Linux-native fakeroot using user namespaces in Golang")
+    (description
+     "@code{RootlessKit} is a Linux-native implementation of \"fake root\" using
+@url{http://man7.org/linux/man-pages/man7/user_namespaces.7.html,(code
+user_namespaces(7))}.  It is used to run containers engines as an
+unprivileged user, known as \"Rootless mode\".")
+    (license license:asl2.0)))
+
+(define-public go-go-podman-io-common
+  (package
+    (name "go-go-podman-io-common")
+    (version "0.68.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/podman-container-tools/container-libs")
+              (commit (go-version->git-ref version #:subdir "common"))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "040snqsg3il98pz9w8442wdzwm2rm07yqbch87f4jic4p4s0707s"))
+       (modules '((guix build utils)
+                  (ice-9 ftw)
+                  (srfi srfi-26)))
+       (snippet
+        #~(begin
+            (define (delete-all-but directory . preserve)
+              (define (directory? x)
+                (and=> (stat x #f)
+                       (compose (cut eq? 'directory <>) stat:type)))
+              (with-directory-excursion directory
+                (let* ((pred
+                        (negate (cut member <> (append '("." "..") preserve))))
+                       (items (scandir "." pred)))
+                  (for-each (lambda (item)
+                              (if (directory? item)
+                                  (delete-file-recursively item)
+                                  (delete-file item)))
+                            items))))
+            (delete-all-but "." "common")
+            ;; Module name has been changed upstream.
+            (substitute* (find-files "." "\\.go$")
+              (("github.com/disiqueira/gotree")
+               "github.com/d6o/GoTree"))))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:skip-build? #t
+      #:import-path "go.podman.io/common"
+      #:unpack-path "go.podman.io"
+      #:embed-files
+      #~(list "^VERSION$")
+      #:test-subdirs
+      ;; XXX: Remove when go-go-podman-io-image-v5 and go-go-podman-io-storage
+      ;; are updated.
+      #~(list "pkg/auth" "pkg/flag" "pkg/chown" "pkg/parse" "pkg/umask"
+              "pkg/report" "pkg/sysctl" "pkg/cgroups" "pkg/filters"
+              "pkg/formats" "pkg/machine" "pkg/seccomp" "pkg/secrets"
+              "pkg/sysinfo" "pkg/timetype" "pkg/manifests" "pkg/configmaps"
+              "pkg/hooks/0.1.0" "pkg/strongunits" "pkg/capabilities"
+              "pkg/subscriptions" "pkg/secrets/filedriver"
+              "pkg/configmaps/filedriver" "pkg/apparmor/internal/supported")))
+    (native-inputs
+     (list go-github-com-onsi-ginkgo-v2
+           go-github-com-davecgh-go-spew
+           go-github-com-onsi-gomega
+           go-github-com-spf13-cobra
+           go-github-com-spf13-pflag
+           go-github-com-stretchr-testify))
+    (propagated-inputs
+     (list go-github-com-checkpoint-restore-checkpointctl
+           go-github-com-checkpoint-restore-go-criu-v8
+           go-github-com-containerd-platforms
+           go-github-com-containers-ocicrypt
+           go-github-com-coreos-go-systemd-v22
+           go-github-com-cyphar-filepath-securejoin-0.4.1
+           go-github-com-davecgh-go-spew
+           go-github-com-d6o-gotree-v3    ;go-github-com-disiqueira-gotree-v3
+           go-github-com-docker-distribution
+           go-github-com-docker-go-units
+           go-github-com-fsnotify-fsnotify
+           go-github-com-godbus-dbus-v5
+           go-github-com-hashicorp-go-multierror
+           go-github-com-jinzhu-copier
+           go-github-com-json-iterator-go
+           go-github-com-moby-sys-capability
+           go-github-com-moby-sys-devices
+           go-github-com-opencontainers-cgroups
+           go-github-com-opencontainers-go-digest
+           go-github-com-opencontainers-image-spec
+           go-github-com-opencontainers-runtime-spec
+           go-github-com-opencontainers-runtime-tools
+           go-github-com-opencontainers-selinux
+           go-github-com-pkg-sftp
+           go-github-com-pmezard-go-difflib
+           go-github-com-seccomp-libseccomp-golang
+           go-github-com-sirupsen-logrus
+           go-github-com-skeema-knownhosts
+           go-github-com-vishvananda-netlink
+           go-go-etcd-io-bbolt
+           go-go-podman-io-image-v5
+           go-go-podman-io-storage
+           go-golang-org-x-crypto
+           go-golang-org-x-sync
+           go-golang-org-x-sys
+           go-golang-org-x-term
+           go-sigs-k8s-io-yaml
+           go-tags-cncf-io-container-device-interface))
+    (home-page "https://go.podman.io")
+    (synopsis "Go code and configuration used across containers projects")
+    (description
+     "This package provides shared common files and common Go code to manage
+those files in github.com/containers repos.")
+    (license license:asl2.0)))
+
+(define-public go-go-podman-io-image-v5
+  (package
+    (name "go-go-podman-io-image-v5")
+    (version "5.39.2")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/podman-container-tools/container-libs")
+              (commit (go-version->git-ref version #:subdir "image"))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "17qjzgc3h89sa0y8qkviz5gry1kvkkm3j79yhn78c7gbmqcx5v0j"))
+       (modules '((guix build utils)
+                  (ice-9 ftw)
+                  (srfi srfi-26)))
+       (snippet
+        #~(begin
+            (define (delete-all-but directory . preserve)
+              (define (directory? x)
+                (and=> (stat x #f)
+                       (compose (cut eq? 'directory <>) stat:type)))
+              (with-directory-excursion directory
+                (let* ((pred
+                        (negate (cut member <> (append '("." "..") preserve))))
+                       (items (scandir "." pred)))
+                  (for-each (lambda (item)
+                              (if (directory? item)
+                                  (delete-file-recursively item)
+                                  (delete-file item)))
+                            items))))
+            (delete-all-but "." "image")
+            ;; This is a workaround to provide a correct import-path.
+            (rename-file "image" "tmp")
+            (mkdir-p "image/v5")
+            (copy-recursively "tmp" "image/v5")
+            (delete-file-recursively "tmp")))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:skip-build? #t
+      #:import-path "go.podman.io/image/v5"
+      #:unpack-path "go.podman.io"
+      #:embed-files
+      #~(list "^VERSION$"
+              ;; For go-github-com-santhosh-tekuri-jsonschema-v6:
+              "applicator"
+              "content"
+              "core"
+              "format"
+              "format-annotation"
+              "format-assertion"
+              "meta-data"
+              "schema"
+              "unevaluated"
+              "validation")
+      #:test-flags
+      #~(list "-skip" (string-join
+                       ;; Tests try to access local directories: /usr/share,
+                       ;; /var/tmp; remote source https://quay.io/v2/,
+                       ;; https://registry.suse.com/auth.
+                       (list "TestComputeBlobInfo"
+                             "TestCreateBigFileTemp"
+                             "TestGPGSigningMechanismSign"
+                             "TestMkDirBigFileTemp"
+                             "TestReferenceNewImage"
+                             "TestReferenceNewImageSource"
+                             "TestReferencePolicyConfigurationNamespaces"
+                             "TestSetCredentialsInteroperability"
+                             "TestSetupCertificates"
+                             "TestSign"
+                             "TestSignDockerManifest"
+                             "TestSignDockerManifestWithPassphrase"
+                             "TestSimpleSignerSignImageManifest"
+                             "TestSourcePrepareLayerData")
+                       "|"))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-before 'check 'set-HOME
+            (lambda _
+              (setenv "HOME" "/tmp"))))))
+    (native-inputs
+     (list btrfs-progs
+           eudev
+           gnupg
+           go-github-com-stretchr-testify
+           gpgme
+           libassuan))
+    (propagated-inputs
+     (list go-dario-cat-mergo
+           go-github-com-burntsushi-toml
+           go-github-com-containers-libtrust
+           go-github-com-containers-ocicrypt
+           go-github-com-cyberphone-json-canonicalization
+           go-github-com-distribution-reference
+           go-github-com-docker-cli
+           go-github-com-docker-distribution
+           go-github-com-docker-docker
+           go-github-com-docker-docker-credential-helpers
+           go-github-com-docker-go-connections
+           go-github-com-hashicorp-go-cleanhttp
+           go-github-com-hashicorp-go-retryablehttp
+           go-github-com-klauspost-compress
+           go-github-com-klauspost-pgzip
+           go-github-com-manifoldco-promptui
+           go-github-com-mattn-go-sqlite3
+           go-github-com-opencontainers-go-digest
+           go-github-com-opencontainers-image-spec
+           go-github-com-proglottis-gpgme
+           go-github-com-santhosh-tekuri-jsonschema-v6
+           go-github-com-secure-systems-lab-go-securesystemslib
+           go-github-com-sigstore-fulcio
+           go-github-com-sigstore-sigstore
+           go-github-com-sirupsen-logrus
+           go-github-com-sylabs-sif-v2
+           go-github-com-ulikunitz-xz
+           go-github-com-vbauerster-mpb-v8
+           go-go-etcd-io-bbolt
+           go-go-podman-io-storage
+           go-golang-org-x-crypto
+           go-golang-org-x-oauth2
+           go-golang-org-x-sync
+           go-golang-org-x-term
+           go-gopkg-in-yaml-v3))
+    (home-page "https://go.podman.io")
+    (synopsis "Go library to work in various way with containers' images")
+    (description
+     "@code{image} is a set of Go libraries aimed at working in various way
+with containers' images and container image registries.  The
+@code{containers/image} library allows application to pull and push images
+from container image registries, like the docker.io and quay.io registries. It
+also implements \"simple image signing\".  It's a successor of
+@url{https://github.com/containers/image} project.")
+    (license license:asl2.0)))
+
+(define-public go-go-podman-io-storage
+  (package
+    (name "go-go-podman-io-storage")
+    (version "1.62.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/podman-container-tools/container-libs")
+              (commit (go-version->git-ref version #:subdir "storage"))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0ywj80wkpyq2yhizsdlfh0n2fxip75042rsk7jm4vyp98bb18rb6"))
+       (modules '((guix build utils)
+                  (ice-9 ftw)
+                  (srfi srfi-26)))
+       (snippet
+        #~(begin
+            (define (delete-all-but directory . preserve)
+              (define (directory? x)
+                (and=> (stat x #f)
+                       (compose (cut eq? 'directory <>) stat:type)))
+              (with-directory-excursion directory
+                (let* ((pred
+                        (negate (cut member <> (append '("." "..") preserve))))
+                       (items (scandir "." pred)))
+                  (for-each (lambda (item)
+                              (if (directory? item)
+                                  (delete-file-recursively item)
+                                  (delete-file item)))
+                            items))))
+            (delete-all-but "." "storage")))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:import-path "go.podman.io/storage"
+      #:unpack-path "go.podman.io"
+      #:test-flags
+      #~(list "-skip" (string-join
+                       ;; Root access is required.
+                       (list "TestAttachLoopbackDeviceRace"
+                             "TestChangesWithChangesGH13590"
+                             "TestChroot.*"
+                             "TestCopyDir"
+                             "TestCopyWithTarInexistentDestWillCreateIt"
+                             "TestEnsureRemoveAllWithMount"
+                             "TestLookupAdditionalLayerDecodeError"
+                             "TestLookupAdditionalLayerSuccess"
+                             "TestMkdir.*"
+                             "TestReplaceFileTarWrapper"
+                             "TestStoreDelete"
+                             "TestStoreMultiList"
+                             "TestSupportsShifting"
+                             "TestTarUntarWithXattr"
+                             "TestTarWithBlockCharFifo"
+                             "TestTarWithMaliciousSymlinks"
+                             "TestUnshareOOMScoreAdj"
+                             "TestUntarHardlinkToSymlink"
+                             "TestUntarPath"
+                             "TestUntarWithMaliciousSymlinks"
+                             "TestVfs.*")
+                       "|"))))
+    (native-inputs
+     (list go-github-com-stretchr-testify))
+    (inputs
+     (list btrfs-progs))
+    (propagated-inputs
+     (list go-github-com-burntsushi-toml
+           go-github-com-containerd-stargz-snapshotter-estargz
+           go-github-com-cyphar-filepath-securejoin-0.4.1
+           go-github-com-docker-go-units
+           go-github-com-google-go-intervals
+           go-github-com-json-iterator-go
+           go-github-com-klauspost-compress
+           go-github-com-klauspost-pgzip
+           go-github-com-mattn-go-shellwords
+           go-github-com-mistifyio-go-zfs-v3
+           go-github-com-moby-sys-capability
+           go-github-com-moby-sys-mountinfo
+           go-github-com-moby-sys-user
+           go-github-com-opencontainers-go-digest
+           go-github-com-opencontainers-runtime-spec
+           go-github-com-opencontainers-selinux
+           go-github-com-sirupsen-logrus
+           go-github-com-tchap-go-patricia-v2
+           go-github-com-ulikunitz-xz
+           go-github-com-vbatts-tar-split
+           go-golang-org-x-sync
+           go-golang-org-x-sys
+           go-gotest-tools-v3))
+    (home-page "https://go.podman.io")
+    (synopsis "Manage layer/image/container storage")
+    (description
+     "@code{storage} is a Go library which aims to provide methods for storing
+filesystem layers, container images, and containers.")
+    (license license:asl2.0)))
+
+;;;
+;;; Executables:
+;;;
+
+(define-public checkpointctl
+  (package/inherit go-github-com-checkpoint-restore-checkpointctl
+    (name "checkpointctl")
+    (arguments
+     (substitute-keyword-arguments
+         (package-arguments go-github-com-checkpoint-restore-checkpointctl)
+       ((#:build-flags _) #~(list (string-append "-X main.version="
+                                                 #$version)))
+       ((#:install-source? _ #t) #f)
+       ((#:skip-build? _ #t) #f)
+       ((#:tests? _ #t) #f)))
+    (native-inputs
+     (append
+      (package-native-inputs go-github-com-checkpoint-restore-checkpointctl)
+      (package-propagated-inputs go-github-com-checkpoint-restore-checkpointctl)))
+    (propagated-inputs '())
+    (inputs '())
+    (description
+     "This package provides a tool to read and manipulate checkpoint archives
+as created by Podman, CRI-O and containerd.")))
+
+(define-public crun
+  (package
+    (name "crun")
+    (version "1.29.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/containers/crun")
+              (commit version)
+              (recursive? #t)))
+       (sha256
+        (base32
+         "02dlw47mydpwridbaqgdwm0l6wl54qngqbg9526ib6hcj347mj96"))
+       (file-name (git-file-name name version))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:configure-flags #~(list "--disable-systemd")
+      #:tests? #f ; XXX: needs /sys/fs/cgroup mounted
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'git-version-h
+            (lambda _
+              (call-with-output-file "git-version.h"
+                (lambda (port)
+                  (format
+                   port
+                   "#ifndef GIT_VERSION\n# define GIT_VERSION ~s\n#endif"
+                   #$version)))))
+          (add-after 'unpack 'fix-tests
+            (lambda _
+              (substitute* (find-files "tests" "\\.(c|py)")
+                (("/bin/true") (which "true"))
+                (("/bin/false") (which "false"))
+                ;; relies on sd_notify which requires systemd?
+                (("\"sd-notify\" : test_sd_notify,") "")
+                (("\"sd-notify-file\" : test_sd_notify_file,") "")))))))
+    (inputs
+     (list json-c
+           libcap
+           libseccomp
+           yajl))
+    (native-inputs
+     (list automake
+           autoconf
+           git-minimal/pinned
+           libtool
+           pkg-config
+           python-minimal-wrapper))
+    (home-page "https://github.com/containers/crun")
+    (synopsis "Open Container Initiative (OCI) Container runtime")
+    (description
+     "crun is a fast and low-memory footprint Open Container Initiative (OCI)
+Container Runtime fully written in C.")
+    (license license:gpl2+)))
+
+(define-public conmon
+  (package
+    (name "conmon")
+    (version "2.2.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/containers/conmon")
+              (commit (string-append "v" version))))
+       (sha256
+        (base32 "0n9l6030ibhk7pmsq85rarcf9b0kzglxibd1xnb6vzmkz3ywg1il"))
+       (file-name (git-file-name name version))))
+    (build-system gnu-build-system)
+    (arguments
+     (list #:make-flags
+           #~(list (string-append "CC=" #$(cc-for-target))
+                   (string-append "PREFIX=" #$output))
+           #:test-target "test"
+           #:phases
+           #~(modify-phases %standard-phases
+               (delete 'configure)
+               (add-before 'check 'prepare-tests
+                 (lambda* (#:key inputs #:allow-other-keys)
+                   (setenv "RUNTIME_BINARY"
+                           (search-input-file inputs "sbin/runc"))
+
+                   ;; We need to skip all tests requiring journald.
+                   (for-each
+                    (lambda (test file)
+                      (substitute* file
+                        (((string-append "@test \"" test "\" \\{\n$") all)
+                         (string-append all "skip 'no journald in Guix';"))))
+                    '("log driver as journald should pass"
+                      "log driver as journald with short cid should fail"
+                      "multiple log drivers should pass"
+                      "log management: should work with multiple log drivers")
+                    '("test/01-basic.bats"
+                      "test/01-basic.bats"
+                      "test/01-basic.bats"
+                      "test/06-log-management.bats")))))))
+    (inputs
+     (list crun
+           glib
+           libseccomp))
+    (native-inputs
+     (list bats
+           git
+           go-md2man
+           pkg-config
+           socat
+           runc))
+    (home-page "https://github.com/containers/conmon")
+    (synopsis "Monitoring tool for Open Container Initiative (OCI) runtime")
+    (description
+     "Conmon is a monitoring program and communication tool between a container
+manager (like Podman or CRI-O) and an Open Container Initiative (OCI)
+runtime (like runc or crun) for a single container.")
+    (license license:asl2.0)))
+
+(define-public distrobox
+  (package
+    (name "distrobox")
+    (version "1.8.2.4")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/89luca89/distrobox")
+             (commit version)))
+       (sha256
+        (base32 "07kqgr5diwvkks3fn1r0nnpfqq6gngqyx4x7lxs06ri6g0a4knvf"))
+       (file-name (git-file-name name version))))
+    (build-system copy-build-system)
+    (arguments
+     (list #:phases
+           #~(modify-phases %standard-phases
+               ;; This script creates desktop files but when the store path for
+               ;; distrobox changes it leaves the stale path on the desktop
+               ;; file, so remove the path to use the profile's current
+               ;; distrobox.
+               (add-after 'unpack 'patch-distrobox-generate-entry
+                 (lambda _
+                   (substitute* "distrobox-generate-entry"
+                     (("\\$\\{distrobox_path\\}/distrobox") "distrobox"))))
+               ;; Use WRAP-SCRIPT to wrap all of the scripts of distrobox,
+               ;; excluding the host side ones.
+               (add-after 'install 'wrap-scripts
+                 (lambda _
+                   (let ((path (search-path-as-list
+                                 (list "bin")
+                                 (list #$(this-package-input "podman")
+                                       #$(this-package-input "wget")))))
+                     (for-each (lambda (script)
+                                 (wrap-script
+                                   (string-append #$output "/bin/distrobox-"
+                                                  script)
+                                   `("PATH" ":" prefix ,path)))
+                               '("assemble"
+                                 "create"
+                                 "enter"
+                                 "ephemeral"
+                                 "generate-entry"
+                                 "list"
+                                 "rm"
+                                 "stop"
+                                 "upgrade")))))
+               ;; These scripts are used in the container side and the
+               ;; /gnu/store path is not shared with the containers.
+               (add-after 'patch-shebangs 'unpatch-shebangs
+                 (lambda _
+                   (for-each (lambda (script)
+                               (substitute*
+                                 (string-append #$output "/bin/distrobox-"
+                                                script)
+                                 (("#!.*/bin/sh") "#!/bin/sh\n")))
+                             '("export" "host-exec" "init"))))
+               (replace 'install
+                 (lambda _
+                   (invoke "./install" "--prefix" #$output))))))
+    (inputs
+     (list guile-3.0 ; for wrap-script
+           podman
+           wget))
+    (home-page "https://distrobox.it")
+    (synopsis "Create and start containers highly integrated with the hosts")
+    (description
+     "Distrobox is a fancy wrapper around Podman or Docker to create and start
+containers highly integrated with the hosts.")
+    (license license:gpl3)))
+
+(define-public dive
+  (package
+    (name "dive")
+    (version "0.12.0") ;newer version needs docker/docker@28+
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/wagoodman/dive")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0p60bq0lc820p7x3nq8kxc8cx646c0z7zxqc7vav77zc4qbm3r8a"))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:build-flags
+      #~(list (string-append "-ldflags=-X main.version=" #$version))
+      #:import-path "github.com/wagoodman/dive"
+      #:test-flags #~(list "-vet=off")))
+    (native-inputs
+     (list go-github-com-awesome-gocui-gocui
+           go-github-com-awesome-gocui-keybinding
+           go-github-com-cespare-xxhash
+           go-github-com-docker-cli
+           go-github-com-docker-docker
+           go-github-com-dustin-go-humanize
+           go-github-com-fatih-color
+           go-github-com-google-uuid
+           go-github-com-logrusorgru-aurora
+           go-github-com-lunixbochs-vtclean
+           go-github-com-mitchellh-go-homedir
+           go-github-com-phayes-permbits
+           go-github-com-sergi-go-diff
+           go-github-com-sirupsen-logrus
+           go-github-com-spf13-afero
+           go-github-com-spf13-cobra
+           go-github-com-spf13-viper
+           go-golang-org-x-net))
+    (home-page "https://github.com/wagoodman/dive")
+    (synopsis "Tool for exploring each layer in a docker image")
+    (description
+     "This package provides a tool for exploring a Docker image, layer
+contents, and discovering ways to shrink the size of Docker/OCI image.")
+    (license license:expat)))
+
+(define-public guix-compose
+  (package
+    (name "guix-compose")
+    (version "0.2.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://codeberg.org/fishinthecalculator/guix-compose")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1dy48qkz3ifxagijpvwg7rmq7hz3pikhdcfral6djyc9ppmz8mbm"))))
+    (build-system guile-build-system)
+    (arguments
+     (list
+      #:source-directory "src"
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'set-load-paths-in-entry-point
+            (lambda _
+              (define load-path
+                (cons (string-append #$output "/share/guile/site/3.0")
+                      (parse-path (getenv "GUILE_LOAD_PATH"))))
+              (define load-compiled-path
+                (cons (string-append #$output "/lib/guile/3.0/site-ccache")
+                      (parse-path (getenv "GUILE_LOAD_COMPILED_PATH"))))
+              (define search-paths-header
+                `(begin
+                   (set! %load-path
+                         (append (list ,@load-path) %load-path))
+                   (set! %load-compiled-path
+                         (append (list ,@load-compiled-path)
+                                 %load-compiled-path))))
+
+              (substitute* "src/guix/extensions/compose.scm"
+                ((";;@load-paths@")
+                 (with-output-to-string
+                   (lambda () (write search-paths-header)))))))
+          (add-after 'build 'add-extension-to-search-path
+            (lambda _
+              (with-directory-excursion #$output
+                (mkdir-p "share/guix/extensions")
+                (symlink
+                 (string-append
+                  #$output "/share/guile/site/3.0/guix/extensions/compose.scm")
+                 "share/guix/extensions/compose.scm"))))
+          (add-after 'add-extension-to-search-path 'check
+            (lambda* (#:key tests? #:allow-other-keys)
+              (when tests?
+                (invoke
+                 "guile" "-L" "./modules" "-s" "tests/test-compose.scm")))))))
+    (native-inputs (list guile-3.0))
+    ;; Avoid setting propagated so that we use the user’s profile.
+    (inputs (list guix guile-dotenv guile-yamlpp))
+    (synopsis "Guix' docker compose compatibility layer")
+    (description "A toolkit to run, read and write docker-compose.yml files with
+Guix machinery.")
+    (home-page "https://codeberg.org/fishinthecalculator/guix-compose")
+    (license license:gpl3+)))
+
+(define-public runc
+  ;; TODO: Inheerit form go-github-com-opencontainers-runc when it's moved
+  ;; here.
+  (package
+    (name "runc")
+    (version "1.3.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/opencontainers/runc")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0midvxwmj4fvhy5mqv616bhlx39j0gd6y890adx7dnz5in506ym1"))
+       (snippet
+        #~(begin
+            (use-modules (guix build utils))
+            (delete-file-recursively "vendor")))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      ;; XXX: 20/139 tests fail due to missing /var, cgroups and apparmor in
+      ;; the build environment.
+      #:tests? #f
+      #:install-source? #f
+      #:import-path "github.com/opencontainers/runc"
+      #:phases
+      #~(modify-phases %standard-phases
+         (add-after 'unpack 'patch-source
+           (lambda* (#:key import-path #:allow-other-keys)
+             (substitute*  (string-append "src/" import-path "/Makefile")
+               (("/bin/bash") (which "bash")))))
+          (replace 'build
+            (lambda* (#:key import-path #:allow-other-keys)
+              (with-directory-excursion (string-append "src/" import-path)
+                (invoke "make" "all" "man"))))
+          (replace 'install
+            (lambda* (#:key import-path outputs #:allow-other-keys)
+              (with-directory-excursion (string-append "src/" import-path)
+                (invoke "make" "install" "install-bash" "install-man"
+                        (string-append "PREFIX=" #$output))))))))
+    (native-inputs
+     (list go-github-com-checkpoint-restore-go-criu-v6
+           go-github-com-containerd-console
+           go-github-com-coreos-go-systemd-v22
+           go-github-com-cyphar-filepath-securejoin-0.4.1
+           go-github-com-docker-go-units
+           go-github-com-godbus-dbus-v5
+           go-github-com-moby-sys-capability
+           go-github-com-moby-sys-mountinfo
+           go-github-com-moby-sys-user
+           go-github-com-moby-sys-userns
+           go-github-com-mrunalp-fileutils
+           go-github-com-opencontainers-cgroups-0.0.1
+           go-github-com-opencontainers-runtime-spec-1.2.1
+           go-github-com-opencontainers-selinux
+           go-github-com-seccomp-libseccomp-golang
+           go-github-com-sirupsen-logrus
+           go-github-com-urfave-cli
+           go-github-com-vishvananda-netlink
+           go-golang-org-x-net
+           go-golang-org-x-sys
+           go-google-golang-org-protobuf
+           go-md2man
+           pkg-config))
+    (inputs
+     (list libseccomp))
+    (synopsis "Open container initiative runtime")
+    (home-page "https://opencontainers.org/")
+    (description
+     "@command{runc} is a command line client for running applications
+packaged according to the
+@uref{https://github.com/opencontainers/runtime-spec/blob/master/spec.md, Open
+Container Initiative (OCI) format} and is a compliant implementation of the
+Open Container Initiative specification.")
+    (license license:asl2.0)))
+
+(define-public libslirp
+  (package
+    (name "libslirp")
+    (version "4.9.4")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://gitlab.freedesktop.org/slirp/libslirp")
+             (commit (string-append "v" version))))
+       (sha256
+        (base32 "19f1p37b4ybqbgk817g3sqhdvr1gl3d1063hj7zg1jqa301s2afw"))
+       (file-name (git-file-name name version))))
+    (build-system meson-build-system)
+    (propagated-inputs
+     ;; In Requires of slirp.pc.
+     (list glib))
+    (native-inputs
+     (list pkg-config))
+    (home-page "https://gitlab.freedesktop.org/slirp/libslirp")
+    (synopsis "User-mode networking library")
+    (description
+     "libslirp is a user-mode networking library used by virtual machines,
+containers or various tools.")
+    (license license:bsd-3)))
+
+(define-public skopeo
+  (package
+    (name "skopeo")
+    (version "1.24.0")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/podman-container-tools/skopeo")
+                    (commit (string-append "v" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "05a2xp3ss59nld8i4zf85rqrqlsid1ipj5484vp23a5sdiybl0j4"))))
+    (build-system gnu-build-system)
+    (native-inputs
+     (list go
+           go-md2man
+           pkg-config))
+    (inputs
+     (list bash-minimal
+           btrfs-progs
+           eudev
+           libassuan
+           libselinux
+           libostree
+           lvm2
+           glib
+           gpgme))
+    (arguments
+     (list
+      #:make-flags
+      #~(list (string-append "CC=" #$(cc-for-target))
+              "PREFIX="
+              (string-append "DESTDIR=" #$output)
+              "GOGCFLAGS=-trimpath"
+              (string-append "GOMD2MAN=" #$go-md2man "/bin/go-md2man"))
+      #:tests? #f                       ; The tests require Docker
+      #:test-target "test-unit"
+      #:imported-modules
+      (source-module-closure `(,@%default-gnu-imported-modules
+                               (guix build go-build-system)))
+      #:phases
+      #~(modify-phases %standard-phases
+          (delete 'configure)
+          (add-after 'unpack 'set-env
+            (lambda _
+              ;; When running go, things fail because HOME=/homeless-shelter.
+              (setenv "HOME" "/tmp")
+              ;; Required for detecting btrfs in hack/btrfs* due to bug in GNU
+              ;; Make <4.4 causing CC not to be propagated into $(shell ...)
+              ;; calls.  Can be removed once we update to >4.3.
+              (setenv "CC" #$(cc-for-target))))
+          (add-after 'install 'wrap-skopeo
+            (lambda _
+              (wrap-program (string-append #$output "/bin/skopeo")
+                `("PATH" suffix
+                  ;; We need at least newuidmap, newgidmap and mount.
+                  ("/run/privileged/bin"))))))))
+    (home-page "https://github.com/podman-container-tools/skopeo")
+    (synopsis "Interact with container images and container image registries")
+    (description
+     "@command{skopeo} is a command line utility providing various operations
+with container images and container image registries.  It can:
+@enumerate
+
+@item Copy container images between various containers image stores,
+converting them as necessary.
+
+@item Convert a Docker schema 2 or schema 1 container image to an OCI image.
+
+@item Inspect a repository on a container registry without needlessly pulling
+the image.
+
+@item Sign and verify container images.
+
+@item Delete container images from a remote container registry.
+
+@end enumerate")
+    (license license:asl2.0)))
+
+(define-public slirp4netns
+  (package
+    (name "slirp4netns")
+    (version "1.3.3")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/rootless-containers/slirp4netns")
+             (commit (string-append "v" version))))
+       (sha256
+        (base32 "165z1ccsb8w901965rlzcrbln17l1jdg9k7vsiamlx0q06v24b96"))
+       (file-name (git-file-name name version))))
+    (build-system gnu-build-system)
+    (arguments
+     '(#:tests? #f ; XXX: open("/dev/net/tun"): No such file or directory
+       #:phases (modify-phases %standard-phases
+                  (add-after 'unpack 'fix-hardcoded-paths
+                    (lambda _
+                      (substitute* (find-files "tests" "\\.sh")
+                        (("ping") "/run/privileged/bin/ping")))))))
+    (inputs
+     (list glib
+           libcap
+           libseccomp
+           libslirp))
+    (native-inputs
+     (list automake
+           autoconf
+           iproute ; iproute, jq, nmap (ncat) and util-linux are for tests
+           jq
+           nmap
+           pkg-config
+           util-linux))
+    (home-page "https://github.com/rootless-containers/slirp4netns")
+    (synopsis "User-mode networking for unprivileged network namespaces")
+    (description
+     "slirp4netns provides user-mode networking (\"slirp\") for unprivileged
+network namespaces.")
+    (license license:gpl2+)))
+
+(define-public passt
+  (package
+    (name "passt")
+    (version "2024_12_11.09478d5")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "https://passt.top/passt/snapshot/passt-" version
+                           ".tar.gz"))
+       (sha256
+        (base32 "1arkir4784chw9x37174rc12cp353501m43p6iwvk5mqrlq02k90"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:make-flags
+      #~(list (string-append "CC=" #$(cc-for-target))
+              "RLIMIT_STACK_VAL=1024"   ; ¯\_ (ツ)_/¯
+              (string-append "VERSION=" #$version)
+              (string-append "prefix=" #$output))
+      #:tests? #f
+      #:phases
+      #~(modify-phases %standard-phases
+          (delete 'configure))))
+    (home-page "https://passt.top")
+    (synopsis "Plug A Simple Socket Transport")
+    (description
+     "passt implements a thin layer between guest and host, that only
+implements what's strictly needed to pretend processes are running locally.
+The TCP adaptation doesn't keep per-connection packet buffers, and reflects
+observed sending windows and acknowledgements between the two sides.  This TCP
+adaptation is needed as passt runs without the CAP_NET_RAW capability: it
+can't create raw IP sockets on the pod, and therefore needs to map packets at
+Layer-2 to Layer-4 sockets offered by the host kernel.
+
+Also provides pasta, which similarly to slirp4netns, provides networking to
+containers by creating a tap interface available to processes in the
+namespace, and mapping network traffic outside the namespace using native
+Layer-4 sockets.")
+    (license (list license:gpl2+ license:bsd-3))))
+
+(define-public cni-plugins
+  (package
+    (name "cni-plugins")
+    (version "1.9.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/containernetworking/plugins")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "12z6w2jk6xgfiwdxys7skpkxldz1cgaa7scgfcr90lsghay59s6w"))
+       (snippet
+        #~(begin (use-modules (guix build utils))
+                 (delete-file-recursively "vendor")))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      ;; XXX: Tests require root access, see test_linux.sh.
+      #:tests? #f
+      #:import-path "github.com/containernetworking/plugins/plugins/..."
+      #:unpack-path "github.com/containernetworking/plugins"))
+    (native-inputs
+     (list go-github-com-alexflint-go-filemutex
+           go-github-com-buger-jsonparser
+           go-github-com-containernetworking-cni
+           go-github-com-coreos-go-iptables
+           go-github-com-coreos-go-systemd-v22
+           go-github-com-godbus-dbus-v5
+           go-github-com-insomniacslk-dhcp
+           go-github-com-mattn-go-shellwords
+           ;; go-github-com-microsoft-hcsshim
+           go-github-com-networkplumbing-go-nft
+           go-github-com-onsi-ginkgo-v2
+           go-github-com-onsi-gomega
+           go-github-com-opencontainers-selinux
+           go-github-com-pkg-errors
+           go-github-com-safchain-ethtool
+           go-github-com-vishvananda-netlink
+           go-github-com-vishvananda-netns
+           go-golang-org-x-sys
+           go-sigs-k8s-io-knftables
+           util-linux))
+    (home-page "https://github.com/containernetworking/plugins")
+    (synopsis "Container Network Interface (CNI) network plugins")
+    (description
+     "This package provides Container Network Interface (CNI) plugins to
+configure network interfaces in Linux containers.")
+    (license license:asl2.0)))
+
+(define-public gvisor-tap-vsock
+  (package/inherit go-github-com-containers-gvisor-tap-vsock
+    (name "gvisor-tap-vsock")
+    (arguments
+     (substitute-keyword-arguments arguments
+       ((#:install-source? _ #t) #f)
+       ((#:skip-build? _ #t) #f)
+       ((#:tests? _ #t) #f)
+       ((#:phases _ '%standard-phases)
+        #~(modify-phases %standard-phases
+            ;; Build binary outputs are taken from project's Makefile.
+            (replace 'build
+              (lambda arguments
+                (for-each
+                 (lambda (cmd)
+                   (apply (assoc-ref %standard-phases 'build)
+                          `(,@arguments #:import-path ,cmd)))
+                 (list "github.com/containers/gvisor-tap-vsock/cmd/gvproxy"
+                       "github.com/containers/gvisor-tap-vsock/cmd/qemu-wrapper"
+                       "github.com/containers/gvisor-tap-vsock/cmd/vm"))))
+            (add-after 'install 'fix-bin-name
+              (lambda _
+                (rename-file (string-append #$output "/bin/vm")
+                             (string-append #$output "/bin/gvforwarder"))))))))
+    (native-inputs
+     (package-propagated-inputs go-github-com-containers-gvisor-tap-vsock))
+    (propagated-inputs '())
+    (inputs '())))
+
+(define-public catatonit
+  (package
+    (name "catatonit")
+    (version "0.2.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/openSUSE/catatonit/")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "14vh0xpg6lzmh7r52vi9w1qfc14r7cfhfrbca7q5fg62d3hx7kxi"))))
+    (build-system gnu-build-system)
+    (native-inputs
+     (list autoconf automake libtool))
+    (home-page "https://github.com/openSUSE/catatonit")
+    (synopsis "Container init")
+    (description
+     "Catatonit is a simple container init tool developed as a rewrite of
+@url{https://github.com/cyphar/initrs, initrs} in C due to the need for static
+compilation of Rust binaries with @code{musl}.  Inspired by other container
+inits like @url{https://github.com/krallin/tini, tini} and
+@url{https://github.com/Yelp/dumb-init, dumb-init}, catatonit focuses on
+correct signal handling, utilizing @code{signalfd(2)} for improved stability.
+Its main purpose is to support the key usage by @code{docker-init}:
+@code{/dev/init} – <your program>, with minimal additional features planned.")
+    (license license:gpl2+)))
+
+(define-public podman
+  (package
+    (name "podman")
+    (version "6.1.1")
+    (outputs '("out" "docker"))
+    (properties
+     `((output-synopsis "docker" "docker alias for podman")))
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/podman-container-tools/podman")
+             (commit (string-append "v" version))))
+       (sha256
+        (base32 "0zy9kmsi06q8iqnqq7xhsyhrljksjlggsk0vhlral7jf92ll10vc"))
+       (file-name (git-file-name name version))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:make-flags
+      #~(list (string-append "CC=" #$(cc-for-target))
+              (string-append "PREFIX=" #$output)
+              (string-append "HELPER_BINARIES_DIR=" #$output "/_guix")
+              (string-append "GOMD2MAN=" #$go-md2man "/bin/go-md2man")
+              (string-append "BUILDFLAGS=-trimpath"))
+      #:tests? #f                  ; /sys/fs/cgroup not set up in guix sandbox
+      #:test-target "test"
+      #:phases
+      #~(modify-phases %standard-phases
+          (delete 'configure)
+          (add-after 'unpack 'set-env
+            (lambda _
+              ;; When running go, things fail because HOME=/homeless-shelter.
+              (setenv "HOME" "/tmp")))
+          (replace 'check
+            (lambda* (#:key tests? #:allow-other-keys)
+              (when tests?
+                (invoke "make" "localsystem")
+                (invoke "make" "remotesystem"))))
+          (add-after 'unpack 'fix-hardcoded-paths
+            (lambda _
+              (substitute* "vendor/go.podman.io/common/pkg/config/config_linux.go"
+                (("/usr/local/libexec/podman")
+                 (string-append #$output "/libexec/podman"))
+                (("/usr/local/lib/podman")
+                 (string-append #$output "/bin")))))
+          (add-after 'install 'symlink-helpers
+            (lambda _
+              (mkdir-p (string-append #$output "/_guix"))
+              (for-each
+               (lambda (what)
+                 (symlink (string-append (car what) "/bin/" (cdr what))
+                          (string-append #$output "/_guix/" (cdr what))))
+               ;; Only tools that cannot be discovered via $PATH are
+               ;; symlinked.  Rest is handled in the 'wrap-podman phase.
+               `((#$aardvark-dns     . "aardvark-dns")
+                 ;; Required for podman-machine, which is *not* supported out
+                 ;; of the box.  But it cannot be discovered via $PATH, so
+                 ;; there is no other way for the user to install it.  It
+                 ;; costs ~10MB, so let's leave it here.
+                 (#$gvisor-tap-vsock . "gvproxy")
+                 (#$netavark         . "netavark")))))
+          (add-after 'install 'wrap-podman
+            (lambda _
+              (wrap-program (string-append #$output "/bin/podman")
+                `("PATH" suffix
+                  (,(string-append #$catatonit      "/bin")
+                   ,(string-append #$conmon         "/bin")
+                   ,(string-append #$crun           "/bin")
+                   ,(string-append #$gcc            "/bin") ; cpp
+                   ,(string-append #$iptables       "/sbin")
+                   ,(string-append #$nftables       "/sbin")
+                   ,(string-append #$passt          "/bin")
+                   ,(string-append #$procps         "/bin") ; ps
+                   "/run/privileged/bin")))))
+          (add-after 'install 'install-docker
+            (lambda _
+              ;; So it picks podman of the other output.
+              (substitute* "docker/docker.in"
+                (("[$][{]BINDIR[}]") (string-append #$output "/bin"))
+                (("[$][{]ETCDIR[}]") "/etc"))
+              (invoke "make" "install.docker"
+                      (string-append "PREFIX=" #$output:docker)
+                      (string-append "ETCDIR=" #$output:docker "/etc"))))
+          (add-after 'install 'install-completions
+            (lambda _
+              (invoke "make" "install.completions"
+                      (string-append "PREFIX=" #$output)))))))
+    (inputs
+     (list bash-minimal
+           btrfs-progs
+           gpgme
+           libassuan
+           libseccomp
+           libselinux))
+    (native-inputs
+     (list grep
+           bats
+           git-minimal/pinned
+           go
+           go-md2man
+           gettext-minimal ; for envsubst
+           mandoc
+           pkg-config
+           python))
+    (home-page "https://podman.io")
+    (synopsis "Manage containers, images, pods, and their volumes")
+    (description
+     "Podman (the POD MANager) is a tool for managing containers and images,
+volumes mounted into those containers, and pods made from groups of
+containers.
+
+Not all commands are working out of the box due to requiring additional
+binaries to be present in the $PATH.
+
+To get @code{podman compose} working, install either @code{podman-compose} or
+@code{docker-compose} packages.
+
+To get @code{podman machine} working, install @code{qemu-minimal}, and
+@code{openssh} packages.")
+    (license license:asl2.0)))
+
+(define-public podman-compose
+  (package
+    (name "podman-compose")
+    (version "1.6.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/containers/podman-compose")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0lp4s7j1dwrnl8r9k93kd0396jwy0rkyq545ca88d90nyrjwniff"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      ;; Only run tests in `tests/unit`, skipping the ones in
+      ;; `tests/integration`. The integration tests need an environment with
+      ;; the ability to manage containers and volumes using the `podman`
+      ;; command.
+      ;;
+      ;; tests: 378 tests
+      #:test-backend #~'unittest
+      #:test-flags #~(list "discover" "tests/unit")))
+    (native-inputs
+     (list python-parameterized
+           python-setuptools))
+    (propagated-inputs
+     (list python-dotenv
+           python-pyyaml))
+    (home-page "https://github.com/containers/podman-compose")
+    (synopsis "Script to run docker-compose.yml using podman")
+    (description
+     "This package provides an implementation of
+@url{https://compose-spec.io/, Compose Spec} for @code{podman} focused on
+being rootless and not requiring any daemon to be running.")
+    (license license:gpl2)))
+
+(define-public podman-containers-storage
+  (package/inherit go-go-podman-io-storage
+    (name "podman-containers-storage")
+    (arguments
+     (substitute-keyword-arguments arguments
+       ((#:import-path _ "") "go.podman.io/storage/cmd/...")
+       ((#:install-source? #t #t) #f)
+       ((#:tests? #t #t) #f)
+       ((#:phases phases '%standard-phases)
+        #~(modify-phases #$phases
+            (add-after 'install 'build-and-install-docs
+              (lambda* (#:key unpack-path #:allow-other-keys)
+                (with-directory-excursion (string-append "src/" unpack-path
+                                                         "/storage")
+                  (setenv "PREFIX" #$output)
+                  (invoke "make" "-C" "docs" "docs" "install"))))))))
+    (native-inputs
+     (append
+      (modify-inputs native-inputs
+        (append go-md2man))
+      (package-propagated-inputs go-go-podman-io-storage)))
+    (propagated-inputs '())
+    (description
+     "@code{containers-storage} is a command line tool for manipulating local
+layer/image/container stores.")))
+
+(define-public buildah
+  (package
+    (name "buildah")
+    (version "1.44.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/containers/buildah")
+             (commit (string-append "v" version))))
+       (sha256
+        (base32 "0ivy7i0pqzhpsnd38l9favi32vgm0xcsn5bg4cxxqg6yzgw0fshh"))
+       (file-name (git-file-name name version))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:make-flags
+      #~(list (string-append "CC=" #$(cc-for-target))
+              (string-append "PREFIX=" #$output)
+              (string-append "GOMD2MAN=" #$go-md2man "/bin/go-md2man"))
+      #:tests? #f                  ; /sys/fs/cgroup not set up in guix sandbox
+      #:test-target "test-unit"
+      #:phases
+      #~(modify-phases %standard-phases
+          (delete 'configure)
+          (add-after 'unpack 'set-env
+            (lambda _
+              ;; When running go, things fail because HOME=/homeless-shelter.
+              (setenv "HOME" "/tmp")))
+          ;; Add -trimpath to build flags to avoid keeping references to go
+          ;; packages.
+          (add-after 'set-env 'patch-buildflags
+            (lambda _
+              (substitute* "Makefile"
+                (("BUILDFLAGS :=") "BUILDFLAGS := -trimpath "))))
+          (replace 'check
+            (lambda* (#:key tests? #:allow-other-keys)
+              (when tests?
+                (invoke "make" "test-unit")
+                (invoke "make" "test-conformance")
+                (invoke "make" "test-integration"))))
+          (add-after 'install 'symlink-helpers
+            (lambda _
+              (mkdir-p (string-append #$output "/_guix"))
+              (for-each
+               (lambda (what)
+                 (symlink (string-append (car what) "/bin/" (cdr what))
+                          (string-append #$output "/_guix/" (cdr what))))
+               ;; Only tools that cannot be discovered via $PATH are
+               ;; symlinked.  Rest is handled in the 'wrap-buildah phase.
+               `((#$aardvark-dns     . "aardvark-dns")
+                 (#$netavark         . "netavark")))))
+          (add-after 'install 'wrap-buildah
+            (lambda _
+              (wrap-program (string-append #$output "/bin/buildah")
+                `("CONTAINERS_HELPER_BINARY_DIR" =
+                  (,(string-append #$output "/_guix")))
+                `("PATH" suffix
+                  (,(string-append #$crun           "/bin")
+                   ,(string-append #$gcc            "/bin") ; cpp
+                   ,(string-append #$passt          "/bin")
+                   "/run/privileged/bin")))))
+          (add-after 'install 'install-completions
+            (lambda _
+              (invoke "make" "install.completions"
+                      (string-append "PREFIX=" #$output)))))))
+    (inputs (list bash-minimal
+                  btrfs-progs
+                  eudev
+                  glib
+                  gpgme
+                  libassuan
+                  libseccomp
+                  lvm2))
+    (native-inputs
+     (list bats
+           go
+           go-md2man
+           pkg-config))
+    (synopsis "Build @acronym{OCI, Open Container Initiative} images")
+    (description
+     "Buildah is a command-line tool to build @acronym{OCI, Open Container
+Initiative} container images.  More generally, it can be used to:
+
+@itemize
+@item
+create a working container, either from scratch or using an image as a
+starting point;
+@item
+create an image, either from a working container or via the instructions
+in a @file{Dockerfile};
+@item
+mount a working container's root filesystem for manipulation;
+@item
+use the updated contents of a container's root filesystem as a filesystem
+layer to create a new image.
+@end itemize")
+    (home-page "https://buildah.io")
+    (license license:asl2.0)))
+
+(define-public umoci
+  (package
+    (name "umoci")
+    (version "0.6.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/opencontainers/umoci")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0m50x2q2h34g6sh786blf8r9wh098yzgwnicdlx0cgsqqwjsn0ia"))
+       (snippet
+        #~(begin
+            (use-modules (guix build utils))
+            (delete-file-recursively "vendor")))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:import-path "github.com/opencontainers/umoci/cmd/umoci"
+      #:unpack-path "github.com/opencontainers/umoci"
+      #:test-flags
+      ;; Two tests fail with error: unpack config.json: convert spec to
+      ;; rootless: inspecting mount flags of /etc/resolv.conf: no such file or
+      ;; directory
+      #~(list "-skip" (string-append "TestUnpackManifestCustomLayer"
+                                     "|TestUnpackStartFromDescriptor"))
+      #:test-subdirs #~(list "../../...")       ;test the whole library
+      #:build-flags
+      #~(list (string-append "-ldflags="
+                             "-X github.com/opencontainers/umoci.version="
+                             #$version))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'install 'build-and-install-man-pages
+            (lambda* (#:key unpack-path #:allow-other-keys)
+              (with-directory-excursion
+                  (string-append "src/" unpack-path "/doc/man")
+                (mkdir-p (string-append #$output "/share/man/man1"))
+                (for-each
+                 (lambda (file)
+                   (let* ((file (string-drop-right file 3))      ;cut .md
+                          (in-md (string-append file ".md"))
+                          (out-man (string-append #$output
+                                                  "/share/man/man1/" file)))
+                     (invoke "go-md2man" "-in" in-md "-out" out-man)))
+                 (find-files "." "\\.md$"))))))))
+    (native-inputs
+     (list go-github-com-adalogics-go-fuzz-headers
+           go-github-com-apex-log
+           go-github-com-blang-semver-v4
+           go-github-com-containerd-platforms
+           go-github-com-cyphar-filepath-securejoin-0.4.1
+           go-github-com-cyphar-go-mtree
+           go-github-com-docker-go-units
+           go-github-com-klauspost-compress
+           go-github-com-klauspost-pgzip
+           go-github-com-moby-sys-user
+           go-github-com-moby-sys-userns
+           go-github-com-mohae-deepcopy
+           go-github-com-opencontainers-go-digest
+           go-github-com-opencontainers-image-spec
+           go-github-com-opencontainers-runtime-spec
+           go-github-com-rootless-containers-proto-go-proto
+           go-github-com-stretchr-testify
+           go-github-com-urfave-cli
+           go-golang-org-x-sys
+           go-google-golang-org-protobuf
+           go-md2man))
+    (home-page "https://umo.ci/")
+    (synopsis "Tool for modifying Open Container images")
+    (description
+     "@command{umoci} is a tool that allows for high-level modification of an
+Open Container Initiative (OCI) image layout and its tagged images.")
+    (license license:asl2.0)))

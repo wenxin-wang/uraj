@@ -1,0 +1,12 @@
+diff --git a/src/fcstat.c b/src/fcstat.c
+index 9b54e2b4..76d7780e 100644
+--- a/src/fcstat.c
++++ b/src/fcstat.c
+@@ -415,6 +415,7 @@ FcIsFsMmapSafe (int fd)
+ FcBool
+ FcIsFsMtimeBroken (const FcChar8 *dir)
+ {
++    return FcTrue;
+     int fd = FcOpen ((const char *)dir, O_RDONLY);
+ 
+     if (fd != -1) {

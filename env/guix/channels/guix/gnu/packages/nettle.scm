@@ -1,0 +1,81 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2012, 2013, 2014, 2015 Ludovic Courtès <ludo@gnu.org>
+;;; Copyright © 2016, 2021 Mark H Weaver <mhw@netris.org>
+;;; Copyright © 2017, 2020-2022 Efraim Flashner <efraim@flashner.co.il>
+;;; Copyright © 2021 Maxim Cournoyer <maxim@guixotic.coop>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (gnu packages nettle)
+  #:use-module (guix gexp)
+  #:use-module (guix utils)
+  #:use-module (guix licenses)
+  #:use-module (guix packages)
+  #:use-module (guix download)
+  #:use-module (guix build-system gnu)
+  #:use-module (gnu packages)
+  #:use-module (gnu packages multiprecision)
+  #:use-module (gnu packages m4))
+
+(define-public nettle
+  (package
+    (name "nettle")
+    (version "3.10.2")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "mirror://gnu/nettle/nettle-"
+                                  version ".tar.gz"))
+              (sha256
+               (base32
+                "1d8rnlgmzi3mnv17yvpjxav5max05nli133bbbkbbazjn4fgb7zy"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:configure-flags
+      #~(list "--enable-fat"
+              ;; 'sexp-conv' and other programs need to have their RUNPATH
+              ;; point to $libdir, which is not the case by default.  Work
+              ;; around it.
+              (string-append "LDFLAGS=-Wl,-rpath=" #$output "/lib"))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'install 'move-static-libraries
+            (lambda _
+              (mkdir-p (string-append #$output:static "/lib"))
+              (with-directory-excursion (string-append #$output "/lib")
+                (for-each
+                 (lambda (ar)
+                   (rename-file
+                    ar
+                    (string-append #$output:static "/lib/" (basename ar))))
+                 (find-files
+                  "."
+                  #$(if (target-mingw?)
+                        '(lambda (filename _)
+                           (and (string-suffix? ".a" filename)
+                                (not (string-suffix? ".dll.a" filename))))
+                        "\\.a$")))))))))
+    (outputs '("out" "debug" "static"))
+    (native-inputs (list m4))
+    (propagated-inputs (list gmp))
+    (home-page "https://www.lysator.liu.se/~nisse/nettle/")
+    (synopsis "C library for low-level cryptographic functionality")
+    (description
+     "GNU Nettle is a low-level cryptographic library.  It is designed to
+fit in easily in almost any context.  It can be easily included in
+cryptographic toolkits for object-oriented languages or in applications
+themselves.")
+    (license gpl2+)))

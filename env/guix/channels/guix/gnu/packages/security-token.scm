@@ -1,0 +1,1502 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2014, 2021 Ludovic Courtès <ludo@gnu.org>
+;;; Copyright © 2016, 2021, 2022 Efraim Flashner <efraim@flashner.co.il>
+;;; Copyright © 2016 Mike Gerwitz <mtg@gnu.org>
+;;; Copyright © 2016 Marius Bakke <mbakke@fastmail.com>
+;;; Copyright © 2017 Thomas Danckaert <post@thomasdanckaert.be>
+;;; Copyright © 2017–2021 Tobias Geerinckx-Rice <me@tobias.gr>
+;;; Copyright © 2017, 2019, 2023 Ricardo Wurmus <rekado@elephly.net>
+;;; Copyright © 2018, 2019 Chris Marusich <cmmarusich@gmail.com>
+;;; Copyright © 2018 Arun Isaac <arunisaac@systemreboot.net>
+;;; Copyright © 2020 Raphaël Mélotte <raphael.melotte@mind.be>
+;;; Copyright © 2021 Maxime Devos <maximedevos@telenet.be>
+;;; Copyright © 2021 Antero Mejr <antero@kodmin.com>
+;;; Copyright © 2021 Brice Waegeneire <brice@waegenei.re>
+;;; Copyright © 2021 Sergey Trofimov <sarg@sarg.org.ru>
+;;; Copyright © 2021 Dhruvin Gandhi <contact@dhruvin.dev>
+;;; Copyright © 2021, 2026 Ahmad Jarara <ajarara@fastmail.com>
+;;; Copyright © 2022, 2023 John Kehayias <john.kehayias@protonmail.com>
+;;; Copyright © 2022 Petr Hodina <phodina@protonmail.com>
+;;; Copyright © 2022 Denis 'GNUtoo' Carikli <GNUtoo@cyberdimension.org>
+;;; Copyright © 2023 Jake Leporte <jakeleporte@outlook.com>
+;;; Copyright © 2023 Timotej Lazar <timotej.lazar@araneo.si>
+;;; Copyright © 2023, 2025 Maxim Cournoyer <maxim@guixotic.coop>
+;;; Copyright © 2023 Pierre Langlois <pierre.langlois@gmx.com>
+;;; Copyright © 2024 Janneke Nieuwenhuizen <janneke@gnu.org>
+;;; Copyright © 2025 Robin Templeton <robin@guixotic.coop>
+;;; Copyright © 2025 Laura Kirsch <laurakirsch240406@gmail.com>
+;;; Copyright © 2025 Cayetano Santos <csantosb@disroot.org>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (gnu packages security-token)
+  #:use-module (gnu packages)
+  #:use-module ((guix licenses) #:prefix license:)
+  #:use-module (guix packages)
+  #:use-module (guix download)
+  #:use-module (guix gexp)
+  #:use-module (guix utils)
+  #:use-module (guix git-download)
+  #:use-module (guix build-system cargo)
+  #:use-module (guix build-system cmake)
+  #:use-module (guix build-system gnu)
+  #:use-module (guix build-system glib-or-gtk)
+  #:use-module (guix build-system meson)
+  #:use-module (guix build-system pyproject)
+  #:use-module (guix build-system qt)
+  #:use-module (gnu packages autotools)
+  #:use-module (gnu packages base)
+  #:use-module (gnu packages bash)
+  #:use-module (gnu packages curl)
+  #:use-module (gnu packages check)
+  #:use-module (gnu packages compression)
+  #:use-module (gnu packages crypto)
+  #:use-module (gnu packages docbook)
+  #:use-module (gnu packages documentation)
+  #:use-module (gnu packages dns)
+  #:use-module (gnu packages compiler-tools)
+  #:use-module (gnu packages gettext)
+  #:use-module (gnu packages glib)
+  #:use-module (gnu packages graphviz)
+  #:use-module (gnu packages gnome)
+  #:use-module (gnu packages gnupg)
+  #:use-module (gnu packages gtk)
+  #:use-module (gnu packages libusb)
+  #:use-module (gnu packages libffi)
+  #:use-module (gnu packages linux)
+  #:use-module (gnu packages lua)
+  #:use-module (gnu packages man)
+  #:use-module (gnu packages networking)
+  #:use-module (gnu packages cyrus-sasl)
+  #:use-module (gnu packages openldap)
+  #:use-module (gnu packages popt)
+  #:use-module (gnu packages readline)
+  #:use-module (gnu packages qt)
+  #:use-module (gnu packages serialization)
+  #:use-module (gnu packages time)
+  #:use-module (gnu packages tls)
+  #:use-module (gnu packages tex)
+  #:use-module (gnu packages perl)
+  #:use-module (gnu packages pkg-config)
+  #:use-module (gnu packages polkit)
+  #:use-module (gnu packages protobuf)
+  #:use-module (gnu packages python)
+  #:use-module (gnu packages python-build)
+  #:use-module (gnu packages python-check)
+  #:use-module (gnu packages python-crypto)
+  #:use-module (gnu packages python-web)
+  #:use-module (gnu packages python-xyz)
+  #:use-module (gnu packages swig)
+  #:use-module (gnu packages suckless)
+  #:use-module (gnu packages web)
+  #:use-module (gnu packages xdisorg)
+  #:use-module (gnu packages xml))
+
+(define-public ccid
+  (package
+    (name "ccid")
+    (version "1.8.2")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://salsa.debian.org/rousseau/CCID")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1lkaz121y9699nizb2j7gbql776dczgs06q2xc3i51bh5njykddd"))))
+    (build-system meson-build-system)
+    (arguments
+     (list
+      #:phases
+      #~(modify-phases %standard-phases
+        (add-after 'unpack 'patch-data-paths
+          (lambda _
+            (substitute* "meson.build"
+              (("pcsc_dep\\.get_variable\\('usbdropdir'\\)")
+                (string-append "'" #$output "/pcsc/drivers'"))
+              (("udev\\.get_variable\\(pkgconfig: 'udevdir'\\)")
+                (string-append "'" #$output "/lib/udev/'"))))))))
+    (native-inputs
+     (list flex
+           perl
+           pkg-config))
+    (inputs
+     (list libusb pcsc-lite eudev zlib))
+    (home-page "https://ccid.apdu.fr/")
+    (synopsis "PC/SC driver for USB smart card devices")
+    (description
+     "This package provides a PC/SC IFD handler implementation for devices
+compliant with the CCID and ICCD protocols.  It supports a wide range of
+readers and is needed to communicate with such devices through the
+@command{pcscd} resource manager.")
+    (license license:lgpl2.1+)))
+
+(define-public eid-mw
+  (package
+    (name "eid-mw")
+    (version "5.1.19")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/Fedict/eid-mw")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "12hhr5v4shsg47wg10p7l03xhzpc1yk46h4bfxq5c224cbf4qrs8"))))
+    (build-system glib-or-gtk-build-system)
+    (native-inputs
+     (list autoconf
+           autoconf-archive
+           automake
+           gettext-minimal
+           libassuan
+           libtool
+           perl
+           pkg-config))
+    (inputs
+     (list curl
+           openssl
+           gtk+
+           pcsc-lite
+           p11-kit
+           libproxy
+           libxml2
+           cyrus-sasl))
+    (arguments
+     `(#:configure-flags
+       (list "--disable-static"
+
+             ;; With the (prettier) pinentry enabled, eid-viewer will skip
+             ;; crucial dialogue when used with card readers with built-in
+             ;; keypads such as the Digipass 870, and possibly others too.
+             "--disable-pinentry")
+       #:phases
+       (modify-phases %standard-phases
+         (replace 'bootstrap
+           (lambda _
+             ;; configure.ac relies on ‘git --describe’ to get the version.
+             ;; Patch it to just return the real version number directly.
+             (substitute* "scripts/build-aux/genver.sh"
+               (("/bin/sh") (which "sh"))
+               (("^(GITDESC=).*" _ match) (string-append match ,version "\n")))
+             (invoke "sh" "./bootstrap.sh"))))))
+    (synopsis "Belgian electronic identity card (eID) middleware")
+    (description "The Belgian eID middleware is required to authenticate with
+online services and sign digital documents with Belgian identity cards.
+
+It requires a running pcscd service and a compatible card reader.")
+    (home-page "https://github.com/Fedict/eid-mw")
+    (license license:lgpl3)))
+
+(define-public libyubikey
+  (package
+    (name "libyubikey")
+    (version "1.13")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "https://developers.yubico.com/yubico-c/Releases/"
+                    name "-" version ".tar.gz"))
+              (sha256
+               (base32
+                "009l3k2zyn06dbrlja2d4p2vfnzjhlcqxi88v02mlrnb17mx1v84"))))
+    (build-system gnu-build-system)
+    (synopsis "Development kit for the YubiKey authentication device")
+    (description
+     "This package contains a C library and command-line tools that make up
+the low-level development kit for the Yubico YubiKey authentication device.")
+    (home-page "https://developers.yubico.com/yubico-c/")
+    (license license:bsd-2)))
+
+(define-public softhsm
+  (package
+    (name "softhsm")
+    (version "2.7.0")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://github.com/softhsm/SoftHSMv2.git")
+                     (commit version)))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "0km7pnwp1ny7k317srpagwp3mnb5f5b1d82fj07hqgcmc209s2l3"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list #:configure-flags
+           #~(list "--disable-gost"  ;TODO Missing the OpenSSL engine for GOST
+                   (string-append "--with-p11-kit="
+                                  #$output "/share/p11-kit/modules"))))
+    (inputs (list openssl))
+    (native-inputs
+     (list autoconf
+           automake
+           cppunit
+           libtool
+           pkg-config))
+    (synopsis "Software implementation of a generic cryptographic device")
+    (description
+     "SoftHSM 2 is a software implementation of a generic cryptographic device
+with a PKCS #11 Cryptographic Token Interface.")
+    (home-page "https://www.opendnssec.org/softhsm/")
+    (license license:bsd-2)))
+
+(define-public pcsc-lite
+  (package
+    (name "pcsc-lite")
+    (version "2.5.0")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "https://pcsclite.apdu.fr/files/"
+                                  "pcsc-lite-" version ".tar.xz"))
+              (sha256
+               (base32
+                "14nvalmvj2vpf89qkl3xgqhylm5d8vpv7dfyirljicjapssw9csr"))))
+    (build-system meson-build-system)
+    (arguments
+     (list
+      #:configure-flags #~(list "-Dusbdropdir=/var/lib/pcsc/drivers"
+                                "-Dlibsystemd=false")
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'set-policy-dir
+            (lambda _
+              (substitute* "meson.build"
+                (("install_dir : polkit_dep\\.get_variable\\('policydir'\\)")
+                 (string-append "install_dir : '"
+                                #$output "/share/polkit-1/actions'")))
+              (substitute* "src/libredirect.c"
+                (("libpcsclite_real.so.1")
+                 (string-append #$output "/lib/libpcsclite_real.so.1")))
+              (substitute* "src/spy/libpcscspy.c"
+                (("libpcsclite_real.so.1")
+                 (string-append #$output "/lib/libpcsclite_real.so.1"))))))))
+    (native-inputs
+     (list flex
+           perl                         ;for pod2man
+           pkg-config))
+    (inputs
+     (list python eudev polkit))
+    (home-page "https://pcsclite.apdu.fr/")
+    (synopsis "Middleware to access a smart card using PC/SC")
+    (description
+     "pcsc-lite provides an interface to communicate with smartcards and
+readers using the SCard API.  pcsc-lite is used to connect to the PC/SC daemon
+from a client application and provide access to the desired reader.")
+    (license (list license:bsd-3                ; pcsc-lite
+                   license:isc                  ; src/strlcat.c src/strlcpy.c
+                   license:gpl3+))))            ; src/spy/*
+
+(define-public pcsc-tools
+  (package
+    (name "pcsc-tools")
+    (version "1.7.5")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://salsa.debian.org/rousseau/pcsc-tools.git/")
+                    (commit version)))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "1bps3lg5g14hkfnh6fxkrl5lilss502c7c4x5n9glrgc3k00kaf5"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:phases #~(modify-phases %standard-phases
+                   (add-after 'patch-shebangs 'wrap-programs
+                     (lambda _
+                       (for-each
+                        (lambda (prog)
+                          (wrap-program (string-append #$output "/bin/" prog)
+                            `("PERL5LIB" = (,(getenv "PERL5LIB")))))
+                        '("ATR_analysis" "gscriptor" "scriptor"))
+                       (wrap-program (string-append #$output "/bin/gscriptor")
+                         `("GI_TYPELIB_PATH" = (,(getenv "GI_TYPELIB_PATH")))))))))
+    (native-inputs
+     (list autoconf
+           autoconf-archive
+           automake
+           libtool
+           pkg-config
+           python-minimal-wrapper))
+    (inputs (list bash-minimal          ;for wrap-program
+                  perl
+                  perl-gtk3
+                  pcsc-lite
+                  perl-pcsc))
+    (synopsis "Smart cards and PC/SC tools")
+    (description "This package provides the @command{pcsc_scan},
+@command{ATR_analysis}, @command{scriptor}, and @command{gscriptor} commands,
+which are useful tools to test a PC/SC driver, card or reader or send commands
+in a friendly environment (text or graphical user interface).")
+    (home-page "https://pcsc-tools.apdu.fr/")
+    (license license:gpl2+)))
+
+(define-public ykclient
+  (package
+    (name "ykclient")
+    (version "2.15")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "https://developers.yubico.com/yubico-c-client/Releases/"
+                    name "-" version ".tar.gz"))
+              (sha256
+               (base32
+                "05jhx9waj3pl120ddnwap1v3bjrnbfhvf3lxs2xmhpcmwzpwsqgl"))))
+    (build-system gnu-build-system)
+
+    ;; There's just one test, and it requires network access to access
+    ;; yubico.com, so skip it.
+    (arguments '(#:tests? #f))
+
+    (native-inputs (list pkg-config help2man))
+    (inputs (list curl))
+    (synopsis "C library to validate one-time-password YubiKeys")
+    (description
+     "YubiKey C Client Library (libykclient) is a C library used to validate a
+one-time-password (OTP) YubiKey against Yubico’s servers.  See the Yubico
+website for more information about Yubico and the YubiKey.")
+    (home-page "https://developers.yubico.com/yubico-c-client/")
+    (license license:bsd-2)))
+
+(define-public libp11
+  (package
+    (name "libp11")
+    (version "0.4.18")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/OpenSC/libp11")
+                    (commit (string-append "libp11-" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "0151j9fxxbaakckaav1brb37nxaz976idh7iyl7wvr9jzy559xbf"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list #:configure-flags
+           #~(list "--disable-static"
+                   (string-append "--with-enginesdir="
+                                     #$output "/lib/engines-3")
+                   (string-append "--with-modulesdir="
+                                  #$output "/lib/ossl-modules"))))
+    (native-inputs (list autoconf automake libtool pkg-config))
+    (inputs (list openssl))
+    (home-page "https://github.com/OpenSC/libp11")
+    (synopsis "PKCS#11 wrapper library")
+    (description "This package provides two libraries:
+@table @code
+@item libp11
+provides a higher-level (compared to the PKCS#11 library) interface to access
+PKCS#11 objects.  It is designed to integrate with applications that use
+OpenSSL.
+@item pkcs11prov
+OpenSSL provider module that allows accessing PKCS#11 modules in a
+semi-transparent way.
+@end table")
+    (license license:lgpl2.1+)))
+
+(define-public pkcs11-provider
+  (package
+    (name "pkcs11-provider")
+    (version "1.2.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/latchset/pkcs11-provider/")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "1k4hcdh748x4lyrb1gq69wm28909d0qw6rb2fpxhxsd07k0mxpi4"))))
+    (build-system meson-build-system)
+    (arguments
+     (list #:phases
+           #~(modify-phases %standard-phases
+               (add-after 'unpack 'adjust-provider-path
+                 ;; By default, the modulesdir variable from libcrypto.pc is
+                 ;; used, which points to OpenSSL's installation prefix.
+                 (lambda _
+                   (substitute* "meson.build"
+                     (("provider_path =.*")
+                      (format #f "provider_path = '~a/lib/ossl-modules'~%"
+                              #$output))))))))
+    (native-inputs (list pkg-config))   ;for PKG_CONFIG_PATH
+    (inputs (list openssl p11-kit))
+    (home-page "https://github.com/latchset/pkcs11-provider")
+    (synopsis "Pkcs#11 provider for OpenSSL")
+    (description "This is an OpenSSL provider to access hardware and software
+tokens using the PKCS#11 cryptographic token interface.  Access to tokens
+depends on loading an appropriate PKCS#11 driver that knows how to talk to the
+specific token.  The PKCS#11 provider is a connector that allows OpenSSL to
+make proper use of such drivers.")
+    (license license:asl2.0)))
+
+(define-public opensc
+  (package
+    (name "opensc")
+    (version "0.27.1")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "https://github.com/OpenSC/OpenSC/releases/download/"
+                    version "/opensc-" version ".tar.gz"))
+              (sha256
+               (base32
+                "19zcwpmaxgs5c7q7k6lwh8yqq6lppy0aqyis5hd7lfgkx8illvwp"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:phases
+      #~(modify-phases %standard-phases
+          ;; By setting an absolute path here, we arrange for OpenSC to
+          ;; successfully dlopen libpcsclite.so.1 by default.  The user can
+          ;; still override this if they want to, by specifying a custom OpenSC
+          ;; configuration file at runtime.
+          (add-after 'unpack 'set-default-libpcsclite.so.1-path
+            (lambda* (#:key inputs #:allow-other-keys)
+              (let ((libpcsclite (search-input-file inputs "/lib/libpcsclite.so.1")))
+                (substitute* "configure"
+                  (("DEFAULT_PCSC_PROVIDER=\"libpcsclite\\.so\\.1\"")
+                   (string-append "DEFAULT_PCSC_PROVIDER=\"" libpcsclite "\"")))))))))
+    (inputs
+     (list readline openssl pcsc-lite ccid))
+    (native-inputs
+     (list libxslt docbook-xsl pkg-config))
+    (home-page "https://github.com/OpenSC/OpenSC/wiki")
+    (synopsis "Tools and libraries related to smart cards")
+    (description
+     "OpenSC is a set of software tools and libraries to work with smart
+cards, with the focus on smart cards with cryptographic capabilities.  OpenSC
+facilitate the use of smart cards in security applications such as
+authentication, encryption and digital signatures.  OpenSC implements the PKCS
+#15 standard and the PKCS #11 API.")
+    (license license:lgpl2.1+)))
+
+(define-public pkcs11-helper
+  (package
+    (name "pkcs11-helper")
+    (version "1.31.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append
+             "https://github.com/OpenSC/pkcs11-helper/releases/download/pkcs11-helper-"
+             version "/pkcs11-helper-" version ".tar.bz2"))
+       (sha256
+        (base32 "1ygy6ca87fx89js804pwnqpybfbja5vwm2wbz0l2rgnprixhdw26"))))
+    (build-system gnu-build-system)
+    (inputs (list openssl pcsc-lite))
+    (native-inputs (list pkg-config))
+    (home-page "https://github.com/OpenSC/pkcs11-helper")
+    (synopsis "Library that simplifies the interaction with PKCS#11 providers")
+    (description
+     "Pkcs11-helper is a library that simplifies the interaction with PKCS#11
+providers for end-user applications.  PKCS#11 is published standard.  PKCS#11
+is the de-facto standard to access cryptographic devices")
+    (license (list license:gpl2 license:bsd-3))))
+
+
+(define-public yubico-piv-tool
+  (package
+    (name "yubico-piv-tool")
+    (version "2.7.3")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/Yubico/yubico-piv-tool/")
+                    (commit (string-append name "-" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "0dq81nn2j3xh7p01ix1l87v7x0jqlahbmj9r3lppn7xds73jqxh5"))))
+    (build-system cmake-build-system)
+    (inputs
+     (list gengetopt perl pcsc-lite openssl zlib))
+    (native-inputs
+     (list check
+           doxygen
+           graphviz
+           help2man
+           pkg-config
+           (texlive-local-tree)))
+    (home-page "https://developers.yubico.com/yubico-piv-tool/")
+    (synopsis "Interact with the PIV application on a YubiKey")
+    (description
+     "The Yubico PIV tool is used for interacting with the Privilege and
+Identification Card (PIV) application on a YubiKey.  With it you may generate
+keys on the device, import keys and certificates, create certificate requests,
+and other operations.  It includes a library and a command-line tool.")
+    ;; The file ykcs11/pkcs11.h also declares an additional, very short free
+    ;; license for that one file.  Please see it for details.  The vast
+    ;; majority of files are licensed under bsd-2.
+    (license license:bsd-2)))
+
+(define-public python-nethsm
+  (package
+    (name "python-nethsm")
+    (version "2.1.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/Nitrokey/nethsm-sdk-py")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0v3jqz8dkwcrpp6h9zvm5wy9bpcbkd3b0ah23plv04k5qw5kgdfm"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:test-flags
+      #~(list
+         ;; These tests need a running docker daemon.
+         "--ignore" "tests/test_nethsm_config.py"
+         "--ignore" "tests/test_nethsm_keys.py"
+         "--ignore" "tests/test_nethsm_namespaces.py"
+         "--ignore" "tests/test_nethsm_other.py"
+         "--ignore" "tests/test_nethsm_system.py"
+         "--ignore" "tests/test_nethsm_users.py")
+      #:phases
+      #~(modify-phases %standard-phases
+          ;; Remove test-only dependency on python-docker and python-podman
+          ;; (which is not packaged). These tests are disabled anyway.
+          (add-after 'unpack 'remove-unused-imports
+            (lambda _
+              (substitute* "tests/utilities.py"
+                (("import (docker|podman).*") "")))))))
+    (propagated-inputs (list python-certifi
+                             python-cryptography
+                             python-pycryptodome
+                             python-dateutil
+                             python-typing-extensions
+                             python-urllib3))
+    (native-inputs (list python-poetry-core python-pytest python-requests))
+    (home-page "https://github.com/Nitrokey/nethsm-sdk-py")
+    (synopsis "SDK for NetHSM")
+    (description "Client-side Python library for managing Nitrokey
+NetHSM @acronym{HSM, Hardware Security Modules}s.")
+    (license license:asl2.0)))
+
+(define-public python-nitrokey
+  (package
+    (name "python-nitrokey")
+    (version "0.4.2")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/Nitrokey/nitrokey-sdk-py")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1s68jy284fi33af09aj80pndsn1x9gxx253hgi91xnqyg2lhv4yx"))))
+    (build-system pyproject-build-system)
+    (propagated-inputs (list python-crcmod
+                             python-cryptography
+                             python-fido2
+                             python-hidapi
+                             python-protobuf
+                             python-pyserial
+                             python-requests
+                             python-semver
+                             python-tlv8))
+    (native-inputs (list python-poetry-core))
+    (home-page "https://github.com/Nitrokey/nitrokey-sdk-py")
+    (synopsis "Nitrokey Python SDK")
+    (description "Python SDK for using and configuring Nitrokey devices.")
+    (license (list license:asl2.0 license:expat))))
+
+(define-public python-nkdfu
+  (package
+    (name "python-nkdfu")
+    (version "0.2")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/Nitrokey/nkdfu")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1252gdpbfxd4bfzr6wqzcfvc0lyr8kkx1293s4b1cwqfxv1gbp0c"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:tests? #f)) ;No tests
+    (propagated-inputs (list python-fire python-intelhex python-libusb1
+                             python-tqdm))
+    (native-inputs (list python-flit-core))
+    (home-page "https://github.com/Nitrokey/nkdfu")
+    (synopsis "Firmware upgrade tool")
+    (description "@acronym{DFU, Device Firmware Upgrade} tool for updating
+Nitrokey token firmware.")
+    (license license:gpl2)))
+
+(define-public python-pynitrokey
+  (package
+    (name "python-pynitrokey")
+    (version "0.12.2")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/Nitrokey/pynitrokey")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "09a7cf7pz4qmm806b6grx8mxxnnbbzamywx46mpi1axbmnxrw4wq"))))
+    (build-system pyproject-build-system)
+    (propagated-inputs (list python-cffi
+                             python-click
+                             python-cryptography
+                             python-fido2
+                             python-hidapi
+                             python-intelhex
+                             python-libusb1
+                             python-nethsm
+                             python-nitrokey
+                             python-nkdfu
+                             python-pyscard
+                             python-pyserial
+                             python-pyusb
+                             python-requests
+                             python-semver
+                             python-tlv8
+                             python-tqdm))
+    (native-inputs (list python-poetry-core python-pytest))
+    (home-page "https://github.com/Nitrokey/pynitrokey")
+    (synopsis "Python client for Nitrokey devices")
+    (description "Python client application for managing Nitrokey devices
+with the @code{nitropy} CLI application.")
+    (license (list license:gpl3+ license:lgpl3 license:asl2.0))))
+
+(define-public python-yubico
+  (package
+    (name "python-yubico")
+    (version "1.3.3")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/Yubico/python-yubico")
+              (commit (string-append name "-" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "1bn1v3b0cdjziaz9qiix52z3f8yw74m9mxbv0n18np1lc4cbjyvk"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:test-flags
+      #~(list "--ignore=test/usb/test_yubikey_usb_hid.py")))
+    (propagated-inputs (list python-pyusb))
+    (native-inputs (list python-setuptools
+                         python-pytest))
+    (home-page "https://github.com/Yubico/python-yubico")
+    (synopsis "Python library for Yubico's YubiKeys")
+    (description "This package provides a python library for talking to Yubico's
+@code{YubiKeys}.")
+    (license license:bsd-2)))
+
+(define-public yubikey-personalization
+  (package
+    (name "yubikey-personalization")
+    (version "1.20.0")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "https://developers.yubico.com/" name
+                    "/Releases/ykpers-" version ".tar.gz"))
+              (sha256
+               (base32
+                "14wvlwqnwj0gllkpvfqiy8ns938bwvjsz8x1hmymmx32m074vj0f"))
+              (modules '((guix build utils)))
+              (snippet
+               ;; Fix build with GCC 10, remove for versions > 1.20.0.
+               '(begin
+                  (substitute* "ykpers-args.h"
+                    (("^const char")
+                     "extern const char"))))))
+    (build-system gnu-build-system)
+    (arguments
+     '(#:configure-flags (list (string-append "--with-udevrulesdir="
+                                              (assoc-ref %outputs "out")
+                                              "/lib/udev/rules.d"))))
+    (inputs
+     (list json-c-0.13 libusb
+           ;; The library "libyubikey" is also known as "yubico-c".
+           libyubikey))
+    (native-inputs
+     (list pkg-config eudev))
+    (home-page "https://developers.yubico.com/yubikey-personalization/")
+    (synopsis "Library and tools to personalize YubiKeys")
+    (description
+     "The YubiKey Personalization package contains a C library and command
+line tools for personalizing YubiKeys.  You can use these to set an AES key,
+retrieve a YubiKey's serial number, and so forth.")
+    (license license:bsd-2)))
+
+(define-public python-pyscard
+  (package
+    (name "python-pyscard")
+    (version "2.3.1")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://github.com/LudovicRousseau/pyscard")
+                     (commit version)))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "1qxfps4rfj9s3a0a9rnwdbmjslki3v0rma4kzrcbgz6snj1w4vri"))))
+    (build-system pyproject-build-system)
+    (arguments
+     `(#:phases
+       (modify-phases %standard-phases
+         ;; Tell pyscard where to find the PCSC include directory.
+         (add-after 'unpack 'patch-platform-include-dirs
+           (lambda* (#:key inputs #:allow-other-keys)
+             (let ((pcsc-include-dir (search-input-directory
+                                      inputs "/include/PCSC")))
+               (substitute* "setup.py"
+                 (("platform_include_dirs = \\[.*?\\]")
+                  (string-append
+                   "platform_include_dirs = ['" pcsc-include-dir "']"))))))
+         ;; pyscard wants to dlopen libpcsclite, so tell it where it is.
+         (add-after 'unpack 'patch-dlopen
+           (lambda* (#:key inputs #:allow-other-keys)
+             (substitute* "src/smartcard/scard/winscarddll.c"
+               (("lib = \"libpcsclite\\.so\\.1\";")
+                (simple-format
+                 #f
+                 "lib = \"~a\";"
+                 (search-input-file inputs "/lib/libpcsclite.so.1")))))))))
+    (inputs
+     (list pcsc-lite))
+    (native-inputs
+     (list python-pytest
+           python-setuptools
+           swig-4.4))
+    (home-page "https://github.com/LudovicRousseau/pyscard")
+    (synopsis "Smart card library for Python")
+    (description
+     "The pyscard smart card library is a framework for building smart card
+aware applications in Python.  The smart card module is built on top of the
+PCSC API Python wrapper module.")
+    (license license:lgpl2.1+)))
+
+(define-public yubikey-oath-dmenu
+  (package
+    (name "yubikey-oath-dmenu")
+    (version "0.14.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/emlun/yubikey-oath-dmenu")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "0kiv5j67h66bm1d12ny6aw5sqnan33vbs2q4w4ms6f6a709c0xyl"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:tests? #f ; there are no tests
+      #:phases
+      #~(modify-phases %standard-phases
+          (delete 'configure) ; no configure script
+          (delete 'build)     ; or build
+          (add-after 'unpack 'fix-paths
+            (lambda* (#:key inputs #:allow-other-keys)
+              (substitute* "yubikey-oath-dmenu.py"
+                (("'(dmenu|notify-send|wl-copy|xclip|xdotool)" _ tool)
+                 (string-append
+                  "'"
+                  (search-input-file inputs
+                                     (string-append "/bin/" tool)))))))
+          (replace 'install
+            (lambda _
+              (invoke "make" "install"
+                      (string-append "PREFIX=" #$output)))))))
+    (native-inputs (list python-setuptools))
+    (inputs
+     (list dmenu
+           libnotify
+           python-click
+           python-yubikey-manager
+           ;; TODO add wtype, once packaged, for type support for Wayland
+           wl-clipboard ; optional clipboard support for Wayland
+           xclip        ; optional clipboard support for X11
+           xdotool))    ; optional type support for X11
+    (home-page
+     "https://github.com/emlun/yubikey-oath-dmenu/")
+    (synopsis "Interface for getting OATH codes from a YubiKey using dmenu")
+    (description
+     "Yubikey-oath-demenu lets you pick an OATH credential from your YubiKey using
+dmenu, and copies the corresponding OTP to the clipboard.  Alternatively, it
+can \"type\" the OTP using @code{xdotool} on X11.
+
+Notable features:
+
+@itemize
+@item Pick between all credentials on all connected YubiKeys
+@item No mouse interaction required
+@end itemize\n")
+    (license license:gpl3+)))
+
+(define-public libu2f-host
+  (package
+    (name "libu2f-host")
+    (version "1.1.10")
+    (source (origin
+              (method url-fetch)
+              (uri
+               (string-append
+                "https://developers.yubico.com"
+                "/libu2f-host/Releases/libu2f-host-" version ".tar.xz"))
+              (sha256
+               (base32
+                "0vrivl1dwql6nfi48z6dy56fwy2z13d7abgahgrs2mcmqng7hra2"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list #:configure-flags
+           #~(list "--enable-gtk-doc"
+                   (string-append "--with-udevrulesdir=" #$output
+                                  "/lib/udev/rules.d"))))
+    (inputs (list json-c-0.13 hidapi))
+    (native-inputs
+     (list help2man
+           gengetopt
+           pkg-config
+           gtk-doc/stable
+           docbook-xml-4.3
+           eudev))
+    (home-page "https://developers.yubico.com/libu2f-host/")
+    ;; TRANSLATORS: The U2F protocol has a "server side" and a "host side".
+    (synopsis "U2F host-side C library and tool")
+    (description
+     "Libu2f-host provides a C library and command-line tool that implements
+the host-side of the Universal 2nd Factor (U2F) protocol.  There are APIs to
+talk to a U2F device and perform the U2F Register and U2F Authenticate
+operations.")
+    ;; Most files are LGPLv2.1+, but some files are GPLv3+.
+    (license (list license:lgpl2.1+ license:gpl3+))))
+
+(define-public libu2f-server
+  (package
+    (name "libu2f-server")
+    (version "1.1.0")
+    (source (origin
+              (method git-fetch)
+              (uri
+               (git-reference
+                (url "https://github.com/Yubico/libu2f-server")
+                (commit (string-append "libu2f-server-" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "1nmsfq372zza5y6j13ydincjf324bwfcjg950vykh166xkp6wiic"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:configure-flags
+       (list "--enable-gtk-doc"
+             "--enable-tests")))
+    (inputs
+     (list json-c-0.13 libressl))
+    (native-inputs
+     (list autoconf
+           automake
+           libtool
+           check
+           gengetopt
+           help2man
+           pkg-config
+           gtk-doc/stable
+           which))
+    (home-page "https://developers.yubico.com/libu2f-server/")
+    ;; TRANSLATORS: The U2F protocol has a "server side" and a "host side".
+    (synopsis "U2F server-side C library")
+    (description
+     "This is a C library that implements the server-side of the
+@dfn{Universal 2nd Factor} (U2F) protocol.  More precisely, it provides an API
+for generating the JSON blobs required by U2F devices to perform the U2F
+Registration and U2F Authentication operations, and functionality for
+verifying the cryptographic operations.")
+    (license license:bsd-2)))
+
+(define-public pam-u2f
+  (package
+    (name "pam-u2f")
+    (version "1.4.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri
+        (git-reference
+          (url "https://github.com/Yubico/pam-u2f")
+          (commit (string-append "pam_u2f-" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "01y2827anh9h9rgci9g3mamn9i4nkk57nmbb2vqcirc2jzkd6iaz"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:configure-flags
+      #~(list
+         (string-append "--with-pam-dir=" #$output"/lib/security"))))
+    (inputs
+     (list libfido2 linux-pam openssl))
+    (native-inputs
+     (list asciidoc autoconf automake libtool pkg-config))
+    (home-page "https://developers.yubico.com/pam-u2f/")
+    (synopsis "PAM module for U2F authentication")
+    (description
+     "This package provides a module implementing PAM over U2F, providing an
+easy way to integrate the YubiKey (or other U2F compliant authenticators) into
+your existing infrastructure.")
+    (license license:bsd-2)))
+
+(define-public python-fido2
+  (package
+    (name "python-fido2")
+    (version "2.2.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/Yubico/python-fido2")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0q9cs8gd0f663l5wxii1494ab1sh3cj1fq5ckbhpshwzr0w5lck2"))
+       (snippet
+        ;; Remove bundled dependency.
+        '(delete-file "fido2/public_suffix_list.dat"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      ;; XXX: Tests timeout without this flag.
+      #:test-flags #~(list "--no-device")
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'install-public-suffix-list
+            (lambda* (#:key inputs #:allow-other-keys)
+              (copy-file
+               (search-input-file inputs
+                                  (string-append
+                                   "/share/public-suffix-list-"
+                                   #$(package-version public-suffix-list)
+                                   "/public_suffix_list.dat"))
+               "fido2/public_suffix_list.dat"))))))
+    (propagated-inputs
+     (list python-cryptography python-pyscard))
+    (native-inputs
+     (list python-poetry-core
+           python-pytest
+           public-suffix-list))
+    (home-page "https://github.com/Yubico/python-fido2")
+    (synopsis "Python library for communicating with FIDO devices over USB")
+    (description
+     "This Python library provides functionality for communicating with a Fast
+IDentity Online (FIDO) device over Universal Serial Bus (USB) as well as
+verifying attestation and assertion signatures.  It aims to support the FIDO
+Universal 2nd Factor (U2F) and FIDO 2.0 protocols for communicating with a USB
+authenticator via the Client-to-Authenticator Protocol (CTAP 1 and 2).  In
+addition to this low-level device access, classes defined in the
+@code{fido2.client} and @code{fido2.server} modules implement higher level
+operations which are useful when interfacing with an Authenticator, or when
+implementing a Relying Party.")
+    ;; python-fido2 contains some derivative files originally from pyu2f
+    ;; (https://github.com/google/pyu2f).  These files are licensed under the
+    ;; Apache License, version 2.0.  The maintainers have customized these
+    ;; files for internal use, so they are not really a bundled dependency.
+    (license (list license:bsd-2 license:asl2.0))))
+
+(define-public python-pskc
+  (package
+    (name "python-pskc")
+    (version "1.4")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/arthurdejong/python-pskc")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1yqyz4ay7dl850ckddpqs1vlxh6yxa8yvf5kkz0amqa08b8546jq"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:test-flags
+      ;; Tests depending on optional python-signxm which is not packaged yet.
+      #~(list (string-append "--deselect=tests/"
+                             "test_draft_ietf_keyprov_pskc_02.doctest"
+                             "::test_draft_ietf_keyprov_pskc_02.doctest")
+              (string-append "--deselect=tests/test_draft_keyprov.doctest"
+                             "::test_draft_keyprov.doctest")
+              "--deselect=tests/test_feitian.doctest::test_feitian.doctest"
+              "--deselect=tests/test_misc.doctest::test_misc.doctest"
+              "--deselect=tests/test_rfc6030.doctest::test_rfc6030.doctest"
+              "--deselect=tests/test_signature.doctest::test_signature.doctest"
+              "--deselect=tests/test_yubico.doctest::test_yubico.doctest")))
+    (native-inputs
+     (list python-pytest
+           python-setuptools))
+    (propagated-inputs
+     (list python-cryptography
+           python-dateutil
+           ;; [optional]
+           python-defusedxml
+           python-lxml
+           #;python-signxml))  ;not packaged yet in Guix
+    (home-page "https://arthurdejong.org/python-pskc/")
+    (synopsis "Python module for handling PSKC files")
+    (description
+     "This package provides a Python module to handle Portable Symmetric Key
+Container (PSKC) files as defined in @url{https://tools.ietf.org/html/rfc6030,
+RFC 6030}.  PSKC files are used to transport and provision symmetric keys and
+key meta data (seed files) to different types of crypto modules, commonly
+one-time password systems or other authentication devices.")
+    (license license:lgpl2.1+)))
+
+(define-public python-yubikey-manager
+  (package
+    (name "python-yubikey-manager")
+    (version "5.9.2")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/Yubico/yubikey-manager")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1b7xiwb3h3rg59939qkb8iafhqppp5c1p83hwqf8bp8hg66jqy7n"))))
+    (build-system pyproject-build-system)
+    (propagated-inputs
+     (list python-click
+           python-cryptography
+           python-fido2
+           python-keyring
+           python-pskc
+           python-pyopenssl
+           python-pyscard
+           python-pyusb))
+    (inputs
+     (list pcsc-lite))
+    (native-inputs
+     (list python-makefun
+           python-poetry-core
+           python-pytest
+           swig-4.4))
+    (home-page "https://developers.yubico.com/yubikey-manager/")
+    (synopsis "Command line tool and library for configuring a YubiKey")
+    (description
+     "Python library and command line tool for configuring a YubiKey.  Note
+that after installing this package, you might still need to add appropriate
+udev rules to your system configuration to be able to configure the YubiKey as
+an unprivileged user.")
+    (license license:bsd-2)))
+
+(define-public yubikey-manager-qt
+  ;; XXX: EOF since <2025-02-20>, see: guix/guix#8013.
+  (package
+    (name "yubikey-manager-qt")
+    (version "1.2.6")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/Yubico/yubikey-manager-qt")
+              (commit (string-append "yubikey-manager-qt-" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1dqd7xpby6m1s1c8qmr7s7x2yr7f5phjhn2xda1kycw8x3izn2vz"))))
+    (build-system qt-build-system)
+    (arguments
+     (list
+      #:tests? #f                       ;no test suite
+      #:modules '((guix build qt-build-system)
+                  ((guix build gnu-build-system) #:prefix gnu:)
+                  (guix build utils))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'patch-paths
+            (lambda _
+              (substitute* "ykman-gui/deployment.pri"
+                (("/usr/bin")
+                 (string-append #$output "/bin")))))
+          (replace 'configure
+            (lambda _
+              (invoke "qmake")))
+          (replace 'build (assoc-ref gnu:%standard-phases 'build))
+          (replace 'install (assoc-ref gnu:%standard-phases 'install))
+          (add-after 'install 'install-desktop-resources
+            (lambda _
+              (let ((datadir (string-append #$output "/share")))
+                (with-directory-excursion "resources"
+                  (install-file "icons/ykman.png"
+                                (string-append datadir "/pixmaps"))
+                  (install-file "com.yubico.yubikey_manager.metainfo.xml"
+                                (string-append datadir "/metainfo"))
+                  (install-file "ykman-gui.desktop"
+                                (string-append datadir "/applications"))))))
+          (add-after 'qt-wrap 'wrap-more
+            (lambda _
+              (wrap-program (string-append #$output "/bin/ykman-gui")
+                ;; Wrap PYTHONPATH so that pyotherside can find the
+                ;; yubikey-manager library.
+                `("GUIX_PYTHONPATH" prefix
+                  (,(getenv "GUIX_PYTHONPATH")))))))))
+    (native-inputs (list python-wrapper))
+    (inputs (list pyotherside-for-qt5
+                  python-yubikey-manager
+                  qtdeclarative-5
+                  qtgraphicaleffects
+                  qtquickcontrols-5
+                  qtquickcontrols2-5
+                  qtsvg-5
+                  qtwayland-5))
+    (home-page "https://developers.yubico.com/yubikey-manager-qt/")
+    (synopsis "GUI for configuring any YubiKey over all USB interfaces")
+    (description "YubiKey Manager (Qt) is a graphical application for
+configuring any YubiKey over all USB interfaces.  For a CLI alternative, refer
+to the @code{python-yubikey-manager} package.")
+    (license license:bsd-2)))
+
+(define-public libnitrokey
+  (package
+    (name "libnitrokey")
+    (version "3.8")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/Nitrokey/libnitrokey")
+                    (commit (string-append "v" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "1b95l979y353rli54a79z18iya9bza83cymcjpndr01q1pb134zm"))))
+    (build-system cmake-build-system)
+    (arguments
+     ;; These tests do not require any device to be connected
+     '(#:configure-flags (list "-DCOMPILE_OFFLINE_TESTS=ON")))
+    (native-inputs (list catch2-2 doxygen graphviz pkg-config))
+    (inputs (list hidapi libusb))
+    (home-page "https://github.com/Nitrokey/libnitrokey")
+    (synopsis "Communication library for Nitrokey")
+    (description "This package provides a communication library for Nitrokey.")
+    (license license:lgpl3+)))
+
+(define-public cppcodec
+  (package
+    (name "cppcodec")
+    (version "0.2")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/tplgy/cppcodec")
+                    (commit (string-append "v" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "0z39f8w0zvra874az0f67ck1al9kbpaidpilggbl8jnfs05010ck"))))
+    (build-system cmake-build-system)
+    (native-inputs (list pkg-config qttools-5))
+    (inputs (list catch2-2))
+    (home-page "https://github.com/tplgy/cppcodec")
+    (synopsis "Header library to encode/decode base64, base64url, etc.")
+    (description "This package provides library to encode/decode base64,
+base64url, base32, base32hex and hex.")
+    (license license:expat)))
+
+(define-public nitrokey-app
+  (package
+    (name "nitrokey-app")
+    (version "1.4.2")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/Nitrokey/nitrokey-app")
+                    (commit (string-append "v" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "1imbvaf0yncz36ckjr99x94jwg2hnid49hsiqlxsv7ccxgk058bk"))))
+    (build-system cmake-build-system)
+    (arguments
+     `(#:tests? #f)) ;no test suite
+    (native-inputs (list pkg-config qttools-5))
+    (inputs (list cppcodec
+                  hidapi
+                  libnitrokey
+                  libusb
+                  qtbase-5
+                  qtsvg-5))
+    (home-page "https://github.com/Nitrokey/nitrokey-app")
+    (synopsis "GUI tool for Nitrokey devices")
+    (description
+     "This package provides GUI tool that interfaces with Nitrokey Pro
+v0.7/v0.8 and Nitrokey Storage devices.")
+    (license license:gpl3+)))
+
+(define-public nitrocli
+  (package
+    (name "nitrocli")
+    (version "0.4.1")
+    (source (origin
+              (method url-fetch)
+              (uri (crate-uri "nitrocli" version))
+              (file-name (string-append name "-" version ".tar.gz"))
+              (sha256
+               (base32
+                "1djspfvcqjipg17v8hkph8xrhkdg1xqjhq5jk1sr8vr750yavidy"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:tests? #f ;; 2/164 tests fail, nitrocli-ext tests failing
+       #:install-source? #f
+       #:phases
+       (modify-phases %standard-phases
+         (add-after 'unpack 'use-system-deps
+           (lambda _
+             (setenv "USE_SYSTEM_LIBNITROKEY" "1"))))))
+    (inputs
+     (cons* hidapi libnitrokey gnupg (cargo-inputs 'nitrocli)))
+    (home-page "https://github.com/d-e-s-o/nitrocli")
+    (synopsis "Command line tool for Nitrokey devices")
+    (description
+     "nitrocli is a program that provides a command line interface
+for interaction with Nitrokey Pro, Nitrokey Storage, and Librem Key
+devices.")
+    (license license:gpl3+)))
+
+(define-public ausweisapp
+  (package
+    (name "ausweisapp")
+    (version "2.4.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/Governikus/AusweisApp/")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0fm98wzf3l498yjg8y6p4rp3c0i7b1fpabka9j22xvx3hjfw5jxw"))))
+    (build-system qt-build-system)
+    (native-inputs
+     (list qttools pkg-config python-wrapper))
+    (inputs
+     (list qtbase
+           qtsvg
+           qtscxml
+           qtdeclarative
+           qtshadertools
+           qtwayland
+           qtwebsockets
+           qtgraphicaleffects
+           pcsc-lite
+           openssl
+           eudev))
+    (arguments
+     (list
+      #:qtbase qtbase
+      #:phases
+      #~(modify-phases %standard-phases
+          (replace 'check
+            (lambda* (#:key tests? parallel-tests? #:allow-other-keys)
+              (when tests?
+                (invoke "ctest" "--output-on-failure" "-j"
+                        (if parallel-tests?
+                            (number->string (parallel-job-count))
+                            "1"))))))))
+    (home-page "https://github.com/Governikus/AusweisApp")
+    (synopsis
+     "Authentication program for German ID cards and residence permits")
+    (description
+     "This application is developed and issued by the German government to be
+used for online authentication with electronic German ID cards and residence
+titles.  To use this app, a supported RFID card reader or NFC-enabled smart
+phone and a running pcscd service are required.")
+    (license license:eupl1.2)))
+
+(define-public libfido2
+  (package
+    (name "libfido2")
+    (version "1.17.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/Yubico/libfido2")
+             (commit version)))
+       (file-name (git-file-name name version))
+       (sha256 (base32 "0nkdigwry5bwzkxk1piww89rrb0g3zwdvn1nk5iq8hw5d47r5npm"))))
+    (native-inputs (list pkg-config))
+    (inputs (list eudev libcbor openssl zlib))
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:configure-flags
+      #~(list
+         (string-append "-DUDEV_RULES_DIR=" #$output "/lib/udev/rules.d"))))
+    (synopsis "Library functionality and command-line tools for FIDO devices")
+    (description "libfido2 provides library functionality and command-line
+tools to communicate with a FIDO device over USB, and to verify attestation
+and assertion signatures.
+
+libfido2 supports the FIDO U2F (CTAP 1) and FIDO 2.0 (CTAP 2) protocols.")
+    (license license:bsd-2)
+    (home-page "https://github.com/Yubico/libfido2")))
+
+(define-public cardpeek
+  (package
+    (name "cardpeek")
+    (version "0.8.4")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/L1L1/cardpeek")
+                    (commit (string-append "cardpeek-" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "1ighpl7nvcvwnsd6r5h5n9p95kclwrq99hq7bry7s53yr57l6588"))))
+    (inputs (list curl
+                  gtk+
+                  lua-5.2
+                  openssl
+                  pcsc-lite
+                  readline))
+    (native-inputs (list autoconf
+                         automake
+                         `(,glib "bin") ;for glib-compile-resources
+                         libtool
+                         pkg-config))
+    (build-system gnu-build-system)
+    (synopsis "Tool to read the contents of various smart cards")
+    (description
+     "Cardpeek is a graphical tool to read the contents of ISO7816 smart cards.
+It is extensible with the LUA scripting language.
+
+It supports the following type of cards:
+@itemize
+@item Bank cards (VISA, MasterCard, CB and UK Post Office Account cards)
+@item Passports and the Belgian identity card
+@item Transport cards (Navigo, MOBIB, RavKav and VIVA cards)
+@item Older GSM SIM cards without USIM data
+@item Vitale 2 Health card
+@item Moneo Electronic purse card
+@item Driver Tachograph cards
+@item OpenPGP Cards (beta)
+@end itemize
+It also has limited support for Mifare Classic compatible cards (Thalys card)")
+    (license license:gpl3+)
+    (home-page "http://pannetrat.com/Cardpeek")))
+
+(define-public pcsc-cyberjack
+  (package
+    (name "pcsc-cyberjack")
+    (version "3.99.5final.sp15")
+    (source
+     (origin
+       (method url-fetch)
+       (uri "https://support.reiner-sct.de/downloads/LINUX/V3.99.5_SP15/pcsc-cyberjack_3.99.5final.SP15.tar.bz2")
+       (sha256
+        (base32 "0yj6plgb245r218v6lgdabb3422hxyrw8rrpf5b8fwah4j1w5dxc"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:configure-flags
+      #~(list (string-append "--with-usbdropdir=" #$output "/pcsc/drivers")
+              (string-append "--bindir=" #$output:tools "/bin"))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'install 'install-tools
+            (lambda _ (invoke "make" "-C" "tools/cjflash" "install"))))))
+    (native-inputs (list pkg-config))
+    (inputs (list pcsc-lite libusb))
+    (outputs '("out" "tools"))
+    (synopsis "PC/SC driver for cyberJack chipcard readers")
+    (description
+     "This package includes the IFD driver for the cyberJack
+contactless (RFID) and contact USB chipcard readers.")
+    (home-page "http://www.reiner-sct.com/")
+    (license license:lgpl2.1+)))
+
+(define-public qdigidoc
+  (package
+    (name "qdigidoc")
+    (version "4.9.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/open-eid/DigiDoc4-Client")
+             (commit (string-append "v" version))
+             ;; The repository contains two git modules, an empty and obsolete
+             ;; "cmake" repository and https://github.com/open-eid/qt-common,
+             ;; which is an internal "libdigidoccommon" library with no
+             ;; support for standalone installation.
+             (recursive? #t)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1by4jnr3sx4s8sxv1iw8ja9iln3aw6k583kdl3r92cbcdfasm7xj"))
+       (patches (search-patches "qdigidoc-bundle-config-files.patch"
+                                "qdigidoc-bundle-tsl-files.patch"
+                                "qdigidoc-fix-icon.patch"))))
+    (build-system qt-build-system)
+    (arguments
+     (list
+      #:qtbase qtbase                   ;qt6
+      #:tests? #f                       ;no test suite
+      #:phases
+      #~(modify-phases %standard-phases
+          ;; QDigiDoc4 dlopens OpenSC libraries.
+          (add-after 'unpack 'patch-opensc-path
+            (lambda* (#:key inputs #:allow-other-keys)
+              (substitute* "client/QPKCS11.cpp"
+                (("\"opensc-pkcs11.so\"")
+                 (format #f "~S"
+                         (search-input-file inputs
+                                            "lib/opensc-pkcs11.so")))))))))
+    (native-inputs
+     (list pkg-config
+           gettext-minimal
+           qttools))
+    (inputs (list flatbuffers
+                  libdigidocpp
+                  openldap
+                  opensc
+                  openssl
+                  pcsc-lite
+                  qtsvg
+                  zlib))
+    (home-page "https://www.id.ee/en/")
+    (synopsis "Estonian ID card application")
+    (description
+     "This application provides support for using private and governmental
+e-services, signing and encrypting DigiDoc documents, and configuring Estonian
+ID cards.  It requires a running pcscd service and a compatible card reader.")
+    (license license:lgpl2.1+)))

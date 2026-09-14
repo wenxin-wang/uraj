@@ -1,0 +1,23 @@
+From 0a6f23a404d1b972b1c5f0cf1d38500276f3c9d1 Mon Sep 17 00:00:00 2001
+From: Hilton Chain <hako@ultrarare.space>
+Date: Tue, 22 Apr 2025 19:43:00 +0800
+Subject: [PATCH] Support Cargo target from environment variable.
+
+---
+ cmake/FindRust.cmake | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/cmake/FindRust.cmake b/cmake/FindRust.cmake
+index fccfac3..e888149 100644
+--- a/cmake/FindRust.cmake
++++ b/cmake/FindRust.cmake
+@@ -71,6 +71,9 @@
+   endif()
+   set(Rust_CARGO_TARGET_CACHED "${Rust_DEFAULT_HOST_TARGET}" CACHE STRING "Target triple")
+ endif()
++if(DEFINED ENV{CARGO_BUILD_TARGET})
++    set(Rust_CARGO_TARGET_CACHED "$ENV{CARGO_BUILD_TARGET}")
++endif()
+ 
+ # Set the input variables as non-cache variables so that the variables are available after
+ # `find_package`, even if the values were evaluated to defaults.

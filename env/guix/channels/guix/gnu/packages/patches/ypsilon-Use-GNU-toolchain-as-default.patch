@@ -1,0 +1,62 @@
+From bb45dc3a0ae24f383c401fa0a191c84797557391 Mon Sep 17 00:00:00 2001
+From: AwesomeAdam54321 <adam.faiz@disroot.org>
+Date: Sat, 1 Nov 2025 20:00:21 +0800
+Subject: [PATCH] ypsilon: Use GNU toolchain as default.
+
+This is hacky, but it works. Ideally, the defaults should be adjusted
+according to the configuration.
+---
+ CMakeLists.txt | 10 +++++-----
+ Makefile       |  6 +++---
+ 2 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 4aa2a75..d495e3d 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -23,12 +23,12 @@ include_directories(${LLVM_INCLUDE_DIRS})
+ separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
+ add_definitions(${LLVM_DEFINITIONS_LIST})
+ 
+-set(CMAKE_C_COMPILER "clang")
+-set(CMAKE_CXX_COMPILER "clang++")
++set(CMAKE_C_COMPILER "gcc")
++set(CMAKE_CXX_COMPILER "g++")
+ 
+-if(NOT APPLE)
+-  add_link_options("-fuse-ld=lld")
+-endif(NOT APPLE)
++#if(NOT APPLE)
++#  add_link_options("-fuse-ld=lld")
++#endif(NOT APPLE)
+ 
+ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -flto")
+ set(CMAKE_LINKER_FLAGS_RELEASE "${CMAKE_LINKER_FLAGS_RELEASE} -flto")
+diff --git a/Makefile b/Makefile
+index 09b7a50..dd2eb1b 100644
+--- a/Makefile
++++ b/Makefile
+@@ -8,9 +8,9 @@ PREFIX = /usr/local
+ 
+ CPPFLAGS = -DNDEBUG -DSYSTEM_SHARE_PATH='"$(DESTDIR)$(PREFIX)/share/$(PROG)"' -DSYSTEM_EXTENSION_PATH='"$(DESTDIR)$(PREFIX)/lib/$(PROG)"'
+ 
+-CXX = clang++
++CXX = g++
+ 
+-CXXFLAGS = `llvm-config --cxxflags` -fcxx-exceptions
++CXXFLAGS = `llvm-config --cxxflags` -fexceptions
+ 
+ SRCS = file.cpp main.cpp object_heap_compact.cpp subr_flonum.cpp vm0.cpp vm1.cpp vm2.cpp vm3.cpp object_set.cpp \
+        object_slab.cpp subr_list.cpp serialize.cpp vm3.cpp port.cpp subr_others.cpp arith.cpp printer.cpp \
+@@ -45,7 +45,7 @@ ifneq (,$(findstring Linux, $(UNAME)))
+     endif
+   endif
+   CXXFLAGS += -O3 -pthread -fomit-frame-pointer -momit-leaf-frame-pointer
+-  LDFLAGS = -fuse-ld=lld
++  #LDFLAGS = -fuse-ld=lld
+   LDLIBS = -Wl,--as-needed $(shell llvm-config --ldflags --system-libs --libs all) -pthread -Wl,--no-as-needed -ldl
+ endif
+ 
+-- 
+2.51.0
+

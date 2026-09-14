@@ -1,0 +1,47 @@
+Use guix-provided qjs instead of a meson subproject.
+
+Patch by bdunahu <bdunahu@operationnull.com>.
+
+diff --git a/libr/lang/meson.build b/libr/lang/meson.build
+index b84a187af7..2d96b8a7cf 100644
+--- a/libr/lang/meson.build
++++ b/libr/lang/meson.build
+@@ -4,9 +4,8 @@ r_lang_sources = [
+
+ spp_inc = [platform_inc, include_directories('../../shlr/spp')]
+
+-qjs = subproject('qjs')
+-qjs_inc = qjs.get_variable('incs')
+-qjs_static = qjs.get_variable('qjs_static')
++qjs_dep = cc.find_library('qjs', required: true)
++
+ r_lang_pkgcfg_private_libs = []
+ if mth.found()
+   r_lang_pkgcfg_private_libs += ['-lm']
+@@ -14,7 +13,7 @@ endif
+
+
+ r_lang = library('r_lang', r_lang_sources,
+-  include_directories: [platform_inc, spp_inc, qjs_inc],
++  include_directories: [platform_inc, spp_inc],
+   c_args: library_cflags,
+   dependencies: [
+     r_util_dep,
+@@ -25,15 +24,15 @@ r_lang = library('r_lang', r_lang_sources,
+     r_esil_dep,
+     r_muta_dep,
+     r_cons_dep,
++    qjs_dep,
+   ],
+-  link_with: qjs_static,
+   install: true,
+   implicit_include_directories: false,
+   install_rpath: rpath_lib,
+   soversion: r2_libversion
+ )
+
+-r_lang_dep = declare_dependency(link_with: r_lang, include_directories: [platform_inc, qjs_inc])
++r_lang_dep = declare_dependency(link_with: r_lang, include_directories: [platform_inc], dependencies: [qjs_dep])
+
+ if get_option('blob')
+ r_lang_static = static_library('r_lang_static', r_lang_sources,

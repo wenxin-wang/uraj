@@ -1,0 +1,2266 @@
+# Danish translation guix-packages.
+# Copyright (C) 2019, 2020 the authors of Guix (msgids) and the following authors (msgstr)
+# This file is distributed under the same license as the guix package.
+# Joe Hansen <joedalton2@yahoo.dk>, 2015, 2016, 2017, 2018, 2019.
+# Florian Pelz <pelzflorian@pelzflorian.de>, 2025.
+#: gnu/packages/firmware.scm:1665 gnu/packages/firmware.scm:1932
+#: gnu/packages/linux.scm:1260
+msgid ""
+msgstr ""
+"Project-Id-Version: guix-packages 1.0.0-pre3\n"
+"Report-Msgid-Bugs-To: bug-guix@gnu.org\n"
+"POT-Creation-Date: 2025-10-20 03:18+0000\n"
+"PO-Revision-Date: 2025-01-15 20:38+0000\n"
+"Last-Translator: Florian Pelz <pelzflorian@pelzflorian.de>\n"
+"Language-Team: Danish <https://translate.fedoraproject.org/projects/guix/packages/da/>\n"
+"Language: da\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: Weblate 5.9.2\n"
+"X-Bugs: Report translation errors to the Language-Team address.\n"
+
+msgid "Word processing program"
+msgstr "Tekstbehandlingsprogram"
+
+msgid ""
+"AbiWord is a word processing program.  It is rapidly\n"
+"becoming a state of the art word processor, with lots of features useful for\n"
+"your daily work, personal needs, or for just some good old typing fun."
+msgstr ""
+"AbiWord er et tekstbehandlingsprogram. Det bliver med stor hastighed\n"
+"en vigtig komponent indenfor tekstbehandling, med en masse funktioner, \n"
+"som kan bruges i dit daglige arbejde, personlige behov, eller bare\n"
+"god gammeldags skrivning."
+
+msgid "Spell checker"
+msgstr "Stavekontrol"
+
+msgid ""
+"Aspell is a spell-checker which can be used either as a library or as\n"
+"a standalone program.  Notable features of Aspell include its full support of\n"
+"documents written in the UTF-8 encoding and its ability to use multiple\n"
+"dictionaries, including personal ones."
+msgstr ""
+"Aspell er en stavekontrol, som kan bruges enten som et bibliotek eller\n"
+"som et uafhængigt program. Vigtige funktioner i Aspell inkluderer dets\n"
+"fulde understøttelse af dokumenter skrivet i UTF-8-kodning og dets evne\n"
+"til at bruge flere ordbøger, inklusive personlige."
+
+msgid "This package provides a dictionary for the GNU Aspell spell checker."
+msgstr "Denne pakke tilbyder en ordbog for stavekontrollen GNU Aspell."
+
+msgid "Realtime modular synthesizer and effect processor"
+msgstr "Modulopbygget synthesizer og effektprocessor"
+
+msgid ""
+"AlsaModularSynth is a digital implementation of a classical analog\n"
+"modular synthesizer system.  It uses virtual control voltages to control the\n"
+"parameters of the modules.  The control voltages which control the frequency\n"
+"e.g. of the VCO (Voltage Controlled Oscillator) and VCF (Voltage Controlled\n"
+"Filter) modules follow the convention of 1V / Octave."
+msgstr ""
+"AlsaModularSynth er en digital implementering af et klassisk analogt\n"
+"modulopbygget synthesizersystem. Det bruger virtuelle kontrolspændinger til\n"
+"at kontrollere parametrene for modulerne. Kontrolspændingerne der kontrollerer\n"
+"frekvensen f.eks. for VCO'en (Voltage Controlled Oscillator) og VCF-modulerne\n"
+"(Voltage Controlled Filter) følger konventionen for 1V/Octave."
+
+msgid "Digital audio workstation"
+msgstr "Digital lydarbejdsstation"
+
+msgid "Software for recording and editing sounds"
+msgstr "Program til at optage og redigere lyde"
+
+msgid "Pitch-correction LADSPA audio plugin"
+msgstr "Tonehøjdekorrektion LADSPA-lydudvidelsesmodul"
+
+msgid "Audio plug-in pack for LV2 and JACK environments"
+msgstr "Lydudvidelsesmpakke for LV2- og JACK-miljøer"
+
+msgid "LV2 plugins for live use"
+msgstr "LV2-udvidelsesmoduler for live brug"
+
+msgid "SWH plugins in LV2 format"
+msgstr "SWH-udvidelsesmoduler i LV2-format"
+
+msgid "Sound and music computing system"
+msgstr "Lyd- og musikberegningsystem"
+
+msgid "C++ wrapper around the ALSA API"
+msgstr "C++-omslag omkring ALSA API'en"
+
+msgid ""
+"clalsadrv is a C++ wrapper around the ALSA API simplifying access to\n"
+"ALSA PCM devices."
+msgstr ""
+"Clalsadrv er et C++-omslag omkring ALSA API'en, der forenkler adgang til\n"
+"ALSA PCM-enheder."
+
+msgid "LADSPA stereo width plugin"
+msgstr "LADSPA-stereo med udvidelsesmodul"
+
+msgid ""
+"This package provides a LADSPA plugin to manipulate the stereo width of\n"
+"audio signals."
+msgstr ""
+"Denne pakke tilbyder et LADSPA-udvidelsesmodul til at manipulere stereodyben\n"
+"for lydsignaler."
+
+msgid "LADSPA plugin for synthesizer oscillators"
+msgstr "LADSPA-udvidelsesmodul for synthesizeroscillatorer"
+
+msgid ""
+"This package provides a LADSPA plugin for a Wah effect with envelope\n"
+"follower."
+msgstr ""
+"Denne pakke tilbyder et LADSPA-udvidelsesmodul for wn Wah-effekt med\n"
+"kuvertfølger."
+
+msgid "This package provides a LADSPA plugin for a stereo reverb effect."
+msgstr "Denne pakke tilbyder et LADSPA-udvidelsesmodul for en stereo reverb-effekt."
+
+msgid "SoundFont synthesizer"
+msgstr "SoundFont-synthesizer"
+
+msgid "Signal processing language"
+msgstr "Signalbehandlingssprog"
+
+msgid "Faust is a programming language for realtime audio signal processing."
+msgstr "Faust er et programmeringssprog for behandling af lydsignaler i realtid."
+
+msgid "Bindings for PortAudio v19"
+msgstr "Bindinger for PortAudio v19"
+
+msgid ""
+"This package provides bindings for PortAudio v19, the\n"
+"cross-platform audio input/output stream library."
+msgstr ""
+"Denne pakke tilbyder bindinger for PortAudio v19,\n"
+"lydinddata/uddata-udsendelsesbiblioteket for flere platforme."
+
+msgid "Python bindings for liblo"
+msgstr "Pythonbindinger for liblo"
+
+msgid "Library to simplify use of LV2 plugins in applications"
+msgstr "Bibliotek til at forenkle bruge af LV2-udvidelsesmoduler i programmer"
+
+msgid "LV2 port of the mda Piano plugin"
+msgstr "LV2-port af mda Piano-udvidelsesmodulet"
+
+msgid "An LV2 port of the mda Piano VSTi."
+msgstr "En LV2-port af mda Piano VSTi."
+
+msgid "LV2 port of the mda EPiano plugin"
+msgstr "LV2-port af mda EPiano-udvidelsesmodulet"
+
+msgid "An LV2 port of the mda EPiano VSTi."
+msgstr "En LV2-port af mda EPiano VSTi."
+
+msgid "C++ libraries for LV2 plugins"
+msgstr "C++-biblioteker for LV2-udvidelsesmoduler"
+
+msgid "Free implementation of OpenAL's ALUT standard"
+msgstr "Fri implementering af OpenAL's ALUT-standard"
+
+msgid "freealut is the OpenAL Utility Toolkit."
+msgstr "freealut er OpenAL Utility Toolkit."
+
+msgid "Portable C audio library"
+msgstr "Flytbart C-lydbibliotek"
+
+msgid ""
+"The Portable C Audio Library (pcaudiolib) provides a C@tie{}API to\n"
+"different audio devices such as ALSA or PulseAudio."
+msgstr ""
+"Portable C Audio Library (pcaudiolib) tilbyder en C@tie{}API til\n"
+"andre lydenheder såsom ALSA eller PulseAudio."
+
+msgid "Synthesis engine and programming language"
+msgstr "Syntesemotor og programmeringssprog"
+
+msgid "Tool to adjust loudness of media files"
+msgstr "Værktøj til at justere lydstyrken for mediefiler"
+
+msgid "GSM 06.10 lossy speech compression library"
+msgstr "GSM 06.10-talekomprimeringsbibliotek uden kvalitetestab"
+
+msgid "ALSA wrappers for Python"
+msgstr "ALSA-omslag for Python"
+
+msgid "Sound editor"
+msgstr "Lydredigeringsprogram"
+
+msgid "XAudio reimplementation"
+msgstr "XAudio-reimplementering"
+
+msgid ""
+"FAudio is an XAudio reimplementation that focuses solely on\n"
+"developing fully accurate DirectX Audio runtime libraries."
+msgstr ""
+"FAudio e ren XAudio-reimplementering, der alene fokuserer på\n"
+"at udvikle helt præcise DirectX Audio-kørselstidsbiblioteker."
+
+msgid "Encrypted backup using rsync algorithm"
+msgstr "Krypteret sikkerhedskopiering via brug af rsync-algoritmen"
+
+msgid ""
+"Duplicity backs up directories by producing encrypted tar-format volumes\n"
+"and uploading them to a remote or local file server.  Because duplicity uses\n"
+"librsync, the incremental archives are space efficient and only record the\n"
+"parts of files that have changed since the last backup.  Because duplicity\n"
+"uses GnuPG to encrypt and/or sign these archives, they will be safe from\n"
+"spying and/or modification by the server."
+msgstr ""
+"Duplicity laver sikkerhedskopier af mapper ved at fremstille krypterede\n"
+"arkiver i tar-format og overføre dem til en ekstern eller en lokal filserver.\n"
+"Da Duplicity bruger librsync, er de trinvist opbyggede arkiver pladseffektive\n"
+"og indeholder kun dele af filerne som har ændret sig siden sidste \n"
+"sikkerhedskopiering. Da Duplicity bruger GnuPG til at kryptere og/eller\n"
+"underskrive disse arkiver, så vil de være sikret mod spionage og/eller\n"
+"ændring af serveren."
+
+msgid "File verification and repair tools"
+msgstr "Filverifikantion og reparationsværktøjer"
+
+msgid "Simple incremental backup tool"
+msgstr "Simpelt værktøj til trinvis sikkerhedskopiering"
+
+msgid ""
+"Hdup2 is a backup utility, its aim is to make backup really simple.  The\n"
+"backup scheduling is done by means of a cron job.  It supports an\n"
+"include/exclude mechanism, remote backups, encrypted backups and split\n"
+"backups (called chunks) to allow easy burning to CD/DVD."
+msgstr ""
+"Hdup2 er et redskab til sikkerhedskopiering, dets formål er at gøre\n"
+"sikkerhedskopiering meget simpel. Planlægningen udføres af et cronjob.\n"
+"Der understøttes en inkluder/ekskluder mekanisme, eksterne\n"
+"sikkerhedskopier, krypterede sikkerhedskopier og opdelte sikkerhedskopier\n"
+"(kaldt klumper) så der nemt kan brændes til cd/dvd."
+
+msgid "Multi-format archive and compression library"
+msgstr "Arkiv- og komprimeringsbibliotek for flere formater"
+
+msgid "Provide a list of files to backup"
+msgstr "Tilbyder en liste af filer til sikkerhedskopiering"
+
+msgid ""
+"Rdup is a utility inspired by rsync and the plan9 way of doing backups.\n"
+"Rdup itself does not backup anything, it only print a list of absolute\n"
+"file names to standard output.  Auxiliary scripts are needed that act on this\n"
+"list and implement the backup strategy."
+msgstr ""
+"Rdup er et redskab inspireret af måden som rsync og plan9 udfører\n"
+"sikkerhedskopier. Rdup laver ikke selv nogle sikkerhedskopier, programmet\n"
+"udskriver kun en liste over absolutte filnavne til standardud. Andre\n"
+"skripter er krævet til for det videre arbejde med denne liste og\n"
+"implementering af sikkerhedskopistrategien."
+
+msgid "Tar-compatible archiver"
+msgstr "Tar-kompatibelt arkivprogram"
+
+msgid ""
+"Btar is a tar-compatible archiver which allows arbitrary compression and\n"
+"ciphering, redundancy, differential backup, indexed extraction, multicore\n"
+"compression, input and output serialisation, and tolerance to partial archive\n"
+"errors."
+msgstr ""
+"Btar er et tar-kompatibelt arkivprogram, som tillader arbitrær komprimering\n"
+"og krypteringsalgoritmer, redundans, differentil sikkerhedskopiering, \n"
+"indekseret udtrækning, komprimering med flere kerner, inddata- og uddata-\n"
+"serialisering, og tolerance for delvise arkivfejl."
+
+msgid "Local/remote mirroring+incremental backup"
+msgstr "Lokal/ekstern spejlning+trinvis sikkerhedskopiering"
+
+msgid ""
+"Rdiff-backup backs up one directory to another, possibly over a network.\n"
+"The target directory ends up a copy of the source directory, but extra reverse\n"
+"diffs are stored in a special subdirectory of that target directory, so you\n"
+"can still recover files lost some time ago.  The idea is to combine the best\n"
+"features of a mirror and an incremental backup.  Rdiff-backup also preserves\n"
+"subdirectories, hard links, dev files, permissions, uid/gid ownership,\n"
+"modification times, extended attributes, acls, and resource forks.  Also,\n"
+"rdiff-backup can operate in a bandwidth efficient manner over a pipe, like\n"
+"rsync.  Thus you can use rdiff-backup and ssh to securely back a hard drive up\n"
+"to a remote location, and only the differences will be transmitted.  Finally,\n"
+"rdiff-backup is easy to use and settings have sensible defaults."
+msgstr ""
+"Rdiff-backup laver sikkerhedskopiering af en mappe til en anden, eventuelt\n"
+"over et netværk. Målmappen slutter som en kopi af kildemappen, men ekstra\n"
+"tilbageføringsforskelsfiler lagres i en speciel undermappe af den\n"
+"målmappe, så du kan stadig gendanne filer mistet for noget tid siden.\n"
+"Ideen er at kombinere de bedste funktioner i et spejl og en trinvis\n"
+"sikkerhedskopiering. Rdiff-backup bevarer også undermapper, hårde\n"
+"henvisninger, udviklingsfiler, tilladelser, uid/gid ejerskab, \n"
+"ændringstidspunkt, udvidede attributter, acl'er og ressourceforgreninger.\n"
+"Rdiff-backup kan også fungere på en effektiv måde i forhold til båndbredde\n"
+"over en datakanal, såsom rsync. Du kan derfor bruge rdiff-backup og ssh til\n"
+"sikkert at lave sikkerhedskopiering af en harddisk op til en ekstern\n"
+"placering og kun forskellene vil blive overført. Endelig er rdiff-backup\n"
+"nem at bruge og startopsætningen er lavet med fornuftige standarder."
+
+msgid "Example GNU package"
+msgstr "Eksempel på en GNU-pakke"
+
+msgid ""
+"GNU Hello prints the message \"Hello, world!\" and then exits.  It\n"
+"serves as an example of standard GNU coding practices.  As such, it supports\n"
+"command-line arguments, multiple languages, and so on."
+msgstr ""
+"GNU Hello udskriver beskeden »Hej verden!« og stopper så. Det\n"
+"fungerer som et eksempel på gængse GNU-kodningspraksisser. Som\n"
+"sådan understøtter programmer parametre på kommandolinjen, flere\n"
+"sprog og så videre."
+
+msgid "Print lines matching a pattern"
+msgstr "Udskriv linjer der matcher et mønster"
+
+msgid ""
+"grep is a tool for finding text inside files.  Text is found by\n"
+"matching a pattern provided by the user in one or many files.  The pattern\n"
+"may be provided as a basic or extended regular expression, or as fixed\n"
+"strings.  By default, the matching text is simply printed to the screen,\n"
+"however the output can be greatly customized to include, for example, line\n"
+"numbers.  GNU grep offers many extensions over the standard utility,\n"
+"including, for example, recursive directory searching."
+msgstr ""
+"Grep er et værktøj til at finde tekst inden i filer. Tekst findes\n"
+"af et matchende mønster tilbudt af brugeren i en eller flere filer.\n"
+"Mønsteret kan stadig tilbydes som et grundlæggende elelr udvidet\n"
+"regulært udtryk, eller som faste strenge. Som standard bliver den\n"
+"matchende tekst skrevet til skærmen, resultatet kan dog tilpasses\n"
+"på mange områder, for eksempel for inkludering af linjeantal. GNU\n"
+"grep tilbyder mange udvidelser i forhold til standardredskabet,\n"
+"inklusiv rekursiv mappesøgning."
+
+msgid "Stream editor"
+msgstr "Strømredigeringsprogram"
+
+msgid ""
+"Sed is a non-interactive, text stream editor.  It receives a text\n"
+"input from a file or from standard input and it then applies a series of text\n"
+"editing commands to the stream and prints its output to standard output.  It\n"
+"is often used for substituting text patterns in a stream.  The GNU\n"
+"implementation offers several extensions over the standard utility."
+msgstr ""
+"Sed er et ikkeinteraktivt redigeringsprogram for tekststrømme. Det\n"
+"modtager en tekst fra en fil eller fra standardind og anvender så en serie af tekstredigeringskommandoer til strømmen og udskriver\n"
+"resultatet til standardud. Det bruges ofte til søg og erstat af\n"
+"tekstmønster i en strøm. GNU-implementeringen tilbyder flere\n"
+"udvidelser i forhold til standardredskabet."
+
+msgid "Managing tar archives"
+msgstr "Håndtering af tar-arkiver"
+
+msgid ""
+"Tar provides the ability to create tar archives, as well as the\n"
+"ability to extract, update or list files in an existing archive.  It is\n"
+"useful for combining many files into one larger file, while maintaining\n"
+"directory structure and file information such as permissions and\n"
+"creation/modification dates.  GNU tar offers many extensions over the\n"
+"standard utility."
+msgstr ""
+"Tar tilbyder evnen til at oprette tar-arkiver, samt muligheden\n"
+"for at udtrække, opdatere eller vise filer i et eksisterende arkiv.\n"
+"Det er nyttigt for kombinering af mange filer til en større fil, mens\n"
+"mappestruktur og filinformation såsom rettigheder og oprettelse/ændrings-\n"
+"datoer bevares. GNU tar tilbyder mange udvidelser over standardredskabet."
+
+msgid "Apply differences to originals, with optional backups"
+msgstr "Anvend forskelle på originaler, med valgfri sikkerhedskopiering"
+
+msgid ""
+"Patch is a program that applies changes to files based on differences\n"
+"laid out as by the program \"diff\".  The changes may be applied to one or more\n"
+"files depending on the contents of the diff file.  It accepts several\n"
+"different diff formats.  It may also be used to revert previously applied\n"
+"differences."
+msgstr ""
+"Patch er et program, som udfører ændringer på filer baseret på forskelle\n"
+"skabt af programmet »diff«. Ændringerne kan anvendes på en eller flere\n"
+"filer afhængig af indholder for diff-filen. Programmet accepterer flere\n"
+"forskellige diff-formater. Det kan også bruges til at tilbageføre\n"
+"tidligere anvendte forskelle."
+
+msgid "Comparing and merging files"
+msgstr "Sammenligning og sammenføjning af filer"
+
+msgid ""
+"GNU Diffutils is a package containing tools for finding the\n"
+"differences between files.  The \"diff\" command is used to show how two files\n"
+"differ, while \"cmp\" shows the offsets and line numbers where they differ.\n"
+"\"diff3\" allows you to compare three files.  Finally, \"sdiff\" offers an\n"
+"interactive means to merge two files."
+msgstr ""
+"GNU Diffutils er en pakke, der indeholder værktøjer til at finde\n"
+"forskellene mellem filer. Kommandoen »diff« bruges til at vise hvordan to\n"
+"filer er forskellige, mens »cmp« viser forskydningen og linjeantallet, hvor\n"
+"de er forskellige. »diff3« giver dig mulighed for at sammenligne tre filer.\n"
+"Endelig tilbyder »sdiff« en interaktiv måde at sammenføje to filer."
+
+msgid "Operating on files matching given criteria"
+msgstr "Operation på filer der matcher angivne kriterier"
+
+msgid ""
+"Findutils supplies the basic file directory searching utilities of the\n"
+"GNU system.  It consists of two primary searching utilities: \"find\"\n"
+"recursively searches for files in a directory according to given criteria and\n"
+"\"locate\" lists files in a database that match a query.  Two auxiliary tools\n"
+"are included: \"updatedb\" updates the file name database and \"xargs\" may be\n"
+"used to apply commands with arbitrarily long arguments."
+msgstr ""
+"Findutils indeholder de grundlæggende søgeredskaber til filmapper for\n"
+"GNU-systemet. Det består af to primære søgeredskaber: »find« søger\n"
+"rekursivt efter filre i en mappe jævnfør angivne kriterier og\n"
+"»locate« viser filer i en database som matcher en forespørgsel. To\n"
+"ekstra værktøjer er inkluderet: »updatedb« opdaterer filnavnsdatabasen\n"
+"og »xargs« kan bruges til at anvende kommandoer med arbitrært lange argumenter."
+
+msgid "Core GNU utilities (file, text, shell)"
+msgstr "Core GNU-redskaber (file, text, shell)"
+
+msgid "Remake files automatically"
+msgstr "Gendan filer automatisk"
+
+msgid ""
+"Make is a program that is used to control the production of\n"
+"executables or other files from their source files.  The process is\n"
+"controlled from a Makefile, in which the developer specifies how each file is\n"
+"generated from its source.  It has powerful dependency resolution and the\n"
+"ability to determine when files have to be regenerated after their sources\n"
+"change.  GNU make offers many powerful extensions over the standard utility."
+msgstr ""
+"Make er et program, som bruges til at kontrollere produktionen af\n"
+"kørbare filer eller andre filer fra deres kildefiler. Processen er\n"
+"kontrolleret fra en Makefile, hvori udvikleren specificerer hvordan\n"
+"hver fil oprettes fra dets kilde. Programmet har funktionsrige\n"
+"afhængighedsopløsning og evnen til at afgøre hvornår filer skal\n"
+"gendannes efter at deres kilder har ændret sig. GNU make tilbyder\n"
+"mange funktionsrige udvidelser der ligger udover standardredskabet."
+
+msgid "Binary utilities: bfd gas gprof ld"
+msgstr "Binære redskaber: bfd gas gprof ld"
+
+msgid "Character set conversion library"
+msgstr "Bibliotek til konvertering af tegnsæt"
+
+msgid "BitTorrent library of rtorrent"
+msgstr "BitTorrent-bibliotek for rtorrent"
+
+msgid "Utility for parallel downloading files"
+msgstr "Redskab for parallel overførsel af filer"
+
+msgid "Utility to create BitTorrent metainfo files"
+msgstr "Redskab til at oprette BitTorrent-metainfofiler"
+
+msgid "Zip Compression library"
+msgstr "Zip-komprimeringsbibliotek"
+
+msgid ""
+"Minizip is a minimalistic library that supports compressing,\n"
+"extracting and viewing ZIP archives.  This version is extracted from\n"
+"the @code{zlib} source."
+msgstr ""
+"Minizip er et minimalistisk bibliotek, som understøtter komprimering,\n"
+"udtrækning og visning af ZIP-arkiver. Denne version er udtrækket fra\n"
+"kilden @code{zlib}."
+
+msgid "Replacement for Sun's 'jar' utility"
+msgstr "Erstatning for Suns redskab »jar«"
+
+msgid "C library for manipulating POSIX tar files"
+msgstr "C-bibliotek til at manipulere POSIX-tar-filer"
+
+msgid "Compress or expand files"
+msgstr "Komprimer eller udvid filer"
+
+msgid "Command-line file archiver with high compression ratio"
+msgstr "Filarkivprogram for kommandolinjen med høje komprimeringsforhold"
+
+msgid "Compression and file packing utility"
+msgstr "Komprimerings- og filpakningsredskab"
+
+msgid "Library for accessing zip files"
+msgstr "Bibliotek til at tilgå zip-filer"
+
+msgid "ZZipLib is a library based on zlib for accessing zip files."
+msgstr "ZZipLib er et bibliotek baseret på zlib for adgang til zip-filer."
+
+msgid "C library for reading, creating, and modifying zip archives"
+msgstr "C-bibliotek til at læse, oprette og ændre zip-arkiver"
+
+msgid "Universal tool to manage file archives of various types"
+msgstr "Universelt værktøj til at håndtere filarkiver af diverse typer"
+
+msgid "Lzip data compression C library"
+msgstr "Lzip-datakomprimerings-C-bibliotek"
+
+msgid "Portable lossless data compression library"
+msgstr "Flytbart bibliotek til datakomprimering uden kvalitetstab"
+
+msgid "Compression tool for executables"
+msgstr "Komprimeringsværktøj for kørbare filer"
+
+msgid "Utility for dumping and restoring ElasticSearch indexes"
+msgstr "Redskab til at dumpe og gendanne ElasticSearch-indeks"
+
+msgid "Create a DBIx::Class::Schema based on a database"
+msgstr "Opret et DBIx::Class::Schema baseret på en database"
+
+msgid "DBI PostgreSQL interface"
+msgstr "DBI PostgreSQL-grænseflade"
+
+msgid ""
+"This package provides a PostgreSQL driver for the Perl5\n"
+"@dfn{Database Interface} (DBI)."
+msgstr ""
+"Denne pakke tilbyder en PostgreSQL-driver for Perl5-\n"
+"@dfn{Database Interface} (DBI)."
+
+msgid "DBI MySQL interface"
+msgstr "DBI MySQL-grænseflade"
+
+msgid ""
+"This package provides a MySQL driver for the Perl5\n"
+"@dfn{Database Interface} (DBI)."
+msgstr ""
+"Denne pakke tilbyder en MySQL-driver for Perl5-\n"
+"@dfn{Database Interface} (DBI)."
+
+msgid "SQlite interface for Perl"
+msgstr "SQlite-grænseflade for Perl"
+
+msgid "Generate SQL from Perl data structures"
+msgstr "Opret SQL fra Perldatastrukturer"
+
+msgid "Data source abstraction library"
+msgstr "Abstraktionsbibliotek for datakilde"
+
+msgid "WiredTiger bindings for GNU Guile"
+msgstr "WiredTiger-bindinger for GNU Guile"
+
+msgid ""
+"This package provides Guile bindings to the WiredTiger ``NoSQL''\n"
+"database."
+msgstr ""
+"Denne pakke tilbyder Guilebindinger til WiredTiger »NoSQL«-databasen\n"
+"."
+
+msgid "Perl5 access to Berkeley DB version 1.x"
+msgstr "Perl5-adgang til Berkeley DB version 1.x"
+
+msgid "The DB::File module provides Perl bindings to the Berkeley DB version 1.x."
+msgstr "DB::File-modulet tilbyder Perlbindinger til Berkeley DB version 1.x."
+
+msgid "C++ connector for PostgreSQL"
+msgstr "C++-forbindelse for PostgreSQL"
+
+msgid "Database abstraction library"
+msgstr "Abstraktionsbibliotek for database"
+
+msgid "Various utility functions for SQLAlchemy"
+msgstr "Diverse redskabsfunktioner for SQLAlchemy"
+
+msgid "Python PostgreSQL adapter"
+msgstr "Python PostgreSQL-adapter"
+
+msgid ""
+"psycopg2 is a thread-safe PostgreSQL adapter that implements DB-API\n"
+"2.0."
+msgstr ""
+"psycopg2 er en trådsikker PostgreSQL-adapter som implementerer DB-API\n"
+"2.0."
+
+msgid "SQLAlchemy schema displayer"
+msgstr "SQLAlchemy-skemaviser"
+
+msgid "This package provides a Python interface to the Redis key-value store."
+msgstr "Denne pakke tilbyder en Pythongrænseflade til Redis' nøgle-værdi-lager."
+
+msgid "Simple job queues for Python"
+msgstr "Simple jobkøer for Python"
+
+msgid "Python bindings for Apache Arrow"
+msgstr "Pythonbindinger for Apache Arrow"
+
+msgid "Hash library of database functions compatible with traditional dbm"
+msgstr "Hash-biblitoek for databasefunktioner kompatible med traditionel dbm"
+
+msgid "Security-oriented fuzzer"
+msgstr "Sikkerhedsorienteret fuzzer"
+
+msgid "Tron clone in 3D"
+msgstr "Tronklon i 3D"
+
+msgid "Puzzle/platform game"
+msgstr "Puslespil/platformsspil"
+
+msgid "Backgammon game"
+msgstr "Backgammonspil"
+
+msgid ""
+"The GNU backgammon application (also known as \"gnubg\") can\n"
+"be used for playing, analyzing and teaching the game.  It has an advanced\n"
+"evaluation engine based on artificial neural networks suitable for both\n"
+"beginners and advanced players.  In addition to a command-line interface, it\n"
+"also features an attractive, 3D representation of the playing board."
+msgstr ""
+"GNU backgammon-programmet (også kendt som »gnubg«) kan bruges til at\n"
+"spille, analysere og undervise i spillet Backgammon. Det har en avanceret\n"
+"evalueringsmotor baseret på kunstige neurale netværk egnet for både begyndere\n"
+"og avancerede spillere. Udover grænsefladen for kommandolinjen har\n"
+"spillet også en attraktiv 3D-repræsentation af brættet."
+
+msgid "3d Rubik's cube game"
+msgstr "3D Rubiks terning"
+
+msgid "Tetris clone based on the SDL library"
+msgstr "Tetrisklon baseret på SDL-biblioteket"
+
+msgid "Version of the classic 3D shoot'em'up game Doom"
+msgstr "Version af det klassiske 3D-skydespil Doom"
+
+msgid "PrBoom+ is a Doom source port developed from the original PrBoom project."
+msgstr "PrBoom+ er en Doom-kildeport udviklet fra det oprindelige PrBoom-projekt."
+
+msgid "Action platformer game"
+msgstr "Platformsspil"
+
+msgid ""
+"ReTux is an action platformer loosely inspired by the Mario games,\n"
+"utilizing the art assets from the @code{SuperTux} project."
+msgstr ""
+"ReTux er et platformspil løst inspireret af Mariospillene,\n"
+"der udnytter grafikken fra projektet @code{SuperTux}."
+
+msgid "User interface for gnushogi"
+msgstr "Brugergrænseflade for gnushogi"
+
+msgid "A graphical user interface for the package @code{gnushogi}."
+msgstr "En grafisk brugerflade for pakken @code{gnushogi}."
+
+msgid "GNU/Linux port of the indie game \"l'Abbaye des Morts\""
+msgstr "GNU/Linux-port af indiespillet »l'Abbaye des Morts«"
+
+msgid "Lemmings clone"
+msgstr "Lemmingsklon"
+
+msgid "Simulate the display from \"The Matrix\""
+msgstr "Simuler skærmen fra »The Matrix«"
+
+msgid "Full chess implementation"
+msgstr "Fuld skakimplementering"
+
+msgid "Game data for GNU Freedink"
+msgstr "Spildata for GNU Freedink"
+
+msgid "This package contains the game data of GNU Freedink."
+msgstr "Denne pakke indeholder spildataen for GNU Freedink."
+
+msgid "Front-end for managing and playing Dink Modules"
+msgstr "Brugerflade til at håndtere og spille Dinkmoduler"
+
+msgid ""
+"DFArc makes it easy to play and manage the GNU FreeDink game\n"
+"and its numerous D-Mods."
+msgstr ""
+"DFarc gør det nemt at spille og håndtere GNU FreeDink-spillet\n"
+"og dets utallige D-Mod'er."
+
+msgid "Graphical user interface for chess programs"
+msgstr "Grafisk brugerflade for skakprogrammer"
+
+msgid "3D game engine written in C++"
+msgstr "3D-spilmotor skrevet i C++"
+
+msgid "2D space shooter"
+msgstr "2D-rumskyder"
+
+msgid "Curses Implementation of the Glk API"
+msgstr "Curses-implementering af Glk-API'en"
+
+msgid "Interpreter for Glulx VM"
+msgstr "Fortolker for Glulx VM"
+
+msgid "Play the game of Go"
+msgstr "Spil Go"
+
+msgid "Dedicated @emph{Battle for Wesnoth} server"
+msgstr "Dedikeret @emph{Battle for Wesnoth}-server"
+
+msgid ""
+"This package contains a dedicated server for @emph{The\n"
+"Battle for Wesnoth}."
+msgstr ""
+"Denne pakke indeholder en dedikeret server for @emph{The\n"
+"Battle for Wesnoth}."
+
+msgid "Board game inspired by The Settlers of Catan"
+msgstr "Brætspil inspireret af The Settlers of Catan"
+
+msgid "Arena shooter derived from the Cube 2 engine"
+msgstr "Arenaskydespil afledt fra Cube 2-motoren"
+
+msgid "2D scrolling shooter game"
+msgstr "2D-rullende skydespil"
+
+msgid "Configure Tux Paint"
+msgstr "Konfigurer Tux Paint"
+
+msgid "Tux Paint Config is a graphical configuration editor for Tux Paint."
+msgstr "Tux Paint Config er et grafisk redigeringsprogram til konfigurationen for Tux Paint."
+
+msgid "2D platformer game"
+msgstr "2D-platformsspil"
+
+msgid "MUD client"
+msgstr "MUD-klient"
+
+msgid "Programming game"
+msgstr "Programmeringsspil"
+
+msgid "Data files for MegaGlest"
+msgstr "Datafiler for MegaClest"
+
+msgid "This package contains the data files required for MegaGlest."
+msgstr "Denne pakke indeholder spildataene krævet for MegaGlest."
+
+msgid "3D puzzle game"
+msgstr "3D-puslespil"
+
+msgid "2D retro multiplayer shooter game"
+msgstr "2D-retro skydespil for flere spillere"
+
+msgid "Abstract puzzle game"
+msgstr "Abstrakt 3D-puslespil"
+
+msgid "Puzzle game"
+msgstr "Puslespil"
+
+msgid "Multiplayer Doom port"
+msgstr "Doomport for flere spillere"
+
+msgid ""
+"Odamex is a modification of the Doom engine that\n"
+"allows players to easily join servers dedicated to playing Doom\n"
+"online."
+msgstr ""
+"Odamex er en ændring af Doommotoren, der tillader spillere\n"
+"nemt at slutte sig til servere dedikeret til Doom på nettet."
+
+msgid "Data files for Xonotic"
+msgstr "Datafiler for Xonotic"
+
+msgid "Xonotic-data provides the data files required by the game Xonotic."
+msgstr "Xonotic-data indeholder spildataene krævet for spillet Xonotic."
+
+msgid "Fast-paced first-person shooter game"
+msgstr "Hurtigt skydespil"
+
+msgid "Game controller library"
+msgstr "Spilcontrollerbibliotek"
+
+msgid "2d action platformer game"
+msgstr "2D-platformsspil"
+
+msgid "Libraries for 3D simulations and games"
+msgstr "Biblioteker til 3D-simuleringer og spil"
+
+msgid "Flight simulator"
+msgstr "Flysimulator"
+
+msgid "GNU C++ standard library"
+msgstr "GNU C++-standardbibliotek"
+
+msgid "Collection of subroutines used by various GNU programs"
+msgstr "Samling af underrutiner brugt af diverse GNU-programmer"
+
+msgid "Tools and documentation for translation (used to build other packages)"
+msgstr "Værktøjer og dokumentation for oversættelse (brugt til at bygge andre pakker)"
+
+msgid "Tools and documentation for translation"
+msgstr "Værktøjer og dokumentation for oversættelse"
+
+msgid "Arc icon theme"
+msgstr "Arc-ikontema"
+
+msgid "Faba icon theme"
+msgstr "Faba-ikontema"
+
+msgid ""
+"Faba is a minimal icon set used as a basis for other themes such as\n"
+"Moka"
+msgstr ""
+"Faba er et minimalt ikonsæt brugt som grundlag for andre temaer\n"
+"såsom Moka"
+
+msgid "Moka icon theme"
+msgstr "Moka-ikontema"
+
+msgid "CD/DVD burning tool for Gnome"
+msgstr "Cd/dvd-brændeværktøj for GNOME"
+
+msgid "Diagram creation for GNOME"
+msgstr "Diagramoprettelse for GNOME"
+
+msgid "Library for accessing online service APIs"
+msgstr "Bibliotek til at tilgå API'er for nettjenester"
+
+msgid "GObject-based library for handling and rendering XPS documents"
+msgstr "GObject-baseret bibliotek til at håndtere og optegne XPS-dokumenter"
+
+msgid "Bootstrap GNOME modules built from Git"
+msgstr "Bootstrap GNOME-moduler kompileret fra Git"
+
+msgid "Disk management utility for GNOME"
+msgstr "Diskhåndteringsredskab for GNOME"
+
+msgid "Disk management utility for GNOME."
+msgstr "Diskhåndteringsredskab for GNOME."
+
+msgid "Libraries for displaying certificates and accessing key stores"
+msgstr "Biblioteker til at vise certifikater og tilgå nøglelagre"
+
+msgid "Daemon to store passwords and encryption keys"
+msgstr "Dæmon til at lagre adgandskoder og krypteringsnøgler"
+
+msgid "GNOME icon theme"
+msgstr "GNOME-ikontema"
+
+msgid "Icons for the GNOME desktop."
+msgstr "Ikoner for GNOME-skrivebordet."
+
+msgid "Tango icon theme"
+msgstr "Tango-ikontema"
+
+msgid ""
+"This is an icon theme that follows the Tango visual\n"
+"guidelines."
+msgstr ""
+"Dette er et ikontema, som følger de visuelle\n"
+"retningslinjer fra Tango."
+
+msgid "CUPS administration tool"
+msgstr "CUPS-administrationsværktøj"
+
+msgid "Freedesktop icon theme"
+msgstr "Freedesktop-ikontema"
+
+msgid "Freedesktop icon theme."
+msgstr "Freedesktop-ikondtema."
+
+msgid "GObject plugin system"
+msgstr "GObject-udvidelsesmodulsystem"
+
+msgid "OpenGL extension to GTK+"
+msgstr "OpenGL-udvidelse til GTK+"
+
+msgid "CSS2 parsing and manipulation library"
+msgstr "CSS2-fortolknings- og manipuleringsbibliotek"
+
+msgid "Create trees of CORBA Interface Definition Language files"
+msgstr "Opret træer for CORBA Interface Definition Language-filer"
+
+msgid ""
+"Bonobo is a framework for creating reusable components for\n"
+"use in GNOME applications, built on top of CORBA."
+msgstr ""
+"Bonobo er en ramme til at oprette genbrugelige komponenter til\n"
+"brug i GNOME-programmer, bygget oven på CORBA."
+
+msgid "Store application preferences"
+msgstr "Gem programpræferencer"
+
+msgid ""
+"Gconf is a system for storing application preferences.  It\n"
+"is intended for user preferences; not arbitrary data storage."
+msgstr ""
+"Gconf er et system til at lagre programpræferencer. Det\n"
+"er lavet for brugerpræferencer; ikke arbitrær datalager."
+
+msgid "Access files and folders in GNOME applications"
+msgstr "Tilgå filer og mapper i GNOME-programmer"
+
+msgid "Useful routines for building applications"
+msgstr "Nyttige rutioner til at bygge programmer"
+
+msgid ""
+"The libgnome library provides a number of useful routines\n"
+"for building modern applications, including session management, activation of\n"
+"files and URIs, and displaying help."
+msgstr ""
+"Biblioteket libgnome tilbyder et antal nyttige rutiner\n"
+"til at bygge moderne programmer, inklusive sessionshåndtering, aktivering af\n"
+"filer og URI'er samt visning af hjælpetekster."
+
+msgid "2D drawing library"
+msgstr "2D-tegnebibliotek"
+
+msgid "C++ bindings to the GNOME Canvas library"
+msgstr "C++-bindinger til GNOME Canvas-biblioteket"
+
+msgid "C++ bindings to the GNOME Canvas library."
+msgstr "C++-bindinger til GNOME Canvas-biblioteket."
+
+msgid "Additional widgets for applications"
+msgstr "Yderligere kontroller for programmer"
+
+msgid "Some user interface controls using Bonobo"
+msgstr "Noger brugergrænsefladekontroller der bruger Bonobo"
+
+msgid "Spreadsheet application"
+msgstr "Regnearkspårogram"
+
+msgid "Manage encryption keys and passwords in the GNOME keyring"
+msgstr "Håndter krypteringsnøgler og adgangskoder i GNOME keyring"
+
+msgid "Virtual Terminal Emulator"
+msgstr "Virtuel terminalemulator"
+
+msgid "Remote desktop viewer for GNOME"
+msgstr "Ekstern skrivebordsfremviser for GNOME"
+
+msgid ""
+"Vinagre is a remote display client supporting the VNC, SPICE\n"
+"and RDP protocols."
+msgstr ""
+"Vinagre er en ekstern skærmklient, der understøtter VNC-, SPICE-\n"
+"og RDP-protokollerne."
+
+msgid "Low-level GNOME configuration system"
+msgstr "GNOME-konfigurationssystem på lavt niveau"
+
+msgid "GLib-based HTTP Library"
+msgstr "GLib-baseret HTTP-bibliotek"
+
+msgid "GObject bindings for \"Secret Service\" API"
+msgstr "GObject-bindinger for »Secret Service«-API'en"
+
+msgid "Minesweeper game"
+msgstr "Minestrygerspil"
+
+msgid "Japanese logic game"
+msgstr "Japansk logikspil"
+
+msgid "Terminal emulator"
+msgstr "Terminalemulator"
+
+msgid "GNOME text editor"
+msgstr "GNOME-tesktredigeringsprogram"
+
+msgid "Color management service"
+msgstr "Farvehåndteringstjeneste"
+
+msgid "System daemon for managing power devices"
+msgstr "Systemdæmon til håndtering af strømenheder"
+
+msgid "GNOME settings daemon"
+msgstr "GNOME-indstillingsdæmon"
+
+msgid "Library to parse and save media playlists for GNOME"
+msgstr "Bibliotek til at fortolke og gemme medieafspilningslister for GNOME"
+
+msgid "API documentation browser for GNOME"
+msgstr "API-dokumentationsbrowser for GNOME"
+
+msgid "OpenGL-based interactive canvas library"
+msgstr "OpenGL-baseret interaktivt canvasbibliotek"
+
+msgid "OpenGL-based interactive canvas library GTK+ widget"
+msgstr "OpenGL-baseret interaktivt canvasbibliotek GTK+-kontrol"
+
+msgid "Simple media player for GNOME based on GStreamer"
+msgstr "Simpel medieafspiller for GNOME baseret på GStreamer"
+
+msgid ""
+"Totem is a simple yet featureful media player for GNOME\n"
+"which can read a large number of file formats."
+msgstr ""
+"Totem er en simpel men stadig funktionsrig medieafspiller for GNOME\n"
+"der kan læse et stort antal filformater."
+
+msgid "Music player for GNOME"
+msgstr "Musikafspiller for GNOME"
+
+msgid ""
+"Rhythmbox is a music playing application for GNOME.  It\n"
+"supports playlists, song ratings, and any codecs installed through gstreamer."
+msgstr ""
+"Rhythmbox er en musikafspiller for GNOME. Programmet understøtter\n"
+"afspilningslister, sangbedømmelser og alle kodninger installeret via gstreamer."
+
+msgid "GNOME image viewer"
+msgstr "GNOME-billedfremviser"
+
+msgid "GLib binding for libusb1"
+msgstr "GLib-binding for libusb1"
+
+msgid "Document and image scanner"
+msgstr "Dokument- og billedskanner"
+
+msgid "GNOME web browser"
+msgstr "GNOME-internetbrowser"
+
+msgid "D-Bus debugger"
+msgstr "D-Bus-fejlsøger"
+
+msgid "XSL stylesheets for Yelp"
+msgstr "XSL-stilark for Yelp"
+
+msgid "Yelp documentation tools"
+msgstr "Yelp-dokumentationsværktøjer"
+
+msgid "GObject collection library"
+msgstr "GObject-samlingsbibliotek"
+
+msgid "Photo manager for GNOME 3"
+msgstr "Billedhåndtering for GNOME 3"
+
+msgid "Graphical archive manager for GNOME"
+msgstr "Grafisk arkivhåndtering for GNOME"
+
+msgid "Javascript bindings for GNOME"
+msgstr "Javascript-bindinger for GNOME"
+
+msgid ""
+"While aiming at simplicity and ease of use, gedit is a\n"
+"powerful general purpose text editor."
+msgstr ""
+"Selv om den forsøger at være enkel og nem at bruge, så\n"
+"er gedit et funktionsrigt og alment tekstredigeringsprogram."
+
+msgid "Display graphical dialog boxes from shell scripts"
+msgstr "Vis grafiske dialogbokse fra skalskripter"
+
+msgid "File manager for GNOME"
+msgstr "Filhåndtering for GNOME"
+
+msgid "Default MIME type associations for the GNOME desktop"
+msgstr "MIME-typeassociatoner for GNOME-skrivebordet."
+
+msgid "Desktop recording program"
+msgstr "Skrivebordsoptagelsesprogram"
+
+msgid "GObject wrapper for libcanberra"
+msgstr "GObject-omslag for libcanberra"
+
+msgid "Library for accessing SkyDrive and Hotmail"
+msgstr "Bibliotek til at tilgå SkyDrive og Hotmail"
+
+msgid "GNOME's clock application"
+msgstr "GNOME's urprogram"
+
+msgid "GNOME's calendar application"
+msgstr "GNOME's kalenderprogram"
+
+msgid "GNOME's ToDo Application"
+msgstr "GNOME's huskeseddelprogram"
+
+msgid "Library to aggregate data about people"
+msgstr "Bibliotek til at aggregere data om folk"
+
+msgid "GNOME keyboard configuration library"
+msgstr "Konfigurationsbibliotek for GNOME-tastatur"
+
+msgid "Library for writing single instance applications"
+msgstr "Bibliotek til at skrive enkel instans-programmer"
+
+msgid "Desktop calculator"
+msgstr "Skrivebordslommeregner"
+
+msgid "Python client bindings for D-Bus AT-SPI"
+msgstr "Pythonklientbindinger for D-Bus AT-SPI"
+
+msgid ""
+"This package includes a python client library for the AT-SPI D-Bus\n"
+"accessibility infrastructure."
+msgstr ""
+"Denne pakke indeholder et Pythonklientbibliotek for AT-SPI D-Bus-\n"
+"tilgængelighedsinfrastrukturen."
+
+msgid "Screen reader for individuals who are blind or visually impaired"
+msgstr "Skærmlæser for personer som er blinde eller har synsnedsættelse"
+
+msgid "Project management software for the GNOME desktop"
+msgstr "Projekthåndteringsprogram for GNOME-skrivebordet"
+
+msgid "GNOME music playing application"
+msgstr "GNOME's musikafspilningsprogram"
+
+msgid "Video effects for Cheese and other GNOME applications"
+msgstr "Videoeffekter for Cheese og andre GNOME-programmer"
+
+msgid "GNOME hexadecimal editor"
+msgstr "GNOME-hexadecimalt redigeringsprogram"
+
+msgid ""
+"The GHex program can view and edit files in two ways:\n"
+"hexadecimal or ASCII.  It is useful for editing binary files in general."
+msgstr ""
+"GHex-programmet kan vise og redigere filer på to måder:\n"
+"hexadecimal eller ASCII. Det er nyttigt til at redigere binære filer generelt."
+
+msgid "Create, edit, compose, or convert bitmap images"
+msgstr "Opret, rediger, komponer eller konverter bitmap-billeder"
+
+msgid "Perl interface to ImageMagick"
+msgstr "Perlgrænseflade til ImageMagick"
+
+msgid "Library for importing WordPerfect documents"
+msgstr "Bibliotek til import af WordPerfect-dokumenter"
+
+msgid "EPUB generator library for librevenge"
+msgstr "EPUB-oprettelsesbibliotek for librevenge"
+
+msgid "Library and tools for the WordPerfect Graphics format"
+msgstr "Bibliotek og værktøjer ofr WordPerfect Graphics-formatet"
+
+msgid "CMIS client library"
+msgstr "CMIS-klientbibliotek"
+
+msgid "Library for parsing the AbiWord format"
+msgstr "Bibliotek til at fortolke AbiWord-formatet"
+
+msgid ""
+"Libabw is a library that parses the file format of\n"
+"AbiWord documents."
+msgstr ""
+"Libabw er et bibliotek, der fortolker filformatet for\n"
+"AbiWord-dokumenter."
+
+msgid "Library for parsing the CorelDRAW format"
+msgstr "Bibliotek til fortolkning af CorelDRAW-formatet"
+
+msgid ""
+"Libcdr is a library that parses the file format of\n"
+"CorelDRAW documents of all versions."
+msgstr ""
+"Libcdr er et bibliotek, som fortolker filformatet\n"
+"for CorelDraw-dokumenter for alle versioner."
+
+msgid "Library for parsing the Apple Keynote format"
+msgstr "Bibliotek for fortolkning af Apple Keynote-formatet"
+
+msgid "Library to access tags for identifying languages"
+msgstr "Bibliotek til at tilgå mærker for identifikation af sprog"
+
+msgid "Text Categorization library"
+msgstr "Tekstkategoriseringsbibliotek"
+
+msgid "Library for parsing the FreeHand format"
+msgstr "Bibliotek til at fortolke FreeHand-formatet"
+
+msgid "Library for parsing the PageMaker format"
+msgstr "Bibliotek til fortolkning af PageMaker-formatet"
+
+msgid "ODF (Open Document Format) library"
+msgstr "ODF-bibliotek (Open Document Format)"
+
+msgid "Import library for Microsoft Works text documents"
+msgstr "Importbibliotek for Microsoft Works-tekstdokumenter"
+
+msgid "Parses file format of Zoner Callisto/Draw documents"
+msgstr "Fortolker filformat for Zoner Callisto/Draw-dokumenter"
+
+msgid ""
+"Libzmf is a library that parses the file format of Zoner\n"
+"Callisto/Draw documents.  Currently it only understands documents created by\n"
+"Zoner Draw version 4 and 5."
+msgstr ""
+"Libzmf er et bibliotek, som fortolker filformatet for Zoner\n"
+"Callisto/Draw-dokumenter. I øjeblikket understøttes kun dokumenter oprettet\n"
+"af Zoner Draw version 4 og 5."
+
+msgid "Hyphenation library"
+msgstr "Orddelingsbibliotek"
+
+msgid "Library and tools for the QuarkXPress file format"
+msgstr "Bibliotek og værktøjer for QuarkXPress-filformatet"
+
+msgid "Office suite"
+msgstr "Kontorpakke"
+
+msgid ""
+"LibreOffice is a comprehensive office suite.  It contains\n"
+"a number of components: Writer, a word processor; Calc, a spreadsheet\n"
+"application; Impress, a presentation engine; Draw, a drawing and\n"
+"flowcharting application; Base, a database and database frontend;\n"
+"Math for editing mathematics."
+msgstr ""
+"LibreOffice er en omfattende kontorpakke. Den indeholder et antal\n"
+"komponenter: Writer, tekstbehandling; Calc, regneark; Impress,\n"
+"præsentationsprogram; Draw, tegne- og diagramprogram; Base, en\n"
+"databasebrugerflade; Math til at redigere matematik."
+
+msgid "GNU Linux-Libre kernel headers"
+msgstr "GNU Linux-Libre - kerneteksthoveder"
+
+msgid "Headers of the Linux-Libre kernel."
+msgstr "Teksthoveder for Linux-Libre-kernen."
+
+msgid "Small utilities that use the proc file system"
+msgstr "Små redskaber som bruger filsystemet proc"
+
+msgid "Collection of utilities for the Linux kernel"
+msgstr "Samling af redskaber for Linuxkernen"
+
+msgid "Utilities that give information about processes"
+msgstr "Redskaber som giver information om processer"
+
+msgid "Creating and checking ext2/ext3/ext4 file systems"
+msgstr "Oprettelse og kontrol af ext2/ext3/ext4-filsystemer"
+
+msgid "This package provides tools for manipulating ext2/ext3/ext4 file systems."
+msgstr "Denne pakke tilbyder værktøjer til manipulering af ext2/ext3/ext4-filsystemer."
+
+msgid "Recover deleted files from ext2/3/4 partitions"
+msgstr "Gendan slettede filer fra ext2/3/4-partitioner"
+
+msgid "Utilities for controlling TCP/IP networking and traffic in Linux"
+msgstr "Redskaber for kontrol af TCP/IP-netværk og trafik i Linux"
+
+msgid "Library for working with POSIX capabilities"
+msgstr "Bibliotek til arbejde med POSIX-funktioner"
+
+msgid "Tool for configuring wireless devices"
+msgstr "Værktøj til konfiguration af trådløse enheder"
+
+msgid "Displays the IO activity of running processes"
+msgstr "Viser IO-aktivet for kørende processer"
+
+msgid "I2C tools for Linux"
+msgstr "I2C-værktøjer for Linux"
+
+msgid "Simple tool for creating Linux namespace containers"
+msgstr "Simpelt værktøj til oprettelse af naverumscontainere under Linux"
+
+msgid "Container platform"
+msgstr "Containerplatform"
+
+msgid "Tool for enabling and disabling wireless devices"
+msgstr "Værktøj til aktivering og deaktivering af trådløse enheder"
+
+msgid "Bluetooth subband audio codec"
+msgstr "Bluetooth subband-lydkodning"
+
+msgid "Mouse support for the Linux console"
+msgstr "Museunderstøttelse for Linuxkonsollen"
+
+msgid "Simple fan control program"
+msgstr "Simpelt kontrolprogram til blæseren"
+
+msgid "Read-write access to NTFS file systems"
+msgstr "Læs/skriv adgang til NTFS-filsystemer"
+
+msgid "Utilities and libraries for working with RDMA devices"
+msgstr "Redskaber og bibliotek for arbejde med RDMA-enheder"
+
+msgid "Tools for loading and managing Linux kernel modules"
+msgstr "Værktøjer til at indlæse og håndtere Linuxkernemoduler"
+
+msgid ""
+"Tools for loading and managing Linux kernel modules, such as\n"
+"@code{modprobe}, @code{insmod}, @code{lsmod}, and more."
+msgstr ""
+"Værktøjer til at indlæse og håndtere Linuxkernemoduler, såsom\n"
+"@code{modprobe}, @code{insmod}, @code{lsmod} med flere."
+
+msgid "MTD Flash Storage Utilities"
+msgstr "Lagerredskaber for MTD-flash"
+
+msgid ""
+"This package provides utilities for testing, partitioning, etc\n"
+"of flash storage."
+msgstr ""
+"Denne pakke tilbyder redskaber til test, partitionering, etc.\n"
+"for flashlager."
+
+msgid "Tool and library to manipulate EFI variables"
+msgstr "Værktøj og bibliotek til at manipulere EFI-variabler"
+
+msgid ""
+"This package provides a library and a command line\n"
+"interface to the variable facility of UEFI boot firmware."
+msgstr ""
+"Denne pakke tilbyder et bibliotek og en kommandolinje-\n"
+"grænseflade til variabelfaciliteten for UEFI-opstartsfirmware."
+
+msgid "Power management tool for Linux"
+msgstr "Strømhåndteringsværktøj for Linux"
+
+msgid "List hardware information"
+msgstr "Vis udstyrsinformation"
+
+msgid "Utility to show process environment"
+msgstr "Redskab til at vise procesmiljø"
+
+msgid "Performance event monitoring library"
+msgstr "Bibliotek til at overvåge ydelseshændelser"
+
+msgid "XFS file system tools"
+msgstr "XFS-filsystemværktøjer"
+
+msgid ""
+"This package provides commands to create and check XFS\n"
+"file systems."
+msgstr ""
+"Denne pakke tilbyder kommandoer til at oprette og kontrollere\n"
+"XFS-filsystemer."
+
+msgid "Generate ext2 file system as a normal user"
+msgstr "Opret ext2-filsystem som en normal bruger"
+
+msgid "Music Player Daemon client library"
+msgstr "Klientbibliotek for Music Player Daemon"
+
+msgid "Music Player Daemon"
+msgstr "Music Player Daemon"
+
+msgid "Music Player Daemon client"
+msgstr "Music Player - dæmonklient"
+
+msgid ""
+"MPC is a minimalist command line interface to MPD, the music\n"
+"player daemon."
+msgstr ""
+"MPC er en minimalistisk kommandolinjegrænseflade til MPD,\n"
+"musikafspillerdæmonen."
+
+msgid "PDF rendering library"
+msgstr "PDF-optegningsbibliotek"
+
+msgid "Qt5 frontend for the Poppler PDF rendering library"
+msgstr "Qt5-brugeflade for Poppler PDF-optegningsbiblioteket"
+
+msgid "Qt6 frontend for the Poppler PDF rendering library"
+msgstr "Qt6-brugeflade for Poppler PDF-optegningsbiblioteket"
+
+msgid ""
+"This package provides Python bindings for the Qt5 interface of the\n"
+"Poppler PDF rendering library."
+msgstr ""
+"Denne pakke tilbyder Pythonbindinger til Qt5-grænsefladen for\n"
+"Poppler PDF-optegningsbiblioteket."
+
+msgid "Library for generating PDF files"
+msgstr "Bibliotek til at oprette PDF-filer"
+
+msgid "Viewer for PDF files based on the Motif toolkit"
+msgstr "Fremviser for PDF-filer baseret på værktøjssættet Motif"
+
+msgid "Xpdf is a viewer for Portable Document Format (PDF) files."
+msgstr "Xpdf er en fremviser for Portable Document Format-filer (PDF)."
+
+msgid "Comic book support for zathura (libarchive backend)"
+msgstr "Understøttelse af tegneserier i zathura (libarchive-motor)"
+
+msgid "PS support for zathura (libspectre backend)"
+msgstr "PS-understøttelse for zathura (libspectre-motor)"
+
+msgid "DjVu support for zathura (DjVuLibre backend)"
+msgstr "DjVu-understøttelse for zathura (DjVuLibre-motor)"
+
+msgid "PDF support for zathura (mupdf backend)"
+msgstr "PDF-understøttelse for zathura (mupdf-motor)"
+
+msgid ""
+"The zathura-pdf-mupdf plugin adds PDF support to zathura\n"
+"by using the @code{mupdf} rendering library."
+msgstr ""
+"Udvidelsesmodulet zathura-pdf-mupdf tilføjer PDF-understøttelse\n"
+"til zathura ved at brug optegningsbiblioteket @code{mupdf}."
+
+msgid "PDF support for zathura (poppler backend)"
+msgstr "PDF-understøttelse for zathura (poppler-motor)"
+
+msgid "Python library for generating PDFs and graphics"
+msgstr "Pythonbibliotek til at oprette PDF-filer og grafik"
+
+msgid "PDF presentation tool with visual effects"
+msgstr "PDF-præsentationsværktøj med visuelle effekter"
+
+msgid "Framebuffer and drm-based image viewer"
+msgstr "Framebuffer og drm-baseret billedfremviser"
+
+msgid "PDF to SVG converter"
+msgstr "PDF- til SVG-konverteringsprogram"
+
+msgid "Pure Python PDF toolkit"
+msgstr "Pure Python PDF-værktøjssæt"
+
+msgid "Pango to PostScript converter"
+msgstr "Pango til PostScript-konverteringsprogram"
+
+msgid "Use shorter versions of class names"
+msgstr "Brug kortere versioner af klassenavne"
+
+msgid "Perl extension for libconfig"
+msgstr "Perludvidelse til libconfig"
+
+msgid "Load configuration from different file formats"
+msgstr "Indlæs konfiguration fra forskellige filformater"
+
+msgid "Module to implement some AutoConf macros in Perl"
+msgstr "Modul til at implementere nogle AutoConf-makroer i Perl"
+
+msgid "Perl implementation of the RC4 encryption algorithm"
+msgstr "Perlimplementering af RC4-krypteringsalgoritmen"
+
+msgid "A pure Perl implementation of the RC4 algorithm."
+msgstr "En pure Perl-implementering af RC4-algoritmen."
+
+msgid "Temporarily change working directory"
+msgstr "Skift midlertidigt arbejdsmappe"
+
+msgid "Compare Perl data structures"
+msgstr "Sammenlign Perldatastrukturer"
+
+msgid "Convert data structures to strings"
+msgstr "Konverter datastrukturer til strenge"
+
+msgid "Colored pretty-print of Perl data structures and objects"
+msgstr "Farvelagte forskønnede udskrivning af Perldatastrukturer og -objekter"
+
+msgid ""
+"Display Perl variables and objects on screen, properly\n"
+"formatted (to be inspected by a human)."
+msgstr ""
+"Vis Perlvariabler og -objekter på skærmen, korrekt\n"
+"formateret (til inspektion af et menneske)."
+
+msgid "Perl interface to the MD-5 algorithm"
+msgstr "Perlgrænseflade til MD-5-algoritmen"
+
+msgid "ASCII mapping for eucJP encoding"
+msgstr "ASCII-oversættelse for eucJP-kodning"
+
+msgid ""
+"This package provides an ASCII mapping for the eucJP\n"
+"encoding."
+msgstr ""
+"Denne pakke tilbyder en ASCII-oversættelse for eucJP-\n"
+"kodningen."
+
+msgid "JIS X 0212 (aka JIS 2000) encodings"
+msgstr "JIS X 0212-kodninger (aka JIS 2000)"
+
+msgid "Additional Chinese encodings"
+msgstr "Yderligere kinesiske kodninger"
+
+msgid "Tool to build C libraries"
+msgstr "Værktøj til at bygge C-biblioteker"
+
+msgid "Common rules for searching for Perl things"
+msgstr "Gængse regler til at søge efter Perlsager"
+
+msgid "Locate per-dist shared files"
+msgstr "Lokaliser per-dist-delte filer"
+
+msgid "Install shared files"
+msgstr "Installer delte filer"
+
+msgid "Simple file reader and writer"
+msgstr "Simpel fillæser og skriver"
+
+msgid "This module provides functions for fast reading and writing of files."
+msgstr "Dette modul tilbyder funktioner til hurtig læsning og skrivning af filer."
+
+msgid "Import packages into other packages"
+msgstr "Importer pakker ind i andre pakker"
+
+msgid "Run a subprocess with input/output redirection"
+msgstr "Afvikl en underproces med inddata/uddata-videresendelse"
+
+msgid "Perl extension for rounding numbers"
+msgstr "Perludvidelse til afrundingstal"
+
+msgid "Tools to manipulate MIME messages"
+msgstr "Værktøj til at manipulere MIME-beskeder"
+
+msgid "Definition of MIME types"
+msgstr "Definition af MIME-typer"
+
+msgid "Code attribute introspection"
+msgstr "Attributintrospektion af kode"
+
+msgid ""
+"This module allows code attributes of methods to be\n"
+"introspected using Moose meta method objects."
+msgstr ""
+"Dette modul tillader at kodeattributter for metoder bliver\n"
+"introspektet via Moose-metametodeobjekter."
+
+msgid "Extension of Params::Validate using Moose's types"
+msgstr "Udvidelse af Params::Validatae der bruger Mooses typer"
+
+msgid ""
+"This module fills a gap in Moose by adding method parameter\n"
+"validation to Moose."
+msgstr ""
+"Dette modul udfylder et hul i Moose ved at tilføje\n"
+"parametervalidering af metode til Moose."
+
+msgid "Apply roles to a related Perl class"
+msgstr "Anvend roller til en relateret Perlklasse"
+
+msgid "Extend attribute interfaces for Mouse"
+msgstr "Udvid attributgrænseflader for Mouse"
+
+msgid "Perl client for Etsy's statsd daemon"
+msgstr "Perlklient for Etsy's statsd-dæmonen"
+
+msgid ""
+"This module implement a UDP client for the statsd statistics\n"
+"collector daemon in use at Etsy.com."
+msgstr ""
+"Dette modul implementerer en UDP-klient for statsd-statistik\n"
+"indsamlingsdæmonen i brug på Etsy.com."
+
+msgid "Numeric comparisons"
+msgstr "Numeriske sammenligninger"
+
+msgid "Perl extension defining ranges of numbers"
+msgstr "Perludvidelse der definerer talintervaller"
+
+msgid "Generate cryptographic signatures for objects"
+msgstr "Opret kryptografiske underskrifter for objekter"
+
+msgid "Anonymous packages"
+msgstr "Anonyme pakker"
+
+msgid "Manage deprecation warnings for your distribution"
+msgstr "Håndter forældelsesadvarseler for din distribution"
+
+msgid "Simple parallel processing fork manager"
+msgstr "Simpel prallel behandlingsforgreningshåndtering"
+
+msgid "Create and manipulate PAR distributions"
+msgstr "Opret og manipuler PAR-distributioner"
+
+msgid ""
+"PAR::Dist is a toolkit to create and manipulate PAR\n"
+"distributions."
+msgstr ""
+"PAR::Dist er et værktøjssæt til at oprette og manipulere PAR-\n"
+"distributioner."
+
+msgid "Tools for working with directory and file names"
+msgstr "Værktøjer for arbejde med mapper og filnavne"
+
+msgid ""
+"This package provides functions to work with directory and\n"
+"file names."
+msgstr ""
+"Denne pakke tilbyder funktioner til arbejde med mappe- og\n"
+"filnavne."
+
+msgid "File path utility"
+msgstr "Filstiredskab"
+
+msgid ""
+"This module provides a small, fast utility for working\n"
+"with file paths."
+msgstr ""
+"Dette modul tilbyder et lille, hurtigt redskab til arbejdet\n"
+"med filstier."
+
+msgid "Fast and correct UTF-8 IO"
+msgstr "Hurtig og korrekt UTF-8 IO"
+
+msgid "Selection of general-utility regexp subroutines"
+msgstr "Udvalg af generelle redskaber til regulære udtryks underrutiner"
+
+msgid "Manage sets of integers"
+msgstr "Håndter sæt af heltal"
+
+msgid "Unordered collections of Perl Objects"
+msgstr "Rodede samlinger af Perlobjekter"
+
+msgid "Collection of very basic statistics modules"
+msgstr "Samling af meget grundlæggende statistikmoduler"
+
+msgid "Retrieve names of code references"
+msgstr "Hent navne på kodereferencer"
+
+msgid "Tool to inspect subroutines"
+msgstr "Værktøj til at inspicere underrutiner"
+
+msgid ""
+"This package provides tools for inspecting subroutines\n"
+"in Perl."
+msgstr ""
+"Denne pakke tilbyder værktøjer til at inspicere underrutiner\n"
+"i Perl."
+
+msgid "Efficient generation of subroutines via string eval"
+msgstr "Effektiv oprettelse af underrutiner via strengevaluering"
+
+msgid "Switch statement for Perl"
+msgstr "Skift udtryk for Perl"
+
+msgid "Perl extension for getting CPU information"
+msgstr "Perludvidelse til at indhente cpu-information"
+
+msgid "Simple terminal control"
+msgstr "Simpel terminalkontrol"
+
+msgid "Perl extension for retrieving terminal size (Perl version)"
+msgstr "Perludvidelse til at indhente terminalstørrelse (Perlversion)"
+
+msgid "Align text"
+msgstr "Juster tekst"
+
+msgid ""
+"This package provides tools for sorting and comparing\n"
+"Unicode data."
+msgstr ""
+"Denne pakke tilbyder værktøjer for sortering og sammenligning\n"
+"af Uniocodedata."
+
+msgid "Alternative interface to File::Find::Object"
+msgstr "Alternativ grænseflade til File::Find::Object"
+
+msgid ""
+"File::Find::Object::Rule is an alternative Perl\n"
+"interface to File::Find::Object."
+msgstr ""
+"File::Find::Object::Rule er en alternativ Perlgrænseflade\n"
+"til File::Find::Object."
+
+msgid "Collection of regexp patterns"
+msgstr "Samling af regulære udtryksmønstre"
+
+msgid "Parse Lisp S-Expressions into Perl data structures"
+msgstr "Fortolk Lisp S-udtryk til Perldatastrukturer"
+
+msgid ""
+"Data::SExpression parses Lisp S-Expressions into Perl data\n"
+"structures."
+msgstr "Data::SExpression fortolker Lisp S-udtryk til Perldatastrukturer."
+
+msgid "Raw image decoder"
+msgstr "Rå billedafkoder"
+
+msgid "Read and manipulate EXIF data in digital photographs"
+msgstr "Læs og manipuler EXIF-data i digitale billeder"
+
+msgid "Accessing digital cameras"
+msgstr "Tilgå digitale kameraer"
+
+msgid "Program and Perl library to manipulate EXIF and other metadata"
+msgstr "Program og Perlbibliotek til at manipulere EXIF og andre metadata"
+
+msgid "Scheme-like lisp implementation"
+msgstr "Scheme-lignende lisp-implementering"
+
+msgid "(u)Common C++ framework for threaded applications"
+msgstr "(u)Common C++-ramme for trådede programmer"
+
+msgid "Hyphenation patterns expressed in UTF-8"
+msgstr "Orddelingsmønstre udtrykt i UTF-8"
+
+msgid "DVI to PostScript drivers"
+msgstr "DVI- til PostScript-drivere"
+
+msgid "Files for creating TeX formats"
+msgstr "Filer til at oprette TeX-formater"
+
+msgid "OpenType font loader for LuaTeX"
+msgstr "OpenType-skriftindlæser for LuaTeX"
+
+msgid "AMS document classes for LaTeX"
+msgstr "AMS-dokumentklasser for LaTeX"
+
+msgid "LaTeX-based replacement for BibTeX"
+msgstr "LaTeX-baseret erstatning for BibTeX"
+
+msgid "Expanded description environments"
+msgstr "Udvidede beskrivelsesmiljøer"
+
+msgid "e-TeX tools for LaTeX"
+msgstr "e-TeX-værktøjer for LaTeX"
+
+msgid "Create scalable illustrations"
+msgstr "Opret skalerbare illustrationer"
+
+msgid "Class for typesetting publications of ACM"
+msgstr "Klasse til opsætning af ACM-udgivelser"
+
+msgid "TeX extension for direct creation of PDF"
+msgstr "TeX-udvidelse for direkte oprettelse af PDF"
+
+msgid "LaTeX editor"
+msgstr "LaTeX-redigeringsprogram"
+
+msgid "Process bibliographies for LaTeX"
+msgstr "Behandl bibliografier for LaTeX"
+
+msgid "Graph based image processing framework"
+msgstr "Grafbaseret billedbehandlingsramme"
+
+msgid "Default brushes for MyPaint"
+msgstr "Standardpensler for MyPaint"
+
+msgid ""
+"This package provides the default set of brushes for\n"
+"MyPaint."
+msgstr ""
+"Denne pakke indeholder standardsættet for pensler for\n"
+"MyPaint."
+
+msgid ""
+"SpiderMonkey is Mozilla's JavaScript engine written\n"
+"in C/C++."
+msgstr ""
+"SpiderMonkey er Mozillas JavaScript-motor skrevet\n"
+"i C/C++."
+
+msgid "2D graphics library (with X11 support)"
+msgstr "2D-grafikbibliotek (med X11-understøttelse)"
+
+msgid "OpenType text shaping engine"
+msgstr "OpenType-tekstformningsmotor"
+
+msgid "HarfBuzz is an OpenType text shaping engine."
+msgstr "HarfBuzz er et OpenType-tekstformningsmotor."
+
+msgid "Create SVG or PDF presentations in Guile"
+msgstr "Opret SVG- eller PDF-præsentationer i Guile"
+
+msgid "Guile interface for GTK+ programming for GNOME"
+msgstr "Guile brugerflade til GTK+-programmering for GNOME"
+
+msgid "C++ bindings to the Cairo 2D graphics library"
+msgstr "C++-bindinger til CAiro 2D-grafikbiblioteket"
+
+msgid "C++ interface to the Pango text rendering library"
+msgstr "C++-grænseflade til tekstoptegningsbiblioteket Pango"
+
+msgid "C++ interface to the GTK+ 'GtkTextView' widget"
+msgstr "C++-grænseflade til  GTK+ »GtkTextView«-kontrollen"
+
+msgid "Python bindings for cairo"
+msgstr "Pythonbindinger for cairo"
+
+msgid "Pycairo is a set of Python bindings for the Cairo graphics library."
+msgstr "Pycairo er et sæt af Pythonbindinger for grafikbiblioteket Cairo."
+
+msgid "Perl interface to the cairo 2d vector graphics library"
+msgstr "Perlgrænseflade til cairo 2D-vektorgrafikbiblioteket"
+
+msgid "Perl interface to the 2.x series of the Gimp Toolkit library"
+msgstr "Perlgrænseflade til 2.x-serien for Gimp Toolkit-biblioteket"
+
+msgid "GTK+ dialog boxes for shell scripts"
+msgstr "GTK+-dialogbokse for skalskripter"
+
+msgid "Evaluate code in a running Guile process"
+msgstr "Evaluer kode i en kørende Guileproces"
+
+msgid "DSV module for Guile"
+msgstr "DSV-modul for Guile"
+
+msgid "S-expression based json reader/writer for Guile"
+msgstr "S-udtryksbaseret json læser/skriver for Guile"
+
+msgid "Guile kernel for the Jupyter Notebook"
+msgstr "Guilekerne for Jupyter Notebook"
+
+msgid "SPARQL module for Guile"
+msgstr "SPARQL-modul for Guile"
+
+msgid "Guile bindings to Newt"
+msgstr "Guilebindinger til Newt"
+
+msgid "Guile database abstraction layer"
+msgstr "Guile-databaseabstraktionslag"
+
+msgid "Guile DBI driver for SQLite"
+msgstr "Guile DBI-driver for SQLite"
+
+msgid "Framework for building readers for GNU Guile"
+msgstr "Ramme til at bygge læsere for GNU Guile"
+
+msgid "Guile bindings to ncurses"
+msgstr "Guilebindinger til ncurses"
+
+msgid ""
+"guile-ncurses provides Guile language bindings for the ncurses\n"
+"library."
+msgstr ""
+"guile-ncurses tilbyder Guile-sprogbindinger for biblioteket\n"
+"ncurses."
+
+msgid "Run jobs at scheduled times"
+msgstr "Afvikl job på planlagte tidspunkter"
+
+msgid "Line editing support for GNU Guile"
+msgstr "Understøttelse af linjeredigering for GNU Guile"
+
+msgid "JSON module for Guile"
+msgstr "JSON-modul for Guile"
+
+msgid "Access SQLite databases from Guile"
+msgstr "Tilgå SQLite-databaser fra Guile"
+
+msgid "This package provides Guile bindings to the SQLite database system."
+msgstr "Denne pakke tilbyder Guilebindinger til SQLite-databasesystemet."
+
+msgid "Guile bindings for libgit2"
+msgstr "Guilebindinger for libgit2"
+
+msgid ""
+"This package provides Guile bindings to libgit2, a library to\n"
+"manipulate repositories of the Git version control system."
+msgstr ""
+"Denne pakke tilbyder Guilebindinger til libgit2, et bibliotek\n"
+"til at manipulere arkiver i versionskontrolsystemet Git."
+
+msgid ""
+"This package provides a dictionary for the Hunspell spell-checking\n"
+"library."
+msgstr "Denne pakke tilbyder en ordbog for stavekontrolbiblioteket Hunspell."
+
+msgid "Hunspell dictionary for English"
+msgstr "Hunspell-ordbog for engelsk"
+
+msgid "Hunspell dictionary for Australian English"
+msgstr "Hunspell-ordbog for australsk engelsk"
+
+msgid "Hunspell dictionary for Canadian English"
+msgstr "Hunspell-ordbog fro canadisk-engelsk"
+
+msgid "Hunspell dictionary for British English, with -ise endings"
+msgstr "Hunspell-ordbog for britisk engelsk, med -ise-endelser"
+
+msgid "Hunspell dictionary for British English, with -ize endings"
+msgstr "Hunspell-ordbog for britisk engelsk, med ize-endelser"
+
+msgid "Hunspell dictionary for United States English"
+msgstr "Hunspell-ordbog for amerikansk engelsk"
+
+msgid "Fast and light imlib2-based image viewer"
+msgstr "Hurtig og simpel imlib2-baseret billedfremviser"
+
+msgid "Simple and fast image viewer for X"
+msgstr "Simpel og hurtig billedfremviser for X"
+
+msgid "Simple X Image Viewer"
+msgstr "Simpel X-billedfremviser"
+
+msgid "Simple, fast and elegant image viewer"
+msgstr "Simpel, hurtig og elegant billedfremviser"
+
+msgid "Library for handling PNG files"
+msgstr "Bibliotek for håndtering af PNG-filer"
+
+msgid "APNG patch for libpng"
+msgstr "APNG-rettelse for libpng"
+
+msgid "Utility to compress PNG files"
+msgstr "Redskab til at komprimere PNG-filer"
+
+msgid "Pretty small png library"
+msgstr "Meget lille png-bibliotek"
+
+msgid "Library for handling JPEG files"
+msgstr "Bibliotek for håndtering af JPEG-filer"
+
+msgid "Implementation of the JPEG XR standard"
+msgstr "Implementering af JPEG XR-standarden"
+
+msgid "Optimize JPEG images"
+msgstr "Optimer JPEG-billeder"
+
+msgid "Library for handling Mac OS icns resource files"
+msgstr "Bibliotek for håndtering af Mac OS-ikonressourcefiler"
+
+msgid "Library for handling TIFF files"
+msgstr "Bibliotek for håndtering af TIFF-filer"
+
+msgid "Library and tools for image processing and analysis"
+msgstr "Bibliotek og værktøjer for billedbehandling og analyse"
+
+msgid "Tools and library for working with GIF images"
+msgstr "Værktøjer og bibliotek for arbejde med GIF-billeder"
+
+msgid "GIF decompression library"
+msgstr "GIF-dekomprimeringsbibliotek"
+
+msgid "libungif is the old GIF decompression library by the GIFLIB project."
+msgstr "libungif er det gamle GIF-dekomprimeringsbibliotek af GIFLIB-projektet."
+
+msgid "Loading, saving, rendering and manipulating image files"
+msgstr "Indlæs, gem, optegn og manipuler billedfiler"
+
+msgid "Wrapper library for imlib2"
+msgstr "Omslagsbibliotek for imlib2"
+
+msgid "Library for handling popular graphics image formats"
+msgstr "Bibliotek til håndtering af populære grafiske billedformater"
+
+msgid "C interface to the VIGRA computer vision library"
+msgstr "C-grænseflade til VIGRA-computervisionbiblioteket"
+
+msgid "Lossless and lossy image compression"
+msgstr "Billedkomprimering med og uden kvalitetetstab"
+
+msgid "Library for handling MNG files"
+msgstr "Bibliotek for håndtering af MNG-filer"
+
+msgid "Libmng is the MNG (Multiple-image Network Graphics) reference library."
+msgstr "Libmng er MNG-referencebiblioteket (Multiple-image Network Graphics)."
+
+msgid "Library and command-line utility to manage image metadata"
+msgstr "Bibliotek og kommandolinjeredskab til at håndtere billedmetadata"
+
+msgid "Library for manipulating many image formats"
+msgstr "Bibliotek for manipulering af mange billedformater"
+
+msgid "JPEG-2000 library"
+msgstr "JPEG-2000-bibliotek"
+
+msgid "SIMD-accelerated JPEG image handling library"
+msgstr "SIMD-accelereret JPEG-billedbehandlingsbibliotek"
+
+msgid "Library for reading and writing files in the nifti-1 format"
+msgstr "Bibliotek til at læse og skrive filer i nifti-1-formatet"
+
+msgid "Color picker"
+msgstr "Farvevælger"
+
+msgid "Gpick is an advanced color picker and palette editing tool."
+msgstr "Gpick er en avanceret farvevælger og paletredigeringsværktøj."
+
+msgid "IPTC metadata manipulation library"
+msgstr "IPTCmetadatamanipuleringsbibliotek"
+
+msgid "Vector graphics editor"
+msgstr "Redigeringsprogram for vektorgrafik"
+
+msgid "Discord plugin for Bitlbee"
+msgstr "Discord-udvidelsesmodul for Bitlbee"
+
+msgid "C library implementation of the Tox encrypted messenger protocol."
+msgstr "C-biblioteksimplementering for den Tox-krypterede messengerprotokol."
+
+msgid ""
+"Official fork of the C library implementation of the Tox encrypted\n"
+"messenger protocol."
+msgstr ""
+"Officel forgrening af C-biblioteksimplementering for den\n"
+"Tox-krypterede messengerprotokol."
+
+msgid "Lightweight Tox client"
+msgstr "Simpel Tox-klient"
+
+msgid "Tox chat client using Qt"
+msgstr "Tox-snakkeklient der bruger Qt"
+
+msgid "Perl implementation of PSYC protocol"
+msgstr "Perlimplementering af PSYC-protokollen"
+
+msgid "Small XMPP console client"
+msgstr "Lille XMPP-konsolklient"
+
+msgid "C library for writing XMPP clients"
+msgstr "C-bibliotek til at skrive XMPP-klienter"
+
+msgid "Tox chat client using ncurses"
+msgstr "Tox-snakkeklient der bruger ncurses"
+
+msgid "High-level C bindings for ØMQ"
+msgstr "C-bindinger for ØMQ på højere niveau"
+
+msgid "Apache Kafka C/C++ client library"
+msgstr "Apache Kafka C/C++-klientbibliotek"
+
+msgid "Library for Neighbor Discovery Protocol"
+msgstr "Bibliotek for Neighbor Discovery Protocol"
+
+msgid "Command-line interface to the Gandi.net Web API"
+msgstr "Kommandolinjegrænseflade til Gandi.net Web API'en"
+
+msgid "LZ4 bindings for Python"
+msgstr "LZ4-bindinger for Python"
+
+msgid "HTTP client mock for Python"
+msgstr "HTTP-klientmock for Python"
+
+msgid "Search Engine Library"
+msgstr "Søgemotorbibliotek"
+
+msgid "Python bindings for the Xapian search engine library"
+msgstr "Pythonbindinger for Xapian-søgemotorbiblioteket"
+
+msgid "Perl XS frontend to the Xapian C++ search library"
+msgstr "Perl XS-brugerflade til Xapian C++-søgebiblioteket"
+
+msgid "Tool for Obsessive Compulsive Classifiers"
+msgstr "Værktøjt for Obsessive Compulsive Classifiers"
+
+msgid "Command-line interface to libtocc"
+msgstr "Kommandolinjegrænseflade til libtocc"
+
+msgid "Finding text and HTML files that match boolean expressions"
+msgstr "Find tekst- og HTML-filer som matcher booleske udtryk"
+
+msgid "Locate files on the file system"
+msgstr "Lokaliser filer på filsystemet"
+
+msgid "Framework for implementing IP-based servers"
+msgstr "Ramme for implementering af IP-baserede servere"
+
+msgid "Foreign environment interface for fish shell"
+msgstr "Fremmed miljøgrænseflade for fish skell"
+
+msgid "Alternative implementation of the rc shell by Byron Rakitzis"
+msgstr "Alternativ implementering af rc shell af Byron Rakitzis"
+
+msgid "Unix shell based on csh"
+msgstr "Unixskal baseret på csh"
+
+msgid "Powerful shell for interactive use and scripting"
+msgstr "Funktionsrig skal for interaktiv brug og skriptopbygning"
+
+msgid "Regular expression library"
+msgstr "Regulært udtryksbibliotek"
+
+msgid "Microsoft Word document reader"
+msgstr "Microsoft Word-dokumentlæser"
+
+msgid "Portable C++ library for handling UTF-8"
+msgstr "Flytbart C++-bibliotek til håndtering af UTF-8"
+
+msgid "Copy directory to the gh-pages branch"
+msgstr "Kopier mappe til gh-pages-grenen"
+
+msgid "Python implementation of the Git object database"
+msgstr "Pythonimplementering af Git-objektdatabasen"
+
+msgid "Python library for interacting with Git repositories"
+msgstr "Pythonbibliotek til at interagere med Git-arkiver"
+
+msgid "Simple revision control"
+msgstr "Simpel revisionskontrol"
+
+msgid "Git extension for versioning large files"
+msgstr "Gitudvidelse til versionering af store filer"
+
+msgid "Lexical database for the English language"
+msgstr "Leksikal database for det engelske sprog"
+
+msgid "Featureful HTTP server"
+msgstr "Funktionsrig HTTP-server"
+
+msgid "Apache HTTPD module for Python WSGI applications"
+msgstr "Apache HTTPD-modul for Python WSGI-programmer"
+
+msgid "Documentation for the nginx web server"
+msgstr "Dokumentation for nginx-internetserveren"
+
+msgid "This package provides HTML documentation for the nginx web server."
+msgstr "Denne pakke tilbyder HTML-dokumentation for nginx-internetserveren."
+
+msgid "Language-independent, high-performant extension to CGI"
+msgstr "Sproguafhængig, højtydende udvidelse til CGI"
+
+msgid "Simple server for running CGI applications over FastCGI"
+msgstr "Simpel server til at afvikle CGI-programmer over FastCGI"
+
+msgid "C library implementing the OAuth API"
+msgstr "C-bibliotek der implementerer OAuth API'en"
+
+msgid "Check for HTML errors in a string or file"
+msgstr "Kontroller for HTML-fejl i en streng eller fil"
+
+msgid "Extract contents from HTML tables"
+msgstr "Udtræk indhold fra HTML-tabeller"
+
+msgid "Work with HTML in a DOM-like tree structure"
+msgstr "Arbejd med HTML i en DOM-lignende træstruktur"
+
+msgid "Lightweight HTTP server"
+msgstr "Simpel HTTP-server"
+
+msgid "Perl modules for the WWW"
+msgstr "Perlmoduler for www"
+
+msgid "SSL support for Net::SMTP"
+msgstr "SSL-understøttelse for Net::SMTP"
+
+msgid "SSL support for Net::SMTP."
+msgstr "SSL-understøttelse for Net::SMTP."
+
+msgid "Testing TCP programs"
+msgstr "Testning af TCP-programmer"
+
+msgid "Test::TCP is test utilities for TCP/IP programs."
+msgstr "Test::TCP er testredskaber for TCP/IP-programmer."
+
+msgid "Test::WWW::Mechanize for Catalyst"
+msgstr "Test::WWW::Mechanize for Catalyst"
+
+msgid ""
+"With this module, the URI package provides the same set of\n"
+"methods for WebSocket URIs as it does for HTTP URIs."
+msgstr ""
+"Med dette modul tilbyder URI-pakken det samme sæt af\n"
+"metoder for WebSocket URI'er som den gør for HTTP URI'er."
+
+msgid "Object for handling URI templates"
+msgstr "Objekt til håndtering af URI-skabeloner"
+
+msgid "Perl extension interface for libcurl"
+msgstr "Perludvidelsesgrænseflade for libcurl"
+
+msgid "HTML5 parsing library"
+msgstr "HTML5-fortolkningsbibliotek"
+
+msgid ""
+"Gumbo is an implementation of the HTML5 parsing algorithm implemented as\n"
+"a pure C99 library."
+msgstr ""
+"Gumbo er en implementering af HTML5-fortolkningsalgoritmen implenteret\n"
+"som et rent C99-bibliotek."
+
+msgid "Application container server"
+msgstr "Programcontainerserver"
+
+msgid "Parser building library"
+msgstr "Fortolkerkompileringsbibliotek"
+
+msgid "HTML5 compliant parsing library"
+msgstr "HTML5-overholdnede fortolkningsbibliotek"
+
+msgid "CSS parser and selection library"
+msgstr "CSS-fortolker- og markeringsbibliotek"
+
+msgid "Implementation of the W3C DOM"
+msgstr "Implementering af W3C DOM"
+
+msgid "Library for parsing SVG files"
+msgstr "Bibliotek til at håndtere SVG-filer"
+
+msgid "Decoding library for BMP and ICO files"
+msgstr "Afkodningsbibliotek for BMP- og ICO-filer"
+
+msgid "Decoding library for GIF files"
+msgstr "Afkodningsbibliotek for GIF-filer"
+
+msgid ""
+"Libnsgif is a decoding library for the GIF image file format, written in\n"
+"C.  It is developed as part of the NetSurf project."
+msgstr ""
+"Libnsgift er et afkodningsbibliotek for GIF-billedfilformatet, skrevet i\n"
+"C. Det er udviklet som en del af NetSurf-projektet."
+
+msgid "Utility library for NetSurf"
+msgstr "Redskabsbibliotek for NetSurf"
+
+msgid ""
+"Libnsutils provides a small number of useful utility routines.  It is\n"
+"developed as part of the NetSurf project."
+msgstr ""
+"Libnsutils tilbyder et lille antal nyttige redskabsrutiner. Det er\n"
+"udviklet som en del af NetSurf-projektet."
+
+msgid "Library to generate a static Public Suffix List"
+msgstr "Bibliotek til at oprette en statisk Public Suffix-liste"
+
+msgid "Generate JavaScript to DOM bindings"
+msgstr "Opret JavaScript- til DOM-bindinger"
+
+msgid "Web browser"
+msgstr "Internetbrowser"
+
+msgid "Unix command line interface to the www"
+msgstr "Unix-kommandolinjegrænseflade til www"
+
+msgid "Simple static web server"
+msgstr "Simpel statisk internetserver"
+
+msgid "Analyze Web server logs in real time"
+msgstr "Analyser logge for netservere i realtid"
+
+msgid "Collection of Varnish modules"
+msgstr "Samling af Varnishmoduler"
+
+msgid "Internet services daemon"
+msgstr "Internettjenesedæmon"
+
+msgid "HTML Tidy with HTML5 support"
+msgstr "HTML Tidy med HTML5-understøttelse"
+
+msgid "Webserver with focus on security"
+msgstr "Internetserver med fokus på sikkerhed"
+
+msgid "Output JSON from a shell"
+msgstr "Fremstil JSON fra en skal"
+
+msgid "Command-line interface to archive.org"
+msgstr "Kommandolinjegrænseflade til archive.org"
+
+msgid "Check websites for broken links"
+msgstr "Kontroller hjemmesider for afbrudte henvisninger"
+
+msgid "Utility classes for Jetty"
+msgstr "Redskabsklasser for Jetty"
+
+msgid "Jetty :: IO Utility"
+msgstr "Jetty :: IO-redskab"
+
+msgid "HTML parser"
+msgstr "HTML-fortolker"
+
+msgid "Web content engine for GTK+"
+msgstr "Netindholdsmotor for GTK+"
+
+msgid "Library implementing the Theora video format"
+msgstr "Bibliotek der implementerer videoformatet Theora"
+
+msgid "Library for patent-free audio compression format"
+msgstr "Bibliotek for det patentfrie lydkomprimeringsformat"
+
+msgid "Speex processing library"
+msgstr "Speex-behandlingsbibliotek"
+
+msgid "Free lossless audio codec"
+msgstr "Fri lydkodning uden kvalitetstab"
+
+msgid "Ogg vorbis tools"
+msgstr "Ogg vorbis-værktøjer"
+
+msgid "Versatile audio codec"
+msgstr "Alsidig lydkodning"
+
+msgid "Streaming media server"
+msgstr "Strøm-medieserver"
+
+msgid "Machine emulator and virtualizer"
+msgstr "Maskinemulator og virtualiseringsprogram"
+
+msgid "Python bindings to libvirt"
+msgstr "Pythonbindinger for libvirt"
+
+msgid ""
+"This package provides Python bindings to the libvirt\n"
+"virtualization library."
+msgstr ""
+"Denne pakke tilbyder Pythonbindinger til virtualiseringsbiblioteket\n"
+"libvirt."
+
+msgid "Manage virtual machines"
+msgstr "Håndter virtuelle maskiner"
+
+msgid "Python bindings for Vagrant"
+msgstr "Pythonbindinger for Vagrant"
+
+msgid ""
+"This package provides the Xen Virtual Machine Monitor\n"
+"which is a hypervisor."
+msgstr ""
+"Denne pakke tilbyder Xen Virtual Machine Monitor\n"
+"der er en hypervisor."

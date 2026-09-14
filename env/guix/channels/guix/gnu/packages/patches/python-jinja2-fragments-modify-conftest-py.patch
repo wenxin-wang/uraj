@@ -1,0 +1,53 @@
+From c3c7d6fd6cbc275fffd0d1da07aa4fc1ad8295e0 Mon Sep 17 00:00:00 2001
+From: Tanguy Le Carrour <tanguy@bioneland.org>
+Date: Wed, 18 Feb 2026 08:47:27 +0100
+Subject: [PATCH] Remove mentions to litestar and sanic from test
+ configuration.
+
+---
+ tests/conftest.py | 19 -------------------
+ 1 file changed, 19 deletions(-)
+
+diff --git a/tests/conftest.py b/tests/conftest.py
+index 981b116..4c02ef3 100644
+--- a/tests/conftest.py
++++ b/tests/conftest.py
+@@ -4,13 +4,9 @@ import pathlib
+ 
+ import fastapi
+ import flask
+-import litestar
+ import pytest
+ import quart
+-import sanic
+-import sanic_ext
+ from jinja2 import Environment, FileSystemLoader, select_autoescape
+-from litestar.testing import TestClient as LitestarTestClient
+ from starlette.responses import HTMLResponse
+ from starlette.testclient import TestClient
+ 
+@@ -19,21 +15,6 @@ from jinja2_fragments.flask import render_block as flask_render_block
+ from jinja2_fragments.flask import render_blocks as flask_render_blocks
+ from jinja2_fragments.quart import render_block as quart_render_block
+ from jinja2_fragments.quart import render_blocks as quart_render_blocks
+-from jinja2_fragments.sanic import render as sanic_render
+-
+-# fmt: off
+-# Needed for type hints because we are using `from __future__ import annotations`
+-# to support Python <3.10. See
+-# https://stackoverflow.com/questions/66734640/any-downsides-to-using-from-future-import-annotations-everywhere
+-# for shortcomings of using the annotations import,
+-try:
+-    # litestar>=2.13.0
+-    from litestar.plugins.htmx import HTMXRequest  # noqa isort: skip
+-except ImportError:
+-    # litestar<2.13.0
+-    from litestar.contrib.htmx.request import HTMXRequest  # noqa isort: skip
+-from litestar.response import Template  # noqa isort: skip
+-# fmt: on
+ 
+ NAME = "Guido"
+ LUCKY_NUMBER = "42"
+-- 
+2.52.0
+

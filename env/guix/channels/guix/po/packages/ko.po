@@ -1,0 +1,157 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2021 the authors of Guix (msgids) and the following authors (msgstr)
+# This file is distributed under the same license as the GNU guix package.
+# simmon <simmon@nplob.com>, 2021, 2022.
+# Kim InSoo <simmon@nplob.com>, 2022.
+# 김인수 <simmon@nplob.com>, 2022, 2024.
+#: gnu/packages/firmware.scm:1665 gnu/packages/firmware.scm:1932
+#: gnu/packages/linux.scm:1260
+msgid ""
+msgstr ""
+"Project-Id-Version: GNU guix\n"
+"Report-Msgid-Bugs-To: bug-guix@gnu.org\n"
+"POT-Creation-Date: 2025-10-20 03:18+0000\n"
+"PO-Revision-Date: 2024-02-07 15:36+0000\n"
+"Last-Translator: 김인수 <simmon@nplob.com>\n"
+"Language-Team: Korean <https://translate.fedoraproject.org/projects/guix/packages/ko/>\n"
+"Language: ko\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Generator: Weblate 5.3.1\n"
+
+msgid ""
+"AbiWord is a word processing program.  It is rapidly\n"
+"becoming a state of the art word processor, with lots of features useful for\n"
+"your daily work, personal needs, or for just some good old typing fun."
+msgstr ""
+"AbiWord는 워드프로세서용 프로그램입니다.\n"
+"이는 일상적인 작업, 개인적인 요구, 또는 오래된 입력방식을 즐기는 경우에 유용한 기능을 포함하고 있으며\n"
+"최신 유행의 워드프로세서로 빠르게 변화하고 있습니다."
+
+msgid "This package provides a dictionary for the GNU Aspell spell checker."
+msgstr "이 꾸러미는 GNU Aspell 맞춤법 검사기를 위한 사전을 제공합니다."
+
+msgid "Interactive spell-checking tool for Unix"
+msgstr "유닉스를 위한 대화형 맞춤법-점검용 도구"
+
+msgid ""
+"Ispell is an interactive spell-checking tool supporting many\n"
+"European languages."
+msgstr ""
+"Ispell은 수많은 유럽 언어 지원하는 상호작용 맞춤법 검사용\n"
+"도구입니다."
+
+msgid "The SWH Plugins package for the LADSPA plugin system"
+msgstr "LADSPA 플러그인 시스템을 위한 SWH 플러그인 꾸러미"
+
+msgid "This package provides Steve Harris's LADSPA plugins."
+msgstr "이 꾸러미는 스티브 해리스씨의 LADSPA 플러그인을 제공합니다."
+
+msgid "MPEG-4 and MPEG-2 AAC decoder"
+msgstr "MPEG-4와 MPEG-2 AAA 인코더"
+
+msgid ""
+"This package provides a python API to read and write MIDI\n"
+"files."
+msgstr ""
+"이 꾸러미는 파이썬 API를 미디 파일 읽기와 쓰기는데\n"
+"제공합니다."
+
+msgid "LV2 port of the mda Piano plugin"
+msgstr "mda Piano 플러그인의 LV2 포트"
+
+msgid "An LV2 port of the mda Piano VSTi."
+msgstr "mda Piano VSTi의 LV2 포트."
+
+msgid "LV2 port of the mda EPiano plugin"
+msgstr "mda EPiano 플러그인의 LV2 포트"
+
+msgid "An LV2 port of the mda EPiano VSTi."
+msgstr "mda EPiano VSTi의 VL2 포트."
+
+msgid "freealut is the OpenAL Utility Toolkit."
+msgstr "freealut는 OpenAL 유틸리티 툴킷입니다."
+
+msgid "This package provides libshout plus IDJC extensions."
+msgstr "이 꾸러미는 IDJC 확장을 추가한 libshout를 제공합니다."
+
+msgid "Graphical user interface for FluidSynth"
+msgstr "FluidSynth를 위한 그래픽 사용자 연결장치"
+
+msgid "Database independent interface for Perl"
+msgstr "펄을 위한 데이타베이스 독립 연결장치"
+
+msgid "This package provides a database interface for Perl."
+msgstr "이 꾸러미는 펄을 위한 데이타베이스 연결장치를 제공합니다."
+
+msgid "Console front-end to the GNU debugger"
+msgstr "GNU 디버거에 대한 콘솔 프론트-엔드"
+
+msgid "This package provides a frontend to GDB, the GNU debugger."
+msgstr "이와 같은 꾸러미는 GNU 디버거 GDB에 대한 프론트엔드를 제공합니다."
+
+msgid "Graphical front-end for GDB and other debuggers"
+msgstr "GDB 및 다른 디버거를 위한 그래픽 프론트-엔드"
+
+msgid ""
+"This package provides a userspace daemon for the Nintendo\n"
+"Joy-Con controllers."
+msgstr ""
+"이 꾸러미는 닌텐도를 위한 사용자 공간을 제공합니다\n"
+"Joy-Con 제어기."
+
+msgid "User interface for gnushogi"
+msgstr "gnushogi를 위한 사용자 연결장치"
+
+msgid "A graphical user interface for the package @code{gnushogi}."
+msgstr "꾸러미 @code{gnushogi}을 위한 그래픽 사용자 연결장치."
+
+msgid "This package contains the game data of GNU Freedink."
+msgstr "이 꾸러미는 GNU Freedink의 게임 자료를 포함합니다."
+
+msgid "Graphical user interface for chess programs"
+msgstr "체스 프로그램을 위한 그래픽 사용자 연결장치"
+
+msgid "Graphical user interface to play chess"
+msgstr "체스를 하는 그래픽 사용자 연결장치"
+
+msgid "C++ bindings to the libxml2 XML parser library"
+msgstr "libxml2 XML 구문 분석기 라이브러리에 C++ 바인딩"
+
+msgid ""
+"This package provides a C++ interface to the libxml2 XML parser\n"
+"library."
+msgstr ""
+"이 꾸러미는 libxml2 XML 구문 분석기 라이브러리에 C++ 연결장치를\n"
+"제공합니다."
+
+msgid "Graphical user interface for git"
+msgstr "git을 위한 그래픽 사용자 연결장치"
+
+msgid "This package provides a graphical file manager."
+msgstr "이 꾸러미는 그래픽 파일 관리자를 제공합니다."
+
+msgid "This package provides memcache client and server functionality."
+msgstr "이 꾸러미는 memcache 클라이언트와 서버 기능을 제공합니다."
+
+msgid ""
+"This package provides small event loop that wraps the\n"
+"epoll family of APIs."
+msgstr ""
+"이 꾸러미는 API의 epoll 제품군을 감싸는 작은 이벤트\n"
+"루프를 제공합니다."
+
+msgid "This package provides RawTherapee's highly optimized RAW processing routines."
+msgstr "이와 같은 꾸러미는 RawTherapee의 고도로 최적화된 단순 처리 일상을 제공합니다."
+
+msgid ""
+"This package provides account management tools for\n"
+"Discord."
+msgstr ""
+"이 꾸러미는 디스코드를 위한 계정 관리 도구를\n"
+"제공합니다."
+
+msgid "This package provides a rofi frontend for the buku bookmark manager."
+msgstr "이와 같은 꾸러미는 buku 즐겨찾기 관리자를 위한 rofi 프론트엔드를 제공합니다."

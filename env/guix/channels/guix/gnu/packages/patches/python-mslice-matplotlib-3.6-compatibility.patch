@@ -1,0 +1,46 @@
+From: Danny Milosavljevic <dannym@friendly-machines.com>
+Date: 2026-02-13
+Subject: Fix compatibility with matplotlib 3.6+
+
+Matplotlib 3.6 removed the `message` Qt signal from NavigationToolbar2QT.
+The old API was:
+
+    message = QtCore.Signal(str)
+
+    def set_message(self, s):
+        self.message.emit(s)
+        self.locLabel.setText(s)
+
+The new API just updates the label directly with no signal:
+
+    def set_message(self, s):
+        self.locLabel.setText(s)
+
+Matplotlib provides no replacement signal.  The only way to intercept
+toolbar messages is to override the set_message method.
+
+This patch replaces the signal connection with a method override that
+forwards messages to the status bar.
+
+--- a/src/mslice/plotting/plot_window/plot_window.py
++++ b/src/mslice/plotting/plot_window/plot_window.py
+@@ -274,7 +274,18 @@ class PlotWindow(QtWidgets.QMainWindow):
+
+     def create_status_bar(self):
+         self.statusbar = QtWidgets.QStatusBar(self)
+-        self.stock_toolbar.message.connect(self.statusbar.showMessage)
++        # Matplotlib 3.6 removed the `message` Qt signal from
++        # NavigationToolbar2QT.  The old code was:
++        #
++        #     self.stock_toolbar.message.connect(self.statusbar.showMessage)
++        #
++        # Since matplotlib provides no replacement signal, we override
++        # set_message to forward messages to the status bar.
++        original_set_message = self.stock_toolbar.set_message
++        def set_message_forwarding_to_statusbar(s):
++            original_set_message(s)
++            self.statusbar.showMessage(s)
++        self.stock_toolbar.set_message = set_message_forwarding_to_statusbar
+         self.setStatusBar(self.statusbar)
+
+     def flag_as_kept(self):

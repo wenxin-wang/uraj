@@ -1,0 +1,2093 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2012-2026 Ludovic Courtès <ludo@gnu.org>
+;;; Copyright © 2018 Jan Nieuwenhuizen <janneke@gnu.org>
+;;; Copyright © 2019, 2020 Mathieu Othacehe <m.othacehe@gmail.com>
+;;; Copyright © 2020 Florian Pelz <pelzflorian@pelzflorian.de>
+;;; Copyright © 2020 Lars-Dominik Braun <ldb@leibniz-psychology.org>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (guix store)
+  #:use-module (guix utils)
+  #:use-module (guix config)
+  #:use-module (guix deprecation)
+  #:use-module (guix serialization)
+  #:use-module (guix remote-procedures)
+  #:use-module (guix monads)
+  #:use-module (guix records)
+  #:use-module (guix base16)
+  #:use-module (guix base32)
+  #:autoload   (gcrypt hash) (sha256)
+  #:use-module (guix profiling)
+  #:autoload   (guix build syscalls) (terminal-columns)
+  #:autoload   (guix build utils) (dump-port)
+  #:use-module (rnrs bytevectors)
+  #:use-module (ice-9 binary-ports)
+  #:use-module ((ice-9 control) #:select (let/ec))
+  #:use-module (ice-9 atomic)
+  #:use-module (srfi srfi-1)
+  #:use-module (srfi srfi-9)
+  #:use-module (srfi srfi-9 gnu)
+  #:use-module (srfi srfi-11)
+  #:use-module (srfi srfi-26)
+  #:use-module (srfi srfi-34)
+  #:use-module (srfi srfi-35)
+  #:use-module (ice-9 match)
+  #:use-module (ice-9 vlist)
+  #:use-module (ice-9 popen)
+  #:autoload   (ice-9 threads) (current-processor-count)
+  #:use-module (ice-9 format)
+  #:autoload   (web uri) (uri?
+                          string->uri
+                          uri-scheme
+                          uri-host
+                          uri-port
+                          uri-path)
+
+  ;; Bindings re-exported for backward compatibility.
+  #:re-export (substitutable?
+               substitutable-path
+               substitutable-deriver
+               substitutable-references
+               substitutable-download-size
+               substitutable-nar-size
+
+               path-info?
+               path-info-deriver
+               path-info-hash
+               path-info-references
+               path-info-registration-time
+               path-info-nar-size
+
+               hash-algo
+               build-mode)
+
+  #:export (%daemon-socket-uri
+            %gc-roots-directory
+            %default-substitute-urls
+
+            store-connection?
+            store-connection-version
+            store-connection-major-version
+            store-connection-minor-version
+            store-connection-socket
+
+            ;; Deprecated forms for 'store-connection'.
+            nix-server?
+            nix-server-version
+            nix-server-major-version
+            nix-server-minor-version
+            nix-server-socket
+
+            current-store-protocol-version        ;for internal use
+            cache-lookup-recorder                 ;for internal use
+            mcached
+
+            &store-error store-error?
+            &store-connection-error store-connection-error?
+            store-connection-error-file
+            store-connection-error-code
+            &store-protocol-error store-protocol-error?
+            store-protocol-error-message
+            store-protocol-error-status
+
+            ;; Deprecated forms for '&store-error' et al.
+            &nix-error nix-error?
+            &nix-connection-error nix-connection-error?
+            nix-connection-error-file
+            nix-connection-error-code
+            &nix-protocol-error nix-protocol-error?
+            nix-protocol-error-message
+            nix-protocol-error-status
+
+            allocate-store-connection-cache
+            store-connection-cache
+            set-store-connection-cache
+            set-store-connection-cache!
+
+            %default-store-connection-buffer-size
+
+            connect-to-daemon
+            open-connection
+            port->connection
+            close-connection
+            with-store
+            with-store/non-blocking
+            set-build-options
+            set-build-options*
+            valid-path?
+            query-path-hash
+            hash-part->path
+            query-path-info
+            add-data-to-store
+            add-text-to-store
+            add-to-store
+            add-file-tree-to-store
+            file-mapping->tree
+            binary-file
+            with-build-handler
+            map/accumulate-builds
+            mapm/accumulate-builds
+            build-things
+            build
+            query-failed-paths
+            clear-failed-paths
+            ensure-path
+            find-roots
+            add-temp-root
+            add-indirect-root
+            add-permanent-root
+            remove-permanent-root
+
+            has-substitutes?
+            substitutable-paths
+            substitutable-path-info
+
+            built-in-builders
+            substitute-urls
+            references
+            references/cached
+            references*
+            query-path-info*
+            requisites
+            referrers
+            optimize-store
+            verify-store
+            topologically-sorted
+            valid-derivers
+            query-derivation-outputs
+            live-paths
+            dead-paths
+            collect-garbage
+            delete-paths
+            import-paths
+            export-paths
+
+            current-build-output-port
+
+            %store-monad
+            store-bind
+            store-return
+            store-lift
+            store-lower
+            run-with-store
+            store-parameterize
+            %guile-for-build
+            current-system
+            set-current-system
+            current-target-system
+            set-current-target
+            text-file
+            interned-file
+            interned-file-tree
+
+            %graft?
+            without-grafting
+            set-grafting
+            grafting?
+
+            %store-prefix
+            (make-store-path . store-path)
+            output-path
+            fixed-output-path
+            store-path?
+            valid-path-syntax?
+            valid-path-basename-syntax?
+            valid-store-name?
+            direct-store-path?
+            derivation-path?
+            store-path-base
+            store-path-package-name
+            store-path-hash-part
+            direct-store-path
+            derivation-log-file
+            log-file))
+
+(define %default-socket-path
+  (string-append %state-directory "/daemon-socket/socket"))
+
+(define %daemon-socket-uri
+  ;; URI or file name of the socket the daemon listens too.
+  (make-parameter (or (getenv "GUIX_DAEMON_SOCKET")
+                      %default-socket-path)))
+
+
+;; remote-store.cc
+
+(define-record-type* <store-connection> store-connection %make-store-connection
+  store-connection?
+  (socket store-connection-socket)
+  (major  store-connection-major-version)
+  (minor  store-connection-minor-version)
+
+  ;; Caches.  We keep them per-connection, because store paths build
+  ;; during the session are temporary GC roots kept for the duration of
+  ;; the session.
+  (ats-cache    store-connection-add-to-store-cache)
+  (atts-cache   store-connection-add-text-to-store-cache)
+  (caches       store-connection-caches
+                (default '#()))                   ;vector
+  (built-in-builders store-connection-built-in-builders
+                     (default (delay '()))))      ;promise
+
+(set-record-type-printer! <store-connection>
+                          (lambda (obj port)
+                            (format port "#<store-connection ~a.~a ~a>"
+                                    (store-connection-major-version obj)
+                                    (store-connection-minor-version obj)
+                                    (number->string (object-address obj)
+                                                    16))))
+
+(define-deprecated/alias nix-server? store-connection?)
+(define-deprecated/alias nix-server-major-version
+  store-connection-major-version)
+(define-deprecated/alias nix-server-minor-version
+  store-connection-minor-version)
+(define-deprecated/alias nix-server-socket store-connection-socket)
+
+
+(define-condition-type &store-error &error
+  store-error?)
+
+(define-condition-type &store-connection-error &store-error
+  store-connection-error?
+  (file   store-connection-error-file)
+  (errno  store-connection-error-code))
+
+(define-condition-type &store-protocol-error &store-error
+  store-protocol-error?
+  (message store-protocol-error-message)
+  (status  store-protocol-error-status))
+
+(define-deprecated/alias &nix-error &store-error)
+(define-deprecated/alias nix-error? store-error?)
+(define-deprecated/alias &nix-connection-error &store-connection-error)
+(define-deprecated/alias nix-connection-error? store-connection-error?)
+(define-deprecated/alias nix-connection-error-file
+  store-connection-error-file)
+(define-deprecated/alias nix-connection-error-code
+  store-connection-error-code)
+(define-deprecated/alias &nix-protocol-error &store-protocol-error)
+(define-deprecated/alias nix-protocol-error? store-protocol-error?)
+(define-deprecated/alias nix-protocol-error-message
+  store-protocol-error-message)
+(define-deprecated/alias nix-protocol-error-status
+  store-protocol-error-status)
+
+
+(define-syntax-rule (system-error-to-connection-error file exp ...)
+  "Catch 'system-error' exceptions and translate them to
+'&store-connection-error'."
+  (catch 'system-error
+    (lambda ()
+      exp ...)
+    (lambda args
+      (let ((errno (system-error-errno args)))
+        (raise (condition (&store-connection-error
+                           (file file)
+                           (errno errno))))))))
+
+(define* (open-unix-domain-socket file #:key non-blocking?)
+  "Connect to the Unix-domain socket at FILE and return it.  Raise a
+'&store-connection-error' upon error.  If NON-BLOCKING?, make the socket
+non-blocking."
+  (let ((s (with-fluids ((%default-port-encoding #f))
+             ;; This trick allows use of the `scm_c_read' optimization.
+             (socket PF_UNIX
+                     (if non-blocking?
+                         (logior SOCK_STREAM SOCK_CLOEXEC SOCK_NONBLOCK)
+                         (logior SOCK_STREAM SOCK_CLOEXEC))
+                     0)))
+        (a (make-socket-address PF_UNIX file)))
+
+    (system-error-to-connection-error file
+      (connect s a)
+      s)))
+
+(define %default-guix-port
+  ;; Default port when connecting to a daemon over TCP/IP.
+  44146)
+
+(define* (open-inet-socket host port #:key non-blocking?)
+  "Connect to the Unix-domain socket at HOST:PORT and return it.  Raise a
+'&store-connection-error' upon error.  If NON-BLOCKING?, make the socket
+non-blocking."
+  (define addresses
+    (getaddrinfo host
+                 (if (number? port) (number->string port) port)
+                 (if (number? port)
+                     (logior AI_ADDRCONFIG AI_NUMERICSERV)
+                     AI_ADDRCONFIG)
+                 0                                ;any address family
+                 SOCK_STREAM))                    ;TCP only
+
+  (let loop ((addresses addresses))
+    (match addresses
+      ((ai rest ...)
+       (let ((s (socket (addrinfo:fam ai)
+                        ;; TCP/IP only
+                        (if non-blocking?
+                            (logior SOCK_STREAM SOCK_CLOEXEC SOCK_NONBLOCK)
+                            (logior SOCK_STREAM SOCK_CLOEXEC))
+                        IPPROTO_IP)))
+
+         (catch 'system-error
+           (lambda ()
+             (connect s (addrinfo:addr ai))
+
+             ;; Setting this option makes a dramatic difference because it
+             ;; avoids the "ACK delay" on our RPC messages.
+             (setsockopt s IPPROTO_TCP TCP_NODELAY 1)
+             s)
+           (lambda args
+             ;; Connection failed, so try one of the other addresses.
+             (close s)
+             (if (null? rest)
+                 (raise (condition (&store-connection-error
+                                    (file host)
+                                    (errno (system-error-errno args)))))
+                 (loop rest)))))))))
+
+(define %default-store-connection-buffer-size 8192)
+
+(define* (connect-to-daemon uri-or-filename #:key non-blocking?
+                            (buffer-size
+                             %default-store-connection-buffer-size))
+  "Connect to the daemon at URI-OR-FILENAME and return an input/output port.
+If NON-BLOCKING?, use a non-blocking socket when using the file, unix or guix
+URI schemes.  Use BUFFER-SIZE defaulting to 8192.
+
+This is a low-level procedure that does not perform the initial handshake with
+the daemon.  Use 'open-connection' for that."
+  (define (not-supported)
+    (raise (condition (&store-connection-error
+                       (file uri-or-filename)
+                       (errno ENOTSUP)))))
+
+  (let ((port
+         (match (string->uri uri-or-filename)
+           (#f                                 ;URI is a file name
+            (open-unix-domain-socket uri-or-filename
+                                     #:non-blocking? non-blocking?))
+           ((? uri? uri)
+            (match (uri-scheme uri)
+              ((or #f 'file 'unix)
+               (open-unix-domain-socket (uri-path uri)
+                                        #:non-blocking? non-blocking?))
+              ('guix
+               (open-inet-socket (uri-host uri)
+                                 (or (uri-port uri) %default-guix-port)
+                                 #:non-blocking? non-blocking?))
+              ((? symbol? scheme)
+               ;; Try to dynamically load a module for SCHEME.
+               ;; XXX: Errors are swallowed.
+               (match (false-if-exception
+                       (resolve-interface `(guix store ,scheme)))
+                 ((? module? module)
+                  (match (false-if-exception
+                          (module-ref module 'connect-to-daemon))
+                    ((? procedure? connect)
+                     (connect uri))
+                    (x (not-supported))))
+                 (#f (not-supported))))
+              (x
+               (not-supported)))))))
+    (when buffer-size
+      (setvbuf port 'block buffer-size))
+    port))
+
+(define* (open-connection #:optional (uri (%daemon-socket-uri))
+                          #:key port (reserve-space? #t) cpu-affinity
+                          non-blocking? built-in-builders
+                          (buffer-size
+                           %default-store-connection-buffer-size))
+  "Connect to the daemon at URI (a string), or, if PORT is not #f, use it as
+the I/O port over which to communicate to a build daemon.
+
+When RESERVE-SPACE? is true, instruct it to reserve a little bit of extra
+space on the file system so that the garbage collector can still operate,
+should the disk become full.  When CPU-AFFINITY is true, it must be an integer
+corresponding to an OS-level CPU number to which the daemon's worker process
+for this connection will be pinned.  If NON-BLOCKING?, use a non-blocking
+socket when using the file, unix or guix URI schemes.  If
+BUILT-IN-BUILDERS is provided, it should be a list of strings
+and this will be used instead of the builtin builders provided by the build
+daemon.  A default BUFFER-SIZE of 8192 is used.  Return a server object."
+  (define (handshake-error)
+    (raise (condition
+            (&store-connection-error (file (or port uri))
+                                     (errno EPROTO))
+            (&message (message "build daemon handshake failed")))))
+
+  (guard (c ((nar-error? c)
+             ;; One of the 'write-' or 'read-' calls below failed, but this is
+             ;; really a connection error.
+             (handshake-error)))
+    (let ((port
+           (or port (connect-to-daemon
+                     uri #:non-blocking? non-blocking?
+                     #:buffer-size buffer-size))))
+      (write-value integer %worker-magic-1 port)
+      (force-output port)
+      (let ((r (read-value integer port)))
+        (unless (= r %worker-magic-2)
+          (handshake-error))
+
+        (let ((v (read-value integer port)))
+          (unless (= (protocol-major %protocol-version)
+                     (protocol-major v))
+            (handshake-error))
+          (unless (>= (protocol-minor v) #x61)    ;61 was added in Jan. 2017
+            (handshake-error))
+
+          (write-value integer %protocol-version port)
+          (write-value integer (if cpu-affinity 1 0) port)
+          (when cpu-affinity
+            (write-value integer cpu-affinity port))
+          (write-value integer (if reserve-space? 1 0) port)
+          (force-output port)
+          (let ((conn
+                 (port->connection port
+                                   #:version v
+                                   #:built-in-builders
+                                   built-in-builders)))
+            (let loop ((done? (process-stderr conn)))
+              (or done? (process-stderr conn)))
+            conn))))))
+
+(define* (port->connection port
+                           #:key (version %protocol-version)
+                           built-in-builders)
+  "Assimilate PORT, an input/output port, and return a connection to the
+daemon, assuming the given protocol VERSION.  If
+BUILT-IN-BUILDERS is provided, it should be a list of strings
+and this will be used instead of the builtin builders provided by the build
+daemon.
+
+Warning: this procedure assumes that the initial handshake with the daemon has
+already taken place on PORT and that we're just continuing on this established
+connection.  Use with care."
+  (define connection
+    (%make-store-connection port
+                            (protocol-major version)
+                            (protocol-minor version)
+                            (make-hash-table 100)
+                            (make-hash-table 100)
+                            (make-vector
+                             (atomic-box-ref %store-connection-caches)
+                             vlist-null)
+                            (if built-in-builders
+                                (delay built-in-builders)
+                                (delay (%built-in-builders connection)))))
+  connection)
+
+(define (store-connection-version store)
+  "Return the protocol version of STORE as an integer."
+  (protocol-version (store-connection-major-version store)
+                    (store-connection-minor-version store)))
+
+(define-deprecated/alias nix-server-version store-connection-version)
+
+(define (close-connection server)
+  "Close the connection to SERVER."
+  (close (store-connection-socket server)))
+
+(define* (call-with-store proc #:key non-blocking?)
+  "Call PROC with an open store connection.  Pass NON-BLOCKING? to
+open-connection."
+  (let ((store (open-connection #:non-blocking? non-blocking?)))
+    (define (thunk)
+      (parameterize ((current-store-protocol-version
+                      (store-connection-version store)))
+        (call-with-values (lambda () (proc store))
+          (lambda results
+            (close-connection store)
+            (apply values results)))))
+
+    (with-exception-handler (lambda (exception)
+                              (close-connection store)
+                              (raise-exception exception))
+      thunk)))
+
+(define-syntax-rule (with-store store exp ...)
+  "Bind STORE to an open connection to the store and evaluate EXPs;
+automatically close the store when the dynamic extent of EXP is left."
+  (call-with-store (lambda (store) exp ...)))
+
+(define-syntax-rule (with-store/non-blocking store exp ...)
+  "Bind STORE to an non-blocking open connection to the store and evaluate
+EXPs; automatically close the store when the dynamic extent of EXP is left."
+  (call-with-store (lambda (store) exp ...) #:non-blocking? #t))
+
+(define current-store-protocol-version
+  ;; Protocol version of the store currently used.  XXX: This is a hack to
+  ;; communicate the protocol version to the build output port.  It's a hack
+  ;; because it could be inaccurrate, for instance if there's code that
+  ;; manipulates several store connections at once; it works well for the
+  ;; purposes of (guix status) though.
+  (make-parameter #f))
+
+(define current-build-output-port
+  ;; The port where build output is sent.
+  (make-parameter (current-error-port)))
+
+(define %newlines
+  ;; Newline characters triggering a flush of 'current-build-output-port'.
+  ;; Unlike Guile's 'line, we flush upon #\return so that progress reports
+  ;; that use that trick are correctly displayed.
+  (char-set #\newline #\return))
+
+(define* (process-stderr server #:optional user-port)
+  "Read standard output and standard error from SERVER, writing it to
+CURRENT-BUILD-OUTPUT-PORT.  Return #t when SERVER is done sending data, and
+#f otherwise; in the latter case, the caller should call `process-stderr'
+again until #t is returned or an error is raised.
+
+Since the build process's output cannot be assumed to be UTF-8, we
+conservatively consider it to be Latin-1, thereby avoiding possible
+encoding conversion errors."
+  (define p
+    (store-connection-socket server))
+
+  ;; magic cookies from worker-protocol.hh
+  (define %stderr-next  #x6f6c6d67)          ; "olmg", build log
+  (define %stderr-read  #x64617461)          ; "data", data needed from source
+  (define %stderr-write #x64617416)          ; "dat\x16", data for sink
+  (define %stderr-last  #x616c7473)          ; "alts", we're done
+  (define %stderr-error #x63787470)          ; "cxtp", error reporting
+
+  (let ((k (read-value integer p)))
+    (cond ((= k %stderr-write)
+           ;; Write a byte stream to USER-PORT.
+           (let* ((len (read-value integer p))
+                  (m   (modulo len 8)))
+             (dump-port p user-port len
+                        #:buffer-size (if (<= len 16384) 16384 65536))
+             (force-output p)
+             (unless (zero? m)
+               ;; Consume padding, as for strings.
+               (get-bytevector-n p (- 8 m))))
+           #f)
+          ((= k %stderr-read)
+           ;; Read a byte stream from USER-PORT.
+           ;; Note: Avoid 'get-bytevector-n' to work around
+           ;; <http://bugs.gnu.org/17591> in Guile up to 2.0.11.
+           (let* ((max-len (read-value integer p))
+                  (data    (make-bytevector max-len))
+                  (len     (get-bytevector-n! user-port data 0 max-len)))
+             (write-bytevector data p len)
+             (force-output p)
+             #f))
+          ((= k %stderr-next)
+           ;; Log a string.  Build logs are usually UTF-8-encoded, but they
+           ;; may also contain arbitrary byte sequences that should not cause
+           ;; this to fail.  Thus, use the permissive
+           ;; 'read-maybe-utf8-string'.
+           (let ((s (read-maybe-utf8-string p)))
+             (display s (current-build-output-port))
+             (when (string-any %newlines s)
+               (force-output (current-build-output-port)))
+             #f))
+          ((= k %stderr-error)
+           ;; Report an error.
+           (let ((error  (read-maybe-utf8-string p))
+                 ;; Currently the daemon fails to send a status code for early
+                 ;; errors like DB schema version mismatches, so check for EOF.
+                 (status (if (and (>= (store-connection-minor-version server) 8)
+                                  (not (eof-object? (lookahead-u8 p))))
+                             (read-value integer p)
+                             1)))
+             (raise (condition (&store-protocol-error
+                                (message error)
+                                (status  status))))))
+          ((= k %stderr-last)
+           ;; The daemon is done (see `stopWork' in `nix-worker.cc'.)
+           #t)
+          (else
+           (raise (condition (&store-protocol-error
+                              (message "invalid error code")
+                              (status   k))))))))
+
+(define-syntax client-stub
+  (lambda (s)
+    "Define a client-side RPC stub for the given operation."
+    (syntax-case s (id: returns:)
+      ((_ (name (type arg) ...) docstring id: id returns: return ...)
+       #`(lambda* #,(if (> (length #'(arg ...)) 5)
+                        #'(server #:key arg ...)
+                        #'(server arg ...))
+           docstring
+           (let* ((s (store-connection-socket server)))
+             (record-operation 'name)
+             (write-value integer id s)
+             (write-value type arg s)
+             ...
+             (force-output s)
+
+             ;; Loop until the server is done sending error output.
+             (let loop ()
+               (unless (process-stderr server
+                                       (stream-argument (type arg) ...))
+                 (loop)))
+
+             (values (read-value return s) ...)))))))
+
+(define %client-stubs
+  ;; Mapping of remote procedure name to client stub.
+  (make-hash-table))
+
+(define-syntax define-client-stubs
+  (lambda (s)
+    "Populate the '%client-stubs' variable with the given remote procedure
+definitions."
+    (syntax-case s (define)
+      ((_)
+       #t)
+      ((_ (define (name formals ...) body ...) rest ...)
+       #`(begin
+           (hashq-set! %client-stubs 'name
+                       (client-stub (name formals ...) body ...))
+           (define-client-stubs rest ...))))))
+
+(visit-remote-procedures define-client-stubs)
+
+(define-syntax define-top-level-client-procedures
+  (syntax-rules (=>)
+    ((_)
+     #t)
+    ((_ (name => binding) rest ...)
+     (begin
+       (define binding
+         (or (hashq-ref %client-stubs 'name)
+             (error "missing remote procedure binding" 'name)))
+       (define-top-level-client-procedures rest ...)))
+    ((_ name rest ...)
+     (define-top-level-client-procedures (name => name) rest ...))))
+
+;; XXX: Since 'define-client-stubs' cannot introduce non-hygienic bindings
+;; (those used in the remote procedure definitions), this hack lets us
+;; explicitly map bindings to procedures found in '%client-stubs'.
+(define-top-level-client-procedures
+  set-options
+  valid-path?
+  query-path-hash
+  (query-path-from-hash-part => hash-part->path)
+  query-path-info
+  (add-text-to-store => add-data-to-store/direct)
+  (build-things => build-things/direct)
+  ensure-path
+  find-roots
+  add-temp-root
+  add-indirect-root
+  (query-references => references)
+  (query-referrers => referrers)
+  (query-valid-derivers => valid-derivers)
+  query-derivation-outputs
+  has-substitutes?
+  (query-substitutable-paths => substitutable-paths)
+  (query-substitutable-path-infos => substitutable-path-info)
+  (built-in-builders => built-in-builders/direct)
+  optimize-store
+  (verify-store => verify-store/direct)
+  (collect-garbage => run-gc/direct)
+  import-paths
+  (export-path => export-path/direct)
+  query-failed-paths
+  clear-failed-paths
+  (substitute-urls => substitute-urls/direct))
+
+(define %default-substitute-urls
+  ;; Default list of substituters.  This is *not* the list baked in
+  ;; 'guix-daemon', but it is used by 'guix-service-type' and and a couple of
+  ;; clients ('guix build --log-file' uses it.)
+  '("https://bordeaux.guix.gnu.org"
+    "https://ci.guix.gnu.org"))
+
+(define (current-user-name)
+  "Return the name of the calling user."
+  (catch #t
+    (lambda ()
+      (passwd:name (getpwuid (getuid))))
+    (lambda _
+      (getenv "USER"))))
+
+(define* (set-build-options server
+                            #:key keep-failed? keep-going? fallback?
+                            (verbosity 0)
+                            rounds                ;number of build rounds
+                            max-build-jobs
+                            timeout
+                            max-silent-time
+                            max-log-size
+                            (offload? #t)
+                            (use-build-hook? *unspecified*) ;deprecated
+                            (build-verbosity 0)
+                            (log-type 0)
+                            (print-build-trace #t)
+                            (user-name (current-user-name))
+
+                            ;; When true, provide machine-readable "build
+                            ;; traces" for use by (guix status).  Old clients
+                            ;; are unable to make sense, which is why it's
+                            ;; disabled by default.
+                            print-extended-build-trace?
+
+                            ;; When true, the daemon prefixes builder output
+                            ;; with "@ build-log" traces so we can
+                            ;; distinguish it from daemon output, and we can
+                            ;; distinguish each builder's output
+                            ;; (PRINT-BUILD-TRACE must be true as well.)  The
+                            ;; latter is particularly useful when
+                            ;; MAX-BUILD-JOBS > 1.
+                            multiplexed-build-output?
+
+                            build-cores
+                            (use-substitutes? #t)
+
+                            ;; Client-provided substitute URLs.  If it is #f,
+                            ;; the daemon's settings are used.  Otherwise, it
+                            ;; overrides the daemons settings; see 'guix
+                            ;; substitute'.
+                            (substitute-urls #f)
+
+                            ;; Number of columns in the client's terminal.
+                            (terminal-columns (terminal-columns))
+
+                            ;; Locale of the client.
+                            (locale (false-if-exception (setlocale LC_MESSAGES))))
+  ;; Must be called after `open-connection'.
+
+  (unless (unspecified? use-build-hook?)
+    (warn-about-deprecation #:use-build-hook? #f
+                            #:replacement #:offload?))
+
+  (set-options server
+               #:keep-failed? keep-failed?
+               #:keep-going? keep-going?
+               #:fallback? fallback?
+               #:verbosity verbosity
+               #:offload? (if (unspecified? use-build-hook?)
+                              offload?
+                              use-build-hook?)
+               #:build-verbosity build-verbosity
+               #:log-type log-type
+               #:print-build-trace print-build-trace
+               #:use-substitutes? use-substitutes?
+               #:settings
+               `( ;; This option is honored by 'guix substitute' et al.
+                 ,@(if print-build-trace
+                       `(("print-extended-build-trace"
+                          . ,(if print-extended-build-trace? "1" "0")))
+                       '())
+                 ,@(if multiplexed-build-output?
+                       `(("multiplexed-build-output"
+                          . ,(if multiplexed-build-output? "true" "false")))
+                       '())
+                 ,@(if timeout
+                       `(("build-timeout" . ,(number->string timeout)))
+                       '())
+                 ,@(if max-silent-time
+                       `(("build-max-silent-time"
+                          . ,(number->string max-silent-time)))
+                       '())
+                 ,@(if max-log-size
+                       `(("build-max-log-size"
+                          . ,(number->string max-log-size)))
+                       '())
+                 ,@(if max-build-jobs
+                       `(("build-max-jobs"
+                          . ,(number->string max-build-jobs)))
+                       '())
+                 ,@(if build-cores
+                       `(("build-cores" . ,(number->string build-cores)))
+                       '())
+                 ,@(if substitute-urls
+                       `(("substitute-urls"
+                          . ,(string-join substitute-urls)))
+                       '())
+                 ,@(if rounds
+                       `(("build-repeat"
+                          . ,(number->string (max 0 (1- rounds)))))
+                       '())
+                 ,@(if user-name
+                       `(("user-name" . ,user-name))
+                       '())
+                 ,@(if terminal-columns
+                       `(("terminal-columns"
+                          . ,(number->string terminal-columns)))
+                       '())
+                 ,@(if locale
+                       `(("locale" . ,locale))
+                       '()))))
+
+(define profiled?
+  (let ((profiled
+         (or (and=> (getenv "GUIX_PROFILING") string-tokenize)
+             '())))
+    (lambda (component)
+      "Return true if COMPONENT profiling is active."
+      (member component profiled))))
+
+(define %rpc-calls
+  ;; Mapping from RPC names (symbols) to invocation counts.
+  (make-hash-table))
+
+(define* (show-rpc-profile #:optional (port (current-error-port)))
+  "Write to PORT a summary of the RPCs that have been made."
+  (let ((profile (sort (hash-fold alist-cons '() %rpc-calls)
+                       (lambda (rpc1 rpc2)
+                         (< (cdr rpc1) (cdr rpc2))))))
+    (format port "Remote procedure call summary: ~a RPCs~%"
+            (match profile
+              (((names . counts) ...)
+               (reduce + 0 counts))))
+    (for-each (match-lambda
+                ((rpc . count)
+                 (format port "  ~30a ... ~5@a~%" rpc count)))
+              profile)))
+
+(define record-operation
+  ;; Optionally, increment the number of calls of the given RPC.
+  (if (profiled? "rpc")
+      (begin
+        (register-profiling-hook! "rpc" show-rpc-profile)
+        (lambda (name)
+          (let ((count (or (hashq-ref %rpc-calls name) 0)))
+            (hashq-set! %rpc-calls name (+ count 1)))))
+      (lambda (_)
+        #t)))
+
+(define add-data-to-store
+  ;; A memoizing version of `add-to-store', to avoid repeated RPCs with
+  ;; the very same arguments during a given session.
+  (let ((lookup (if (profiled? "add-data-to-store-cache")
+                    (let ((lookups 0)
+                          (hits    0)
+                          (drv     0)
+                          (scheme  0))
+                      (define (show-stats)
+                        (define (% n)
+                          (if (zero? lookups)
+                              100.
+                              (* 100. (/ n lookups))))
+
+                        (format (current-error-port) "
+'add-data-to-store' cache:
+  lookups:      ~5@a
+  hits:         ~5@a (~,1f%)
+  .drv files:   ~5@a (~,1f%)
+  Scheme files: ~5@a (~,1f%)~%"
+                                lookups hits (% hits)
+                                drv (% drv)
+                                scheme (% scheme)))
+
+                      (register-profiling-hook! "add-data-to-store-cache"
+                                                show-stats)
+                      (lambda (cache args)
+                        (let ((result (hash-ref cache args)))
+                          (set! lookups (+ 1 lookups))
+                          (when result
+                            (set! hits (+ 1 hits)))
+                          (match args
+                            ((_ name _)
+                             (cond ((string-suffix? ".drv" name)
+                                    (set! drv (+ drv 1)))
+                                   ((string-suffix? "-builder" name)
+                                    (set! scheme (+ scheme 1)))
+                                   ((string-suffix? ".scm" name)
+                                    (set! scheme (+ scheme 1))))))
+                          result)))
+                    hash-ref)))
+    (lambda* (server name bytes #:optional (references '()))
+      "Add BYTES under file NAME in the store, and return its store path.
+REFERENCES is the list of store paths referred to by the resulting store
+path."
+      (let* ((args  `(,bytes ,name ,references))
+             (cache (store-connection-add-text-to-store-cache server)))
+        (or (lookup cache args)
+            (let ((path (add-data-to-store/direct server name bytes references)))
+              (hash-set! cache args path)
+              path))))))
+
+(define* (add-text-to-store store name text #:optional (references '()))
+  "Add TEXT under file NAME in the store, and return its store path.
+REFERENCES is the list of store paths referred to by the resulting store
+path."
+  (add-data-to-store store name (string->utf8 text) references))
+
+(define true
+  ;; Define it once and for all since we use it as a default value for
+  ;; 'add-to-store' and want to make sure two default values are 'eq?' for the
+  ;; purposes or memoization.
+  (lambda (file stat)
+    #t))
+
+(define add-to-store
+  ;; A memoizing version of `add-to-store'.  This is important because
+  ;; `add-to-store' leads to huge data transfers to the server, and
+  ;; because it's often called many times with the very same argument.
+  (let ((add-to-store
+         (lambda* (server basename recursive? hash-algo file-name
+                          #:key (select? true))
+           ;; We don't use the 'operation' macro so we can pass SELECT? to
+           ;; 'write-file'.
+           (record-operation 'add-to-store)
+           (let ((port (store-connection-socket server)))
+             (write-value integer (remote-procedure-id add-to-store)
+                          port)
+             (write-value utf8-string basename port)
+             (write-value integer 1 port)                   ;obsolete, must be #t
+             (write-value boolean recursive? port)
+             (write-value utf8-string hash-algo port)
+             (write-file file-name port #:select? select?)
+             (force-output port)
+             (let loop ((done? (process-stderr server)))
+               (or done? (loop (process-stderr server))))
+             (read-value store-path port)))))
+    (lambda* (server basename recursive? hash-algo file-name
+                     #:key (select? true))
+      "Add the contents of FILE-NAME under BASENAME to the store
+and return its store file name.  When RECURSIVE? is false, FILE-NAME
+must designate a regular file--not a directory nor a symlink.  When RECURSIVE?
+is true and FILE-NAME designates a directory, the contents of FILE-NAME are
+added recursively; if FILE-NAME designates a flat file and RECURSIVE? is true,
+its contents are added, and its permission bits are kept.  HASH-ALGO must be a
+string such as \"sha256\".
+
+When RECURSIVE? is true, call (SELECT?  FILE STAT) for each directory entry,
+where FILE is the entry's absolute file name and STAT is the result of
+'lstat'; exclude entries for which SELECT? does not return true."
+      ;; Note: We don't stat FILE-NAME at each call, and thus we assume that
+      ;; the file remains unchanged for the lifetime of SERVER.
+      (let* ((args  `(,file-name ,basename ,recursive? ,hash-algo ,select?))
+             (cache (store-connection-add-to-store-cache server)))
+        (or (hash-ref cache args)
+            (let ((path (add-to-store server basename recursive?
+                                      hash-algo file-name
+                                      #:select? select?)))
+              (hash-set! cache args path)
+              path))))))
+
+(define %not-slash
+  (char-set-complement (char-set #\/)))
+
+(define* (add-file-tree-to-store server tree
+                                 #:key
+                                 (hash-algo "sha256")
+                                 (recursive? #t))
+  "Add the given TREE to the store on SERVER.  TREE must be an entry such as:
+
+  (\"my-tree\" directory
+    (\"a\" regular (data \"hello\"))
+    (\"b\" symlink \"a\")
+    (\"c\" directory
+      (\"d\" executable (file \"/bin/sh\"))))
+
+This is a generalized version of 'add-to-store'.  It allows you to reproduce
+an arbitrary directory layout in the store without creating a derivation."
+
+  ;; Note: The format of TREE was chosen to allow trees to be compared with
+  ;; 'equal?', which in turn allows us to memoize things.
+
+  (define root
+    ;; TREE is a single entry.
+    (list tree))
+
+  (define basename
+    (match tree
+      ((name . _) name)))
+
+  (define (lookup file)
+    (let loop ((components (string-tokenize file %not-slash))
+               (tree root))
+      (match components
+        ((basename)
+         (assoc basename tree))
+        ((head . rest)
+         (loop rest
+               (match (assoc-ref tree head)
+                 (('directory . entries) entries)))))))
+
+  (define (file-type+size file)
+    (match (lookup file)
+      ((_ (and type (or 'directory 'symlink)) . _)
+       (values type 0))
+      ((_ type ('file file))
+       (values type (stat:size (stat file))))
+      ((_ type ('data (? string? data)))
+       (values type (string-length data)))
+      ((_ type ('data (? bytevector? data)))
+       (values type (bytevector-length data)))))
+
+  (define (file-port file)
+    (match (lookup file)
+      ((_ (or 'regular 'executable) content)
+       (match content
+         (('file (? string? file))
+          (open-file file "r0b"))
+         (('data (? string? str))
+          (open-input-string str))
+         (('data (? bytevector? bv))
+          (open-bytevector-input-port bv))))))
+
+  (define (symlink-target file)
+    (match (lookup file)
+      ((_ 'symlink target) target)))
+
+  (define (directory-entries directory)
+    (match (lookup directory)
+      ((_ 'directory (names . _) ...) names)))
+
+  (define cache
+    (store-connection-add-to-store-cache server))
+
+  (or (hash-ref cache tree)
+      (begin
+        ;; We don't use the 'operation' macro so we can use 'write-file-tree'
+        ;; instead of 'write-file'.
+        (record-operation 'add-to-store/tree)
+        (let ((port (store-connection-socket server)))
+          (write-value integer (remote-procedure-id add-to-store)
+                       port)
+          (write-value utf8-string basename port)
+          (write-value integer 1 port)  ;obsolete, must be #t
+          (write-value integer (if recursive? 1 0) port)
+          (write-value utf8-string hash-algo port)
+          (write-file-tree basename port
+                           #:file-type+size file-type+size
+                           #:file-port file-port
+                           #:symlink-target symlink-target
+                           #:directory-entries directory-entries)
+          (force-output port)
+          (let loop ((done? (process-stderr server)))
+            (or done? (loop (process-stderr server))))
+          (let ((result (read-value store-path port)))
+            (hash-set! cache tree result)
+            result)))))
+
+(define (file-mapping->tree mapping)
+  "Convert MAPPING, an alist like:
+
+  ((\"guix/build/utils.scm\" . \"…/utils.scm\"))
+
+to a tree suitable for 'add-file-tree-to-store' and 'interned-file-tree'."
+  (let ((mapping (map (match-lambda
+                        ((destination . source)
+                         (cons (string-tokenize destination %not-slash)
+                               source)))
+                      mapping)))
+    (fold (lambda (pair result)
+            (match pair
+              ((destination . source)
+               (let loop ((destination destination)
+                          (result result))
+                 (match destination
+                   ((file)
+                    (let* ((mode (stat:mode (stat source)))
+                           (type (if (zero? (logand mode #o100))
+                                     'regular
+                                     'executable)))
+                      (alist-cons file
+                                  `(,type (file ,source))
+                                  result)))
+                   ((file rest ...)
+                    (let ((directory (assoc-ref result file)))
+                      (alist-cons file
+                                  `(directory
+                                    ,@(loop rest
+                                            (match directory
+                                              (('directory . entries) entries)
+                                              (#f '()))))
+                                  (if directory
+                                      (alist-delete file result)
+                                      result)))))))))
+          '()
+          mapping)))
+
+(define current-build-prompt
+  ;; When true, this is the prompt to abort to when 'build-things' is called.
+  (make-parameter #f))
+
+(define (call-with-build-handler handler thunk)
+  "Register HANDLER as a \"build handler\" and invoke THUNK."
+  (define tag
+    (make-prompt-tag "build handler"))
+
+  (parameterize ((current-build-prompt tag))
+    (call-with-prompt tag
+      thunk
+      (lambda (k . args)
+        ;; Since HANDLER may call K, which in turn may call 'build-things'
+        ;; again, reinstate a prompt (thus, it's not a tail call.)
+        (call-with-build-handler handler
+                                 (lambda ()
+                                   (apply handler k args)))))))
+
+(define (invoke-build-handler store things mode)
+  "Abort to 'current-build-prompt' if it is set."
+  (or (not (current-build-prompt))
+      (abort-to-prompt (current-build-prompt) store things mode)))
+
+(define-syntax-rule (with-build-handler handler exp ...)
+  "Register HANDLER as a \"build handler\" and invoke THUNK.  When
+'build-things' is called within the dynamic extent of the call to THUNK,
+HANDLER is invoked like so:
+
+  (HANDLER CONTINUE STORE THINGS MODE)
+
+where CONTINUE is the continuation, and the remaining arguments are those that
+were passed to 'build-things'.
+
+Build handlers are useful to announce a build plan with 'show-what-to-build'
+and to implement dry runs (by not invoking CONTINUE) in a way that gracefully
+deals with \"dynamic dependencies\" such as grafts---derivations that depend
+on the build output of a previous derivation."
+  (call-with-build-handler handler (lambda () exp ...)))
+
+;; Unresolved dynamic dependency.
+(define-record-type <unresolved>
+  (unresolved things continuation)
+  unresolved?
+  (things       unresolved-things)
+  (continuation unresolved-continuation))
+
+(define (build-accumulator expected-store)
+  "Return a build handler that accumulates THINGS and returns an <unresolved>
+object, only for build requests on EXPECTED-STORE."
+  (lambda (continue store things mode)
+    ;; Note: Do not compare STORE and EXPECTED-STORE with 'eq?' because
+    ;; 'cache-object-mapping' and similar functional "setters" change the
+    ;; store's object identity.
+    (if (and (eq? (store-connection-socket store)
+                  (store-connection-socket expected-store))
+             (= mode (build-mode normal)))
+        (begin
+          ;; Preserve caches accumulated up to this handler invocation.
+          (set-store-connection-caches! expected-store
+                                        (store-connection-caches store))
+
+          (unresolved things
+                      (lambda (new-store value)
+                        ;; Borrow caches from NEW-STORE.
+                        (set-store-connection-caches!
+                         store (store-connection-caches new-store))
+                        (continue value))))
+        (continue #t))))
+
+(define default-cutoff
+  ;; Default cutoff parameter for 'map/accumulate-builds'.
+  (make-parameter 32))
+
+(define* (map/accumulate-builds store proc lst
+                                #:key (cutoff (default-cutoff)))
+  "Apply PROC over each element of LST, accumulating 'build-things' calls and
+coalescing them into a single call.
+
+CUTOFF is the threshold above which we stop accumulating unresolved nodes."
+
+  ;; The CUTOFF parameter helps avoid pessimal behavior where we keep
+  ;; stumbling upon the same .drv build requests with many incoming edges.
+  ;; See <https://bugs.gnu.org/49439>.
+
+  (define accumulator
+    (build-accumulator store))
+
+  (define-values (result rest)
+    ;; Have the default cutoff decay as we go deeper in the call stack to
+    ;; avoid pessimal behavior.
+    (parameterize ((default-cutoff (quotient cutoff 2)))
+      (let loop ((lst lst)
+                 (result '())
+                 (unresolved 0))
+        (match lst
+          ((head . tail)
+           (match (with-build-handler accumulator
+                    (proc head))
+             ((? unresolved? obj)
+              (if (>= unresolved cutoff)
+                  (values (reverse (cons obj result)) tail)
+                  (loop tail (cons obj result) (+ 1 unresolved))))
+             (obj
+              (loop tail (cons obj result) unresolved))))
+          (()
+           (values (reverse result) lst))))))
+
+  (match (append-map (lambda (obj)
+                       (if (unresolved? obj)
+                           (unresolved-things obj)
+                           '()))
+                     result)
+    (()
+     ;; REST is necessarily empty.
+     result)
+    (to-build
+     ;; We've accumulated things TO-BUILD; build them.
+     (build-things store (delete-duplicates to-build))
+
+     ;; Resume the continuations corresponding to TO-BUILD, and then process
+     ;; REST.
+     (append (map/accumulate-builds store
+                                    (lambda (obj)
+                                      (if (unresolved? obj)
+                                          ;; Pass #f because 'build-things' is now
+                                          ;; unnecessary.
+                                          ((unresolved-continuation obj)
+                                           store #f)
+                                          obj))
+                                    result #:cutoff cutoff)
+         (map/accumulate-builds store proc rest #:cutoff cutoff)))))
+
+(define* (build-things store things #:optional (mode (build-mode normal)))
+  "Build THINGS, a list of store items which may be either '.drv' files or
+outputs, and return when the worker is done building them.  Elements of THINGS
+that are not derivations can only be substituted and not built locally.
+Alternately, an element of THING can be a derivation/output name pair, in
+which case the daemon will attempt to substitute just the requested output of
+the derivation.  Return #t on success.
+
+When a handler is installed with 'with-build-handler', it is called any time
+'build-things' is called."
+  (or (not (invoke-build-handler store things mode))
+      (let ((things (map (match-lambda
+                           ((drv . output) (string-append drv "!" output))
+                           (thing thing))
+                         things)))
+        (parameterize ((current-store-protocol-version
+                        (store-connection-version store)))
+          (when (< (current-store-protocol-version) #x163)
+            ;; This corresponds to the first version bump of the daemon
+            ;; since the introduction of lzip compression support.  The
+            ;; version change happened with commit 6ef61cc4c30 on the
+            ;; 2018/10/15).
+            (warn-about-old-daemon))
+
+          (build-things/direct store things mode)))))
+
+(define %gc-roots-directory
+  ;; The place where garbage collector roots (symlinks) are kept.
+  (string-append %state-directory "/gcroots"))
+
+(define (add-permanent-root target)
+  "Add a garbage collector root pointing to TARGET, an element of the store,
+preventing TARGET from even being collected.  This can also be used if TARGET
+does not exist yet.
+
+Raise an error if the caller does not have write access to the GC root
+directory."
+  (let* ((root (string-append %gc-roots-directory "/" (basename target))))
+    (catch 'system-error
+      (lambda ()
+        (symlink target root))
+      (lambda args
+        ;; If ROOT already exists, this is fine; otherwise, re-throw.
+        (unless (= EEXIST (system-error-errno args))
+          (apply throw args))))))
+
+(define (remove-permanent-root target)
+  "Remove the permanent garbage collector root pointing to TARGET.  Raise an
+error if there is no such root."
+  (delete-file (string-append %gc-roots-directory "/" (basename target))))
+
+(define* (fold-path store proc seed paths
+                    #:optional (relatives (cut references store <>)))
+  "Call PROC for each of the RELATIVES of PATHS, exactly once, and return the
+result formed from the successive calls to PROC, the first of which is passed
+SEED."
+  (let loop ((paths  paths)
+             (result seed)
+             (seen   vlist-null))
+    (match paths
+      ((path rest ...)
+       (if (vhash-assoc path seen)
+           (loop rest result seen)
+           (let ((seen   (vhash-cons path #t seen))
+                 (rest   (append rest (relatives path)))
+                 (result (proc path result)))
+             (loop rest result seen))))
+      (()
+       result))))
+
+(define (requisites store paths)
+  "Return the requisites of PATHS, including PATHS---i.e., their closures (all
+its references, recursively)."
+  (fold-path store cons '() paths))
+
+(define (topologically-sorted store paths)
+  "Return a list containing PATHS and all their references sorted in
+topological order."
+  (define (traverse)
+    ;; Do a simple depth-first traversal of all of PATHS.
+    (let loop ((paths   paths)
+               (visited vlist-null)
+               (result  '()))
+      (define (visit n)
+        (vhash-cons n #t visited))
+
+      (define (visited? n)
+        (vhash-assoc n visited))
+
+      (match paths
+        ((head tail ...)
+         (if (visited? head)
+             (loop tail visited result)
+             (call-with-values
+                 (lambda ()
+                   (loop (references store head)
+                         (visit head)
+                         result))
+               (lambda (visited result)
+                 (loop tail
+                       visited
+                       (cons head result))))))
+        (()
+         (values visited result)))))
+
+  (call-with-values traverse
+    (lambda (_ result)
+      (reverse result))))
+
+(define (%built-in-builders store)
+  "Return the names of the supported built-in derivation builders
+supported by STORE.  The result is memoized for STORE."
+  ;; Check whether STORE's version supports this RPC and built-in
+  ;; derivation builders in general, which appeared in Guix > 0.11.0.
+  ;; Return the empty list if it doesn't.  Note that this RPC does not
+  ;; exist in 'nix-daemon'.
+  (if (or (> (store-connection-major-version store) #x100)
+          (and (= (store-connection-major-version store) #x100)
+               (>= (store-connection-minor-version store) #x60)))
+      (built-in-builders/direct store)
+      '()))
+
+(define (built-in-builders store)
+  "Return the names of the supported built-in derivation builders
+supported by STORE."
+  (force (store-connection-built-in-builders store)))
+
+(define* (verify-store store #:key check-contents? repair?)
+  "Verify the integrity of the store and return false if errors remain,
+and true otherwise.  When REPAIR? is true, repair any missing or altered store
+items by substituting them (this typically requires root privileges because it
+is not an atomic operation.)  When CHECK-CONTENTS? is true, check the contents
+of store items; this can take a lot of time."
+  (not (verify-store/direct store check-contents? repair?)))
+
+(define run-gc
+  (lambda (server action to-delete min-freed)
+    "Perform the garbage-collector operation ACTION, one of the
+`gc-action' values.  When ACTION is `delete-specific', the TO-DELETE is the
+list of store paths to delete.  MIN-FREED is the minimum amount of disk space
+to be freed, in bytes, before the GC can stop.  Return the list of store paths
+delete, and the number of bytes freed."
+    (let-values (((paths freed obsolete5)
+                  (run-gc/direct server
+                                 #:action action
+                                 #:to-delete to-delete
+                                 #:min-freed min-freed
+                                 #:obsolete1 #f
+                                 #:obsolete2 0
+                                 #:obsolete3 0
+                                 #:obsolete4 0)))
+      (unless (null? paths)
+        ;; To be on the safe side, completely invalidate both caches.
+        ;; Otherwise we could end up returning store paths that are no longer
+        ;; valid.
+        (hash-clear! (store-connection-add-to-store-cache server))
+        (hash-clear! (store-connection-add-text-to-store-cache server)))
+
+      (values paths freed))))
+
+(define-syntax-rule (%long-long-max)
+  ;; Maximum unsigned 64-bit integer.
+  (- (expt 2 64) 1))
+
+(define (live-paths server)
+  "Return the list of live store paths---i.e., store paths still
+referenced, and thus not subject to being garbage-collected."
+  (run-gc server (gc-action return-live) '() (%long-long-max)))
+
+(define (dead-paths server)
+  "Return the list of dead store paths---i.e., store paths no longer
+referenced, and thus subject to being garbage-collected."
+  (run-gc server (gc-action return-dead) '() (%long-long-max)))
+
+(define* (collect-garbage server #:optional (min-freed (%long-long-max)))
+  "Collect garbage from the store at SERVER.  If MIN-FREED is non-zero,
+then collect at least MIN-FREED bytes.  Return the paths that were
+collected, and the number of bytes freed."
+  (run-gc server (gc-action delete-dead) '() min-freed))
+
+(define* (delete-paths server paths #:optional (min-freed (%long-long-max)))
+  "Delete PATHS from the store at SERVER, if they are no longer
+referenced.  If MIN-FREED is non-zero, then stop after at least
+MIN-FREED bytes have been collected.  Return the paths that were
+collected, and the number of bytes freed."
+  (run-gc server (gc-action delete-specific) paths min-freed))
+
+(define* (export-path server path port #:key (sign? #t))
+  "Export PATH to PORT.  When SIGN? is true, sign it."
+  (export-path/direct server path sign? port))
+
+(define* (export-paths server paths port #:key (sign? #t) recursive?
+                       (start (const #f))
+                       (progress (const #f))
+                       (finish (const #f)))
+  "Export the store paths listed in PATHS to PORT, in topological order,
+signing them if SIGN? is true.  When RECURSIVE? is true, export the closure of
+PATHS---i.e., PATHS and all their dependencies.
+
+START, PROGRESS, and FINISH are used to track progress of the data transfer.
+START is a one-argument that is passed the list of store items that will be
+transferred; it returns values that are then used as the initial state
+threaded through PROGRESS calls.  PROGRESS is passed the store item about to
+be sent, along with the values previously return by START or by PROGRESS
+itself.  FINISH is called when the last store item has been called."
+  (define ordered
+    (let ((sorted (topologically-sorted server paths)))
+      ;; When RECURSIVE? is #f, filter out the references of PATHS.
+      (if recursive?
+          sorted
+          (filter (cut member <> paths) sorted))))
+
+  (let loop ((paths ordered)
+             (state (call-with-values (lambda () (start ordered))
+                      list)))
+    (match paths
+      (()
+       (apply finish state)
+       (write-value integer 0 port))
+      ((head tail ...)
+       (write-value integer 1 port)
+       (and (export-path server head port #:sign? sign?)
+            (loop tail
+                  (call-with-values
+                      (lambda () (apply progress head state))
+                    list)))))))
+
+(define (substitute-urls store)
+  "Return the list of currently configured substitutes URLs for STORE, or
+#f if the daemon is too old and does not implement this RPC."
+  (and (>= (store-connection-version store) #x164)
+       (substitute-urls/direct store)))
+
+
+;;;
+;;; Per-connection caches.
+;;;
+
+;; Number of currently allocated store connection caches--things that go in
+;; the 'caches' vector of <store-connection>.
+(define %store-connection-caches (make-atomic-box 0))
+
+(define %max-store-connection-caches
+  ;; Maximum number of caches returned by 'allocate-store-connection-cache'.
+  32)
+
+(define %store-connection-cache-names
+  ;; Mapping of cache ID to symbol.
+  (make-vector %max-store-connection-caches))
+
+(define (allocate-store-connection-cache name)
+  "Allocate a new cache for store connections and return its identifier.  Said
+identifier can be passed as an argument to "
+  (let loop ((current (atomic-box-ref %store-connection-caches)))
+    (let ((previous (atomic-box-compare-and-swap! %store-connection-caches
+                                                  current (+ current 1))))
+      (if (= previous current)
+          (begin
+            (vector-set! %store-connection-cache-names current name)
+            current)
+          (loop current)))))
+
+(define %object-cache-id
+  ;; The "object cache", mapping lowerable objects such as <package> records
+  ;; to derivations.
+  (allocate-store-connection-cache 'object-cache))
+
+(define (vector-set vector index value)
+  (let ((new (vector-copy vector)))
+    (vector-set! new index value)
+    new))
+
+(define (store-connection-cache store cache)
+  "Return the cache of STORE identified by CACHE, an identifier as returned by
+'allocate-store-connection-cache'."
+  (vector-ref (store-connection-caches store) cache))
+
+(define (set-store-connection-cache store cache value)
+  "Return a copy of STORE where CACHE has the given VALUE.  CACHE must be a
+value returned by 'allocate-store-connection-cache'."
+  (store-connection
+   (inherit store)
+   (caches (vector-set (store-connection-caches store) cache value))))
+
+(define set-store-connection-caches!              ;private
+  (record-modifier <store-connection> 'caches))
+
+(define (set-store-connection-cache! store cache value)
+  "Set STORE's CACHE to VALUE.
+
+This is a mutating version that should be avoided.  Prefer the functional
+'set-store-connection-cache' instead, together with using %STORE-MONAD."
+  (vector-set! (store-connection-caches store) cache value))
+
+
+(define %reference-cache-id
+  ;; Cache mapping store items to their list of references.  Caching matters
+  ;; because when building a profile in the presence of grafts, we keep
+  ;; calling 'graft-derivation', which in turn calls 'references/cached' many
+  ;; times with the same arguments.
+  (allocate-store-connection-cache 'reference-cache))
+
+(define (references/cached store item)
+  "Like 'references', but cache results."
+  (let* ((cache (store-connection-cache store %reference-cache-id))
+         (value (vhash-assoc item cache)))
+    (record-cache-lookup! %reference-cache-id value cache)
+    (match value
+      ((_ . references)
+       references)
+      (#f
+       (let* ((references (references store item))
+              (cache      (vhash-cons item references cache)))
+         (set-store-connection-cache! store %reference-cache-id cache)
+         references)))))
+
+
+;;;
+;;; Store monad.
+;;;
+
+(define-syntax-rule (define-alias new old)
+  (define-syntax new (identifier-syntax old)))
+
+;; The store monad allows us to (1) build sequences of operations in the
+;; store, and (2) make the store an implicit part of the execution context,
+;; rather than a parameter of every single function.
+(define-alias %store-monad %state-monad)
+(define-alias store-return state-return)
+(define-alias store-bind state-bind)
+(define-alias store-parameterize state-parameterize)
+
+;; Instantiate templates for %STORE-MONAD since it's syntactically different
+;; from %STATE-MONAD.
+(template-directory instantiations %store-monad)
+
+(define* (cache-object-mapping object keys result
+                               #:key
+                               (cache %object-cache-id)
+                               (vhash-cons vhash-consq))
+  "Augment the store's object cache with a mapping from OBJECT/KEYS to RESULT.
+KEYS is a list of additional keys to match against, for instance a (SYSTEM
+TARGET) tuple.  Use VHASH-CONS to insert OBJECT into the cache.
+
+OBJECT is typically a high-level object such as a <package> or an <origin>,
+and RESULT is typically its derivation."
+  (lambda (store)
+    (values result
+            (set-store-connection-cache
+             store cache
+             (vhash-cons object (cons result keys)
+                         (store-connection-cache store cache))))))
+
+(define (cache-lookup-recorder component title)
+  "Return a procedure of two arguments to record cache lookups, hits, and
+misses for COMPONENT.  The procedure must be passed a Boolean indicating
+whether the cache lookup was a hit, and the actual cache (a vhash)."
+  (if (profiled? component)
+      (let ((fresh    0)
+            (lookups  0)
+            (hits     0)
+            (size     0))
+        (register-profiling-hook!
+         component
+         (lambda ()
+           (format (current-error-port) "~a:
+  fresh caches: ~5@a
+  lookups:      ~5@a
+  hits:         ~5@a (~,1f%)
+  cache size:   ~5@a entries~%"
+                   title fresh lookups hits
+                   (if (zero? lookups)
+                       100.
+                       (* 100. (/ hits lookups)))
+                   size)))
+
+        (lambda (hit? cache)
+          (set! fresh
+                (if (eq? cache vlist-null)
+                    (+ 1 fresh)
+                    fresh))
+          (set! lookups (+ 1 lookups))
+          (set! hits (if hit? (+ hits 1) hits))
+          (set! size (+ (if hit? 0 1)
+                        (vlist-length cache)))))
+      (lambda (x y)
+        #t)))
+
+(define recorder-for-cache
+  (let ((recorders (make-vector %max-store-connection-caches)))
+    (lambda (cache-id)
+      "Return a procedure to record lookup stats for CACHE-ID."
+      (match (vector-ref recorders cache-id)
+        ((? unspecified?)
+         (let* ((name (symbol->string
+                       (vector-ref %store-connection-cache-names cache-id)))
+                (description
+                 (string-titlecase
+                  (string-map (match-lambda
+                                (#\- #\space)
+                                (chr chr))
+                              name))))
+           (let ((proc (cache-lookup-recorder name description)))
+             (vector-set! recorders cache-id proc)
+             proc)))
+        (proc proc)))))
+
+(define (record-cache-lookup! cache-id value cache)
+  "Record the lookup of VALUE in CACHE-ID, whose current value is CACHE."
+  (let ((record! (recorder-for-cache cache-id)))
+    (record! value cache)))
+
+(define-inlinable (lookup-cached-object cache-id object keys vhash-fold*)
+  "Return the object in store cache CACHE-ID corresponding to OBJECT
+and KEYS; use VHASH-FOLD* to look for OBJECT in the cache.  KEYS is a list of
+additional keys to match against, and which are compared with 'equal?'.
+Return #f on failure and the cached result otherwise."
+  (lambda (store)
+    (let* ((cache (store-connection-cache store cache-id))
+
+           ;; Escape as soon as we find the result.  This avoids traversing
+           ;; the whole vlist chain and significantly reduces the number of
+           ;; 'hashq' calls.
+           (value (let/ec return
+                    (vhash-fold* (lambda (item result)
+                                   (match item
+                                     ((value . keys*)
+                                      (if (equal? keys keys*)
+                                          (return value)
+                                          result))))
+                                 #f object
+                                 cache))))
+      (record-cache-lookup! cache-id value cache)
+      (values value store))))
+
+(define* (%mcached mthunk object #:optional (keys '())
+                   #:key
+                   (cache %object-cache-id)
+                   (vhash-cons vhash-consq)
+                   (vhash-fold* vhash-foldq*))
+  "Bind the monadic value returned by MTHUNK, which supposedly corresponds to
+OBJECT/KEYS, or return its cached value.  Use VHASH-CONS to insert OBJECT into
+the cache, and VHASH-FOLD* to look it up."
+  (mlet %store-monad ((cached (lookup-cached-object cache object keys
+                                                    vhash-fold*)))
+    (if cached
+        (return cached)
+        (>>= (mthunk)
+             (lambda (result)
+               (cache-object-mapping object keys result
+                                     #:cache cache
+                                     #:vhash-cons vhash-cons))))))
+
+(define-syntax mcached
+  (syntax-rules (eq? equal? =>)
+    "Run MVALUE, which corresponds to OBJECT/KEYS, and cache it; or return the
+value associated with OBJECT/KEYS in the store's object cache if there is
+one."
+    ((_ eq? (=> cache) mvalue object keys ...)
+     (%mcached (lambda () mvalue)
+               object (list keys ...)
+               #:cache cache
+               #:vhash-cons vhash-consq
+               #:vhash-fold* vhash-foldq*))
+    ((_ equal? (=> cache) mvalue object keys ...)
+     (%mcached (lambda () mvalue)
+               object (list keys ...)
+               #:cache cache
+               #:vhash-cons vhash-cons
+               #:vhash-fold* vhash-fold*))
+    ((_ eq? mvalue object keys ...)
+     (mcached eq? (=> %object-cache-id)
+              mvalue object keys ...))
+    ((_ equal? mvalue object keys ...)
+     (mcached equal? (=> %object-cache-id)
+              mvalue object keys ...))
+    ((_ mvalue object keys ...)
+     (mcached eq? mvalue object keys ...))))
+
+(define (preserve-documentation original proc)
+  "Return PROC with documentation taken from ORIGINAL."
+  (set-object-property! proc 'documentation
+                        (procedure-property original 'documentation))
+  proc)
+
+(define (store-lift proc)
+  "Lift PROC, a procedure whose first argument is a connection to the store,
+in the store monad."
+  (preserve-documentation proc
+                          (lambda args
+                            (lambda (store)
+                              (values (apply proc store args) store)))))
+
+(define (store-lower proc)
+  "Lower PROC, a monadic procedure in %STORE-MONAD, to a \"normal\" procedure
+taking the store as its first argument."
+  (preserve-documentation proc
+                          (lambda (store . args)
+                            (run-with-store store (apply proc args)))))
+
+(define (mapm/accumulate-builds mproc lst)
+  "Like 'mapm' in %STORE-MONAD, but accumulate 'build-things' calls and
+coalesce them into a single call."
+  (lambda (store)
+    (values (map/accumulate-builds store
+                                   (lambda (obj)
+                                     (run-with-store store
+                                       (mproc obj)
+                                       #:system (%current-system)
+                                       #:target (%current-target-system)))
+                                   lst)
+            store)))
+
+
+;;
+;; Store monad operators.
+;;
+
+(define* (binary-file name
+                      data ;bytevector
+                      #:optional (references '()))
+  "Return as a monadic value the absolute file name in the store of the file
+containing DATA, a bytevector.  REFERENCES is a list of store items that the
+resulting text file refers to; it defaults to the empty list."
+  (lambda (store)
+    (values (add-data-to-store store name data references)
+            store)))
+
+(define* (text-file name
+                    text ;string
+                    #:optional (references '()))
+  "Return as a monadic value the absolute file name in the store of the file
+containing TEXT, a string.  REFERENCES is a list of store items that the
+resulting text file refers to; it defaults to the empty list."
+  (lambda (store)
+    (values (add-text-to-store store name text references)
+            store)))
+
+(define* (interned-file file #:optional name
+                        #:key (recursive? #t) (select? true))
+  "Return the name of FILE once interned in the store.  Use NAME as its store
+name, or the basename of FILE if NAME is omitted.
+
+When RECURSIVE? is true, the contents of FILE are added recursively; if FILE
+designates a flat file and RECURSIVE? is true, its contents are added, and its
+permission bits are kept.
+
+When RECURSIVE? is true, call (SELECT?  FILE STAT) for each directory entry,
+where FILE is the entry's absolute file name and STAT is the result of
+'lstat'; exclude entries for which SELECT? does not return true."
+  (lambda (store)
+    (values (add-to-store store (or name (basename file))
+                          recursive? "sha256" file
+                          #:select? select?)
+            store)))
+
+(define interned-file-tree
+  (store-lift add-file-tree-to-store))
+
+(define build
+  ;; Monadic variant of 'build-things'.
+  (store-lift build-things))
+
+(define set-build-options*
+  (store-lift set-build-options))
+
+(define references*
+  (store-lift references))
+
+(define (query-path-info* item)
+  "Monadic version of 'query-path-info' that returns #f when ITEM is not in
+the store."
+  (lambda (store)
+    (guard (c ((store-protocol-error? c)
+               ;; ITEM is not in the store; return #f.
+               (values #f store)))
+      (values (query-path-info store item) store))))
+
+(define-inlinable (current-system)
+  ;; Consult the %CURRENT-SYSTEM fluid at bind time.  This is equivalent to
+  ;; (lift0 %current-system %store-monad), but inlinable, thus avoiding
+  ;; closure allocation in some cases.
+  (lambda (state)
+    (values (%current-system) state)))
+
+(define-inlinable (set-current-system system)
+  ;; Set the %CURRENT-SYSTEM fluid at bind time.
+  (lambda (state)
+    (values (%current-system system) state)))
+
+(define-inlinable (current-target-system)
+  ;; Consult the %CURRENT-TARGET-SYSTEM fluid at bind time.
+  (lambda (state)
+    (values (%current-target-system) state)))
+
+(define-inlinable (set-current-target target)
+  ;; Set the %CURRENT-TARGET-SYSTEM fluid at bind time.
+  (lambda (state)
+    (values (%current-target-system target) state)))
+
+(define %guile-for-build
+  ;; The derivation of the Guile to be used within the build environment,
+  ;; when using 'gexp->derivation' and co.
+  (make-parameter #f))
+
+(define* (run-with-store store mval
+                         #:key
+                         (guile-for-build (%guile-for-build))
+                         (system (%current-system))
+                         (target #f))
+  "Run MVAL, a monadic value in the store monad, in STORE, an open store
+connection, and return the result."
+  ;; Initialize the dynamic bindings here to avoid bad surprises.  The
+  ;; difficulty lies in the fact that dynamic bindings are resolved at
+  ;; bind-time and not at call time, which can be disconcerting.
+  (parameterize ((%guile-for-build guile-for-build)
+                 (%current-system system)
+                 (%current-target-system target))
+    (call-with-values (lambda ()
+                        (run-with-state mval store))
+      (lambda (result new-store)
+        (when (and store new-store)
+          ;; Copy the object cache from NEW-STORE so we don't fully discard
+          ;; the state.
+          (let ((caches (store-connection-caches new-store)))
+            (set-store-connection-caches! store caches)))
+        result))))
+
+
+;;;
+;;; Whether to enable grafts.
+;;;
+
+(define %graft?
+  ;; Whether to honor package grafts by default.
+  (make-parameter #t))
+
+(define (call-without-grafting thunk)
+  (lambda (store)
+    (values (parameterize ((%graft? #f))
+              (run-with-store store (thunk)))
+            store)))
+
+(define-syntax-rule (without-grafting mexp ...)
+  "Bind monadic expressions MEXP in a dynamic extent where '%graft?' is
+false."
+  (call-without-grafting (lambda () (mbegin %store-monad mexp ...))))
+
+(define-inlinable (set-grafting enable?)
+  ;; This monadic procedure enables grafting when ENABLE? is true, and
+  ;; disables it otherwise.  It returns the previous setting.
+  (lambda (store)
+    (values (%graft? enable?) store)))
+
+(define-inlinable (grafting?)
+  ;; Return a Boolean indicating whether grafting is enabled.
+  (lambda (store)
+    (values (%graft?) store)))
+
+
+;;;
+;;; Store paths.
+;;;
+
+(define %store-prefix
+  ;; Absolute path to the Nix store.
+  (make-parameter %store-directory))
+
+(define (compressed-hash bv size)                 ; `compressHash'
+  "Given the hash stored in BV, return a compressed version thereof that fits
+in SIZE bytes."
+  (define new (make-bytevector size 0))
+  (define old-size (bytevector-length bv))
+  (let loop ((i 0))
+    (if (= i old-size)
+        new
+        (let* ((j (modulo i size))
+               (o (bytevector-u8-ref new j)))
+          (bytevector-u8-set! new j
+                              (logxor o (bytevector-u8-ref bv i)))
+          (loop (+ 1 i))))))
+
+(define (make-store-path type hash name)          ; makeStorePath
+  "Return the store path for NAME/HASH/TYPE."
+  (let* ((s (string-append type ":sha256:"
+                           (bytevector->base16-string hash) ":"
+                           (%store-prefix) ":" name))
+         (h (sha256 (string->utf8 s)))
+         (c (compressed-hash h 20)))
+    (string-append (%store-prefix) "/"
+                   (bytevector->nix-base32-string c) "-"
+                   name)))
+
+(define (output-path output hash name)            ; makeOutputPath
+  "Return an output path for OUTPUT (the name of the output as a string) of
+the derivation called NAME with hash HASH."
+  (make-store-path (string-append "output:" output) hash
+                   (if (string=? output "out")
+                       name
+                       (string-append name "-" output))))
+
+(define* (fixed-output-path name hash
+                            #:key
+                            (output "out")
+                            (hash-algo 'sha256)
+                            (recursive? #t))
+  "Return an output path for the fixed output OUTPUT defined by HASH of type
+HASH-ALGO, of the derivation NAME.  RECURSIVE? has the same meaning as for
+'add-to-store'."
+  (if (and recursive? (eq? hash-algo 'sha256))
+      (make-store-path "source" hash name)
+      (let ((tag (string-append "fixed:" output ":"
+                                (if recursive? "r:" "")
+                                (symbol->string hash-algo) ":"
+                                (bytevector->base16-string hash) ":")))
+        (make-store-path (string-append "output:" output)
+                         (sha256 (string->utf8 tag))
+                         name))))
+
+(define (store-path? path)
+  "Return #t if PATH is a store path.
+
+This is a lightweight check.  Use 'valid-path-syntax?' to validate untrusted
+input."
+  ;; This is a lightweight check, compared to using a regexp, but this has to
+  ;; be fast as it's called often in `derivation', for instance.
+  ;; `isStorePath' in Nix does something similar.
+  (string-prefix? (%store-prefix) path))
+
+(define (direct-store-path? path)
+  "Return #t if PATH is a store path, and not a sub-directory of a store path.
+This predicate is sometimes needed because files *under* a store path are not
+valid inputs."
+  (and (store-path? path)
+       (not (string=? path (%store-prefix)))
+       (let ((len (+ 1 (string-length (%store-prefix)))))
+         (not (string-index (substring path len) #\/)))))
+
+(define (direct-store-path path)
+  "Return the direct store path part of PATH, stripping components after
+'/gnu/store/xxxx-foo'."
+  (let ((prefix-length (+ (string-length (%store-prefix)) 35)))
+    (if (> (string-length path) prefix-length)
+        (let ((slash (string-index path #\/ prefix-length)))
+          (if slash (string-take path slash) path))
+        path)))
+
+(define (derivation-path? path)
+  "Return #t if PATH is a derivation path."
+  (and (direct-store-path? path) (string-suffix? ".drv" path)))
+
+(define (store-path-base path)
+  "Return the base path of a path in the store."
+  (and (string-prefix? (%store-prefix) path)
+       (let ((base (string-drop path (+ 1 (string-length (%store-prefix))))))
+         (and (> (string-length base) 33)
+              (not (string-index base #\/))
+              base))))
+
+(define %store-item-charset
+  ;; Valid characters for the name of a store item.
+  (string->char-set (string-append "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                                   "abcdefghijklmnopqrstuvwxyz"
+                                   "0123456789" "+-._?=")))
+
+(define (valid-store-name? name)
+  "Return true if NAME is syntactically a valid store file name--i.e., a name
+that would be accepted by 'add-to-store' & co."
+  ;; Like 'checkStoreName'.
+  (and (not (string-null? name))
+       (not (string-prefix? "." name))
+       (string-every %store-item-charset name)))
+
+(define (valid-path-basename-syntax? item)
+  "Return true if ITEM has a valid syntax as the basename of a store item."
+  (define hash-len 32)
+
+  (and (> (string-length item) (+ hash-len 1))
+       (string-every %nix-base32-charset item 0 hash-len)
+       (eqv? (string-ref item hash-len) #\-)
+       (valid-store-name? (string-drop item (+ hash-len 1)))))
+
+(define (valid-path-syntax? path)
+  "Return true if PATH is syntactically a valid store path.  Unlike
+'store-path?', this can be used to validate untrusted input.
+
+This must not be confused with 'valid-path?'."
+  (define prefix-len
+    (string-length (%store-prefix)))
+
+  (and (> (string-length path) (+ prefix-len 1))
+       (string-prefix? (%store-prefix) path)
+       (eq? (string-ref path prefix-len) #\/)
+       (valid-path-basename-syntax? (string-drop path (+ prefix-len 1)))))
+
+(define (store-path-package-name path)
+  "Return the package name part of PATH, a file name in the store."
+  (let ((base (store-path-base path)))
+    (string-drop base (+ 32 1)))) ;32 hash part + 1 hyphen
+
+(define (store-path-hash-part path)
+  "Return the hash part of PATH as a base32 string, or #f if PATH is not a
+syntactically valid store path."
+  (match (store-path-base path)
+    (#f #f)
+    (base
+     (let ((hash (string-take base 32)))
+       (and (string-every %nix-base32-charset hash)
+            hash)))))
+
+(define (derivation-log-file drv)
+  "Return the build log file for DRV, a derivation file name, or #f if it
+could not be found."
+  (let* ((base    (basename drv))
+         (log     (string-append (or (getenv "GUIX_LOG_DIRECTORY")
+                                     (string-append %localstatedir "/log/guix"))
+                                 "/drvs/"
+                                 (string-take base 2) "/"
+                                 (string-drop base 2)))
+         (log.gz  (string-append log ".gz"))
+         (log.bz2 (string-append log ".bz2")))
+    (cond ((file-exists? log.gz) log.gz)
+          ((file-exists? log.bz2) log.bz2)
+          ((file-exists? log) log)
+          (else #f))))
+
+(define (log-file store file)
+  "Return the build log file for FILE, or #f if none could be found.  FILE
+must be an absolute store file name, or a derivation file name."
+  (cond ((derivation-path? file)
+         (derivation-log-file file))
+        (else
+         (match (valid-derivers store file)
+           ((derivers ...)
+            ;; Return the first that works.
+            (any (cut log-file store <>) derivers))
+           (_ #f)))))
+
+;;; Local Variables:
+;;; eval: (put 'system-error-to-connection-error 'scheme-indent-function 1)
+;;; End:

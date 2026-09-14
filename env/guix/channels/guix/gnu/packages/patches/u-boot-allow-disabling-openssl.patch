@@ -1,0 +1,151 @@
+From: Vagrant Cascadian <vagrant@debian.org>
+Date: Fri, 22 Oct 2021 17:34:53 -0700
+Subject: [PATCH] Revert "tools: kwbimage: Do not hide usage of secure header
+ under CONFIG_ARMADA_38X"
+
+This reverts commit b4f3cc2c42d97967a3a3c8796c340f6b07ecccac.
+
+Addendum 2022-12-08, Ricardo Wurmus: This patch has been updated to introduce
+CONFIG_FIT_PRELOAD to remove fit_pre_load_data, which depends on openssl.
+
+Addendum 2024-01-18, Herman Rimm: Patch updated to leave out upstreamed
+diffs with CONFIG_FIT_PRELOAD.
+---
+Fixes build of U-Boot v2021.10 without openssl.  See:
+https://lists.denx.de/pipermail/u-boot/2021-October/462728.html
+
+diff --git a/tools/kwbimage.c b/tools/kwbimage.c
+index 4dce495ff0..976174ae77 100644
+--- a/tools/kwbimage.c
++++ b/tools/kwbimage.c
+@@ -19,6 +19,7 @@
+ #include <stdint.h>
+ #include "kwbimage.h"
+ 
++#ifdef CONFIG_KWB_SECURE
+ #include <openssl/bn.h>
+ #include <openssl/rsa.h>
+ #include <openssl/pem.h>
+@@ -44,6 +45,7 @@ void EVP_MD_CTX_cleanup(EVP_MD_CTX *ctx)
+ 	EVP_MD_CTX_reset(ctx);
+ }
+ #endif
++#endif
+ 
+ /* fls - find last (most-significant) bit set in 4-bit integer */
+ static inline int fls4(int num)
+@@ -62,7 +64,9 @@ static inline int fls4(int num)
+ 
+ static struct image_cfg_element *image_cfg;
+ static int cfgn;
++#ifdef CONFIG_KWB_SECURE
+ static int verbose_mode;
++#endif
+ 
+ struct boot_mode {
+ 	unsigned int id;
+@@ -281,6 +285,8 @@ image_count_options(unsigned int optiontype)
+ 	return count;
+ }
+ 
++#if defined(CONFIG_KWB_SECURE)
++
+ static int image_get_csk_index(void)
+ {
+ 	struct image_cfg_element *e;
+@@ -291,6 +297,7 @@ static int image_get_csk_index(void)
+ 
+ 	return e->csk_idx;
+ }
++#endif
+ 
+ static bool image_get_spezialized_img(void)
+ {
+@@ -435,6 +442,7 @@ static uint8_t baudrate_to_option(unsigned int baudrate)
+ 	}
+ }
+ 
++#if defined(CONFIG_KWB_SECURE)
+ static void kwb_msg(const char *fmt, ...)
+ {
+ 	if (verbose_mode) {
+@@ -929,6 +937,7 @@ static int kwb_dump_fuse_cmds(struct secure_hdr_v1 *sec_hdr)
+ done:
+ 	return ret;
+ }
++#endif
+ 
+ static int image_fill_xip_header(void *image, struct image_tool_params *params)
+ {
+@@ -1149,13 +1158,13 @@ static size_t image_headersz_v1(int *hasext)
+ 	int ret;
+ 
+ 	headersz = sizeof(struct main_hdr_v1);
+-
++#if defined(CONFIG_KWB_SECURE)
+ 	if (image_get_csk_index() >= 0) {
+ 		headersz += sizeof(struct secure_hdr_v1);
+ 		if (hasext)
+ 			*hasext = 1;
+ 	}
+-
++#endif
+ 	cpu_sheeva = image_is_cpu_sheeva();
+ 
+ 	count = 0;
+@@ -1351,6 +1360,7 @@ err_close:
+ 	return -1;
+ }
+ 
++#if defined(CONFIG_KWB_SECURE)
+ static int export_pub_kak_hash(RSA *kak, struct secure_hdr_v1 *secure_hdr)
+ {
+ 	FILE *hashf;
+@@ -1458,6 +1468,7 @@ static int add_secure_header_v1(struct image_tool_params *params, uint8_t *image
+ 
+ 	return 0;
+ }
++#endif
+ 
+ static void finish_register_set_header_v1(uint8_t **cur, uint8_t **next_ext,
+ 					  struct register_set_hdr_v1 *register_set_hdr,
+@@ -1481,7 +1492,9 @@ static void *image_create_v1(size_t *dataoff, struct image_tool_params *params,
+ 	struct image_cfg_element *e;
+ 	struct main_hdr_v1 *main_hdr;
+ 	struct register_set_hdr_v1 *register_set_hdr;
++#if defined(CONFIG_KWB_SECURE)
+ 	struct secure_hdr_v1 *secure_hdr = NULL;
++#endif
+ 	size_t headersz;
+ 	uint8_t *image, *cur;
+ 	int hasext = 0;
+@@ -1562,7 +1575,7 @@ static void *image_create_v1(size_t *dataoff, struct image_tool_params *params,
+ 		}
+ 		*dataoff = le32_to_cpu(main_hdr->srcaddr);
+ 	}
+-
++#if defined(CONFIG_KWB_SECURE)
+ 	if (image_get_csk_index() >= 0) {
+ 		/*
+ 		 * only reserve the space here; we fill the header later since
+@@ -1573,7 +1586,7 @@ static void *image_create_v1(size_t *dataoff, struct image_tool_params *params,
+ 		*next_ext = 1;
+ 		next_ext = &secure_hdr->next;
+ 	}
+-
++#endif
+ 	datai = 0;
+ 	for (cfgi = 0; cfgi < cfgn; cfgi++) {
+ 		e = &image_cfg[cfgi];
+@@ -1624,9 +1637,11 @@ static void *image_create_v1(size_t *dataoff, struct image_tool_params *params,
+ 					      &datai, delay);
+ 	}
+ 
++#if defined(CONFIG_KWB_SECURE)
+ 	if (secure_hdr && add_secure_header_v1(params, ptr + *dataoff, payloadsz,
+ 					       image, headersz, secure_hdr))
+ 		return NULL;
++#endif
+ 
+ 	/* Calculate and set the header checksum */
+ 	main_hdr->checksum = image_checksum8(main_hdr, headersz);

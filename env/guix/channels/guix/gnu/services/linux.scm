@@ -1,0 +1,1377 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2020 Maxim Cournoyer <maxim@guixotic.coop>
+;;; Copyright © 2020 Brice Waegeneire <brice@waegenei.re>
+;;; Copyright © 2020, 2023 Efraim Flashner <efraim@flashner.co.il>
+;;; Copyright © 2021 raid5atemyhomework <raid5atemyhomework@protonmail.com>
+;;; Copyright © 2021 B. Wilson <elaexuotee@wilsonb.com>
+;;; Copyright © 2022 Josselin Poiret <dev@jpoiret.xyz>
+;;; Copyright © 2023 Bruno Victal <mirai@makinata.eu>
+;;; Copyright © 2023 Felix Lechner <felix.lechner@lease-up.com>
+;;; Copyright © 2025 Edouard Klein <edk@beaver-labs.com>
+;;; Copyright © 2026 Giacomo Leidi <therewasa@fishinthecalculator.me>
+;;; Copyright © 2026 Joan Vilardaga Castro <codeberg-hn80@joanvc.cat>
+;;; Copyright © 2026 Arjan Adriaanse <arjan@adriaan.se>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (gnu services linux)
+  #:use-module (guix diagnostics)
+  #:use-module (guix gexp)
+  #:use-module (guix records)
+  #:use-module (guix modules)
+  #:use-module (guix i18n)
+  #:use-module (guix packages)
+  #:use-module (guix ui)
+  #:use-module (gnu services)
+  #:use-module (gnu services admin)
+  #:use-module (gnu services base)
+  #:use-module (gnu services configuration)
+  #:use-module (gnu services dbus)
+  #:use-module (gnu services shepherd)
+  #:use-module (gnu system file-systems)
+  #:use-module (gnu packages base)
+  #:use-module (gnu packages linux)
+  #:use-module (gnu packages power)
+  #:use-module (gnu packages file-systems)
+  #:use-module (srfi srfi-1)
+  #:use-module (srfi srfi-26)
+  #:use-module (srfi srfi-34)
+  #:use-module (srfi srfi-35)
+  #:use-module (srfi srfi-171)
+  #:use-module (ice-9 format)
+  #:use-module (ice-9 match)
+  #:use-module (ice-9 string-fun)
+  #:export (btrfs-scrub-configuration
+            btrfs-scrub-service-type
+
+            earlyoom-configuration
+            earlyoom-configuration?
+            earlyoom-configuration-earlyoom
+            earlyoom-configuration-minimum-available-memory
+            earlyoom-configuration-minimum-free-swap
+            earlyoom-configuration-prefer-regexp
+            earlyoom-configuration-avoid-regexp
+            earlyoom-configuration-memory-report-interval
+            earlyoom-configuration-ignore-positive-oom-score-adj?
+            earlyoom-configuration-show-debug-messages?
+            earlyoom-configuration-send-notification-command
+            earlyoom-service-type
+
+            fstrim-configuration
+            fstrim-configuration?
+            fstrim-configuration-package
+            fstrim-configuration-schedule
+            fstrim-configuration-listed-in
+            fstrim-configuration-verbose?
+            fstrim-configuration-quiet-unsupported?
+            fstrim-configuration-extra-arguments
+            fstrim-service-type
+
+            kernel-module-loader-service-type
+
+            cachefilesd-configuration
+            cachefilesd-configuration?
+            cachefilesd-configuration-cachefilesd
+            cachefilesd-configuration-debug-output?
+            cachefilesd-configuration-use-syslog?
+            cachefilesd-configuration-scan?
+            cachefilesd-configuration-cache-directory
+            cachefilesd-configuration-cache-name
+            cachefilesd-configuration-security-context
+            cachefilesd-configuration-pause-culling-for-block-percentage
+            cachefilesd-configuration-pause-culling-for-file-percentage
+            cachefilesd-configuration-resume-culling-for-block-percentage
+            cachefilesd-configuration-resume-culling-for-file-percentage
+            cachefilesd-configuration-pause-caching-for-block-percentage
+            cachefilesd-configuration-pause-caching-for-file-percentage
+            cachefilesd-configuration-log2-table-size
+            cachefilesd-configuration-cull?
+            cachefilesd-configuration-trace-function-entry-in-kernel-module
+            cachefilesd-configuration-trace-function-exit-in-kernel-module
+            cachefilesd-configuration-trace-internal-checkpoints-in-kernel-module
+            cachefilesd-service-type
+
+            rasdaemon-configuration
+            rasdaemon-configuration?
+            rasdaemon-configuration-record?
+            rasdaemon-service-type
+
+            %default-tuned-configuration-recommend.conf
+            %default-tuned-ppd-settings-battery
+            %default-tuned-ppd-settings-profiles
+
+            tuned-configuration
+            tuned-configuration?
+            tuned-configuration-fields
+            tuned-configuration-tuned
+            tuned-configuration-auto-start?
+            tuned-configuration-power-profiles-daemon-support?
+            tuned-configuration-profiles
+            tuned-configuration-settings
+            tuned-configuration-ppd-settings
+            tuned-configuration-recommend.conf
+
+            tuned-settings
+            tuned-settings?
+            tuned-settings-fields
+            tuned-settings-daemon?
+            tuned-settings-dynamic-tuning?
+            tuned-settings-default-instance-priority
+            tuned-settings-recommend-command?
+            tuned-settings-sleep-interval
+            tuned-settings-update-interval
+            tuned-settings-profile-dirs
+            tuned-settings-extra-content
+
+            tuned-ppd-settings
+            tuned-ppd-settings?
+            tuned-ppd-settings-fields
+            tuned-ppd-settings-default
+            tuned-ppd-settings-battery-detection?
+            tuned-ppd-settings-sysfs-acpi-monitor?
+            tuned-ppd-settings-profiles
+            tuned-ppd-settings-battery
+            tuned-ppd-settings-extra-content
+
+            tuned-file-systems
+            tuned-activation
+            tuned-shepherd-services
+
+            tuned-service-type
+
+            zram-device-configuration
+            zram-device-configuration?
+            zram-device-configuration-size
+            zram-device-configuration-compression-algorithm
+            zram-device-configuration-memory-limit
+            zram-device-configuration-priority
+            zram-device-service-type
+
+            vfs-mapping-service-type
+            vfs-mapping-configuration
+            vfs-mapping))
+
+
+;;;
+;;; BTRFS scrub.
+;;;
+
+(define (btrfs-scrub-shepherd-calendar-event? x)
+  (or (string? x) (gexp? x)))
+
+(define-maybe string (prefix btrfs-scrub-))
+
+(define-maybe list-of-strings (prefix btrfs-scrub-))
+
+(define (btrfs-scrub-serialize-string field-name value)
+  (if (maybe-value-set? value)
+   (list value) '()))
+
+(define (btrfs-scrub-serialize-list-of-strings field-name value)
+  (if (maybe-value-set? value)
+    value '()))
+
+(define-configuration btrfs-scrub-configuration
+  (package
+    (file-like btrfs-progs)
+    "The package providing the @command{btrfs} command." empty-serializer)
+  (schedule (btrfs-scrub-shepherd-calendar-event "0 0 1-7 * 0")
+   "Schedule for launching @command{btrfs-scrub}, expressed as a string in
+traditional cron syntax or as a gexp evaluating to a Shepherd calendar
+event (@pxref{Timers,,, shepherd, The GNU Shepherd Manual}).  By default this
+is set to run the 1st Sunday of the month, at 00:00."
+   empty-serializer)
+  ;; The following are btrfs-scrub-related options.
+  (to-scrub (maybe-string "/")
+            "Device to scrub.  It will scrub the root (\"/\") if not given.")
+  (extra-arguments maybe-list-of-strings
+   "Extra options to append to @command{btrfs scrub start}
+   (run @samp{man btrfs-scrub} for more information).  Keep in mind that,
+   by default, this service uses the @option{-B} flag (do not background and
+   print scrub statistics when finished).")
+  (prefix btrfs-scrub-))
+
+(define (serialize-btrfs-scrub-configuration config)
+  (list-transduce (compose (base-transducer config) tconcatenate)
+                   rcons
+                   btrfs-scrub-configuration-fields))
+
+
+(define (btrfs-scrub-template-action-procedure btrfs-bin cmd-args to-scrub)
+  "Template procedure to call the btrfs command, print it's outputs and return
+it's exit code.  Taken from
+https://www.gnu.org/software/guile/manual/html_node/Processes.html#index-spawn"
+  #~(lambda (_ . args)
+      (let* ((stdout-in-out (pipe)) (stderr-in-out (pipe))
+       (argv (append (list #$btrfs-bin) '#$cmd-args '(#$to-scrub)))
+       (pid (spawn #$btrfs-bin argv
+             #:output (cdr stdout-in-out)
+             #:error (cdr stderr-in-out))))
+       (close-port (cdr stdout-in-out))
+       (close-port (cdr stderr-in-out))
+       (display (get-string-all (car stdout-in-out)))
+       ;; Redirect stderr to stdout to make it printable for "herd"
+       (display (get-string-all (car stderr-in-out)))
+       (close-port (car stdout-in-out))
+       (close-port (car stderr-in-out))
+       (let* ((status (waitpid pid)) (exit-val (status:exit-val (cdr status))))
+       (= EXIT_SUCCESS exit-val)))))
+
+
+(define (btrfs-scrub-status-action-procedure btrfs-bin to-scrub)
+  "Return a procedure to check the status of the current BTRFS scrub."
+  (btrfs-scrub-template-action-procedure btrfs-bin '("scrub" "status") to-scrub))
+
+(define (btrfs-scrub-cancel-action-procedure btrfs-bin to-scrub)
+  "Return a procedure to always cancel the current BTRFS scrub."
+  (btrfs-scrub-template-action-procedure btrfs-bin '("scrub" "cancel") to-scrub))
+
+(define (btrfs-scrub-extra-actions btrfs-bin to-scrub)
+  (list shepherd-trigger-action
+        (shepherd-action (name 'scrub-status)
+                         (documentation
+                          "Print the status of the scrubing process.")
+                         (procedure (btrfs-scrub-status-action-procedure
+                                     btrfs-bin
+                                     to-scrub)))
+        (shepherd-action (name 'cancel)
+                         (documentation
+                          "Cancel the current scrub (it's an alias for stop).")
+                         (procedure (btrfs-scrub-cancel-action-procedure
+                                     btrfs-bin
+                                     to-scrub)))))
+
+
+(define (btrfs-scrub-shepherd-services config)
+  (match-record config <btrfs-scrub-configuration>
+    (package schedule to-scrub)
+    (let ((btrfs-bin (file-append package "/bin/btrfs")))
+    (list (shepherd-service
+           (provision (list (string->symbol (string-append "btrfs-scrub-" to-scrub))))
+           (requirement '(user-processes))
+           (modules '((shepherd service timer)
+                      (ice-9 popen)
+                      (ice-9 textual-ports)))
+           (start #~(make-timer-constructor
+                     #$(if (string? schedule)
+                            #~(cron-string->calendar-event #$schedule)
+                            schedule)
+                     (command (list #$btrfs-bin
+                                    "scrub"
+                                    "start"
+                                    "-B"
+                                    #$@(serialize-btrfs-scrub-configuration config)))
+                     #:wait-for-termination? #t))
+           (stop (btrfs-scrub-cancel-action-procedure btrfs-bin to-scrub))
+           (documentation "Periodically run the 'btrfs-scrub' command.")
+           (actions (btrfs-scrub-extra-actions btrfs-bin to-scrub)))))))
+
+
+(define btrfs-scrub-service-type
+  (service-type (name 'btrfs-scrub)
+                (extensions (list (service-extension
+                                   shepherd-root-service-type
+                                   btrfs-scrub-shepherd-services)))
+                (description
+                 "Verify the block checksums of a BTRFS filesystem.")
+                (default-value (btrfs-scrub-configuration))))
+
+
+;;;
+;;; Early OOM daemon.
+;;;
+
+(define-record-type* <earlyoom-configuration>
+  earlyoom-configuration make-earlyoom-configuration
+  earlyoom-configuration?
+  (earlyoom earlyoom-configuration-earlyoom
+            (default earlyoom))
+  (minimum-available-memory earlyoom-configuration-minimum-available-memory
+                            (default 10)) ; in percent
+  (minimum-free-swap earlyoom-configuration-minimum-free-swap
+                     (default 10))      ; in percent
+  (prefer-regexp earlyoom-configuration-prefer-regexp ; <string>
+                 (default #f))
+  (avoid-regexp earlyoom-configuration-avoid-regexp  ; <string>
+                (default #f))
+  (memory-report-interval earlyoom-configuration-memory-report-interval
+                          (default 0)) ; in seconds; 0 means disabled
+  (ignore-positive-oom-score-adj?
+   earlyoom-configuration-ignore-positive-oom-score-adj? (default #f))
+  (run-with-higher-priority? earlyoom-configuration-run-with-higher-priority?
+                             (default #f))
+  (show-debug-messages? earlyoom-configuration-show-debug-messages?
+                        (default #f))
+  (send-notification-command
+   earlyoom-configuration-send-notification-command  ; <string>
+   (default #f)))
+
+(define (earlyoom-configuration->command-line-args config)
+  "Translate a <earlyoom-configuration> object to its command line arguments
+representation."
+  (match config
+    (($ <earlyoom-configuration> earlyoom minimum-available-memory
+                                 minimum-free-swap prefer-regexp avoid-regexp
+                                 memory-report-interval
+                                 ignore-positive-oom-score-adj?
+                                 run-with-higher-priority? show-debug-messages?
+                                 send-notification-command)
+     `(,(file-append earlyoom "/bin/earlyoom")
+       ,@(if minimum-available-memory
+             (list "-m" (format #f "~s" minimum-available-memory))
+             '())
+       ,@(if minimum-free-swap
+             (list "-s" (format #f "~s" minimum-free-swap))
+             '())
+       ,@(if prefer-regexp
+             (list "--prefer" prefer-regexp)
+             '())
+       ,@(if avoid-regexp
+             (list "--avoid" avoid-regexp)
+             '())
+       "-r" ,(format #f "~s" memory-report-interval)
+       ,@(if ignore-positive-oom-score-adj?
+             (list "-i")
+             '())
+       ,@(if run-with-higher-priority?
+             (list "-p")
+             '())
+       ,@(if show-debug-messages?
+             (list "-d")
+             '())
+       ,@(if send-notification-command
+             (list "-N" send-notification-command)
+             '())))))
+
+(define (earlyoom-shepherd-service config)
+  (shepherd-service
+   (documentation "Run the Early OOM daemon.")
+   (provision '(earlyoom))
+   (requirement '(user-processes))
+   (start #~(make-forkexec-constructor
+             '#$(earlyoom-configuration->command-line-args config)
+             #:log-file "/var/log/earlyoom.log"))
+   (stop #~(make-kill-destructor))))
+
+(define earlyoom-service-type
+  (service-type
+   (name 'earlyoom)
+   (default-value (earlyoom-configuration))
+   (extensions
+    (list (service-extension shepherd-root-service-type
+                             (compose list earlyoom-shepherd-service))))
+   (description "Run @command{earlyoom}, a daemon that quickly responds to
+@acronym{OOM, out-of-memory} conditions by terminating relevant processes.")))
+
+
+;;;
+;;; fstrim
+;;;
+
+(define (fstrim-shepherd-calendar-event? x)
+  (or (string? x) (gexp? x)))
+
+(define-maybe list-of-strings (prefix fstrim-))
+
+(define (fstrim-serialize-boolean field-name value)
+  (list (format #f "~:[~;--~a~]" value
+                ;; Drop trailing '?' character.
+                (string-drop-right (symbol->string field-name) 1))))
+
+(define (fstrim-serialize-list-of-strings field-name value)
+  (list (string-append "--" (symbol->string field-name))
+        #~(string-join '#$value ":")))
+
+(define-configuration fstrim-configuration
+  (package
+    (file-like util-linux)
+    "The package providing the @command{fstrim} command."
+    empty-serializer)
+  (schedule
+   (fstrim-shepherd-calendar-event "0 0 * * 0")
+   "Schedule for launching @command{fstrim}, expressed as a string in
+traditional cron syntax or as a gexp evaluating to a Shepherd calendar
+event (@pxref{Timers,,, shepherd, The GNU Shepherd Manual}).  By default this
+is set to run weekly on Sunday at 00:00."
+   empty-serializer)
+  ;; The following are fstrim-related options.
+  (listed-in
+   (maybe-list-of-strings '("/etc/fstab" "/proc/self/mountinfo"))
+   ;; Note: documentation sourced from the fstrim manpage.
+   "List of files in fstab or kernel mountinfo format.  All missing or
+empty files are silently ignored.  The evaluation of the list @emph{stops}
+after the first non-empty file.  File systems with @code{X-fstrim.notrim} mount
+option in fstab are skipped.")
+  (verbose?
+   (boolean #t)
+   "Verbose execution.")
+  (quiet-unsupported?
+   (boolean #t)
+   "Suppress error messages if trim operation (ioctl) is unsupported.")
+  (extra-arguments
+   maybe-list-of-strings
+   "Extra options to append to @command{fstrim} (run @samp{man fstrim} for
+more information)."
+   (serializer
+    (lambda (_ value)
+      (if (maybe-value-set? value)
+          value '()))))
+  (prefix fstrim-))
+
+(define (serialize-fstrim-configuration config)
+  (list-transduce (compose (base-transducer config) tconcatenate)
+                  rcons
+                  fstrim-configuration-fields))
+
+(define (fstrim-shepherd-services config)
+  (match-record config <fstrim-configuration>
+    (package schedule)
+    (list (shepherd-service
+           (provision '(fstrim))
+           (requirement '(user-processes))
+           (modules '((shepherd service timer)))
+           (start #~(make-timer-constructor
+                     #$(if (string? schedule)
+                           #~(cron-string->calendar-event #$schedule)
+                           schedule)
+                     (command
+                      (list #$(file-append package "/sbin/fstrim")
+                            #$@(serialize-fstrim-configuration config)))
+                     #:wait-for-termination? #t))
+           (stop #~(make-timer-destructor))
+           (documentation "Periodically run the 'fstrim' command.")
+           (actions (list shepherd-trigger-action))))))
+
+(define fstrim-service-type
+  (service-type
+   (name 'fstrim)
+   (extensions
+    (list (service-extension shepherd-root-service-type
+                             fstrim-shepherd-services)))
+   (description "Discard unused blocks from file systems.")
+   (default-value (fstrim-configuration))))
+
+
+;;;
+;;; Kernel module loader.
+;;;
+
+(define kernel-module-loader-shepherd-service
+  (match-lambda
+    ((and (? list? kernel-modules) ((? string?) ...))
+     (shepherd-service
+      (documentation "Load kernel modules.")
+      (provision '(kernel-module-loader))
+      (requirement '(udev))
+      (one-shot? #t)
+      (modules `((srfi srfi-1)
+                 (srfi srfi-34)
+                 (srfi srfi-35)
+                 (rnrs io ports)
+                 ,@%default-modules))
+      (start
+       #~(lambda _
+           (cond
+            ((null? '#$kernel-modules) #t)
+            ((file-exists? "/proc/sys/kernel/modprobe")
+             (let ((modprobe (call-with-input-file
+                                 "/proc/sys/kernel/modprobe" get-line)))
+               (guard (c ((message-condition? c)
+                          (format (current-error-port) "~a~%"
+                                  (condition-message c))
+                          #f))
+                 (every (lambda (module)
+                          (invoke/quiet modprobe "--" module))
+                        '#$kernel-modules))))
+            (else
+             (format (current-error-port) "error: ~a~%"
+                     "Kernel is missing loadable module support.")
+             #f))))))))
+
+(define kernel-module-loader-service-type
+  (service-type
+   (name 'kernel-module-loader)
+   (description "Load kernel modules.")
+   (extensions
+    (list (service-extension shepherd-root-service-type
+                             (compose list kernel-module-loader-shepherd-service))))
+   (compose concatenate)
+   (extend append)
+   (default-value '())))
+
+
+;;;
+;;; Cachefilesd, an FS-Cache daemon
+;;;
+
+(define (serialize-string variable-symbol value)
+  #~(format #f "~a ~a~%" #$(symbol->string variable-symbol) #$value))
+
+(define-maybe string)
+
+(define (non-negative-integer? val)
+  (and (exact-integer? val) (not (negative? val))))
+
+(define (serialize-non-negative-integer variable-symbol value)
+  #~(format #f "~a ~d~%" #$(symbol->string variable-symbol) #$value))
+
+(define-maybe non-negative-integer)
+
+(define (make-option-serializer option-symbol)
+  (lambda (variable-symbol text)
+    (if (maybe-value-set? text)
+        #~(format #f "~a ~a~%" #$(symbol->string option-symbol) #$text)
+        "")))
+
+(define (make-percentage-threshold-serializer threshold-symbol)
+  (lambda (variable-symbol percentage)
+    (if (maybe-value-set? percentage)
+        #~(format #f "~a ~a%~%" #$(symbol->string threshold-symbol) #$percentage)
+        "")))
+
+(define-configuration cachefilesd-configuration
+  (cachefilesd
+   (file-like cachefilesd)
+   "The cachefilesd package to use."
+   (serializer empty-serializer))
+
+  ;; command-line options
+  (debug-output?
+   (boolean #f)
+   "Print debugging output to stderr."
+   (serializer empty-serializer))
+
+  (use-syslog?
+   (boolean #t)
+   "Log to syslog facility instead of stdout."
+   (serializer empty-serializer))
+
+  ;; culling is part of the configuration file
+  ;; despite the name of the command-line option
+  (scan?
+   (boolean #t)
+   "Scan for cacheable objects."
+   (serializer empty-serializer))
+
+  ;; sole required field in the configuration file
+  (cache-directory
+   maybe-string
+   "Location of the cache directory."
+   (serializer (make-option-serializer 'dir)))
+
+  (cache-name
+   (maybe-string "CacheFiles")
+   "Name of cache (keep unique)."
+   (serializer (make-option-serializer 'tag)))
+
+  (security-context
+   maybe-string
+   "SELinux security context."
+   (serializer (make-option-serializer 'secctx)))
+
+  ;; percentage thresholds in the configuration file
+  (pause-culling-for-block-percentage
+   (maybe-non-negative-integer 7)
+   "Pause culling when available blocks exceed this percentage."
+   (serializer (make-percentage-threshold-serializer 'brun)))
+
+  (pause-culling-for-file-percentage
+   (maybe-non-negative-integer 7)
+   "Pause culling when available files exceed this percentage."
+   (serializer (make-percentage-threshold-serializer 'frun)))
+
+  (resume-culling-for-block-percentage
+   (maybe-non-negative-integer 5)
+   "Start culling when available blocks drop below this percentage."
+   (serializer (make-percentage-threshold-serializer 'bcull)))
+
+  (resume-culling-for-file-percentage
+   (maybe-non-negative-integer 5)
+   "Start culling when available files drop below this percentage."
+   (serializer (make-percentage-threshold-serializer 'fcull)))
+
+  (pause-caching-for-block-percentage
+   (maybe-non-negative-integer 1)
+   "Pause further allocations when available blocks drop below this percentage."
+   (serializer (make-percentage-threshold-serializer 'bstop)))
+
+  (pause-caching-for-file-percentage
+   (maybe-non-negative-integer 1)
+   "Pause further allocations when available files drop below this percentage."
+   (serializer (make-percentage-threshold-serializer 'fstop)))
+
+  ;; run time optimizations in the configuration file
+  (log2-table-size
+   (maybe-non-negative-integer 12)
+   "Size of tables holding cullable objects in logarithm of base 2."
+   (serializer (make-option-serializer 'culltable)))
+
+  (cull?
+   (boolean #t)
+   "Create free space by culling (consumes system load)."
+   (serializer
+    (lambda (variable-symbol value)
+      (if value "" "nocull\n"))))
+
+  ;; kernel module debugging in the configuration file
+  (trace-function-entry-in-kernel-module?
+   (boolean #f)
+   "Trace function entry in the kernel module (for debugging)."
+   (serializer empty-serializer))
+
+  (trace-function-exit-in-kernel-module?
+   (boolean #f)
+   "Trace function exit in the kernel module (for debugging)."
+   (serializer empty-serializer))
+
+  (trace-internal-checkpoints-in-kernel-module?
+   (boolean #f)
+   "Trace internal checkpoints in the kernel module (for debugging)."
+   (serializer empty-serializer)))
+
+(define (serialize-cachefilesd-configuration configuration)
+  (mixed-text-file
+   "cachefilesd.conf"
+   (serialize-configuration configuration cachefilesd-configuration-fields)))
+
+(define (cachefilesd-shepherd-service config)
+  "Return a list of <shepherd-service> for cachefilesd for CONFIG."
+  (match-record
+      config <cachefilesd-configuration> (cachefilesd
+                                          debug-output?
+                                          use-syslog?
+                                          scan?
+                                          cache-directory)
+      (let ((configuration-file (serialize-cachefilesd-configuration config)))
+        (shepherd-service
+         (documentation "Run the cachefilesd daemon for FS-Cache.")
+         (provision '(cachefilesd))
+         (requirement (append '(user-processes file-systems)
+                              (if use-syslog? '(syslogd) '())))
+         (start #~(begin
+                    (and=> #$(maybe-value cache-directory) mkdir-p)
+                    (make-forkexec-constructor
+                     `(#$(file-append cachefilesd "/sbin/cachefilesd")
+                       ;; do not detach
+                       "-n"
+                       #$@(if debug-output? '("-d") '())
+                       #$@(if use-syslog? '() '("-s"))
+                       #$@(if scan? '() '("-N"))
+                       "-f" #$configuration-file))))
+         (stop #~(make-kill-destructor))))))
+
+(define cachefilesd-service-type
+  (service-type
+   (name 'cachefilesd)
+   (description
+    "Run the file system cache daemon @command{cachefilesd}, which relies on
+the Linux @code{cachefiles} module.")
+   (extensions
+    (list (service-extension kernel-module-loader-service-type
+                             (const '("cachefiles")))
+          (service-extension shepherd-root-service-type
+                             (compose list cachefilesd-shepherd-service))))
+   (default-value (cachefilesd-configuration))))
+
+
+;;;
+;;; Reliability, Availability, and Serviceability (RAS) daemon
+;;;
+
+(define-record-type* <rasdaemon-configuration>
+  rasdaemon-configuration make-rasdaemon-configuration
+  rasdaemon-configuration?
+  (record? rasdaemon-configuration-record? (default #f)))
+
+(define (rasdaemon-configuration->command-line-args config)
+  "Translate <rasdaemon-configuration> to its command line arguments
+  representation"
+  (let ((record? (rasdaemon-configuration-record? config)))
+    `(,(file-append rasdaemon "/sbin/rasdaemon")
+      "--foreground" ,@(if record? '("--record") '()))))
+
+(define (rasdaemon-activation config)
+  (let ((record? (rasdaemon-configuration-record? config))
+        (rasdaemon-dir "/var/lib/rasdaemon"))
+    (with-imported-modules '((guix build utils))
+      #~(if #$record? (mkdir-p #$rasdaemon-dir)))))
+
+(define (rasdaemon-shepherd-service config)
+  (shepherd-service
+   (documentation "Run rasdaemon")
+   (provision '(rasdaemon))
+   (requirement '(user-processes syslogd))
+   (start #~(make-forkexec-constructor
+             '#$(rasdaemon-configuration->command-line-args config)))
+   (stop #~(make-kill-destructor))))
+
+(define rasdaemon-service-type
+  (service-type
+   (name 'rasdaemon)
+   (default-value (rasdaemon-configuration))
+   (extensions
+    (list (service-extension shepherd-root-service-type
+                             (compose list rasdaemon-shepherd-service))
+          (service-extension activation-service-type rasdaemon-activation)))
+   (compose concatenate)
+   (description "Run @command{rasdaemon}, the RAS monitor")))
+
+
+;;;
+;;; TuneD.
+;;;
+
+(define (uglify-snake-case field-name)
+  "Serializes FIELD-NAME, a field name from @code{(gnu services configuration)},
+to a snake case string representation of the field name.  Trailing @code{?} in
+the name are dropped and @code{-} get replaced by @code{_}.
+
+For example the procedure would convert @code{'A-Field?} to @code{\"a_field\"}."
+  (define str (symbol->string field-name))
+  (string-downcase
+   (string-replace-substring
+    (if (string-suffix? "?" str)
+        (string-drop-right str 1)
+        str)
+    "-" "_")))
+
+(define* (tuned-serialize-pair pair #:key (separator "="))
+  (define (valid? member)
+    (or (string? member)
+        (gexp? member)
+        (file-like? member)))
+  (match pair
+    (((? valid? key) . (? valid? value))
+     #~(string-append #$key #$separator #$value))
+    (_
+     (raise
+      (formatted-message
+       (G_ "pair members must contain only strings, gexps or file-like objects
+but ~a was found")
+       pair)))))
+
+(define* (tuned-ppd-serialize-mixed-list name value #:key (separator " = "))
+  (if (zero? (length value))
+      ""
+      #~(string-append "\n[" #$(uglify-snake-case name) "]\n"
+                       (string-join
+                        (list #$@(map tuned-serialize-pair value)) "\n")
+                       "\n")))
+
+(define (mixed-list? value)
+  ;; Expected spec format:
+  ;; '(("name" . "value") "name=value")
+  (for-each
+   (lambda (el)
+     (cond ((string? el) el)
+           ((pair? el) (tuned-serialize-pair el))
+           (else
+            (raise
+             (formatted-message
+              (G_ "members must be either strings or pairs but ~a was
+found!")
+              el)))))
+   value)
+  #t)
+
+(define (tuned-ppd-serialize-string name value)
+  (format #f "~a=~a" (uglify-snake-case name) value))
+
+(define (tuned-ppd-serialize-boolean name value)
+  (format #f "~a=~a" (uglify-snake-case name) (if value "true" "false")))
+
+(define %default-tuned-ppd-settings-profiles
+  '(("power-saver" . "powersave")
+    ("balanced" . "balanced")
+    ("performance" . "throughput-performance")))
+
+(define %default-tuned-ppd-settings-battery
+  '(("balanced" . "balanced-battery")))
+
+(define-configuration tuned-ppd-settings
+  (default
+    (string "balanced")
+    "Default PPD profile.")
+  (battery-detection?
+    (boolean #t)
+    "Whether to enable battery detection.")
+  (sysfs-acpi-monitor?
+    (boolean #t)
+    "Whether to react to changes of ACPI platform profile done via function keys
+(e.g., Fn-L).  This is marked upstream as an experimental feature.")
+  (profiles
+   (mixed-list %default-tuned-ppd-settings-profiles)
+   "Map of PPD profiles states to TuneD profiles.  It's supposed to be a list of
+pairs, pair members are supposed to be string.  It defaults to
+@code{%default-tuned-ppd-settings-profiles}:
+
+@lisp
+'((\"power-saver\" . \"powersave\")
+  (\"balanced\" . \"balanced\")
+  (\"performance\" . \"throughput-performance\"))
+@end lisp
+
+Elements can be pairs or strings. Pair members can be either strings, gexps or
+file like objects.  Strings are directly passed to the serializer.  This can be
+an escape hatch in case the underlying syntax of the output file changes
+slightly and the Scheme API is not adequated in time.  This way there is always
+a way to work around Scheme records.")
+  (battery
+   (mixed-list %default-tuned-ppd-settings-battery)
+   "Map of PPD battery states to TuneD profiles.  It's supposed to be a list of
+pairs, pair members are supposed to be string.  It defaults to
+@code{%default-tuned-ppd-settings-battery}:
+
+@lisp
+'((\"balanced\" . \"balanced-battery\"))
+@end lisp
+
+Elements can be pairs or strings. Pair members can be either strings, gexps or
+file like objects.  Strings are directly passed to the serializer.  This can be
+an escape hatch in case the underlying syntax of the output file changes
+slightly and the Scheme API is not adequated in time.  This way there is always
+a way to work around Scheme records.")
+  (extra-content
+   (text-config
+    (list (plain-file "tuned-ppd-settings-extra-content" "")))
+   "A list of file-like objects that are appended to the configuration file."
+   (serializer serialize-text-config))
+  (prefix tuned-ppd-))
+
+(define (serialize-tuned-ppd-settings config)
+  (define fields
+    (filter-configuration-fields
+     tuned-ppd-settings-fields
+     '(default battery-detection? sysfs-acpi-monitor? profiles battery
+       extra-content)))
+  (define getters
+    (map configuration-field-getter fields))
+  (define names
+    (map configuration-field-name fields))
+  (define serializers
+    (map configuration-field-serializer fields))
+  (define values
+    (map (match-lambda ((serializer name getter)
+                        (serializer name (getter config))))
+         (zip serializers names getters)))
+
+  (match values
+    ((default battery-detection? sysfs-acpi-monitor? profiles battery
+      extra-content)
+
+     (mixed-text-file "ppd.conf"
+      "[main]\n"
+      (string-append default "\n")
+      (string-append battery-detection? "\n")
+      (string-append sysfs-acpi-monitor? "\n")
+      "\n"
+      profiles
+      battery
+      extra-content
+      "\n"))))
+
+(define (serialize-list-of-profile-dirs name value)
+  (if (zero? (length value))
+      ""
+      #~(string-append
+          #$(uglify-snake-case name) " = " (string-join (list #$@value) ","))))
+
+(define (list-of-profile-dirs? value)
+  (for-each
+   (lambda (el)
+     (unless (or (string? el) (file-like? el))
+       (raise
+        (formatted-message
+         (G_ "tuned-settings profile-dirs members must be either a string
+or a file-like object but ~a was found!")
+         el))))
+   value)
+  #t)
+
+(define tuned-serialize-boolean tuned-ppd-serialize-boolean)
+(define tuned-serialize-integer tuned-ppd-serialize-string)
+
+(define-configuration tuned-settings
+  (daemon?
+   (boolean #t)
+   "Whether to use daemon.  Without daemon TuneD just applies tuning.")
+  (dynamic-tuning?
+   (boolean #f)
+   "Dynamically tune devices, if disabled only static tuning will be used.")
+  (default-instance-priority
+   (integer 0)
+   "Default priority assigned to instances.")
+  (recommend-command?
+   (boolean #t)
+   "Recommend functionality, if disabled @code{recommend} command will be not
+available in CLI, daemon will not parse @file{recommend.conf} but will return
+one hardcoded profile (by default @code{balanced}).")
+  (sleep-interval
+   (integer 1)
+   "How long to sleep before checking for events (in seconds),
+higher number means lower overhead but longer response time.")
+  (update-interval
+   (integer 10)
+   "Update interval for dynamic tunings (in seconds).  It must be a multiple of
+the @code{sleep-interval}.")
+  (profile-dirs
+   (list-of-profile-dirs
+    (list (file-append tuned "/lib/tuned/profiles") "/etc/tuned/profiles"))
+   "List of strings or gexps representing directories to search for
+profiles.  In case of collisions in profile names, the latter directory takes
+precedence."
+   (serializer serialize-list-of-profile-dirs))
+  (extra-content
+   (text-config
+    (list (plain-file "tuned-settings-extra-content" "")))
+   "A list of file-like objects that are appended to the configuration file."
+   (serializer serialize-text-config))
+  (prefix tuned-))
+
+(define (serialize-tuned-settings config)
+  (define fields
+    (filter-configuration-fields
+     tuned-settings-fields
+     '(daemon? dynamic-tuning? default-instance-priority
+       recommend-command? sleep-interval update-interval profile-dirs
+       extra-content)))
+  (define getters
+    (map configuration-field-getter fields))
+  (define names
+    (map configuration-field-name fields))
+  (define serializers
+    (map configuration-field-serializer fields))
+  (define values
+    (map (match-lambda ((serializer name getter)
+                        (serializer name (getter config))))
+         (zip serializers names getters)))
+
+  (match values
+    ((daemon? dynamic-tuning? default-instance-priority
+      recommend-command? sleep-interval update-interval profile-dirs
+      extra-content)
+     (mixed-text-file
+      "tuned-main.conf"
+      (string-append daemon? "\n\n")
+      (string-append dynamic-tuning? "\n\n")
+      (string-append default-instance-priority "\n\n")
+      (string-append recommend-command? "\n\n")
+      (string-append sleep-interval "\n\n")
+      (string-append update-interval "\n\n")
+      profile-dirs
+      extra-content
+      "\n"))))
+
+(define (tuned-plugin? value)
+  (if (and (= 2 (length value))
+           (string? (first value))
+           (file-like? (second value)))
+      #t
+      (raise
+       (formatted-message
+        (G_ "tuned-configuration profiles members must be lists with two
+elements, the first being a string and the second a file-like object, but ~a was
+found!")
+        value))))
+
+(define (list-of-tuned-plugins? value)
+  (list-of tuned-plugin?))
+
+(define %default-tuned-configuration-recommend.conf
+  (file-append tuned "/lib/tuned/recommend.d/50-tuned.conf"))
+
+(define-configuration/no-serialization tuned-configuration
+  (tuned
+   (package tuned)
+   "The TuneD package.")
+  (auto-start?
+   (boolean #t)
+   "Whether this service should be started automatically by the Shepherd.  If it
+is @code{#f} the service has to be started manually with @command{herd start}.")
+  (power-profiles-daemon-support?
+   (boolean #f)
+   "Whether the power-profiles-daemon emulation layer should be
+enabled.")
+  (profiles
+   (list-of-tuned-plugins '())
+   "User provided profiles for TuneD.  Each element of the list is supposed to be
+a list where the first element is the name of the directory where plugin files
+will be placed under @file{/etc/tuned/profiles} and the second a file like
+object containing the plugin files:
+
+@lisp
+(list
+  (list \"plugin-name\"
+        (plain-file \"plugin.conf\" \"content\"))
+  (list \"other-plugin\"
+        (file-union \"plugin-data\"
+                    (list (list \"other-plugin.conf\"
+                                (plain-file \"other-plugin.conf\" \"content\"))
+                          (list \"other-plugin.scm\"
+                                (program-file \"other-plugin.scm\"
+                                               #~(display \"content\")))))))
+@end lisp")
+  (settings
+   (tuned-settings (tuned-settings))
+   "Configuration for TuneD.")
+  (ppd-settings
+   (tuned-ppd-settings (tuned-ppd-settings))
+   "Configuration for the @code{power-profiles-daemon} compatibility layer of
+TuneD.")
+  (recommend.conf
+   (file-like %default-tuned-configuration-recommend.conf)
+   "File like object containing the recommended profile configuration.  Defaults
+to @code{%default-tuned-configuration-recommend.conf}."))
+
+(define (tuned-file-systems config)
+  (list
+   (file-system
+     (device "none")
+     (mount-point "/run/tuned")
+     (type "ramfs")
+     (check? #f))))
+
+(define (tuned-activation config)
+  (match-record config <tuned-configuration>
+                (profiles settings ppd-settings recommend.conf)
+    #~(begin
+        (use-modules (guix build utils))
+        (let ((data-directory "/var/lib/tuned")
+              (config-directory "/etc/tuned"))
+          ;; Setup TuneD directories.
+          (for-each
+           (lambda (dir)
+             (mkdir-p dir)
+             (chmod dir #o755))
+           (list data-directory config-directory
+                 ;; the directory where TuneD will look for kernel modules for
+                 ;; plugins.
+                 "/etc/tuned/modprobe.d"))
+          ;; Create plugins kernel modules configuration.
+          (invoke #$(file-append coreutils-minimal "/bin/touch")
+                  "/etc/tuned/modprobe.d/tuned.conf")
+          ;; Generate and activate TuneD configuration files.
+          ;; TuneD needs to write in /etc/tuned, special-files-service-type
+          ;; creates a file union, so /etc/tuned is read-only and TuneD crashes.
+          ;; activate-special-files creates a single symlink to the store for
+          ;; each file so TuneD doesn't notice and runs successfully.
+          (activate-special-files
+           '(("/etc/tuned/recommend.conf" #$recommend.conf)
+             ("/etc/tuned/profiles"
+              #$(file-union "tuned-profiles" profiles))
+             ("/etc/tuned/tuned-main.conf"
+              #$(serialize-tuned-settings settings))
+             ("/etc/tuned/ppd.conf"
+              #$(serialize-tuned-ppd-settings ppd-settings))))))))
+
+(define (tuned-shepherd-services config)
+  (match-record config <tuned-configuration>
+                (tuned auto-start? power-profiles-daemon-support?)
+    (append
+     (list
+      (shepherd-service
+         (documentation "TuneD daemon")
+         (provision '(tuned))
+         (requirement '(dbus-system user-processes udev))
+         (start #~(make-forkexec-constructor
+                   '(#$(file-append tuned "/sbin/tuned"))
+                   #:log-file "/var/log/tuned/tuned.log"))
+         (stop #~(make-kill-destructor))
+         (auto-start? auto-start?)))
+     (if power-profiles-daemon-support?
+         (list (shepherd-service
+                 (documentation "TuneD power-profiles-daemon emulation daemon")
+                 (provision '(tuned-ppd power-profiles-daemon))
+                 (requirement '(dbus-system user-processes udev tuned))
+                 (start
+                  #~(make-forkexec-constructor
+                     '(#$(file-append tuned "/sbin/tuned-ppd"))
+                     #:log-file "/var/log/tuned/tuned-ppd.log"))
+                 (stop #~(make-kill-destructor))
+                 (auto-start? auto-start?)))
+         '()))))
+
+(define tuned-service-type
+  (let ((config->package
+         (compose list tuned-configuration-tuned)))
+    (service-type
+     (name 'tuned)
+     (extensions (list
+                  (service-extension shepherd-root-service-type
+                                     tuned-shepherd-services)
+                  (service-extension dbus-root-service-type
+                                     config->package)
+                  (service-extension polkit-service-type
+                                     config->package)
+                  (service-extension profile-service-type
+                                     config->package)
+                  (service-extension file-system-service-type
+                                     tuned-file-systems)
+                  (service-extension activation-service-type
+                                     tuned-activation)))
+     (default-value (tuned-configuration))
+     (description "Run the TuneD daemon.  It is daemon that tunes system settings
+dynamically.  It does so by monitoring the usage of several system components
+periodically."))))
+
+
+;;;
+;;; Zram device
+;;;
+(define-record-type* <zram-device-configuration>
+  zram-device-configuration make-zram-device-configuration
+  zram-device-configuration?
+  (size                     zram-device-configuration-size
+                            (default "1G"))     ; string or integer
+  (compression-algorithm    zram-device-configuration-compression-algorithm
+                            (default 'lzo))     ; symbol
+  (memory-limit             zram-device-configuration-memory-limit
+                            (default 0))        ; string or integer
+  (priority                 zram-device-configuration-priority
+                            (default #f)        ; integer | #f
+                            (delayed) ; to avoid printing the deprecation
+                                      ; warning multiple times
+                            (sanitize warn-zram-priority-change)))
+
+(define-with-syntax-properties
+  (warn-zram-priority-change (priority properties))
+  (if (eqv? priority -1)
+      (begin
+        (warning (source-properties->location properties)
+                 (G_ "using -1 for zram priority is deprecated~%"))
+        (display-hint (G_ "Use #f or leave as default instead (@pxref{Linux \
+Services})."))
+        #f)
+      priority))
+
+(define (zram-device-configuration->udev-string config)
+  "Translate a <zram-device-configuration> into a string which can be
+placed in a udev rules file."
+  (match config
+    (($ <zram-device-configuration> size compression-algorithm memory-limit priority)
+     (string-append
+       "KERNEL==\"zram0\", "
+       "ATTR{comp_algorithm}=\"" (symbol->string compression-algorithm) "\" "
+       (if (not (or (equal? "0" size)
+                    (equal? 0 size)))
+         (string-append "ATTR{disksize}=\"" (if (number? size)
+                                              (number->string size)
+                                              size)
+                        "\" ")
+         "")
+       (if (not (or (equal? "0" memory-limit)
+                    (equal? 0 memory-limit)))
+         (string-append "ATTR{mem_limit}=\"" (if (number? memory-limit)
+                                               (number->string memory-limit)
+                                               memory-limit)
+                        "\" ")
+         "")
+       "RUN+=\"/run/current-system/profile/sbin/mkswap /dev/zram0\" "
+       "RUN+=\"/run/current-system/profile/sbin/swapon "
+       ;; TODO: Revert to simply use 'priority' after removing the deprecation
+       ;; warning and the delayed property of the field.
+       (let ((priority* (force priority)))
+         (if priority*
+             (format #f "--priority ~a " priority*)
+             ""))
+       "/dev/zram0\"\n"))))
+
+(define %zram-device-config
+  `("modprobe.d/zram.conf"
+    ,(plain-file "zram.conf"
+                 "options zram num_devices=1")))
+
+(define (zram-device-udev-rule config)
+  (file->udev-rule "99-zram.rules"
+                   (plain-file "99-zram.rules"
+                               (zram-device-configuration->udev-string config))))
+
+(define zram-device-service-type
+  (service-type
+    (name 'zram)
+    (default-value (zram-device-configuration))
+    (extensions
+      (list (service-extension kernel-module-loader-service-type
+                               (const (list "zram")))
+            (service-extension etc-service-type
+                               (const (list %zram-device-config)))
+            (service-extension udev-service-type
+                               (compose list zram-device-udev-rule))))
+    (description "Creates a zram swap device.")))
+
+
+;;;
+;;; VFS Mapping.
+;;;
+
+(define-record-type* <vfs-mapping>
+  vfs-mapping make-vfs-mapping
+  vfs-mapping?
+  (source        vfs-mapping-source)
+  (destination   vfs-mapping-destination)
+  (policy        vfs-mapping-policy
+                 (default 'translate))
+  (user          vfs-mapping-user
+                 (default #f))
+  (group         vfs-mapping-group
+                 (default "users"))
+  (name          vfs-mapping-name
+                 (default (format #f "~a-on-~a"
+                                  (vfs-mapping-policy      this-record)
+                                  (vfs-mapping-destination this-record)))
+                 (thunked))
+  (requirement   vfs-mapping-requirement
+                 (default '(file-systems user-homes))))
+
+(define (vfs-mapping-policy? x)
+  (and (symbol? x)
+       (or (memq x '(bind translate overlay)))))
+
+(define (path-like? x)
+  (or (string?    x)
+      (file-like? x)
+      (gexp?      x)))
+
+(define (valid-vfs-mapping? x)
+  ;; User must be set iff we are going to use it
+  (and (vfs-mapping? x)
+       (path-like?       (vfs-mapping-source      x))
+       (path-like?       (vfs-mapping-destination x))
+       (string?          (vfs-mapping-name        x))
+       (vfs-mapping-policy? (vfs-mapping-policy   x))
+       (cond
+        ((eq? (vfs-mapping-policy x) 'bind)
+         (not (vfs-mapping-user x)))
+        (#t
+         (and (string? (vfs-mapping-user  x))
+              (string? (vfs-mapping-group x)))))))
+
+(define list-of-vfs-mapping? (list-of valid-vfs-mapping?))
+
+(define-configuration/no-serialization vfs-mapping-configuration
+  (bindfs     (gexp #~(string-append #$bindfs          "/bin/bindfs"))
+              "The bindfs command to use.")
+  (fusermount (gexp #~(string-append #$fuse-2          "/bin/fusermount"))
+              "The fusermount command to use.")
+  (umount     (gexp #~(string-append #$util-linux+udev "/bin/umount"))
+              "The umount command to use.")
+  (bindings   (list-of-vfs-mapping '())
+              "The list of bindings to mount"))
+
+(define vfs-mapping-shepherd-services
+  (match-record-lambda <vfs-mapping-configuration>
+      (fusermount bindfs umount bindings)
+    (map
+     (match-record-lambda <vfs-mapping>
+         (source destination policy user group name requirement)
+       (shepherd-service
+         ;; Each binding has its own service
+         (provision (list (string->symbol name)))
+         ;; Make sure the homes are already present
+         (requirement requirement)
+         (modules `((ice-9 match)
+                    ,@%default-modules))
+         (stop
+          #~(lambda args
+              (match (quote #$policy)
+                ('bind      (invoke #$umount          #$destination))
+                ('translate (invoke #$fusermount "-u" #$destination))
+                ('overlay   (begin
+                              ;; First the bindfs
+                              (invoke #$fusermount "-u" #$destination)
+                              ;; then the overlay
+                              (invoke #$umount          #$destination))))
+              #f))
+         (start
+          #~(lambda args
+              (define (mkdir-recursively dir user group)
+                ;; Like mkdir-p, but chown all created directories to the
+                ;; specified user.
+                (unless (eq? dir "/")
+                  (when (not (file-exists? dir))
+                    (mkdir-recursively (dirname dir) user group)
+                    (mkdir dir)
+                    (let* ((pw (getpw user))
+                           (uid (passwd:uid pw))
+                           (gid (passwd:gid pw)))
+                      (chown dir uid gid)))))
+              (mkdir-recursively #$destination #$user #$group)
+              (let* ((stat (stat #$source))
+                     (uid (stat:uid stat))
+                     (gid (stat:gid stat))
+                     (source-user
+                      (catch #t
+                        (lambda () (passwd:name (getpwuid uid)))
+                        ;; In case user does not exist failover to plain uid.
+                        (const (number->string uid))))
+                     (source-group
+                      (catch #t
+                        (lambda () (group:name (getgrgid gid)))
+                        ;; In case group does not exist failover to plain gid.
+                        (const (number->string gid)))))
+                (match (quote #$policy)
+                  ('bind
+                   (mount #$source #$destination
+                          #f              ;type
+                          MS_BIND))       ;flags (bind mount)
+                  ('translate
+                   (invoke
+                    #$bindfs
+                    (string-append "--create-for-group=" source-group)
+                    (string-append "--create-for-user="  source-user)
+                    (string-append "--force-user="       #$user)
+                    (string-append "--force-group="      #$group)
+                    "-o" "nonempty"
+                    #$source #$destination))
+                  ('overlay
+                   (let ((overlay (string-append #$destination "-overlay"))
+                         (workdir (string-append #$destination "-workdir")))
+                     (mkdir-recursively overlay #$user #$group)
+                     (mkdir-recursively workdir #$user #$group)
+                     (mount "overlay"   ;source
+                            #$destination
+                            "overlay"      ;type
+                            0              ;flags
+                            (string-append ;options
+                             "lowerdir=" #$source ","
+                             "upperdir=" overlay  ","
+                             "workdir="  workdir))
+                     ;; Remount the target over itself to make it appear as if
+                     ;; owned by user-name and user-group.
+                     (invoke
+                      #$bindfs
+                      (string-append "--create-for-group="  source-group)
+                      (string-append "--create-for-user=" source-user)
+                      (string-append "--force-user="      #$user)
+                      (string-append "--force-group="     #$group)
+                      #$destination #$destination)))))
+              #t))))
+     bindings)))
+
+(define vfs-mapping-service-type
+  (service-type
+   (name 'vfs-mapping)
+   (extensions (list
+                (service-extension shepherd-root-service-type
+                                   vfs-mapping-shepherd-services)))
+   (compose concatenate)
+   (extend (lambda (original extensions)
+             (vfs-mapping-configuration
+              (inherit original)
+              (bindings (append (vfs-mapping-configuration-bindings original)
+                                extensions)))))
+   (default-value (vfs-mapping-configuration))
+   (description "Share or expose a file name under a different name.")))

@@ -1,0 +1,372 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2015 Taylan Ulrich Bayırlı/Kammer <taylanbayirli@gmail.com>
+;;; Copyright © 2016, 2018, 2020 Ricardo Wurmus <rekado@elephly.net>
+;;; Copyright © 2016 Theodoros Foradis <theodoros@foradis.org>
+;;; Copyright © 2016 Danny Milosavljevic <dannym@scratchpost.org>
+;;; Copyright © 2017 Rene Saavedra <rennes@openmailbox.org>
+;;; Copyright © 2017 Efraim Flashner <efraim@flashner.co.il>
+;;; Copyright © 2017 Thomas Danckaert <post@thomasdanckaert.be>
+;;; Copyright © 2018, 2020, 2021 Tobias Geerinckx-Rice <me@tobias.gr>
+;;; Copyright © 2019 Arun Isaac <arunisaac@systemreboot.net>
+;;; Copyright © 2022 Marius Bakke <marius@gnu.org>
+;;; Copyright © 2023, 2025 Andreas Enge <andreas@enge.fr>
+;;; Copyright © 2023 Malte Frank Gerdes <malte.f.gerdes@gmail.com>
+;;; Copyright © 2023 Maxim Cournoyer <maxim@guixotic.coop>
+;;; Copyright © 2025 Ekaitz Zarraga <ekaitz@elenq.tech>
+;;; Copyright © 2025 Nicolas Graves <ngraves@ngraves.fr>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (gnu packages wxwidgets)
+  #:use-module (guix packages)
+  #:use-module (guix gexp)
+  #:use-module (guix download)
+  #:use-module (guix git-download)
+  #:use-module ((guix licenses) #:prefix l:)
+  #:use-module (guix build-system glib-or-gtk)
+  #:use-module (guix build-system perl)
+  #:use-module (guix build-system pyproject)
+  #:use-module (guix utils)
+  #:use-module (gnu packages)
+  #:use-module (gnu packages build-tools)
+  #:use-module (gnu packages check)
+  #:use-module (gnu packages curl)
+  #:use-module (gnu packages compression)
+  #:use-module (gnu packages databases)
+  #:use-module (gnu packages freedesktop)
+  #:use-module (gnu packages gl)
+  #:use-module (gnu packages gnome)
+  #:use-module (gnu packages graphics)
+  #:use-module (gnu packages gstreamer)
+  #:use-module (gnu packages gtk)
+  #:use-module (gnu packages image)
+  #:use-module (gnu packages pcre)
+  #:use-module (gnu packages perl)
+  #:use-module (gnu packages perl-check)
+  #:use-module (gnu packages photo)
+  #:use-module (gnu packages pkg-config)
+  #:use-module (gnu packages python)
+  #:use-module (gnu packages python-build)
+  #:use-module (gnu packages python-xyz)
+  #:use-module (gnu packages qt)
+  #:use-module (gnu packages sdl)
+  #:use-module (gnu packages video)
+  #:use-module (gnu packages web)
+  #:use-module (gnu packages webkit)
+  #:use-module (gnu packages xml)
+  #:use-module (gnu packages xorg))
+
+(define-public wxwidgets
+  (package
+    (name "wxwidgets")
+    ;; There is a newer versions 3.3, but this is tagged "development".
+    (version "3.2.11")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "https://github.com/wxWidgets/wxWidgets/"
+                           "releases/download/v" version
+                           "/wxWidgets-" version ".tar.bz2"))
+       (sha256
+        (base32 "025gj1mdn2ilp0p2zsa73n065naahl8l9v31pzj19sg2phar04ka"))
+       (modules '((guix build utils)
+                  (ice-9 ftw)
+                  (srfi srfi-26)))
+       (snippet
+        '(begin
+           ;; wxWidgets bundles third-party code in the "3rdparty" directory as
+           ;; well as the "src" directory.  Remove external components that are
+           ;; not required.
+           (let ((preserved-3rdparty '("nanosvg"))
+                 ;; The src directory contains a mixture of third party libraries
+                 ;; and similarly-named integration code.  Cautiously use a
+                 ;; blacklist approach here.
+                 (bundled-src '("expat" "jpeg" "png" "tiff" "zlib")))
+             (with-directory-excursion "3rdparty"
+               (for-each delete-file-recursively
+                         (scandir "." (negate (cut member <>
+                                                   (append '("." "..")
+                                                           preserved-3rdparty))))))
+             (with-directory-excursion "src"
+               (for-each delete-file-recursively bundled-src)))))))
+    (outputs '("out" "debug"))
+    (build-system glib-or-gtk-build-system)
+    (inputs
+     (list catch-framework
+           curl
+           expat
+           glu
+           gstreamer
+           gst-plugins-base
+           gtk+
+           libjpeg-turbo
+           libmspack
+           libnotify
+           libpng
+           libsecret
+           libsm
+           libtiff
+           libxtst                      ;for wxUIActionSimulator
+           mesa
+           pcre2
+           sdl2
+           shared-mime-info
+           webkitgtk-for-gtk3
+           xdg-utils
+           zlib))
+    (native-inputs
+     (list pkg-config))
+    (arguments
+     (list
+      #:configure-flags #~'("--with-libmspack"
+                            "--with-regex"
+                            "--with-sdl"
+                            "--enable-debug_info"
+                            "--enable-gui"
+                            "--enable-mediactrl"
+                            "--enable-webview")
+      #:make-flags
+      #~(list (string-append "LDFLAGS=-Wl,-rpath=" #$output "/lib"))
+      #:tests? #f                       ;TODO
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'refer-to-inputs
+            (lambda* (#:key inputs #:allow-other-keys)
+              (let ((catch (search-input-file inputs "include/catch.hpp"))
+                    (mime (search-input-directory inputs "share/mime"))
+                    (xdg-open (search-input-file inputs "bin/xdg-open")))
+                (install-file catch "3rdparty/catch/include/")
+                (substitute* "src/unix/utilsx11.cpp"
+                  (("wxExecute\\(xdg_open \\+")
+                   (string-append "wxExecute(\"" xdg-open "\"")))
+                (substitute* "src/unix/mimetype.cpp"
+                  (("/usr(/local)?/share/mime")
+                   mime)))))
+          (replace 'configure
+            (lambda* (#:key native-inputs inputs configure-flags
+                      #:allow-other-keys)
+              (let ((sh (search-input-file (or native-inputs inputs)
+                                           "bin/sh")))
+                ;; The configure script does not understand some of the default
+                ;; options of gnu-build-system, so run it "by hand".
+                (apply invoke "./configure"
+                       (string-append "SHELL=" sh)
+                       (string-append "CONFIG_SHELL=" sh)
+                       (string-append "--prefix=" #$output)
+                       configure-flags)))))))
+    (home-page "https://wxwidgets.org/")
+    (synopsis "Widget toolkit for creating graphical user interfaces")
+    (description
+     "wxWidgets is a C++ library that lets developers create applications with
+a graphical user interface.  It has language bindings for Python, Perl, Ruby
+and many other languages.")
+    (license (list l:lgpl2.0+ (l:fsf-free "file://doc/license.txt")))))
+
+(define-public wxwidgets-sans-egl
+  ;; This is needed for prusaslicer:
+  ;; <https://github.com/NixOS/nixpkgs/issues/193135>.)
+  ;; and KiCAD:
+  ;; <https://forum.kicad.info/t/kicad-8-0-x-could-not-use-opengl-debian-guix/53203/7>
+  ;; Relevant debian bug report:
+  ;; <https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1024147;msg=5>
+  ;; Tl;dr; wxWidgets uses EGL but Glew 2.2 doesn't. Leading to errors.
+  (package/inherit wxwidgets
+    (name "wxwidgets-sans-egl")
+    (arguments
+       (substitute-keyword-arguments arguments
+         ((#:configure-flags flags)
+          #~(cons "--disable-glcanvasegl" #$flags))))))
+
+(define-public wxwidgets-3.0
+  (package
+    (inherit wxwidgets)
+    (version "3.0.5.1")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "https://github.com/wxWidgets/wxWidgets/"
+                                  "releases/download/v" version
+                                  "/wxWidgets-" version ".tar.bz2"))
+              (sha256
+               (base32
+                "01y89999jw5q7njrhxajincx7lydls6yq37ikazjryssrxrnw3s4"))))
+    (arguments
+     `(#:configure-flags
+       '("--with-regex" "--with-libmspack"
+         "--with-sdl"
+         "--enable-webview"
+         "--enable-webkit"
+         "--enable-webviewwebkit"
+         ,@(if (string=? "aarch64-linux"
+                         (%current-system))
+             '("--build=aarch64-unknown-linux-gnu")
+             '()))
+       #:make-flags
+       (list (string-append "LDFLAGS=-Wl,-rpath="
+                            (assoc-ref %outputs "out") "/lib"))
+       ;; No 'check' target.
+       #:tests? #f
+       #:phases
+       (modify-phases %standard-phases
+         (add-after 'unpack 'refer-to-inputs
+           (lambda* (#:key inputs #:allow-other-keys)
+             (let ((mime (search-input-directory inputs "share/mime"))
+                   (xdg-open (search-input-file inputs "bin/xdg-open")))
+               (substitute* "src/unix/utilsx11.cpp"
+                 (("wxExecute\\(xdg_open \\+")
+                  (string-append "wxExecute(\"" xdg-open "\"")))
+               (substitute* "src/unix/mimetype.cpp"
+                 (("/usr(/local)?/share/mime") mime))))))))))
+
+(define-public python-wxpython
+  (package
+    (name "python-wxpython")
+    (version "4.2.2")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (pypi-uri "wxPython" version))
+       (sha256
+        (base32 "1fp2717a96hd5pdai6hlzc4pngdazxas55apjv2w5zb71xjv1g2x"))
+       (modules '((guix build utils)))
+       (snippet #~(begin
+                    ;; Remove bundled wxWidgets
+                    (delete-file-recursively "ext/wxWidgets")))))
+    (build-system pyproject-build-system)
+    (outputs '("out" "debug"))
+    (arguments
+     (list
+      #:test-backend #~'custom
+      #:test-flags #~(list "build.py" "-v" "test")
+      #:modules '((guix build pyproject-build-system)
+                  (guix build utils)
+                  (ice-9 ftw)
+                  (ice-9 match)
+                  (srfi srfi-26))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'patch-avoid-circular-import
+            (lambda _
+              (substitute* "wx/__init__.py"
+                (("^import wx\\.__version__.*$") "\
+try:
+    import wx.__version__
+except ImportError:
+    pass\n")
+                (("^__version__ = .*")
+                 (format #f "__version__ = ~s~%" #$version)))))
+          (add-before 'build 'configure
+            (lambda* (#:key inputs #:allow-other-keys)
+              ;; Configure the build options provided to the 'build.py' build
+              ;; script.
+              (setenv "WXPYTHON_BUILD_ARGS"
+                      (string-join '("--debug"        ;include debug symbols
+                                     "--use_syswx"))) ;use system wxwidgets
+              (setenv "WXWIN" #$(this-package-input "wxwidgets"))
+              ;; Copy the waf executable to the source directory since it needs
+              ;; to be in a writable directory.
+              (copy-file (search-input-file inputs "/bin/waf") "bin/waf")
+              (setenv "WAF" "bin/waf")
+              ;; The build script tries to copy license files from the
+              ;; wxwidgets source tree. Prevent it.
+              (substitute* "wscript"
+                (("updateLicenseFiles\\(cfg\\)" all)
+                 (string-append "#" all)))
+              ;; The build script tries to write to demo/version.py. So, we set
+              ;; correct write permissions.
+              (chmod "demo/version.py" #o644)))
+          (add-before 'sanity-check 'add-missing-.so
+            (lambda* (#:key inputs outputs #:allow-other-keys)
+              (let ((site (site-packages inputs outputs)))
+                (with-directory-excursion (string-append site "/wx")
+                  (for-each
+                   (match-lambda
+                     ("siplib"
+                      (rename-file "siplib" "siplib.so"))
+                     ((? (cut string-prefix? "_" <>) file)
+                      (unless (string-prefix? "__" file)
+                        (rename-file file (string-append file ".so"))))
+                     (_ #t))
+                   (scandir ".")))))))))
+    (inputs
+     (list gtk+ wxwidgets))
+    (native-inputs
+     (list pkg-config python-setuptools waf))
+    (propagated-inputs
+     (list python-numpy python-pillow python-six))
+    (home-page "https://wxpython.org/")
+    (synopsis "Cross platform GUI toolkit for Python")
+    (description "wxPython is a cross-platform GUI toolkit for the Python
+programming language.  It is implemented as a set of Python extension modules
+that wrap the GUI components of the popular wxWidgets cross platform C++
+library.  In most cases, wxPython uses the native widgets on each platform to
+provide a 100% native look and feel for the application.")
+    (license l:wxwindows3.1+)))
+
+(define-public wxsvg
+  (package
+    (name "wxsvg")
+    (version "1.5.25")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "mirror://sourceforge/wxsvg/wxsvg/"
+                            version "/wxsvg-" version ".tar.bz2"))
+       (sha256
+        (base32 "0jsk4vrv7rkb7wrdbsdf60zvdnvj0pxfika8xydd2jxm65larxjv"))))
+    (build-system glib-or-gtk-build-system)
+    (inputs
+     (list wxwidgets cairo ffmpeg))
+    (native-inputs
+     (list pkg-config))
+    (propagated-inputs
+     ;; In Requires.private of libwxsvg.pc.
+     (list libexif pango))
+    (synopsis "C++ library to create, manipulate and render SVG files")
+    (description "wxSVG is a C++ library to create, manipulate and render
+@dfn{Scalable Vector Graphics} (SVG) files with the wxWidgets toolkit.")
+    (home-page "https://wxsvg.sourceforge.net")
+
+    ;; wxSVG is licenced under the "wxWindows library licence", which is
+    ;; the LGPL2.0+, with a few extra permissions.
+    (license (list l:lgpl2.0+ (l:fsf-free "file://COPYING")))))
+
+(define-public perl-alien-wxwidgets
+  (package
+    (name "perl-alien-wxwidgets")
+    (version "0.69")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append
+             "mirror://cpan/authors/id/M/MD/MDOOTSON/Alien-wxWidgets-"
+             version
+             ".tar.gz"))
+       (sha256
+        (base32
+         "0jg2dmkzhj03f6b0vmv597yryfw9cclsdn9ynvvlrzzgpd5lw8jk"))))
+    (build-system perl-build-system)
+    (native-inputs
+     (list perl-lwp-protocol-https
+       perl-module-build
+       perl-test-pod
+       perl-test-pod-coverage
+       wxwidgets))
+    (propagated-inputs (list perl-module-pluggable))
+    (home-page "https://metacpan.org/release/Alien-wxWidgets")
+    (synopsis "Perl module for wxWidgets binaries")
+    (description "Alien::wxWidgets is a Perl module for detecting and
+getting configuration settings from an installed wxWidgets package.")
+    (license l:perl-license)))

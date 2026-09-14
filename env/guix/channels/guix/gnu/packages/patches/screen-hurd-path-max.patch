@@ -1,0 +1,39 @@
+Workaround for PATH_MAX usage on the Hurd.
+
+Taken from https://salsa.debian.org/debian/screen/-/blob/master/debian/patches/61-default-PATH_MAX-if-undefined-for-hurd.patch
+
+Description: Set PATH_MAX to 4096 if undefined
+ Fixes FTBFS since 4.4.0 on GNU/Hurd. Updated to add one more occurrence for 4.5.0.
+Author: Axel Beckert <abe@debian.org>
+Bug: https://savannah.gnu.org/bugs/?50089
+Updated: 2017-01-18
+Updated: 2024-08-30 Update for Screen 5.0.0
+Updated: 2025-05-15 Update for building from git.
+
+diff --git a/src/screen.h b/src/screen.h
+index 308c365..e71bd7f 100644
+--- a/src/screen.h
++++ b/src/screen.h
+@@ -63,6 +63,22 @@ struct mode {
+ #endif
+ };
+
++/*
++ * Define PATH_MAX to 4096 if it's not defined, like on GNU/Hurd
++ */
++
++#ifndef PATH_MAX
++#define PATH_MAX 4096
++#endif
++
++/*
++ * similarly for MAXPATHLEN
++ */
++
++#ifndef MAXPATHLEN
++#define MAXPATHLEN PATH_MAX
++#endif
++
+
+ #include "ansi.h"
+ #include "image.h"

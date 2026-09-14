@@ -1,0 +1,32 @@
+[diff]
+        # This does wonder to avoid fragmenting the hunks of package additions
+        # that would confuse the diff and make individually staging the added
+        # packages troublesome.
+        algorithm = histogram
+
+[diff "scheme"]
+	xfuncname = "^(\\(define.*)$"
+
+[diff "texinfo"]
+	xfuncname = "^@node[[:space:]]+([^,]+).*$"
+
+[format]
+        forceinbodyfrom = true  # help preserve commit authorship
+        thread = shallow
+        useAutoBase = whenAble
+
+[pull]
+        rebase = true
+
+[sendemail]
+        to = guix-patches@gnu.org
+        headerCmd = etc/teams.scm cc-members-header-cmd
+        thread = no
+
+[b4]
+        attestation-check-dkim = off
+        attestation-policy = off
+        shazam-am-flags = --signoff --3way
+        linkmask = https://yhetil.org/guix/%s
+        linktrailermask = https://yhetil.org/guix/%s
+        midmask = https://yhetil.org/guix/%s

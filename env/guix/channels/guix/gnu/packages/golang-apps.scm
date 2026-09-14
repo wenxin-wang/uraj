@@ -1,0 +1,466 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2023 JOULAUD François <Francois.JOULAUD@radiofrance.com>
+;;; Copyright © 2025 Maxim Cournoyer <maxim@guixotic.coop>
+;;; Copyright © 2025 Tomas Volf <~@wolfsden.cz>
+;;; Copyright © 2025-2026 Sharlatan Hellseher <sharlatanus@gmail.com>
+;;; Copyright © 2025 jgart <jgart@dismail.de>
+;;; Copyright © 2026 Ankit Gadiya <git@argp.in>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (gnu packages golang-apps)
+  #:use-module (guix build-system go)
+  #:use-module (guix gexp)
+  #:use-module (guix git-download)
+  #:use-module ((guix licenses) #:prefix license:)
+  #:use-module (guix packages)
+  #:use-module (gnu packages)
+  #:use-module (gnu packages golang)
+  #:use-module (gnu packages golang-build)
+  #:use-module (gnu packages golang-check)
+  #:use-module (gnu packages golang-web)
+  #:use-module (gnu packages golang-xyz))
+
+;;; Commentary:
+;;;
+;;; Golang (Go) specific applications which are not inherited from their
+;;; source live here e.g linters, language servers, REPL implementations etc.
+;;;
+;;; If the <cmd/APP> is inherited from its source place it in corresponded
+;;; golang-*.scm file in the end after the section "Executables".
+;;;
+;;; Please: Try to add new variable in alphabetical order.
+;;;
+;;; Code:
+
+(define-public go-chroma
+  (package
+    (name "go-chroma")
+    (version "2.27.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/alecthomas/chroma")
+              (commit (string-append "v" version ))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "18p9inwlwkbsgi9frqhxhqqwdymnwm02iqpjdgk7dg8sa0ab92w8"))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:embed-files #~(list ".*\\.xml")
+      #:import-path "github.com/alecthomas/chroma/cmd/chroma"
+      #:unpack-path "github.com/alecthomas/chroma"))
+    (native-inputs
+     (list go-github-com-alecthomas-chroma-v2
+           go-github-com-alecthomas-kong
+           go-github-com-mattn-go-colorable
+           go-github-com-mattn-go-isatty))
+    (home-page "https://github.com/alecthomas/chroma")
+    (synopsis "General purpose syntax highlighter")
+    (description
+     "This package implements a syntax highlighter for a long list of
+programming languages.  It takes source code and other structured text and
+converts it into syntax highlighted HTML, ANSI-coloured text, etc.  Chroma is
+based heavily on @url{http://pygments.org/, Pygments}, and includes
+translators for Pygments lexers and styles.")
+    (license license:expat)))
+
+(define-public go-fxlint
+  (package
+    (name "go-fxlint")
+    (version "1.24.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/uber-go/fx")
+              (commit (string-append "v" version ))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0iifq4gjd873l444qh32x2zzsz2yinrvpjsdfphxsfk1h0cyk4q9"))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:tests? #f
+      #:install-source? #f
+      #:import-path "go.uber.org/fx/tools/cmd/fxlint"
+      #:unpack-path "go.uber.org/fx"))
+    (native-inputs
+     (list go-golang-org-x-tools))
+    (home-page "https://go.uber.org/fx")
+    (synopsis "Verify FX events")
+    (description
+     "This Package implements a Go analysis pass that verifies that an
+@code{fxevent.Logger} implementation handles all known fxevent types.  As a
+special case for no-op or fake fxevent.Loggers, it ignores implementations
+that handle none of the event types.")
+    (license license:expat)))
+
+(define-public go-jsonnet
+  (package
+    (name "go-jsonnet")
+    (version "0.22.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/google/go-jsonnet")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1c7h14rvavgadvbsyfa9j4rchsgxb5j363f53rhcvghvmblzddiv"))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:import-path "github.com/google/go-jsonnet/cmd/..."
+      #:unpack-path "github.com/google/go-jsonnet"))
+    (native-inputs
+     (list go-github-com-fatih-color
+           go-github-com-sergi-go-diff
+           go-golang-org-x-crypto
+           go-sigs-k8s-io-yaml))
+    (home-page "https://github.com/google/go-jsonnet")
+    (synopsis "Go implementation of Jsonnet")
+    (description
+     "This package provides an implementation of the @url{http://jsonnet.org/,
+Jsonnet} data templating language in Go.  It is a feature-complete,
+production-ready implementation, compatible with the original Jsonnet
+C++implementation.")
+    (license license:asl2.0)))
+
+(define-public godef
+  (package
+    (name "godef")
+    (version "1.1.2")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/rogpeppe/godef")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0rhhg73kzai6qzhw31yxw3nhpsijn849qai2v9am955svmnckvf4"))
+       (modules '((guix build utils)))
+       (snippet '(delete-file-recursively "vendor"))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:import-path "github.com/rogpeppe/godef"
+      ;; The TestGoDef/Modules test fails, because of the lack of Go modules
+      ;; support.
+      #:test-flags #~(list "-skip" "TestGoDef/GOPATH|TestGoDef/Modules")))
+    (native-inputs
+     ;; XXX: Remove in the next refresh cycle.
+     (list go-golang-org-x-tools-go-packages-packagestest))
+    (inputs
+     (list go-golang-org-x-tools
+           go-ninefans-net-go))
+    (home-page "https://github.com/rogpeppe/godef")
+    (synopsis "Print where symbols are defined in Go source code")
+    (description "The @command{godef} command prints the source location of
+definitions in Go programs.")
+    (license license:bsd-3)))
+
+(define-public godoc
+  (package
+    (name "godoc")
+    (version "0.1.0-deprecated")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://go.googlesource.com/tools")
+              (commit (go-version->git-ref version #:subdir "cmd/godoc"))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0c1rxbj3v3m0fqb8q96xlbawxm9scyx6vvr8pddkiwp7zkx4ajym"))
+       (modules '((guix build utils)
+                  (ice-9 ftw)
+                  (srfi srfi-26)))
+       (snippet
+        #~(begin
+            (define (delete-all-but directory . preserve)
+              (with-directory-excursion directory
+                (let* ((pred (negate (cut member <>
+                                          (cons* "." ".." preserve))))
+                       (items (scandir "." pred)))
+                  (for-each (cut delete-file-recursively <>) items))))
+            (delete-all-but "cmd" "godoc")
+            (delete-all-but "." "cmd")))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:import-path "golang.org/x/tools/cmd/godoc"
+      #:unpack-path "golang.org/x/tools"))
+    (native-inputs
+     (list go-golang-org-x-tools
+           go-golang-org-x-tools-godoc))
+    (home-page "https://golang.org/x/tools")
+    (synopsis "Extracts and generates documentation for Go programs")
+    (description
+     "Godoc extracts and generates documentation for Go programs.  It looks at
+the packages it finds via @code{$GOROOT} and @code{$GOPATH} (if set).  This
+behavior can be altered by providing an alternative @code{$GOROOT} with the
+@code{-goroot} flag.")
+    (license license:bsd-3)))
+
+(define-public gomacro
+  (package
+    (name "gomacro")
+    (properties '((commit . "cf0d4bf32da393dbda97e3572f216731013ffa55")
+                  (revision . "0")
+                  (go-pseudo-version . "0.0.0-20260802094757-cf0d4bf32da3")))
+    (version (git-version "0.0.0"
+                          (assoc-ref properties 'revision)
+                          (assoc-ref properties 'commit)))
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/cosmos72/gomacro")
+              (commit (assoc-ref properties 'commit))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1gn8r8jfmkrm67wzmd3v1iw5ng904ha549df43yv98dd5a3sfk23"))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:import-path "github.com/cosmos72/gomacro"
+      #:test-flags
+      ;; When -vet=on: conversion from int64 to string yields a string of one
+      ;; rune, not a string of digits.
+      #~(list "-vet=off"
+              ;; There are some unexplained test failures (see:
+              ;; https://github.com/cosmos72/gomacro/issues/164), and even
+              ;; after disabling the problematic tests, the test suite exits
+              ;; uncleanly with an exit status of 1.
+              "-skip" (string-join '("TestFiles/slow.input"
+                                     "TestFromReflect6")
+                                   "|"))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'delete-problematic-tests
+            (lambda _
+              ;; Some test module(s) under go/types fail to build with error:
+              ;; c.Type undefined (type Converter has no field or method
+              ;; Type).
+              (for-each delete-file
+                        (find-files "src/github.com/cosmos72/gomacro/go/types"
+                                    "_test\\.go(\\.off)?$")))))))
+    (native-inputs
+     (list go-github-com-mattn-go-runewidth
+           go-github-com-peterh-liner
+           go-golang-org-x-tools))
+    (home-page "https://github.com/cosmos72/gomacro")
+    (synopsis
+     "Interactive Go interpreter and debugger with generics and macros")
+    (description
+     "@command{gomacro} is an almost complete Go interpreter, implemented in
+pure Go.  It offers both an interactive REPL and a scripting mode, and does
+not require a Go toolchain at runtime (except in one very specific case:
+import of a 3rd party package at runtime).")
+    (license license:mpl2.0)))
+
+(define-public gopls
+  (package
+    (name "gopls")
+    ;; XXX: Starting from 0.14.0 gppls needs golang.org/x/telemetry, which
+    ;; needs to be discussed if it may be included in Guix.
+    (version "0.22.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://go.googlesource.com/tools")
+              (commit (go-version->git-ref version #:subdir "gopls"))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0n5ixvk6c8hww5z9lvf74dx6p4j573bq3ssvp77n6033l0fcbv94"))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:go go-1.26
+      #:install-source? #f
+      #:import-path "golang.org/x/tools/gopls"
+      #:unpack-path "golang.org/x/tools"
+      ;; XXX: No tests in project's root, limit to some of subdris, try to
+      ;; enable more.
+      #:test-subdirs
+      #~(list "internal/protocol/..."
+              "internal/util/..."
+              "internal/vulncheck/...")
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-before 'unpack 'override-tools
+            (lambda _
+              ;; XXX: Write a procedure deleting all but current module source
+              ;; to cover case with monorepo.
+              (delete-file-recursively "src/golang.org/x/tools")))
+          (add-before 'check 'set-env
+            (lambda _
+              ;; Required for fingerprint_test.TestMatches.
+              (setenv "GODEBUG" "gotypesalias=1"))))))
+    (native-inputs
+     (list go-github-com-fatih-gomodifytags
+           go-github-com-fsnotify-fsnotify
+           go-github-com-google-go-cmp
+           go-github-com-google-jsonschema-go
+           go-github-com-jba-templatecheck
+           go-github-com-modelcontextprotocol-go-sdk
+           go-golang-org-x-mod
+           go-golang-org-x-sync
+           go-golang-org-x-telemetry
+           go-golang-org-x-text
+           go-golang-org-x-tools
+           go-golang-org-x-vuln
+           go-gopkg-in-yaml-v3
+           go-honnef-co-go-tools
+           go-mvdan-cc-gofumpt
+           go-mvdan-cc-xurls-v2))
+    (home-page "https://golang.org/x/tools/gopls")
+    (synopsis "Official language server for the Go language")
+    (description
+     "Pronounced ``Go please'', this is the official Go language server
+developed by the Go team.  It provides IDE features to any LSP-compatible
+editor.")
+    (license license:bsd-3)))
+
+(define-public gore
+  (package
+    (name "gore")
+    (version "0.7.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/x-motemen/gore")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "131hppvmqhz0mvnpf8fdwr7mi7sa73skdfcgaw8rl5m13nfqb7yh"))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:import-path "github.com/x-motemen/gore/cmd/gore"
+      #:unpack-path "github.com/x-motemen/gore"
+      #:test-flags
+      ;; Gore is configured for building modules with Go module
+      ;; support, which fails in the build environment for the tests
+      ;; making use of that.  Skip them.
+      #~(list "-skip" (string-join
+                       (list "TestAction_ArgumentRequired"
+                             "TestAction_Clear"
+                             "TestAction_CommandNotFound"
+                             "TestAction_Doc"
+                             "TestAction_Help"
+                             "TestAction_Import"
+                             "TestAction_ImportAlias"
+                             "TestAction_Print"
+                             "TestAction_Quit"
+                             "TestAction_Type"
+                             "TestAction_Verbose"
+                             "TestSessionEval_AutoImport"
+                             "TestSessionEval_CompileError"
+                             "TestSessionEval_Const"
+                             "TestSessionEval_Copy"
+                             "TestSessionEval_Declarations"
+                             "TestSessionEval_Func"
+                             "TestSessionEval_Gomod"
+                             "TestSessionEval_Gomod_AutoImport"
+                             "TestSessionEval_Gomod_CompleteImport"
+                             "TestSessionEval_Gomod_DeepDir"
+                             "TestSessionEval_Gomod_Outside"
+                             "TestSessionEval_MultipleValues"
+                             "TestSessionEval_NotUsed"
+                             "TestSessionEval_QuickFix_evaluated_but_not_used"
+                             "TestSessionEval_QuickFix_no_new_variables"
+                             "TestSessionEval_QuickFix_used_as_value"
+                             "TestSessionEval_Struct"
+                             "TestSessionEval_TokenError"
+                             "TestSessionEval_import"
+                             "TestSession_ExtraFiles"
+                             "TestSession_IncludePackage"
+                             "TestSession_completeWord")
+                       "|"))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'patch-commands
+            (lambda* (#:key inputs #:allow-other-keys)
+              (with-directory-excursion "src/github.com/x-motemen/gore"
+                (substitute* "gopls.go"
+                  (("\"gopls\"")
+                   (format #f "~s" (search-input-file inputs "bin/gopls"))))))))))
+    (native-inputs
+     (list go-github-com-motemen-go-quickfix
+           go-github-com-peterh-liner
+           go-github-com-stretchr-testify
+           go-go-lsp-dev-jsonrpc2
+           go-go-lsp-dev-protocol
+           go-go-lsp-dev-uri
+           go-golang-org-x-text
+           go-golang-org-x-tools))
+    (inputs
+     (list gopls))
+    (home-page "https://github.com/x-motemen/gore")
+    (synopsis "Go REPL with line editing and completion capabilities")
+    (description
+     "Gore is a Go @acronym{REPL, read-eval-print loop} that offers line
+editing and auto-completion.  Some of its features include:
+@itemize
+@item Line editing with history
+@item Multi-line input
+@item Package importing with completion
+@item Evaluates any expressions, statements and function declarations
+@item No ``evaluated but not used'' errors
+@item Code completion
+@item Showing documents
+@item Auto-importing (gore -autoimport)
+@end itemize")
+    (license license:expat)))
+
+(define-public mnc
+  (package
+    (name "mnc")
+    (version "0.5")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://git.sr.ht/~anjan/mnc")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "04vcv8540s07rsdfzmxg63cpckacgfiiqchyvfimsg7ic71gna3q"))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:tests? #f ; There are no tests.
+      #:install-source? #f
+      #:import-path "git.sr.ht/~anjan/mnc"))
+    (inputs (list go-github-com-influxdata-cron))
+    (home-page "https://git.sr.ht/~anjan/mnc")
+    (synopsis "Find seconds to next cron job")
+    (description "mnc (my next cron) opens the user's crontab and echos the
+time when the next cronjob will be ran.")
+    (license license:unlicense)))

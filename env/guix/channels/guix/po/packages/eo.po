@@ -1,0 +1,561 @@
+# Esperanto messages for GNU Guix
+# Copyright (C) 2013, 2014, 2015, 2020 the authors of Guix (msgids) and the following authors (msgstr)
+# This file is distributed under the same license as the guix package.
+# Felipe Castro <fefcas@gmail.com>, 2013, 2014, 2015, 2020.
+# Florian Pelz <pelzflorian@pelzflorian.de>, 2025.
+#: gnu/packages/firmware.scm:1665 gnu/packages/firmware.scm:1932
+#: gnu/packages/linux.scm:1260
+msgid ""
+msgstr ""
+"Project-Id-Version: guix-packages 1.2.0-pre1\n"
+"Report-Msgid-Bugs-To: bug-guix@gnu.org\n"
+"POT-Creation-Date: 2025-10-20 03:18+0000\n"
+"PO-Revision-Date: 2025-01-15 20:38+0000\n"
+"Last-Translator: Florian Pelz <pelzflorian@pelzflorian.de>\n"
+"Language-Team: Esperanto <https://translate.fedoraproject.org/projects/guix/packages/eo/>\n"
+"Language: eo\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: Weblate 5.9.2\n"
+"X-Bugs: Report translation errors to the Language-Team address.\n"
+
+msgid "Word processing program"
+msgstr "Teksto-proceza programaro"
+
+msgid "Spell checker"
+msgstr "Literumilo"
+
+msgid "This package provides a dictionary for the GNU Aspell spell checker."
+msgstr "Tiu ĉi pako provizas vortaron por la literumilo GNU Aspell."
+
+msgid "3D audio API"
+msgstr "3D-sona API"
+
+msgid "Encrypted backup using rsync algorithm"
+msgstr "Ĉifrita savkopio uzanta algoritmon rsync"
+
+msgid "Simple incremental backup tool"
+msgstr "Simpla alkrementa savkopiilo"
+
+msgid "Multi-format archive and compression library"
+msgstr "Mult-forma biblioteko por arĥivi kaj densigi"
+
+msgid "Provide a list of files to backup"
+msgstr "Provizas liston da dosieroj por savkopii"
+
+msgid "Tar-compatible archiver"
+msgstr "Arĥivilo kongrua al tar"
+
+msgid "Local/remote mirroring+incremental backup"
+msgstr "Loka/demalproksima spegula+alkrementa savkopio"
+
+msgid "Example GNU package"
+msgstr "Ekzemplo de pako GNU"
+
+msgid ""
+"GNU Hello prints the message \"Hello, world!\" and then exits.  It\n"
+"serves as an example of standard GNU coding practices.  As such, it supports\n"
+"command-line arguments, multiple languages, and so on."
+msgstr ""
+"GNU Hello montras la mesaĝon \"Hello, world!\" kaj finiĝas.  Ĝi\n"
+"funkcias kiel ekzemplo de norma kodumada tradicio de GNU.  Tiel, ĝi subtenas\n"
+"komand-liniajn argumentojn, plurajn lingvojn, kaj tiel plu."
+
+msgid "Print lines matching a pattern"
+msgstr "Montri liniojn kongruajn al ŝablono"
+
+msgid ""
+"grep is a tool for finding text inside files.  Text is found by\n"
+"matching a pattern provided by the user in one or many files.  The pattern\n"
+"may be provided as a basic or extended regular expression, or as fixed\n"
+"strings.  By default, the matching text is simply printed to the screen,\n"
+"however the output can be greatly customized to include, for example, line\n"
+"numbers.  GNU grep offers many extensions over the standard utility,\n"
+"including, for example, recursive directory searching."
+msgstr ""
+"grep estas ilo por trovi tekstojn interne de dosieroj.  Teksto estas trovita\n"
+"per kongruo al ŝablono indikita de la uzanto en unu aŭ pluraj dosieroj.\n"
+"La ŝablono povas esti indikata kiel bazan aŭ etenditan regul-esprimon, aŭ\n"
+"kiel fiksajn ĉenojn.  Apriore, la kongruita teksto estas simple montrata\n"
+"en la ekrano, tamen la eligo povas esti ege personigita por inkluzivigi,\n"
+"ekzemple, lini-numerojn.  GNU grep oferaj multajn aldonojn kompare al la\n"
+"originala aplikaĵo, inkluzive, ekzemple, rikuran serĉadon en dosierujoj."
+
+msgid "Stream editor"
+msgstr "Flu-redaktilo"
+
+msgid ""
+"Sed is a non-interactive, text stream editor.  It receives a text\n"
+"input from a file or from standard input and it then applies a series of text\n"
+"editing commands to the stream and prints its output to standard output.  It\n"
+"is often used for substituting text patterns in a stream.  The GNU\n"
+"implementation offers several extensions over the standard utility."
+msgstr ""
+"Sed estas ne-interaga, teksta flu-redaktilo.  Ĝi ricevas tekstan\n"
+"enigon el dosiero aŭ el la ĉefenigujo kaj tiam ĝi aplikas serion da teksto-redaktaj komandoj al la fluo kaj montras sian eligon en la ĉefeligujo.  \n"
+"Ĝi estas ofte uzata por anstataŭigi teksto-ŝablonojn en fluo.  La GNU-a \n"
+"realigo oferas plurajn aldonojn kompare al la ordinara aplikaĵo."
+
+msgid "Managing tar archives"
+msgstr "Administrado de arĥivoj tar"
+
+msgid ""
+"Tar provides the ability to create tar archives, as well as the\n"
+"ability to extract, update or list files in an existing archive.  It is\n"
+"useful for combining many files into one larger file, while maintaining\n"
+"directory structure and file information such as permissions and\n"
+"creation/modification dates.  GNU tar offers many extensions over the\n"
+"standard utility."
+msgstr ""
+"Tar aldonas la eblecon krei arĥivojn tar, kaj ankaŭ la eblecon\n"
+"eltiri, ĝisdatigi aŭ listigi dosierojn en ekzistanta arĥivo. Ĝi estas\n"
+"utila por kombini multajn dosierojn en unu granda dosiero, tenante\n"
+"dosierujan strukturon kaj dosierinformojn kiel permesojn kaj\n"
+"dato de kreo/modifo.  GNU tar oferas multajn aldonojn kompare\n"
+"al la ordinara aplikaĵo."
+
+msgid "Apply differences to originals, with optional backups"
+msgstr "Apliki malsamojn al originaloj, kun nedevigaj savkopioj"
+
+msgid "Comparing and merging files"
+msgstr "Komparo kaj kunmikso de dosieroj"
+
+msgid "Operating on files matching given criteria"
+msgstr "Operacio sur dosieroj kongruantaj al indikita kriterio"
+
+msgid "Core GNU utilities (file, text, shell)"
+msgstr "Nukleaj utilaĵoj GNU (file, text, shell)"
+
+msgid "Remake files automatically"
+msgstr "Reprocezi dosierojn aŭtomate"
+
+msgid "Binary utilities: bfd gas gprof ld"
+msgstr "Duumaj utilaĵoj: bfd gas gprof ld"
+
+msgid "The linker wrapper"
+msgstr "La ligila ĉirkaŭanto"
+
+msgid "The GNU C Library"
+msgstr "La Biblioteko GNU C"
+
+msgid "Database of current and historical time zones"
+msgstr "Datumbazo de nuna kaj pasintaj temp-zonoj"
+
+msgid "BitTorrent library of rtorrent"
+msgstr "Biblioteko BitTorrent de rTorrent"
+
+msgid "BitTorrent client with ncurses interface"
+msgstr "Kliento BitTorrent kun interfaco ncurses"
+
+msgid "Complete GCC tool chain for C/C++ development"
+msgstr "Kompleta ilaro GCC por kodumado en C/C++"
+
+msgid "Compression and file packing utility"
+msgstr "Utilaĵo por densigi kaj pakigi dosierojn"
+
+msgid "Decompression and file extraction utility"
+msgstr "Utilaĵo por maldensigi kaj malpakigi dosierojn"
+
+msgid "Library for accessing zip files"
+msgstr "Biblioteko por aliri zip-dosierojn"
+
+msgid "ZZipLib is a library based on zlib for accessing zip files."
+msgstr "ZZipLib estas biblioteko bazita sur zlib por aliri zip-dosierojn."
+
+msgid "Fast, easy to use, and popular database"
+msgstr "Rapida, faciluzebla, kaj populara datumbazo"
+
+msgid "Powerful object-relational database system"
+msgstr "Potenca objekt-rilata datumbaza sistemo"
+
+msgid "Manipulate plain text files as databases"
+msgstr "Manipuli simplajn tekst-dosierojn kiel datumbazojn"
+
+msgid "Trivial database"
+msgstr "Ordinara datumbazo"
+
+msgid "Database independent interface for Perl"
+msgstr "Datumbaz-sendependa interfaco por Perl"
+
+msgid "SQlite interface for Perl"
+msgstr "Interfaco de SQLite por Perl"
+
+msgid "Data source abstraction library"
+msgstr "Datumar-fonta abstrakta biblioteko"
+
+msgid "Reference frontend for the libretro API"
+msgstr "Referenca fasono por la API libretro"
+
+msgid "Backgammon game"
+msgstr "Triktrako (Bakgamono)"
+
+msgid "3d Rubik's cube game"
+msgstr "3D Rubika kubo"
+
+msgid "GNU/Linux port of the indie game \"l'Abbaye des Morts\""
+msgstr "Pordo GNU/Linux de la sendependa ludo \"l'Abbaye des Morts\""
+
+msgid "Lemmings clone"
+msgstr "Klono de 'Lemmings'"
+
+msgid "Convert English text to humorous dialects"
+msgstr "Konverti anglajn tekstojn al humuraj dialektaĵoj"
+
+msgid "Simulate the display from \"The Matrix\""
+msgstr "Simuli la ekranon el \"The Matrix\""
+
+msgid "Full chess implementation"
+msgstr "Kompleta realigo de ŝako"
+
+msgid "Twisted adventures of young pig farmer Dink Smallwood"
+msgstr "Frenezaj aventuroj de la juna pork-bredisto Dink Smallwood"
+
+msgid "Game data for GNU Freedink"
+msgstr "Ludo-datumaro por GNU Freedink"
+
+msgid "This package contains the game data of GNU Freedink."
+msgstr "Tiu ĉi pako enhavas ludan datumaron por GNU Freedink."
+
+msgid "Graphical user interface for chess programs"
+msgstr "Grafikinterfacon por ŝak-programarojn"
+
+msgid "Typing tutor"
+msgstr "Instruilo por tajpado"
+
+msgid "3D game engine written in C++"
+msgstr "3D-luda maŝino verkita en C++"
+
+msgid "Curses Implementation of the Glk API"
+msgstr "Realigo curses de la API Glk"
+
+msgid "Interpreter for Glulx VM"
+msgstr "Interpretilo por Glulx VM"
+
+msgid "GNU Compiler Collection"
+msgstr "GNU-a kompila kolekto"
+
+msgid "Manipulating sets and relations of integer points bounded by linear constraints"
+msgstr "Manipulo de aroj kaj rilatoj de entjeraj punktoj ligataj per linearaj limigoj"
+
+msgid "Library to generate code for scanning Z-polyhedra"
+msgstr "Biblioteko por krei kodumaron por skani Z-pluredrojn"
+
+msgid "Tools and documentation for translation"
+msgstr "Iloj kaj dokumentado por tradukado"
+
+msgid "Create, edit, compose, or convert bitmap images"
+msgstr "Krei, redakti, kunmeti, aŭ konverti bitmapajn bildojn"
+
+msgid "GNU Linux-Libre kernel headers"
+msgstr "GNU Linux-Libre kernaj kapdosieroj"
+
+msgid "Headers of the Linux-Libre kernel."
+msgstr "Kapdosieroj de la kerno Linux-Libre."
+
+msgid "100% free redistribution of a cleaned Linux kernel"
+msgstr "100% libera redistribuo de purigita Linuks-kerno"
+
+msgid "Pluggable authentication modules for Linux"
+msgstr "Konekteblaj aŭtentikigaj moduloj por Linukso"
+
+msgid "Collection of utilities for the Linux kernel"
+msgstr "Aro da utilaĵoj por la Linuks-kerno"
+
+msgid "Utilities that give information about processes"
+msgstr "Utilaĵoj kiuj informas pri procezoj"
+
+msgid "Creating and checking ext2/ext3/ext4 file systems"
+msgstr "Kreo kaj kontrolo de dosiersistemoj ext2/ext3/ext4"
+
+msgid "This package provides tools for manipulating ext2/ext3/ext4 file systems."
+msgstr "Tiu ĉi pako provizas ilojn por manipuli dosiersistemojn ext2/ext3/ext4."
+
+msgid "Zero non-allocated regions in ext2/ext3/ext4 file systems"
+msgstr "Neniu ne-rezervita regiono en dosiersistemoj ext2/ext3/ext4"
+
+msgid "System call tracer for Linux"
+msgstr "Ŝpursekvilo de sistem-vokoj por Linukso"
+
+msgid "Library call tracer for Linux"
+msgstr "Ŝpursekvilo de bibliotekaj vokoj por Linukso"
+
+msgid "The Advanced Linux Sound Architecture libraries"
+msgstr "La bibliotekoj de Altnivela Linuksa Sona Arkitekturo"
+
+msgid ""
+"The Advanced Linux Sound Architecture (ALSA) provides audio and\n"
+"MIDI functionality to the Linux-based operating system."
+msgstr ""
+"La Altnivela Linuksa Sona Arkitekturo (ALSA) provizas sonan kaj\n"
+"MIDI-an funkciojn por linuks-surbazita operaci-sistemo."
+
+msgid "Utilities for the Advanced Linux Sound Architecture (ALSA)"
+msgstr "Utilaĵoj por la Altnivela Linuksa Sona Arkitekturo (ALSA)"
+
+msgid "Utilities for controlling TCP/IP networking and traffic in Linux"
+msgstr "Utilaĵoj por regi reton TCP/IP kaj trafikon en Linukso"
+
+msgid "Tools for controlling the network subsystem in Linux"
+msgstr "Iloj por regi la retan subsistemon en Linukso"
+
+msgid "Library for working with POSIX capabilities"
+msgstr "Biblioteko por labori kun kapabloj POSIX"
+
+msgid ""
+"Libcap2 provides a programming interface to POSIX capabilities on\n"
+"Linux-based operating systems."
+msgstr ""
+"Libcap2 provizas program-interfacon por kapabloj POSIX en\n"
+"operaciumaj sistemoj bazitaj sur Linukso."
+
+msgid "Manipulate Ethernet bridges"
+msgstr "Manipuli pontojn Ethernet"
+
+msgid "NetLink protocol library suite"
+msgstr "Biblioteka programaro por la protokolo NetLink"
+
+msgid "Tool for configuring wireless devices"
+msgstr "Iloj por agordi linuksajn sendratajn aparatojn"
+
+msgid "Audio mixer for X and the console"
+msgstr "Son-miksilo por X kaj la konzolo"
+
+msgid ""
+"Aumix adjusts an audio mixer from X, the console, a terminal,\n"
+"the command line or a script."
+msgstr ""
+"Aumix agordas son-miksilo el X, la konzolo, terminalo,\n"
+"la komandlinio aŭ el skripto."
+
+msgid "Displays the IO activity of running processes"
+msgstr "Montri la en/eligan aktivaĵon de rulantaj procezoj"
+
+msgid "Support file systems implemented in user space"
+msgstr "Subteni dosiersistemojn realigatajn en la uzant-spaco"
+
+msgid "User-space union file system"
+msgstr "Uzant-spaca unuiga dosiersistemo"
+
+msgid "User-space union file system (statically linked)"
+msgstr "Uzant-spaca unuiga dosiersistemo (statike ligita)"
+
+msgid "Mount remote file systems over SSH"
+msgstr "Munti demalproksimajn dosiersistemojn per SSH"
+
+msgid "Tools for non-uniform memory access (NUMA) machines"
+msgstr "Iloj por maŝinoj kun ne-kontinua memor-aliro (NUMA)"
+
+msgid "Linux keyboard utilities and keyboard maps"
+msgstr "Linuksaj klavar-utilaĵoj kaj klavar-mapoj"
+
+msgid "Monitor file accesses"
+msgstr "Observi dosier-alirojn"
+
+msgid "Kernel module tools"
+msgstr "Iloj por kerno-moduloj"
+
+msgid "Userspace device management"
+msgstr "Administro de uzant-spaca aparato"
+
+msgid "Logical volume management for Linux"
+msgstr "Administro de logika volumo por Linukso"
+
+msgid "Tools for manipulating Linux Wireless Extensions"
+msgstr "Iloj por manipuli linuksan \"Wireless Extensions\""
+
+msgid "Utilities to read temperature/voltage/fan sensors"
+msgstr "Utilaĵoj por legi temperaturan/tensian/ventolilan sensilojn"
+
+msgid "Hardware health information viewer"
+msgstr "Montrilo de informoj pri la aparatara sano"
+
+msgid "Linux profiling with performance counters"
+msgstr "Linuksa trajt-esplorado kun rendiment-akumuliloj"
+
+msgid "Simple tool for creating Linux namespace containers"
+msgstr "Simpla ilo por krei linuksajn nomspacajn ujojn"
+
+msgid "Tools for loading and managing Linux kernel modules"
+msgstr "Iloj por ŝargi kaj administri linuks-kernajn modulojn"
+
+msgid "Document layout system"
+msgstr "Dokument-aranĵa sistemo"
+
+msgid "Music Player Daemon client library"
+msgstr "Klienta biblioteko por \"Music Player Daemon\""
+
+msgid "Music Player Daemon"
+msgstr "Music Player Daemon (muzik-ludila demono)"
+
+msgid "Curses Music Player Daemon client"
+msgstr "Kliento por \"Curses Music Player Daemon\""
+
+msgid "Featureful ncurses based MPD client inspired by ncmpc"
+msgstr "Riĉa MPD-kliento bazita sur ncurses kaj inspirita de ncmpc"
+
+msgid "Netscape API for system level and libc-like functions"
+msgstr "Netscape API por sistem-nivelaj kaj libc-similaj funkcioj"
+
+msgid "PDF rendering library"
+msgstr "PDF-bildiga biblioteko"
+
+msgid "Viewer for PDF files based on the Motif toolkit"
+msgstr "Montrilo por PDF-dosieroj bazitaj sur la ilaro Motif"
+
+msgid "Tools to work with the PDF file format"
+msgstr "Iloj por labori kun la PDF dosierformo"
+
+msgid "Lightweight PDF viewer and toolkit"
+msgstr "Malpeza PDF-montrilo kaj ilaro"
+
+msgid "Command-line tools and library for transforming PDF files"
+msgstr "Komandliniaj iloj kaj biblioteko por transformi PDF-dosierojn"
+
+msgid "Read and manipulate EXIF data in digital photographs"
+msgstr "Legi kaj manipuli datumaron EXIF en ciferecaj fotaĵoj"
+
+msgid ""
+"The libexif C library allows applications to read, edit, and save EXIF\n"
+"data as produced by digital cameras."
+msgstr ""
+"La C-biblioteko libexif ebligas ke aplikaĵoj legu, redaktu kaj konservu\n"
+"datumaron EXIF samkiel produktite de ciferecaj kameraoj."
+
+msgid "Accessing digital cameras"
+msgstr "Aliro al ciferecaj kameraoj"
+
+msgid "Command-line tools to access digital cameras"
+msgstr "Komandliniaj iloj por aliri ciferecajn kameraojn"
+
+msgid "Simple mouse-free tiling window manager"
+msgstr "Simpla mus-libera kaheleca fenestr-administrilo"
+
+msgid "Efficient Scheme compiler"
+msgstr "Efika kompililo Scheme"
+
+msgid "Multi-tier programming language for the Web 2.0"
+msgstr "Plurtavola programlingvo por la Web 2.0"
+
+msgid "Scheme implementation using a bytecode interpreter"
+msgstr "Realigo de Scheme, kiu uzas bajtkodan interpretilon"
+
+msgid "Entirely free browser derived from Mozilla Firefox"
+msgstr "Tute libera foliumilo derivita de Mozilla Firefox"
+
+msgid "OpenType text shaping engine"
+msgstr "Teksto-formiga maŝino OpenType"
+
+msgid "HarfBuzz is an OpenType text shaping engine."
+msgstr "HarfBuzz estas tekst-formiga maŝino OpenType."
+
+msgid "Obsolete pango functions"
+msgstr "Malrekomendindaj funkcioj de Pango"
+
+msgid "Assistive Technology Service Provider Interface, core components"
+msgstr "'Asista Teknologia Serv-Provizila Interfaco', ĉefaj elementoj"
+
+msgid "Cross-platform toolkit for creating graphical user interfaces"
+msgstr "Plursistema ilaro por krei grafik-uzantajn interfacojn"
+
+msgid "Cairo bindings for GNU Guile"
+msgstr "Bindoj de Cairo por GNU Guile"
+
+msgid "C++ bindings to the Cairo 2D graphics library"
+msgstr "Bindoj de C++ por la 2D-grafika biblioteko Cairo"
+
+msgid "C++ interface to the Pango text rendering library"
+msgstr "Interfaco C++ por la tekst-bildiga biblioteko Pango"
+
+msgid "Python bindings for cairo"
+msgstr "Bindoj de Python por Cairo"
+
+msgid "Framework for building readers for GNU Guile"
+msgstr "Framo por konstrui legilojn por GNU Guile"
+
+msgid ""
+"guile-ncurses provides Guile language bindings for the ncurses\n"
+"library."
+msgstr ""
+"guile-ncurses provizas lingvo-bindojn de Guile por la biblioteko\n"
+"ncurses."
+
+msgid "Run jobs at scheduled times"
+msgstr "Lanĉi taskojn je antaŭplanitaj horoj"
+
+msgid "Scheme implementation intended especially for extensions"
+msgstr "Realigo de Scheme celata speciale por aldonoj"
+
+msgid "JSON module for Guile"
+msgstr "Modulo JSON por Guile"
+
+msgid "Hunspell dictionary for English"
+msgstr "Vortaro Hunspell por la Angla"
+
+msgid "Library for handling PNG files"
+msgstr "Biblioteko por trakti dosierojn PNG"
+
+msgid "Library for handling JPEG files"
+msgstr "Biblioteko por trakti dosierojn JPEG"
+
+msgid "Library for handling TIFF files"
+msgstr "Biblioteko por trakti dosierojn TIFF"
+
+msgid "Decoder of the JBIG2 image compression format"
+msgstr "Dekodilo de la bild-densiga formo JBIG2"
+
+msgid "Tools and library for working with GIF images"
+msgstr "Iloj kaj biblioteko por labori kun bildoj GIF"
+
+msgid "Loading, saving, rendering and manipulating image files"
+msgstr "Ŝargi, konservi, bildigi kaj manipuli bild-dosierojn"
+
+msgid "Wrapper library for imlib2"
+msgstr "Ĉirkaŭira biblioteko por imlib2"
+
+msgid "Library for handling popular graphics image formats"
+msgstr "Biblioteko por trakti popularajn grafikaĵajn bild-formojn"
+
+msgid "Vector graphics editor"
+msgstr "Vektor-grafika redaktilo"
+
+msgid "Powerful shell for interactive use and scripting"
+msgstr "Potenca ŝelo por interaga uzo kaj por skriptoj"
+
+msgid "Lexical database for the English language"
+msgstr "Leksika datumbazo por la angla lingvo"
+
+msgid "Library for manipulating the ogg multimedia format"
+msgstr "Biblioteko por manipuli la aŭdvidan formon ogg"
+
+msgid "Library implementing the vorbis audio format"
+msgstr "Biblioteko kiu realigas la aŭdformon vorbis"
+
+msgid "Library implementing the Theora video format"
+msgstr "Biblioteko kiu realigas la videformon Theora"
+
+msgid "Library for patent-free audio compression format"
+msgstr "Biblioteko por senpatenta sondensiga formo"
+
+msgid "Cross platform audio library"
+msgstr "Plursistema son-biblioteko"
+
+msgid "Free lossless audio codec"
+msgstr "Libera senperda sona kodeko"
+
+msgid ""
+"FLAC stands for Free Lossless Audio Codec, an audio format that is lossless,\n"
+"meaning that audio is compressed in FLAC without any loss in quality."
+msgstr ""
+"FLAC signifas Libera Senperda Son-kodeko, kio signifas ke,\n"
+"sono densigita per FLAC ne havas perdon en ĝia kvalito."
+
+msgid "Karaoke and text codec for embedding in ogg"
+msgstr "Karaokea kaj teksta kodeko por enkorpigi en ogg"
+
+msgid "Ogg vorbis tools"
+msgstr "Ilaro ogg vorbis"
+
+msgid "Versatile audio codec"
+msgstr "Diversutila son-kodeko"

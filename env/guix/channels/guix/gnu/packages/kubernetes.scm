@@ -1,0 +1,899 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2026 Arthur Rodrigues <arthurhdrodrigues@proton.me>
+;;; Copyright © 2026 moksh <mysticmoksh@riseup.net>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (gnu packages kubernetes)
+  #:use-module ((guix licenses) #:prefix license:)
+  #:use-module (guix build-system go)
+  #:use-module (guix gexp)
+  #:use-module (guix git-download)
+  #:use-module (guix packages)
+  #:use-module (guix utils)
+  #:use-module (gnu packages golang-build)
+  #:use-module (gnu packages golang-check)
+  #:use-module (gnu packages golang-crypto)
+  #:use-module (gnu packages golang-web)
+  #:use-module (gnu packages golang-xyz)
+  #:use-module (gnu packages prometheus))
+
+
+;;;
+;;; Libraries:
+;;;
+
+(define-public go-github-com-elastic-crd-ref-docs
+  (package
+    (name "go-github-com-elastic-crd-ref-docs")
+    (version "0.3.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/elastic/crd-ref-docs")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0vg3zjcgcq04cbqc8sk638q9v5r62w8r8x22yl7g9blbbr13sj7s"))
+       (modules '((guix build utils)))
+       (snippet
+        #~(begin
+            ;; Submodules with their own go.mod files and packaged separately:
+            ;;
+            ;; - github.com/elastic/crd-ref-docs/test
+            (delete-file-recursively "test")))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:skip-build? #t
+      #:import-path "github.com/elastic/crd-ref-docs"))
+    (native-inputs
+     (list go-github-com-stretchr-testify))
+    (propagated-inputs
+     (list go-github-com-goccy-go-yaml
+           go-github-com-masterminds-sprig-v3
+           go-github-com-spf13-cobra
+           go-golang-org-x-tools
+           go-go-uber-org-zap
+           go-k8s-io-apimachinery
+           go-sigs-k8s-io-controller-runtime
+           ;; go-sigs-k8s-io-gateway-api
+           go-sigs-k8s-io-controller-tools))
+    (home-page "https://github.com/elastic/crd-ref-docs")
+    (synopsis "Kubernetes CRD reference documentation generator")
+    (description
+     "This package generates API reference documentation by scanning a source
+tree for exported @acronym{CustomResourceDefinition, CRD} types.")
+    (license license:asl2.0)))
+
+(define-public go-go-etcd-io-etcd-client-v3
+  (package
+    (name "go-go-etcd-io-etcd-client-v3")
+    (version "3.6.7")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/etcd-io/etcd")
+             (commit (go-version->git-ref version #:subdir "client"))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0d9rjyl5h0xm9isgr8b2fz8528wk3pds71rjl8g08fgsmsa5kicb"))
+       (modules '((guix build utils)
+                  (ice-9 ftw)
+                  (srfi srfi-26)))
+       (snippet #~(begin
+                    (define (delete-all-but directory . preserve)
+                      (with-directory-excursion directory
+                        (let* ((pred (negate (cut member <>
+                                                  (cons* "." ".." preserve))))
+                               (items (scandir "." pred)))
+                          (for-each (cut delete-file-recursively <>) items))))
+                    ;; Replace symlinks to tests with file contents
+                    (for-each
+                     (lambda (f)
+                       (delete-file (string-append "client/v3/" f))
+                       (copy-file (string-append
+                                   "tests/integration/clientv3/examples/" f)
+                                  (string-append "client/v3/" f)))
+                     (list "example_auth_test.go"
+                           "example_cluster_test.go"
+                           "example_kv_test.go"
+                           "example_lease_test.go"
+                           "example_maintenance_test.go"
+                           "example_metrics_test.go"
+                           "example_test.go"
+                           "example_watch_test.go"))
+                    (for-each
+                     (lambda (f)
+                       (delete-file
+                        (string-append "client/v3/concurrency/" f))
+                       (copy-file
+                        (string-append "tests/integration/clientv3/concurrency/" f)
+                        (string-append "client/v3/concurrency/" f)))
+                     (list "example_election_test.go"
+                           "example_mutex_test.go"
+                           "example_stm_test.go"))
+                    ;; Copy sertificates for tests.
+                    (mkdir-p "client/v3/tests/fixtures")
+                    (substitute* "client/v3/yaml/config_test.go"
+                      (("\\.\\./\\.\\./\\.\\./") "../"))
+                    (for-each
+                     (lambda (f)
+                       (copy-file
+                        (string-append "tests/fixtures/" f)
+                        (string-append "client/v3/tests/fixtures/" f)))
+                     (list "server.crt"
+                           "server.key.insecure"
+                           "ca.crt"))
+                    ;; Keep source related to expected import-path.
+                    (delete-all-but "." "client")
+                    (delete-file-recursively "client/pkg")))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      ;; TODO: Tests a shaky and fail a lot, check how run unittests.
+      #:tests? #f
+      #:import-path "go.etcd.io/etcd/client/v3"
+      #:unpack-path "go.etcd.io/etcd"))
+    (native-inputs
+     (list go-github-com-grpc-ecosystem-go-grpc-middleware-providers-prometheus
+           go-github-com-prometheus-client-golang
+           go-github-com-stretchr-testify
+           go-go-etcd-io-etcd-client-pkg-v3
+           go-go-uber-org-zap
+           go-google-golang-org-grpc))
+    (propagated-inputs
+     (list go-github-com-coreos-go-semver
+           go-github-com-dustin-go-humanize
+           go-github-com-grpc-ecosystem-go-grpc-middleware-v2
+           go-go-etcd-io-etcd-api-v3
+           go-sigs-k8s-io-yaml))
+    (home-page "https://github.com/etcd-io/etcd")
+    (synopsis "Golang client for ETCD")
+    (description
+     "This package implements the official Go client for etcd.")
+    (license license:asl2.0)))
+
+(define-public go-go-etcd-io-etcd-server-v3
+  (package
+    (name "go-go-etcd-io-etcd-server-v3")
+    (version "3.6.7")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/etcd-io/etcd")
+             (commit (go-version->git-ref version
+                                          #:subdir "server"))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0d9rjyl5h0xm9isgr8b2fz8528wk3pds71rjl8g08fgsmsa5kicb"))
+       (modules '((guix build utils)
+                  (ice-9 ftw)
+                  (srfi srfi-26)))
+       (snippet #~(begin
+                    (define (delete-all-but directory . preserve)
+                      (with-directory-excursion directory
+                        (let* ((pred (negate (cut member <>
+                                                  (cons* "." ".." preserve))))
+                               (items (scandir "." pred)))
+                          (for-each (cut delete-file-recursively <>) items))))
+                    (delete-all-but "." "server")
+                    (rename-file "server" "server.tmp")
+                    (mkdir-p "server/v3")
+                    (rename-file "server.tmp" "server/v3")))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:skip-build? #t
+      #:tests? #f ;Setup fails
+      #:import-path "go.etcd.io/etcd/server/v3"
+      #:unpack-path "go.etcd.io/etcd"))
+    (propagated-inputs
+     (list go-github-com-coreos-go-semver
+           go-github-com-coreos-go-systemd-v22
+           go-github-com-dustin-go-humanize
+           go-github-com-gogo-protobuf
+           go-github-com-golang-groupcache
+           go-github-com-golang-jwt-jwt-v5
+           go-github-com-golang-protobuf
+           go-github-com-google-btree
+           go-github-com-google-go-cmp
+           go-github-com-grpc-ecosystem-go-grpc-middleware
+           go-github-com-grpc-ecosystem-go-grpc-middleware-providers-prometheus
+           go-github-com-grpc-ecosystem-grpc-gateway-v2
+           go-github-com-jonboulle-clockwork
+           go-github-com-prometheus-client-golang
+           go-github-com-prometheus-client-model
+           go-github-com-soheilhy-cmux
+           go-github-com-spf13-cobra
+           go-github-com-stretchr-testify
+           go-github-com-tmc-grpc-websocket-proxy
+           go-github-com-xiang90-probing
+           go-go-etcd-io-bbolt
+           go-go-etcd-io-etcd-client-v3
+           go-go-etcd-io-etcd-pkg-v3
+           go-go-etcd-io-raft-v3
+           go-go-opentelemetry-io-contrib-instrumentation-google-golang-org-grpc-otelgrpc
+           go-go-opentelemetry-io-otel
+           go-go-opentelemetry-io-otel-exporters-otlp-otlptrace
+           go-go-opentelemetry-io-otel-exporters-otlp-otlptrace-otlptracegrpc
+           go-go-opentelemetry-io-otel-sdk
+           go-go-uber-org-zap
+           go-golang-org-x-crypto
+           go-golang-org-x-net
+           go-golang-org-x-time
+           go-google-golang-org-genproto-googleapis-api
+           go-google-golang-org-grpc
+           go-google-golang-org-protobuf
+           go-gopkg-in-natefinch-lumberjack-v2
+           go-sigs-k8s-io-json
+           go-sigs-k8s-io-yaml))
+    (home-page "https://go.etcd.io/etcd")
+    (synopsis "Server package for ETCD")
+    (description
+     "This package provides a server for the ETCD distributed key-value storage
+system.")
+    (license license:asl2.0)))
+
+
+(define-public go-go-etcd-io-etcd-pkg-v3
+  (package
+    (name "go-go-etcd-io-etcd-pkg-v3")
+    (version "3.6.7")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/etcd-io/etcd")
+              (commit (go-version->git-ref version
+                                           #:subdir "pkg"))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0d9rjyl5h0xm9isgr8b2fz8528wk3pds71rjl8g08fgsmsa5kicb"))
+       (modules '((guix build utils)
+                  (ice-9 ftw)
+                  (srfi srfi-26)))
+       (snippet #~(begin
+                    (define (delete-all-but directory . preserve)
+                      (with-directory-excursion directory
+                        (let* ((pred (negate (cut member <>
+                                                  (cons* "." ".." preserve))))
+                               (items (scandir "." pred)))
+                          (for-each (cut delete-file-recursively <>) items))))
+                    (delete-all-but "." "pkg")
+                    (rename-file "pkg" "pkg.tmp")
+                    (mkdir-p "pkg/v3")
+                    (rename-file "pkg.tmp" "pkg/v3")))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:skip-build? #t
+      #:tests? #f       ;TODO: Tests hang, select some subset
+      #:import-path "go.etcd.io/etcd/pkg/v3"
+      #:unpack-path "go.etcd.io/etcd"))
+    (native-inputs
+     (list go-github-com-spf13-cobra
+           go-github-com-spf13-pflag
+           go-github-com-stretchr-testify))
+    (propagated-inputs
+     (list go-github-com-creack-pty
+           go-github-com-dustin-go-humanize
+           go-go-etcd-io-etcd-client-pkg-v3
+           go-go-uber-org-zap
+           go-google-golang-org-grpc))
+    (home-page "https://github.com/etcd-io/etcd")
+    (synopsis "Utility packages for etcd")
+    (description
+     "This package is a collection of utility packages used by etcd without
+being specific to etcd itself.")
+    (license license:asl2.0)))
+
+(define-public go-k8s-io-apiextensions-apiserver
+  (package
+    (name "go-k8s-io-apiextensions-apiserver")
+    (version "0.34.2")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/kubernetes/apiextensions-apiserver")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0qng3q3n9169vhb99sm1fk4c834kvqhlvb97ivz0m1zn30fk9xqj"))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:tests? #f ;FIXME: Tests hang
+      #:skip-build? #t
+      #:import-path "k8s.io/apiextensions-apiserver"
+      #:embed-files #~(list "authoring.tmpl")
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'remove-examples
+            (lambda* (#:key import-path #:allow-other-keys)
+              (with-directory-excursion (string-append "src/" import-path)
+                (delete-file-recursively "examples")))))))
+    (native-inputs
+     (list go-github-com-spf13-cobra
+           go-github-com-spf13-pflag))
+    (propagated-inputs
+     (list go-github-com-emicklei-go-restful-v3
+           go-github-com-fxamacker-cbor-v2
+           go-github-com-gogo-protobuf
+           go-github-com-google-cel-go
+           go-github-com-google-gnostic-models
+           go-github-com-google-uuid
+           go-go-etcd-io-etcd-client-pkg-v3
+           go-go-etcd-io-etcd-client-v3
+           go-go-opentelemetry-io-otel
+           go-go-opentelemetry-io-otel-trace
+           go-go-yaml-in-yaml-v2
+           go-golang-org-x-sync
+           go-google-golang-org-grpc
+           go-google-golang-org-protobuf
+           go-gopkg-in-evanphx-json-patch-v4
+           go-k8s-io-api
+           go-k8s-io-apimachinery
+           go-k8s-io-apiserver
+           go-k8s-io-client-go
+           go-k8s-io-code-generator
+           go-k8s-io-component-base
+           go-k8s-io-klog-v2
+           go-k8s-io-kube-openapi
+           go-k8s-io-utils
+           go-sigs-k8s-io-json
+           go-sigs-k8s-io-randfill
+           go-sigs-k8s-io-structured-merge-diff-v6
+           go-sigs-k8s-io-yaml))
+    (home-page "https://k8s.io/apiextensions-apiserver")
+    (synopsis "API server for Kubernetes API extensions")
+    (description
+     "This API server provides the implementation for
+@code{CustomResourceDefinitions} which is included as delegate server inside
+of @code{kube-apiserver}.")
+    (license license:asl2.0)))
+
+(define-public go-k8s-io-apiserver
+  (package
+    (name "go-k8s-io-apiserver")
+    (version "0.34.2")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/kubernetes/apiserver")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "06bcbdnlhg1mwky6i1519n1nhlh8rxc9qv7jwqjhc03m2ql3bb8q"))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:tests? #f ;TODO: Tests require unpackaged dependencies
+      #:embed-files
+      #~(list "authoring\\.tmpl" "api__v1_openapi\\.json")
+      #:import-path "k8s.io/apiserver"))
+    (native-inputs
+     (list go-github-com-stretchr-testify))
+    (propagated-inputs
+     (list go-github-com-blang-semver-v4
+           go-github-com-coreos-go-oidc
+           go-github-com-coreos-go-systemd-v22
+           go-github-com-emicklei-go-restful-v3
+           go-github-com-fsnotify-fsnotify
+           go-github-com-go-logr-logr
+           go-github-com-gogo-protobuf
+           go-github-com-google-btree
+           go-github-com-google-cel-go
+           go-github-com-google-gnostic-models
+           go-github-com-google-go-cmp
+           go-github-com-google-uuid
+           go-github-com-gorilla-websocket
+           go-github-com-grpc-ecosystem-go-grpc-prometheus
+           go-github-com-munnerz-goautoneg
+           go-github-com-mxk-go-flowrate
+           go-github-com-spf13-pflag
+           go-go-etcd-io-etcd-api-v3
+           go-go-etcd-io-etcd-client-pkg-v3
+           go-go-etcd-io-etcd-client-v3
+           go-go-etcd-io-etcd-server-v3
+           go-go-opentelemetry-io-contrib-instrumentation-google-golang-org-grpc-otelgrpc
+           go-go-opentelemetry-io-contrib-instrumentation-net-http-otelhttp
+           go-go-opentelemetry-io-otel
+           go-go-opentelemetry-io-otel-exporters-otlp-otlptrace-otlptracegrpc
+           go-go-opentelemetry-io-otel-metric
+           go-go-opentelemetry-io-otel-sdk
+           go-go-opentelemetry-io-otel-trace
+           go-go-uber-org-zap
+           go-golang-org-x-crypto
+           go-golang-org-x-net
+           go-golang-org-x-sync
+           go-golang-org-x-sys
+           go-golang-org-x-time
+           go-google-golang-org-genproto-googleapis-api
+           go-google-golang-org-grpc
+           go-google-golang-org-protobuf
+           go-gopkg-in-evanphx-json-patch-v4
+           go-gopkg-in-go-jose-go-jose-v2
+           go-gopkg-in-natefinch-lumberjack-v2
+           go-k8s-io-api
+           go-k8s-io-apimachinery
+           go-k8s-io-client-go
+           go-k8s-io-component-base
+           go-k8s-io-klog-v2
+           go-k8s-io-kms
+           go-k8s-io-kube-openapi
+           go-k8s-io-utils
+           go-sigs-k8s-io-apiserver-network-proxy-konnectivity-client
+           go-sigs-k8s-io-json
+           go-sigs-k8s-io-randfill
+           go-sigs-k8s-io-structured-merge-diff-v6
+           go-sigs-k8s-io-yaml))
+    (home-page "https://github.com/kubernetes/apiserver")
+    (synopsis "Library for building a Kubernetes aggregated API server")
+    (description
+     "This package provides a generic library for building a Kubernetes
+aggregated API server.")
+    (license license:asl2.0)))
+
+(define-public go-k8s-io-code-generator
+  (package
+    (name "go-k8s-io-code-generator")
+    (version "0.35.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/kubernetes/code-generator")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "16v8r1l8nm4m3s94ck1r7j0n7m5rkxj8bxb7a9m5zmrkp7s6wldq"))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:import-path "k8s.io/code-generator"
+      #:unpack-path "k8s.io/code-generator"
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'remove-examples
+            (lambda* (#:key unpack-path #:allow-other-keys)
+              (with-directory-excursion (string-append "src/" unpack-path)
+                (delete-file-recursively "examples")))))))
+    (native-inputs
+     (list go-github-com-google-go-cmp
+           go-github-com-spf13-pflag))
+    (propagated-inputs
+     (list go-github-com-gogo-protobuf
+           go-github-com-google-gnostic-models
+           go-go-yaml-in-yaml-v2
+           go-golang-org-x-text
+           go-k8s-io-apimachinery
+           go-k8s-io-gengo-v2
+           go-k8s-io-klog-v2
+           go-k8s-io-kube-openapi
+           go-k8s-io-utils
+           go-sigs-k8s-io-randfill))
+    (home-page "https://k8s.io/code-generator")
+    (synopsis "Code generator for Kubernetes API types")
+    (description
+     "Golang code-generators used to implement
+@url{https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md,
+Kubernetes-style API types}.")
+    (license license:asl2.0)))
+
+(define-public go-k8s-io-component-base
+  (package
+    (name "go-k8s-io-component-base")
+    (version "0.34.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/kubernetes/component-base")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "090ghb66zh4mln9fvp89vfq0g4pysm5y4lrp5n6801491mngyndm"))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:test-flags
+      #~(list "-skip" "Tracing")
+      #:import-path "k8s.io/component-base"))
+    (native-inputs
+     (list go-github-com-stretchr-testify))
+    (propagated-inputs
+     (list go-github-com-blang-semver-v4
+           go-github-com-go-logr-logr
+           go-github-com-go-logr-zapr
+           go-github-com-google-go-cmp
+           go-github-com-moby-term
+           go-github-com-prometheus-client-golang
+           go-github-com-prometheus-client-model
+           go-github-com-prometheus-common
+           go-github-com-prometheus-procfs
+           go-github-com-spf13-cobra
+           go-github-com-spf13-pflag
+           go-go-opentelemetry-io-contrib-instrumentation-net-http-otelhttp
+           go-go-opentelemetry-io-otel
+           go-go-opentelemetry-io-otel-exporters-otlp-otlptrace
+           go-go-opentelemetry-io-otel-exporters-otlp-otlptrace-otlptracegrpc
+           go-go-opentelemetry-io-otel-sdk
+           go-go-opentelemetry-io-otel-trace
+           go-go-uber-org-zap
+           go-go-yaml-in-yaml-v2
+           go-golang-org-x-sys
+           go-golang-org-x-text
+           go-k8s-io-apimachinery
+           go-k8s-io-client-go
+           go-k8s-io-klog-v2
+           go-k8s-io-utils
+           go-sigs-k8s-io-json))
+    (home-page "https://github.com/kubernetes/component-base")
+    (synopsis "Kubernetes core components Golang source code")
+    (description
+     "This package contains shared code for Kubernetes core components.")
+    (license license:asl2.0)))
+
+(define-public go-k8s-io-kubelet
+  (package
+    (name "go-k8s-io-kubelet")
+    (version "0.36.3")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/kubernetes/kubelet")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0n9f79yvk1gly15ach4l5wfxy9wwq5zj3qrgr57893zizyqrpn5i"))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:import-path "k8s.io/kubelet"))
+    (native-inputs
+     (list go-github-com-stretchr-testify))
+    (propagated-inputs
+     (list go-google-golang-org-grpc
+           go-google-golang-org-protobuf
+           go-k8s-io-api
+           go-k8s-io-apimachinery
+           go-k8s-io-component-base))
+    (home-page "https://k8s.io/kubelet")
+    (synopsis "Kubelet component configs")
+    (description
+     "This package provides external, versioned ComponentConfig API types for
+configuring the kubelet.")
+    (license license:asl2.0)))
+
+(define-public go-sigs-k8s-io-apiserver-network-proxy-konnectivity-client
+  (package
+    (name "go-sigs-k8s-io-apiserver-network-proxy-konnectivity-client")
+    (version "0.34.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/kubernetes-sigs/apiserver-network-proxy")
+              (commit (go-version->git-ref version
+                                           #:subdir "konnectivity-client"))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1kh92blfpmrmklxqg5j0p07yz534gjzhm44xj8bh5pad3y5zw5m0"))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:skip-build? #t
+      #:import-path "sigs.k8s.io/apiserver-network-proxy/konnectivity-client"
+      #:unpack-path "sigs.k8s.io/apiserver-network-proxy"))
+    (native-inputs
+     (list go-go-uber-org-goleak))
+    (propagated-inputs
+     (list go-github-com-prometheus-client-golang
+           go-google-golang-org-grpc
+           go-google-golang-org-protobuf
+           go-k8s-io-klog-v2))
+    (home-page "https://sigs.k8s.io/apiserver-network-proxy")
+    (synopsis "Network proxy for Kubernetes API server")
+    (description
+     "This package provides a network proxy for the Kubernetes API server.")
+    (license license:asl2.0)))
+
+(define-public go-sigs-k8s-io-controller-runtime
+  (package
+    (name "go-sigs-k8s-io-controller-runtime")
+    (version "0.22.4")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/kubernetes-sigs/controller-runtime")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0z5wbcmmcngwxxg9krz3sqp739fv8c73s2v84dibbqc86ag05q8i"))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:import-path "sigs.k8s.io/controller-runtime"
+      #:embed-files #~(list "authoring.tmpl")
+      #:test-flags
+      #~(list "-skip" (string-join
+                       ;; XXX: Check why these tests fail.
+                       (list "TestAdmissionWebhook"
+                             "TestApiMachinery"
+                             "TestBuilder"
+                             "TestClient"
+                             "TestControllerutil"
+                             "TestEventhandler"
+                             "TestIntegration"
+                             "TestLazyRestMapperProvider"
+                             "TestManager"
+                             "TestReconcile"
+                             "TestRecorder"
+                             "TestSource"
+                             "TestVersioning"
+                             "TestWorkflows")
+                       "|"))))
+    (native-inputs
+     (list go-github-com-google-go-cmp
+           go-github-com-onsi-ginkgo-v2
+           go-github-com-onsi-gomega
+           go-github-com-spf13-afero
+           go-go-uber-org-goleak))
+    (propagated-inputs
+     (list go-github-com-evanphx-json-patch-v5
+           go-github-com-fsnotify-fsnotify
+           go-github-com-go-logr-logr
+           go-github-com-go-logr-zapr
+           go-github-com-google-btree
+           go-github-com-google-gofuzz
+           go-github-com-prometheus-client-golang
+           go-github-com-prometheus-client-model
+           go-go-uber-org-zap
+           go-golang-org-x-mod
+           go-golang-org-x-sync
+           go-golang-org-x-sys
+           go-gomodules-xyz-jsonpatch-v2
+           go-gopkg-in-evanphx-json-patch-v4
+           go-k8s-io-api
+           go-k8s-io-apiextensions-apiserver
+           go-k8s-io-apimachinery
+           go-k8s-io-apiserver
+           go-k8s-io-client-go
+           go-k8s-io-klog-v2
+           go-k8s-io-utils
+           go-sigs-k8s-io-structured-merge-diff-v6
+           go-sigs-k8s-io-yaml))
+    (home-page "https://sigs.k8s.io/controller-runtime")
+    (synopsis "Kubernetes controller-runtime Project")
+    (description
+     "Package controllerruntime provides tools to construct Kubernetes-style
+controllers that manipulate both Kubernetes CRDs and aggregated/built-in
+Kubernetes APIs.")
+    (license license:asl2.0)))
+
+(define-public go-sigs-k8s-io-controller-tools
+  (package
+    (name "go-sigs-k8s-io-controller-tools")
+    (version "0.19.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/kubernetes-sigs/controller-tools")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1n6vc681bhhk972l1ijg7m01xy3zvi5i17y6fhac1m7bs7rrgz1l"))
+       (modules '((guix build utils)))
+       (snippet
+        #~(begin
+            ;; Submodules with their own go.mod files and packaged separately:
+            ;;
+            ;; - github.com/google/cel-go/codelab
+            (for-each delete-file-recursively
+                      (list "pkg/crd/testdata"
+                            "pkg/loader/testmod"
+                            "pkg/webhook/testdata"
+                            "pkg/deepcopy/testdata"
+                            "pkg/schemapatcher/testdata"
+                            "pkg/applyconfiguration/testdata/cronjob"))))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:skip-build? #t
+      #:test-flags
+      #~(list "-skip" (string-join
+                       ;;  Expected success, but got an error:
+                       ;;   <*fs.PathError | 0xc000314a20>:
+                       ;;   chdir ./testdata: no such file or directory
+                       ;;   {
+                       ;;       Op: "chdir",
+                       ;;       Path: "./testdata",
+                       ;;       Err: <syscall.Errno>0x2,
+                       ;;   }
+                       ;; 0 Passed | 1 Failed
+                       (list "TestObjectGeneration"
+                             ;; 23 Passed | 19 Failed
+                             "TestCRDGeneration"
+                             ;; validation_test.go:118:
+                             ;; failed to create validator:
+                             ;; open ./testdata/testdata.kubebuilder.io_oneofs.yaml:
+                             ;; no such file or directory
+                             "TestOneOfConstraints"
+                             ;; 3 Passed | 8 Failed
+                             "TestLoader"
+                             ;; 0 Passed | 2 Failed
+                             "TestInPlaceCRDSchemaGeneration"
+                             ;; 0 Passed | 11 Failed
+                             "TestWebhookGeneration"
+                             ;; 1 Passed | 1 Failed
+                             "TestVersioning")
+                       "|"))
+      #:import-path "sigs.k8s.io/controller-tools"
+      #:embed-files
+      #~(list "authoring.tmpl")))
+    (native-inputs
+     (list go-github-com-google-go-cmp
+           go-github-com-onsi-ginkgo
+           go-github-com-onsi-gomega))
+    (propagated-inputs
+     (list go-github-com-fatih-color
+           go-github-com-gobuffalo-flect
+           go-github-com-spf13-cobra
+           go-github-com-spf13-pflag
+           go-golang-org-x-tools
+           go-golang-org-x-tools-go-packages-packagestest
+           go-gopkg-in-yaml-v2
+           go-gopkg-in-yaml-v3
+           go-k8s-io-api
+           go-k8s-io-apiextensions-apiserver
+           go-k8s-io-apimachinery
+           go-k8s-io-apiserver
+           go-k8s-io-code-generator
+           go-k8s-io-gengo-v2
+           go-k8s-io-utils
+           go-sigs-k8s-io-yaml))
+    (home-page "https://sigs.k8s.io/controller-tools")
+    (synopsis "Kubernetes controller-tools Project")
+    (description
+     "The Kubernetes controller-tools Project is a set of go libraries for building
+Controllers.")
+    (license license:asl2.0)))
+
+
+;;;
+;;; Executables:
+;;;
+
+(define-public etcd-server
+  (package/inherit go-go-etcd-io-etcd-server-v3
+    (name "etcd-server")
+    (arguments
+     (substitute-keyword-arguments arguments
+       ((#:tests? #f #t) #f)
+       ((#:install-source? #t #t) #f)
+       ((#:skip-build? #t #t) #f)
+       ((#:phases phases '%standard-phases)
+        #~(modify-phases #$phases
+            (add-after 'install 'fix-bin-name
+              (lambda _
+                (rename-file (string-append #$output "/bin/v3")
+                             (string-append #$output "/bin/etcd-server"))))))))
+    (native-inputs (package-propagated-inputs go-go-etcd-io-etcd-server-v3))
+    (propagated-inputs '())
+    (inputs '())))
+
+(define-public kubernetes-apiserver
+  (package/inherit go-k8s-io-apiextensions-apiserver
+    (name "kubernetes-apiserver")
+    (arguments
+     (substitute-keyword-arguments arguments
+       ((#:tests? #f #t) #f)
+       ((#:install-source? #t #t) #f)
+       ((#:skip-build? #t #t) #f)))
+    (native-inputs
+     (append (package-native-inputs go-k8s-io-apiextensions-apiserver)
+             (package-propagated-inputs go-k8s-io-apiextensions-apiserver)))
+    (propagated-inputs '())
+    (inputs '())))
+
+(define-public kubernetes-code-generator
+  (package/inherit go-k8s-io-code-generator
+    (name "kubernetes-code-generator")
+    (arguments
+     (substitute-keyword-arguments arguments
+       ((#:tests? _ #t) #f)
+       ((#:install-source? _ #t) #f)
+       ((#:skip-build? _ #t) #f)
+       ((#:import-path _) "k8s.io/code-generator/cmd/...")))
+    (native-inputs (package-propagated-inputs go-k8s-io-code-generator))
+    (propagated-inputs '())
+    (inputs '())
+    (description
+     "This package provides Kubernetes code generators command line interface
+tools:
+@itemize
+@item @command{applyconfiguration-gen} - is a tool for auto-generating apply
+builder functions
+@item @command{client-gen} - makes the individual typed clients using gengo
+@item @command{conversion-gen} - is a tool for auto-generating functions that
+convert between internal and external types
+@item @command{deepcopy-gen} - is a tool for auto-generating DeepCopy functions
+@item @command{defaulter-gen} - is a tool for auto-generating Defaulter functions
+@item @command{go-to-protobuf} - generates a Protobuf @acronym{Interface
+Definition Language, IDL} from a Go struct, respecting any existing IDL tags
+on the Go struct
+@item @command{informer-gen}
+@item @command{lister-gen}
+@item @command{prerelease-lifecycle-gen} - is a tool for auto-generating
+api-status.csv files
+@item @command{register-gen}
+@item @command{validation-gen} - is a tool for auto-generating Validation
+functions
+@end itemize")))
+
+(define-public kubernetes-controller-tools
+  (package/inherit go-sigs-k8s-io-controller-tools
+    (name "kubernetes-controller-tools")
+    (arguments
+     (substitute-keyword-arguments arguments
+       ((#:import-path _) "sigs.k8s.io/controller-tools/cmd/...")
+       ((#:install-source? #t #t) #f)
+       ((#:skip-build? #t #t) #f)
+       ((#:tests? #t #t) #f)
+       ((#:unpack-path _ "") "sigs.k8s.io/controller-tools")))
+    (native-inputs
+     (package-propagated-inputs go-sigs-k8s-io-controller-tools))
+    (propagated-inputs '())
+    (inputs '())
+    (description
+     "This package provides helper commands to work with Kubernetes (k8s):
+@itemize:
+@item @command{controller-gen} - generates Kubernetes API extension resources
+and code
+@item @command{helpgen} - generates marker help using @command{godoc}, based
+on the presence of a particular marker
+@item @command{type-scaffold} - scaffolds out basic bits of a Kubernetes type
+@end itemize
+
+For the Go library, refer to go-sigs-k8s-io-controller-tools package.")))
+
+(define-public kubernetes-crd-ref-docs
+  (package/inherit go-github-com-elastic-crd-ref-docs
+    (name "kubernetes-crd-ref-docs")
+    (arguments
+     (substitute-keyword-arguments arguments
+       ((#:install-source? #t #t) #f)
+       ((#:skip-build? #t #t) #f)
+       ((#:tests? #t #t) #f)))
+    (native-inputs
+     (package-propagated-inputs go-github-com-elastic-crd-ref-docs))
+    (propagated-inputs '())
+    (inputs '())))
+
+;;;
+;;; Avoid adding new packages to the end of this file. To reduce the chances
+;;; of a merge conflict, place them above in alphabetic order:
+;;; guix import --insert=gnu/packages/python-xyz.scm pypi <package-name>.
+;;;

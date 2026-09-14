@@ -1,0 +1,767 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2013 Cyril Roelandt <tipecaml@gmail.com>
+;;; Copyright © 2014 Mark H Weaver <mhw@netris.org>
+;;; Copyright © 2014 Eric Bavier <bavier@member.fsf.org>
+;;; Copyright © 2014 Ian Denhardt <ian@zenhack.net>
+;;; Copyright © 2015 Sou Bunnbu <iyzsong@gmail.com>
+;;; Copyright © 2016, 2024 Efraim Flashner <efraim@flashner.co.il>
+;;; Copyright © 2017, 2018, 2020, 2021 Marius Bakke <marius@gnu.org>
+;;; Copyright © 2018 Arun Isaac <arunisaac@systemreboot.net>
+;;; Copyright © 2018, 2020 Tobias Geerinckx-Rice <me@tobias.gr>
+;;; Copyright © 2019-2026 Maxim Cournoyer <maxim@guixotic.coop>
+;;; Copyright © 2019 Pierre-Moana Levesque <pierre.moana.levesque@gmail.com>
+;;; Copyright © 2020, 2023 Janneke Nieuwenhuizen <janneke@gnu.org>
+;;; Copyright © 2021 Ricardo Wurmus <rekado@elephly.net>
+;;; Copyright © 2023 Simon South <simon@simonsouth.net>
+;;; Copyright © 2024 John Kehayias <john.kehayias@protonmail.com>
+;;; Copyright © 2024 dan <i@dan.games>
+;;; Copyright © 2024 Charles <charles@charje.net>
+;;; Copyright © 2024 Greg Hogan <code@greghogan.com>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (gnu packages cmake)
+  #:use-module ((guix licenses) #:prefix license:)
+  #:use-module (guix packages)
+  #:use-module (guix gexp)
+  #:use-module (guix download)
+  #:use-module (guix gexp)
+  #:use-module (guix git-download)
+  #:use-module (guix utils)
+  #:use-module (guix deprecation)
+  #:use-module (guix build-system gnu)
+  #:use-module (guix build-system cmake)
+  #:use-module (guix build-system copy)
+  #:use-module (guix build-system emacs)
+  #:use-module (guix build-system pyproject)
+  #:use-module ((guix search-paths) #:select ($SSL_CERT_DIR $SSL_CERT_FILE))
+  #:use-module (gnu packages)
+  #:use-module (gnu packages backup)
+  #:use-module (gnu packages compression)
+  #:use-module (gnu packages cpp)
+  #:use-module (gnu packages crypto)
+  #:use-module (gnu packages curl)
+  #:use-module (gnu packages elf)
+  #:use-module (gnu packages file)
+  #:use-module (gnu packages kde-frameworks)
+  #:use-module (gnu packages libevent)
+  #:use-module (gnu packages python-build)
+  #:use-module (gnu packages python-xyz)
+  #:use-module (gnu packages ncurses)
+  #:use-module (gnu packages rust)
+  #:use-module (gnu packages serialization)
+  #:use-module (gnu packages sphinx)
+  #:use-module (gnu packages texinfo)
+  #:use-module (gnu packages xml)
+  #:use-module (ice-9 match)
+  #:use-module (srfi srfi-1))
+
+(define-public cmake-shared
+  (let ((commit "8122f2b96c8da38ea41b653cf69958e75fe2129d")
+        (revision "32"))
+    (package
+      (name "cmake-shared")
+      (version
+       (git-version "1.1.0" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri
+          (git-reference
+           (url "https://github.com/lirios/cmake-shared.git")
+           (commit commit)))
+         (file-name
+          (git-file-name name version))
+         (sha256
+          (base32 "05avwzqcnliwx9h7qi1kl0iz4smqmxc4vkavyjbmlc6h2b97i58g"))
+         (modules '((guix build utils)
+                    (ice-9 ftw)
+                    (srfi srfi-1)))
+         (snippet
+          `(begin
+             (delete-file-recursively "3rdparty")))))
+      (build-system cmake-build-system)
+      (arguments
+       `(#:tests? #f))                  ; No target
+      (native-inputs
+       (list extra-cmake-modules))
+      (synopsis "Shared CMake functions and macros")
+      (description "CMake-Shared are shared functions and macros for projects
+using the CMake build system.")
+      (home-page "https://github.com/lirios/cmake-shared/")
+      (license license:bsd-3))))
+
+;;; Build phases shared between 'cmake-bootstrap' and the later variants
+;;; that use cmake-build-system.
+(define (%common-build-phases)
+  `((add-after 'unpack 'split-package
+      ;; Remove files that have been packaged in other package recipes.
+      (lambda _
+        (delete-file "Auxiliary/cmake-mode.el")
+        (substitute* "Auxiliary/CMakeLists.txt"
+          ((".*cmake-mode.el.*") ""))))
+    ,@(if (target-x86-32?)
+          '((add-after 'unpack 'skip-cpack-txz-test
+              (lambda _
+                ;; In 'RunCMake.CPack_TXZ', the 'TXZ/THREADED_ALL' test
+                ;; would occasionally fail on i686 with "Internal error
+                ;; initializing compression library: Cannot allocate
+                ;; memory": <https://issues.guix.gnu.org/50617>.  Skip it.
+                (substitute* "Tests/RunCMake/CPack/RunCMakeTest.cmake"
+                  (("THREADED_ALL \"TXZ;DEB\"")
+                   "THREADED_ALL \"DEB\"")))))
+          '())
+    (add-before 'configure 'patch-bin-sh
+      (lambda _
+        ;; Replace "/bin/sh" by the right path in... a lot of
+        ;; files.
+        (substitute*
+            '("Modules/CompilerId/Xcode-3.pbxproj.in"
+              "Modules/Internal/CPack/CPack.RuntimeScript.in"
+              "Source/cmGlobalXCodeGenerator.cxx"
+              "Source/cmLocalNinjaGenerator.cxx"
+              "Source/cmLocalUnixMakefileGenerator3.cxx"
+              "Source/cmExecProgramCommand.cxx"
+              "Tests/CMakeLists.txt"
+              "Tests/RunCMake/File_Generate/RunCMakeTest.cmake")
+          (("/bin/sh") (which "sh")))))))
+
+(define %common-disabled-tests
+  '(;; This test copies libgcc_s.so.1 from GCC and tries to modify its RPATH,
+    ;; but does not cope with the file being read-only.
+    "BundleUtilities"
+    ;; These tests require network access.
+    "CTestTestUpload" "CMake.FileDownload"
+    ;; This test requires 'ldconfig' which is not available in Guix.
+    "RunCMake.install"
+    ;; This test fails for unknown reason.
+    "RunCMake.file-GET_RUNTIME_DEPENDENCIES"
+    ;; These tests fail with gcc-14.
+    "LoadCommand"
+    "LoadedCommandOneConfig"))
+
+(define %common-disabled-tests/hurd
+  '("CTestTestTimeout"
+    "CTestTestRerunFailed"
+    "RunCMake.ctest_test"
+    "RunCMake.CTestTimeout"
+    "RunCMake.CTestTimeoutAfterMatch"
+    "RunCMake.CTestCommandLine"
+    ;; Fixed in v4.0.0
+    "RunCMake.RuntimePath"))
+
+(define %preserved-third-party-files
+  '(;; 'Source/cm_getdate.c' includes archive_getdate.c wholesale, so it must
+    ;; be available along with the required headers.
+    "Utilities/cmlibarchive/libarchive/archive_getdate.c"
+    "Utilities/cmlibarchive/libarchive/archive_getdate.h"
+    ;; ELF headers.
+    "Utilities/cmelf"
+    ;; CMake header wrappers.
+    "Utilities/cm3p"
+    ;; Pkg-config file format parser based on llparse.
+    "Utilities/cmllpkgc"))
+
+;;; The "bootstrap" CMake.  It is used to build 'cmake-minimal' below, as well
+;;; as any dependencies that need cmake-build-system.
+(define-public cmake-bootstrap
+  (package
+    (name "cmake-bootstrap")
+    (version "3.31.10")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "https://cmake.org/files/v"
+                                  (version-major+minor version)
+                                  "/cmake-" version ".tar.gz"))
+              (sha256
+               (base32
+                "0a9y7nqr27rl8acvjyj8s57q87bdjxa9w2g5mphsh7ylsvgzl1ng"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:test-target "test"
+      #:configure-flags
+      #~(let ((parallel-job-count (number->string (parallel-job-count))))
+          (list "--verbose"
+                (string-append "--parallel=" parallel-job-count)
+                (string-append "--prefix=" #$output)
+                "--system-libs"
+                ;; By default, the man pages and other docs land
+                ;; in PREFIX/man and PREFIX/doc, but we want them
+                ;; in share/{man,doc}.  Note that unlike
+                ;; autoconf-generated configure scripts, cmake's
+                ;; configure prepends "PREFIX/" to what we pass
+                ;; to --mandir and --docdir.
+                "--mandir=share/man"
+                (string-append "--docdir=share/doc/cmake-"
+                               #$(version-major+minor version))
+
+                ;; By default CMake is built without any optimizations.  Use
+                ;; the recommended Release target for a ~2.5x speedup.
+                "--" "-DCMAKE_BUILD_TYPE=Release"
+
+                ;; The debugger creates a circular dependency on cppdap.
+                "-DCMake_ENABLE_DEBUGGER=OFF"))
+      #:make-flags
+      #~(let ((skipped-tests
+               (list #$@%common-disabled-tests
+                     "CTestTestSubdir" ; This test fails to build 2 of the 3 tests.
+                     ;; This test fails when ARGS (below) is in use, see
+                     ;; <https://gitlab.kitware.com/cmake/cmake/issues/17165>.
+                     "CTestCoverageCollectGCOV"
+                     #$@(if (target-hurd?)
+                            %common-disabled-tests/hurd
+                            #~()))))
+          (list
+           (string-append
+            ;; These arguments apply for the tests only.
+            "ARGS=-j " (number->string (parallel-job-count))
+            " --output-on-failure"
+            " --exclude-regex ^\\(" (string-join skipped-tests "\\|") "\\)$")))
+      #:phases
+      #~(modify-phases %standard-phases
+          #$@(%common-build-phases)
+          (add-before 'configure 'set-paths
+            (lambda _
+              ;; Help cmake's bootstrap process to find system libraries
+              (begin
+                (setenv "CMAKE_LIBRARY_PATH" (getenv "LIBRARY_PATH"))
+                (setenv "CMAKE_INCLUDE_PATH" (or (getenv "CPATH")
+                                                 (getenv "C_INCLUDE_PATH"))))))
+          ;; CMake uses its own configure script.
+          (replace 'configure
+            (lambda* (#:key (configure-flags '()) #:allow-other-keys)
+              (apply invoke "./configure" configure-flags))))))
+    (inputs
+     (list bzip2
+           curl
+           expat
+           file
+           jsoncpp/pinned
+           libarchive
+           libuv
+           rhash
+           zlib))
+    (native-search-paths
+     (list (search-path-specification
+            (variable "CMAKE_PREFIX_PATH")
+            (files '("")))
+           ;; "cmake-curl-certificates.patch" changes CMake to honor 'SSL_CERT_DIR'
+           ;; and 'SSL_CERT_FILE', hence these search path entries.
+           $SSL_CERT_DIR
+           $SSL_CERT_FILE))
+    (home-page "https://cmake.org/")
+    (synopsis "Cross-platform build system")
+    (description
+     "CMake is a family of tools designed to build, test and package software.
+CMake is used to control the software compilation process using simple platform
+and compiler independent configuration files.  CMake generates native makefiles
+and workspaces that can be used in the compiler environment of your choice.")
+    (properties '((hidden? . #t)))
+    (license (list license:bsd-3        ; cmake
+                   license:expat        ; cmjsoncpp is dual MIT/public domain
+                   license:public-domain)))) ; cmlibarchive/archive_getdate.c
+
+;;; This minimal variant of CMake does not include the documentation.  It is
+;;; used by the cmake-build-system.
+(define-public cmake-minimal
+  (package
+    (inherit cmake-bootstrap)
+    (name "cmake-minimal")
+    (properties (alist-delete 'hidden? (package-properties cmake-bootstrap)))
+    (source (origin
+              (inherit (package-source cmake-bootstrap))
+              ;; Purge CMakes bundled dependencies as they are no longer needed.
+              (modules '((ice-9 ftw)))
+              (snippet
+               `(begin
+                  (define preserved-files ',%preserved-third-party-files)
+
+                  (file-system-fold (lambda (dir stat result)         ;enter?
+                                      (or (string=? "Utilities" dir)  ;init
+                                          ;; The bundled dependencies are
+                                          ;; distinguished by having a "cm"
+                                          ;; prefix to their upstream names.
+                                          (and (string-prefix? "Utilities/cm" dir)
+                                               (not (member dir preserved-files)))))
+                                    (lambda (file stat result)        ;leaf
+                                      (unless (or (member file preserved-files)
+                                                  ;; Preserve top-level files.
+                                                  (string=? "Utilities"
+                                                            (dirname file)))
+                                        (delete-file file)))
+                                    (const #t)                        ;down
+                                    (lambda (dir stat result)         ;up
+                                      (when (equal? (scandir dir) '("." ".."))
+                                        (rmdir dir)))
+                                    (const #t)                        ;skip
+                                    (lambda (file stat errno result)
+                                      (format (current-error-port)
+                                              "warning: failed to delete ~a: ~a~%"
+                                              file (strerror errno)))
+                                    #t
+                                    "Utilities"
+                                    lstat)
+                  #t))))
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:configure-flags
+      #~(list "-DCMAKE_USE_SYSTEM_LIBRARIES=ON"
+              ;; The debugger creates a circular dependency on cppdap.
+              "-DCMake_ENABLE_DEBUGGER=OFF"
+              (string-append "-DCMAKE_DOC_DIR=share/doc/cmake-"
+                             #$(version-major+minor (package-version
+                                                     cmake-bootstrap))))
+
+      ;; This is the CMake used in cmake-build-system.  Ensure compiler
+      ;; optimizations are enabled to save size and CPU cycles.
+      #:build-type "Release"
+      #:phases
+      #~(modify-phases %standard-phases
+          #$@(%common-build-phases)
+          (add-after 'install 'delete-help-documentation
+            (lambda _
+              (delete-file-recursively
+               (string-append #$output
+                              "/share/cmake-"
+                              #$(version-major+minor
+                                 (package-version cmake-bootstrap))
+                              "/Help"))))
+          (replace 'check
+            (lambda* (#:key tests? parallel-tests? #:allow-other-keys)
+              (let ((skipped-tests (list #$@%common-disabled-tests
+                                         ;; This test requires the bundled libuv.
+                                         "BootstrapTest"
+                                         #$@(if (system-hurd?)
+                                                %common-disabled-tests/hurd
+                                                #~()))))
+                (if tests?
+                    (begin
+                      (invoke "ctest" "-j" (if parallel-tests?
+                                               (number->string (parallel-job-count))
+                                               "1")
+                              "--output-on-failure"
+                              "--exclude-regex"
+                              (string-append "^(" (string-join skipped-tests "|") ")$")))
+                    (format #t "test suite not run~%"))))))
+      #:cmake (if (%current-target-system)
+                  cmake-minimal-cross
+                  cmake-bootstrap)))))
+
+(define-public cmake-minimal-4
+  (package
+    (inherit cmake-minimal)
+    (version "4.3.3")
+    (source
+     (origin
+       (inherit (package-source cmake-minimal))
+       (method url-fetch)
+       (uri (string-append "https://cmake.org/files/v"
+                           (version-major+minor version)
+                           "/cmake-" version ".tar.gz"))
+       (snippet
+        (match (origin-snippet (package-source cmake-minimal))
+          (('begin ('define 'preserved-files ('quote x))
+                   rest ...)
+           `(begin
+              (define preserved-files
+                ',(cons*
+                   "Utilities/cmelf"
+                   "Utilities/cmlibarchive/libarchive/archive_parse_date.c"
+                   x))
+              ,@rest))))
+       (sha256
+        (base32
+         "11dvr50smd28vysw7a5k6pjanfrqjql96nghnrxqgwpd8ixbp96b"))))
+    (arguments
+     (substitute-keyword-arguments arguments
+       ((#:phases phases '%standard-phases)
+        #~(modify-phases #$phases
+            (replace 'delete-help-documentation
+              (lambda _
+                (delete-file-recursively
+                 (string-append #$output
+                                "/share/cmake-"
+                                #$(version-major+minor
+                                   (package-version this-package))
+                                "/Help"))))))))))
+
+;;; The "user-facing" CMake, now with manuals and HTML documentation.
+(define-public cmake
+  (package
+    (inherit cmake-minimal)
+    (name "cmake")
+    (version "4.1.3")
+    (source (origin
+              (inherit (package-source cmake-minimal))
+              (method url-fetch)
+              (uri (string-append "https://cmake.org/files/v"
+                                  (version-major+minor version)
+                                  "/cmake-" version ".tar.gz"))
+              (snippet (match (origin-snippet (package-source cmake-minimal))
+                         (('begin ('define 'preserved-files ('quote x))
+                                  rest ...)
+                          `(begin (define preserved-files
+                                    ',(cons "Utilities/cmelf" x))
+                                  ,@rest))))
+              (sha256
+               (base32
+                "125yhgkmh5ap14w9yyh442manbb7k96dws4pa3hz32qp7njpjn3n"))))
+    (outputs '("out" "doc"))
+    (arguments
+     (substitute-keyword-arguments arguments
+       ;; Use cmake-minimal this time.
+       ((#:cmake _ #f)
+        (if (%current-target-system)
+            cmake-minimal-cross
+            cmake-minimal))
+
+       ;; Enable debugging information for convenience.
+       ((#:build-type _ #f) "RelWithDebInfo")
+
+       ((#:configure-flags flags ''())
+        #~(append (list "-DSPHINX_INFO=ON" "-DSPHINX_MAN=ON" "-DSPHINX_HTML=ON"
+                        (string-append "-DCMAKE_DOC_DIR=share/doc/cmake-"
+                                       #$(version-major+minor (package-version
+                                                               cmake-minimal)))
+                        (string-append "-DCMake_INSTALL_VIMFILES_DIR=" #$output
+                                       "/share/vim/vimfiles/pack/guix/start/cmake")
+                        "-DCMAKE_INFO_DIR=share/info"
+                        "-DCMAKE_MAN_DIR=share/man")
+                  #$flags))
+       ((#:phases phases)
+        #~(modify-phases #$phases
+            (delete 'delete-help-documentation)
+            (add-after 'install 'move-html-doc
+              (lambda _
+                (let ((html (string-append "/share/doc/cmake-"
+                                           #$(version-major+minor
+                                              (package-version cmake-minimal))
+                                           "/html")))
+                  (copy-recursively (string-append #$output html)
+                                    (string-append #$output:doc html))
+                  (delete-file-recursively (string-append #$output html)))))))))
+    (inputs
+     (modify-inputs inputs
+       (prepend ncurses)                ;required for ccmake
+       ;; Avoid circular dependency with (gnu packages debug).
+       (prepend (module-ref (resolve-interface '(gnu packages debug))
+                            'cppdap))))
+    ;; Extra inputs required to build the documentation.
+    (native-inputs
+     (modify-inputs native-inputs
+       (append python-sphinx
+               texinfo)))))
+
+(define-public cmake-3.25
+  (hidden-package
+   (package/inherit cmake
+     (version "3.25.3")
+     (source (origin
+               (method url-fetch)
+               (uri (string-append "https://cmake.org/files/v"
+                                   (version-major+minor version)
+                                   "/cmake-" version ".tar.gz"))
+               (sha256
+                (base32
+                 "074hw6pr7w4j6mfnpm3xh99cm6chjf4rjpi4qkmnvjlhsl0mg6fc")))))))
+
+(define-public cmake-minimal-cross
+  (package
+    (inherit cmake-minimal)
+    (name "cmake-minimal-cross")
+    (native-search-paths '())
+    (search-paths
+     (package-native-search-paths cmake-minimal))))
+
+(define-public cmakelang
+  (package
+    (name "cmakelang")
+    (version "0.6.13")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (pypi-uri "cmakelang" version))
+       (sha256
+        (base32 "0zz6g1ignqanl4ja9f5nrlk5f3mvv7cp5y9yswjd0m06n23jx603"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:tests? #f        ;no test data in pypi archive
+      #:modules '((guix build pyproject-build-system)
+                  (guix build utils)
+                  (ice-9 textual-ports))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'adjust-setup.py
+            (lambda _
+              (substitute* "setup.py"
+                (("cmakelang/doc/README.rst")
+                 "README.rst"))
+              ;; XXX: setup.py has multiple setup() calls, breaking the 'build
+              ;; phase ; in this case the package is wrong, but conveniently
+              ;; our goal is the first setup() call, so discard what comes from
+              ;; the second one.
+              (rename-file "setup.py" "setup.py.bak")
+              (call-with-input-file "setup.py.bak"
+                (lambda (in)
+                  (call-with-output-file "setup.py"
+                    (lambda (out)
+                      (let loop ((line (get-line in))
+                                 (setup-seen #f))
+                        (unless (or (eof-object? line)
+                                    (and (string-prefix? "setup(" line)
+                                         setup-seen))
+                          (display line out)
+                          (newline out)
+                          (loop (get-line in)
+                                (or setup-seen
+                                    (string-prefix? "setup(" line))))))))))))))
+    (native-inputs (list python-setuptools))
+    (inputs (list python-jinja2 python-pyyaml python-six))
+    (home-page "https://github.com/cheshirekow/cmake_format/")
+    (synopsis "Language tools for CMake (format, lint, etc.)")
+    (description "The cmakelang project provides quality assurance (QA) tools
+for CMake:
+@table @command
+@item cmake-annotate
+generate pretty HTML from your listfiles
+@item cmake-format
+format your listfiles nicely
+@item cmake-lint
+check your listfiles for problems
+@item ctest-to
+parse a ctest output tree and translate it into a more structured
+format (either JSON or XML).
+@end table")
+    (license license:gpl3+)))
+
+(define-public corrosion
+  (package
+    (name "corrosion")
+    (version "0.5.1")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/corrosion-rs/corrosion")
+                    (commit (string-append "v" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32 "1bylfjji4yw88r00hgb69nfl9lz73bhc7q3n64myif4alr4b8ypx"))
+              (patches
+               (search-patches "corrosion-honor-CARGO_BUILD_TARGET.patch"))))
+    (build-system cmake-build-system)
+    (arguments
+     (list
+       #:phases
+       #~(modify-phases %standard-phases
+           (replace 'check
+             (lambda* (#:key tests? #:allow-other-keys)
+               (when tests?
+                 (invoke "ctest" "-E"
+                         (string-append
+                           "(" (string-join
+                                 (list "cbindgen_rust2cpp"
+                                       "rustup_proxy"
+                                       "hostbuild"
+                                       "parse_target_triple")
+                                 "|")
+                           ")"))))))))
+    (native-inputs
+     (list rust
+           `(,rust "cargo")))
+    (home-page "https://corrosion-rs.github.io/corrosion/")
+    (synopsis "Tool for integrating Rust into an existing CMake project")
+    (description "Corrosion, formerly known as cmake-cargo, is a tool for
+integrating Rust into an existing CMake project.  Corrosion can automatically
+import executables, static libraries, and dynamic libraries from a workspace
+or package manifest (Cargo.toml file).")
+    (license license:expat)))
+
+(define-public emacs-cmake-mode
+  (package
+    (inherit cmake)
+    (name "emacs-cmake-mode")
+    (native-inputs '())
+    (inputs '())
+    (outputs '("out"))
+    (build-system emacs-build-system)
+    (arguments
+     (list #:lisp-directory "Auxiliary"))
+    (synopsis "Emacs major mode for editing Cmake expressions")
+    (description "@code{cmakeos-mode} provides an Emacs major mode for editing
+Cmake files.  It supports syntax highlighting, indenting and refilling of
+comments.")))
+
+(define-public morse-cmake
+  (package
+    (name "morse-cmake")
+    ;; Project does not tag any releases, using latest commit.
+    (properties '((commit . "3f74c7935db26c118bae695a16b02fa83f1aeac0")
+                  (revision . "0")))
+    (version (git-version "0.0.0"
+                          (assoc-ref properties 'revision)
+                          (assoc-ref properties 'commit)))
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://gitlab.inria.fr/solverstack/morse_cmake")
+                     (commit (assoc-ref properties 'commit))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32 "0pw56am3mz65bi700bk5bl4s1i5d5761gnhjmvh7xmdyxpi0qrj1"))))
+    (build-system copy-build-system)
+    (arguments
+     (list
+      #:install-plan
+      #~'(("modules" "share/morse-cmake/modules")
+          ("CONTRIBUTING.md" "share/morse-cmake/")
+          ("LICENCE.txt" "share/morse-cmake/")
+          ("README.md" "share/morse-cmake/"))))
+    (home-page "https://gitlab.inria.fr/solverstack/morse_cmake")
+    (synopsis "Collection of CMake modules that can be shared among projects")
+    (description
+     "This project provides a collection of CMake modules that can be shared
+among projects using CMake as build system.  For now it is mainly constituted of
+@code{Find} modules that help detecting installed libraries on the system.")
+    (license license:cecill-c)))
+
+(define-public qmsetup
+  (package
+    (name "qmsetup")
+    (version "1.0.0.0")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://github.com/stdware/qmsetup")
+                     (commit version)))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "0cfl26ff8y384cbgi340l1znxvdjmc4f5s86kl20gkkwlkc11zdy"))))
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:tests? #f                     ;no test suite
+      #:phases #~(modify-phases %standard-phases
+                   (add-after 'unpack 'patch-paths
+                     (lambda* (#:key inputs #:allow-other-keys)
+                       (substitute* "src/corecmd/utils_unix.cpp"
+                         (("\"patchelf\"")
+                          (format #f "~s" (search-input-file
+                                           inputs "bin/patchelf")))))))))
+    (inputs (list patchelf syscmdline))
+    (home-page "https://github.com/stdware/qmsetup")
+    (synopsis "CMake modules and basic libraries for C/C++ projects")
+    (description "QMSetup is a set of CMake Modules and Basic Libraries for
+C/C++ projects.  It features:
+@itemize
+@item Helpful CMake utilities
+@item Generate configuration header files
+@item Reorganize header files
+@item Deploy project dependencies and fix rpaths
+@item Support calling Doxygen via CMake conveniently
+@item Support calling Qt Linguist Tools via CMake conveniently
+@end itemize")
+    (license license:expat)))
+
+(define-public tinycmmc
+  ;; XXX: No tagged releases; this is the master tip.
+  (let ((commit "2e007ba059a4991c011a7193c9d7df28826c9adc")
+        (revision "1"))
+    (package
+      (name "tinycmmc")
+      (version (git-version "0.1.0" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+                (url "https://github.com/Grumbel/tinycmmc")
+                (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32 "0ix2v0zrrcanflxdm0r4xpgda8lkls3ir7xqimdk2na4dfqnc05g"))))
+      (build-system cmake-build-system)
+      (arguments
+       (list #:tests? #f))              ; No tests.
+      (home-page "https://github.com/Grumbel/tinycmmc")
+      (synopsis "Tiny CMake Module Collections")
+      (description "The tinycmmc package contains a small collection of reusable
+CMake modules.")
+      (license license:zlib))))
+
+(define-public cpm-cmake
+  (package
+    (name "cpm-cmake")
+    (version "0.38.6")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/cpm-cmake/CPM.cmake")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1qbbhdq6cz2y7qfyy1k11i98d13s229r3phd5y3n5maq51ky8bgb"))))
+    (build-system copy-build-system)
+    (arguments
+     (list
+      #:install-plan #~'(("cmake/CPM.cmake" "lib/cmake/CPM.cmake"))))
+    (home-page "https://github.com/cpm-cmake/CPM.cmake")
+    (synopsis "Package manager for CMake")
+    (description "CPM.cmake is a cross-platform CMake script that adds
+dependency management capabilities to CMake.")
+    (license license:expat)))
+
+(define-public sanitizers-cmake
+  (let ((commit "0573e2ea8651b9bb3083f193c41eb086497cc80a")
+        (revision "0"))
+    (package
+      (name "sanitizers-cmake")
+      (version (git-version "0.0" revision commit))
+      (source (origin
+                (method git-fetch)
+                (uri (git-reference
+                      (url "https://github.com/arsenm/sanitizers-cmake")
+                      (commit commit)))
+                (file-name (git-file-name name version))
+                (sha256
+                 (base32
+                  "1sqjmx65iif67k10jwlf1j8p279rsniy1i3ff660hfrynr0knlry"))))
+      (build-system cmake-build-system)
+      (arguments
+       (list
+        #:configure-flags
+        #~(list
+           ;; Otherwise optimizer will optimize away our faulty thing.
+           "-DCMAKE_BUILD_TYPE=Debug")
+        #:phases
+        #~(modify-phases %standard-phases
+            ;; No install target provided; manually copy files to a suitable
+            ;; folder in the output.
+            (replace 'install
+              (lambda* (#:key source #:allow-other-keys)
+                (copy-recursively
+                 (string-append source "/cmake")
+                 (string-append #$output "/share/" #$name "/cmake")))))))
+      (synopsis "CMake module to enable sanitizers for binary targets")
+      (description "@code{sanitizers-cmake} provides a module for the CMake
+build system that can enable address, memory, thread and undefined-behavior
+sanitizers for binary targets using flags appropriate for the compiler in
+use.")
+      (home-page "https://github.com/arsenm/sanitizers-cmake")
+      (license license:expat))))

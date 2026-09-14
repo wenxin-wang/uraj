@@ -1,0 +1,81 @@
+From edfff0027c3cdacbbc0f288078366058f598544d Mon Sep 17 00:00:00 2001
+From: "Artyom V. Poptsov" <poptsov.artyom@gmail.com>
+Date: Wed, 14 Aug 2024 07:57:20 +0300
+Subject: [PATCH] CMakeLists.txt: Adjust to use system libraries.
+
+* CMakeLists.txt: Adjust to use system-provided mmg and yaml-cpp libraries.
+---
+ CMakeLists.txt | 38 ++++++--------------------------------
+ 1 file changed, 6 insertions(+), 32 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index ca2a01f9..c6eff22f 100755
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -113,28 +113,8 @@ endif()
+ 
+ # Mmg and its components
+   # MMG
+-  set(MMG_PREFIX mmg3d)
+-  set(MMG_PREFIX_DIR ${CMAKE_CURRENT_BINARY_DIR}/${MMG_PREFIX})
+-  set(MMG_INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/${MMG_PREFIX})
+-  ExternalProject_Add(${MMG_PREFIX}
+-    PREFIX       ${MMG_PREFIX_DIR}
+-    SOURCE_DIR   ${CMAKE_CURRENT_SOURCE_DIR}/libs/mmg
+-
+-    BUILD_ALWAYS OFF
+-    INSTALL_DIR  ${MMG_INSTALL_DIR}
+-
+-    CMAKE_ARGS(-DCMAKE_BUILD_TYPE=Release -DBUILD=MMG3D -DLIBMMG3D_STATIC=ON
+-               -DLIBMMG3D_SHARED=OFF -DUSE_ELAS=OFF -DUSE_VTK=OFF -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>)
+-
+-    BUILD_COMMAND   make
+-    INSTALL_COMMAND make install
+-  )
+-  set(MMG3D_INCLUDE_DIRS "${MMG_INSTALL_DIR}/include")
+-  set(MMG3D_LIBRARIES "${MMG_INSTALL_DIR}/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}${MMG_PREFIX}${CMAKE_STATIC_LIBRARY_SUFFIX}")
+-
+-  include_directories(${MMG3D_INCLUDE_DIRS})
+-  #add_library(MMG3D STATIC IMPORTED)
+-  #set_target_properties(MMG3D PROPERTIES IMPORTED_LOCATION "${MMG3D_LIBRARIES}")
++  include_directories(${MMG_INCLUDE_DIR})
++  set(MMG3D_LIBRARIES ${MMG_LIBRARY_DIR}/libmmg3d.so)
+ 
+   # MshMet
+   set(MSHMET_PREFIX mshmet)
+@@ -174,14 +154,8 @@ target_include_directories(alg PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/libs/alglib/sr
+ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/libs/mTT/include)
+ 
+ # yaml
+-file(GLOB yaml_SRC CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/libs/yaml/src/*.cpp) # Using file GLOB is not recomended!
+-add_library(yaml STATIC)
+-target_include_directories(yaml
+-  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/libs/yaml/include 
+-  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/libs/yaml/src
+-)
+-target_sources(yaml PRIVATE ${yaml_SRC})
+-set_target_properties(yaml PROPERTIES CXX_STANDARD 11)
++find_package(yaml-cpp REQUIRED)
++include_directories(${YAML_CPP_INCLUDE_DIRS})
+ 
+ # Compile options for debuging
+ if(CMAKE_BUILD_TYPE MATCHES Debug)
+@@ -218,7 +192,7 @@ endif()
+ 
+ # Create entries for C++ files in "ASLI" routine
+ add_dependencies(ASLI ${MMG_PREFIX} ${MSHMET_PREFIX})
+-target_link_libraries(ASLI PUBLIC alg yaml 
++target_link_libraries(ASLI PUBLIC alg ${YAML_CPP_LIBRARIES}
+                       CGAL::CGAL CGAL::Eigen_support 
+                       ${MMG3D_LIBRARIES} ${MSHMET_LIBRARIES}
+ )
+@@ -301,4 +275,4 @@ if(MSYS AND ASLI_DLL)
+    						      $<TARGET_FILE_DIR:ASLI>
+     )
+   endif()
+-endif()
+\ No newline at end of file
++endif()
+-- 
+2.45.2
+

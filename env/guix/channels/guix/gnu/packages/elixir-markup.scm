@@ -1,0 +1,311 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2025 Giacomo Leidi <therewasa@fishinthecalculator.me>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (gnu packages elixir-markup)
+  #:use-module (gnu packages elixir-xyz)
+  #:use-module (gnu packages erlang-xyz)
+  #:use-module (gnu packages web)
+  #:use-module (guix build-system mix)
+  #:use-module (guix download)
+  #:use-module (guix gexp)
+  #:use-module ((guix licenses)
+                #:prefix license:)
+  #:use-module (guix packages))
+
+(define-public elixir-earmark-ast-dsl
+  (package
+    (name "elixir-earmark-ast-dsl")
+    (version "0.3.7")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (hexpm-uri "earmark_ast_dsl" version))
+       (sha256
+        (base32 "1c90204jcz1pbxxdxmvwr32y663jwvpn05izqp7zmqlp8yknzlhj"))))
+    (build-system mix-build-system)
+    (synopsis
+     "Toolset to generate EarmarkParser AST Nodes")
+    (description
+     "@code{EarmarkAstDsl} is a toolset to generate @code{EarmarkParser}
+conformant AST Nodes.  Its main purpose is to remove boilerplate code from
+Earmark and @code{EarmarkParser} tests.")
+    (home-page "https://hexdocs.pm/earmark_ast_dsl/")
+    (license license:asl2.0)))
+
+(define-public elixir-earmark-parser
+  (package
+    (name "elixir-earmark-parser")
+    (version "1.4.46")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (hexpm-uri "earmark_parser" version))
+       (sha256
+        (base32 "1xc9ivpqpqkcl15zcb5qgbpbrns1v62wsbbba8pwcs0wi9p66i4w"))))
+    (build-system mix-build-system)
+    (native-inputs
+     (list elixir-earmark-ast-dsl elixir-excoveralls elixir-floki))
+    (synopsis "AST parser and generator for Markdown")
+    (description "This package providesAST parser and generator for Markdown.")
+    (home-page "https://hexdocs.pm/earmark_parser/")
+    (license license:asl2.0)))
+
+(define-public elixir-earmark
+  (package
+    (name "elixir-earmark")
+    (version "1.4.47")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (hexpm-uri "earmark" version))
+       (sha256
+        (base32 "1y4qqq3bxim9b9jrpbdxpagsjs5whlig4zva6hxmznf2lazbx5iy"))))
+    (build-system mix-build-system)
+    (native-inputs
+     (list elixir-earmark-ast-dsl
+           elixir-excoveralls
+           elixir-floki
+           elixir-traverse))
+    (synopsis
+     "Elixir Markdown converter")
+    (description
+     "Earmark is a pure-Elixir Markdown converter.  It is intended to be used as a
+library (just call Earmark.as_html), but can also be used as a command-line tool
+(run mix escript.build first).  Output generation is pluggable.")
+    (home-page "https://hexdocs.pm/earmark/")
+    (license license:asl2.0)))
+
+(define-public elixir-easyhtml
+  (package
+    (name "elixir-easyhtml")
+    (version "0.4.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (hexpm-uri "easyhtml" version))
+       (sha256
+        (base32 "00wciw1sy9d8mjxaq3xfswg8fqcw1vidc7f7zasj784lqqv52wim"))))
+    (build-system mix-build-system)
+    (propagated-inputs (list elixir-lazy-html))
+    (synopsis "EasyHTML makes working with HTML easy.")
+    (description "@code{EasyHTML} makes working with HTML easy.  It uses
+LazyHTML.")
+    (home-page "https://hexdocs.pm/easyhtml/")
+    (license license:asl2.0)))
+
+(define-public elixir-ex-doc
+  (package
+    (name "elixir-ex-doc")
+    (version "0.40.3")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (hexpm-uri "ex_doc" version))
+       (sha256
+        (base32 "1pkkp42dgj3dks6p4x9fbx39rscwgkb8b6s8kdsdkv1gfiby6mi7"))))
+    (build-system mix-build-system)
+    (arguments
+     ;; FIXME: tests depend on lazy_html which is not yet packaged.
+     (list #:tests? #f))
+    (native-inputs
+     (list elixir-easyhtml
+           elixir-jason
+           elixir-floki))
+    (propagated-inputs
+     (list elixir-earmark-parser elixir-makeup-c elixir-makeup-elixir
+           elixir-makeup-erlang elixir-makeup-html))
+    (synopsis "Documentation generation tool for Elixir")
+    (description "@code{ExDoc} is a documentation generation tool for Elixir.")
+    (home-page "https://hexdocs.pm/ex_doc/")
+    (license license:asl2.0)))
+
+(define-public elixir-html-entities
+  (package
+    (name "elixir-html-entities")
+    (version "0.5.2")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (hexpm-uri "html_entities" version))
+       (sha256
+        (base32 "1k7xyj0q38ms3n5hbn782pa6w1vgd6biwlxr4db6319l828a6fy5"))))
+    (build-system mix-build-system)
+    (synopsis "Decode and encode HTML entities in a string")
+    (description "This library provides an Elixir module to decode and encode
+HTML entities in a string.")
+    (home-page "https://hexdocs.pm/html_entities/")
+    (license license:expat)))
+
+(define-public elixir-html-sanitize-ex
+  (package
+    (name "elixir-html-sanitize-ex")
+    (version "1.5.2")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (hexpm-uri "html_sanitize_ex" version))
+       (sha256
+        (base32 "1bfi31xs23i4j7136i6b9w5f202nw982bql8v26khg6flwicjzc0"))))
+    (build-system mix-build-system)
+    (propagated-inputs (list erlang-mochiweb))
+    (synopsis "HTML sanitizer for Elixir")
+    (description "HTML sanitizer for Elixir.")
+    (home-page "https://hexdocs.pm/html_sanitize_ex/")
+    (license license:expat)))
+
+(define-public elixir-floki
+  (package
+    (name "elixir-floki")
+    (version "0.38.4")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (hexpm-uri "floki" version))
+       (sha256
+        (base32 "0ws94kq53556hg3fr8ylwi780lls17aa5b7dqx2rirz8xr2ldcxx"))))
+    (build-system mix-build-system)
+    (native-inputs
+     (list elixir-credo elixir-jason))
+    (synopsis
+     "Simple HTML parser")
+    (description
+     "Floki is a simple HTML parser that enables search for nodes using CSS selectors.")
+    (home-page "https://hexdocs.pm/floki/")
+    (license license:expat)))
+
+(define-public elixir-lazy-html
+  (package
+    (name "elixir-lazy-html")
+    (version "0.1.11")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (hexpm-uri "lazy_html" version))
+       (sha256
+        (base32 "0fw8cd0vwj1v7qd9sbcjzvflrhg5jrbd4wqnlahyqccwja9fa6rv"))))
+    (build-system mix-build-system)
+    (arguments
+     (list
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'set-HOME
+            (lambda _
+              (setenv "HOME" "/tmp")
+              ;; Compile the NIF from source instead of fetching a
+              ;; precompiled binary from GitHub.
+              ;; https://github.com/dashbitco/lazy_html/pull/38
+              (substitute* "mix.exs"
+                (("make_precompiler: \\{:nif, CCPrecompiler\\},") "")
+                ;; elixir_make is only used at build time; keep it out of
+                ;; the application list so dependents need not start it.
+                ;; https://github.com/dashbitco/lazy_html/pull/36
+                (("\\{:elixir_make, \"~> 0\\.9\\.0\"\\}")
+                 "{:elixir_make, \"~> 0.9.0\", runtime: false}"))
+              ;; The Makefile clones and builds a pinned lexbor from
+              ;; GitHub; link against the lexbor package instead.
+              ;; https://github.com/dashbitco/lazy_html/pull/37
+              (substitute* "Makefile"
+                (("^\\$\\(NIF_PATH\\): \\$\\(SOURCES\\) \\$\\(LEXBOR_LIB\\)")
+                 "$(NIF_PATH): $(SOURCES)")
+                (("\\$\\(SOURCES\\) \\$\\(LEXBOR_LIB\\) -o")
+                 "$(SOURCES) -llexbor -o")))))))
+    (native-inputs (list elixir-elixir-make))
+    (inputs (list lexbor))
+    (propagated-inputs (list elixir-fine))
+    (synopsis "Efficient parsing and querying of HTML documents")
+    (description "LazyHTML is designed around lazy HTML documents.  Documents
+are parsed and kept natively in memory for as long as possible.  Query selectors
+are executed in native code for performance and adheres to browser standards.
+Under the hood, LazyHTML uses Lexbor, a fast, dependency-free and comprehensive
+HTML engine, written entirely in C.")
+    (home-page "https://lazy-html.hexdocs.pm/")
+    (license license:asl2.0)))
+
+(define-public elixir-makeup-c
+  (package
+    (name "elixir-makeup-c")
+    (version "0.1.1")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (hexpm-uri "makeup_c" version))
+       (sha256
+        (base32 "0s98gwsvi88mxf3wjsi05l7dgkw4gzbihzlsq5ad68i86x2wzsc9"))))
+    (build-system mix-build-system)
+    (propagated-inputs (list elixir-makeup))
+    (synopsis "C lexer for the Makeup syntax highlighter")
+    (description "This package provides @code{elixir-makeup-c}, a library
+implementing a C lexer for the Makeup syntax highlighter.")
+    (home-page "https://hexdocs.pm/makeup_c/")
+    (license license:bsd-2)))
+
+(define-public elixir-makeup-elixir
+  (package
+    (name "elixir-makeup-elixir")
+    (version "1.0.1")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (hexpm-uri "makeup_elixir" version))
+       (sha256
+        (base32 "01wmpzzf445xnc7gr7ml9hmqz6rqxpsx9bpxjzymqgia846r113j"))))
+    (build-system mix-build-system)
+    (propagated-inputs (list elixir-makeup elixir-nimble-parsec))
+    (synopsis "Elixir lexer for the Makeup syntax highlighter")
+    (description "This package provides @code{elixir-makeup-elixir}, a library
+implementing an Elixir lexer for the Makeup syntax highlighter.")
+    (home-page "https://hexdocs.pm/makeup_elixir/")
+    (license license:bsd-2)))
+
+(define-public elixir-makeup-erlang
+  (package
+    (name "elixir-makeup-erlang")
+    (version "1.1.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (hexpm-uri "makeup_erlang" version))
+       (sha256
+        (base32 "0g1wqxhgjwxzxg9mflpx318n5c0j4zl0zvdskabh66nxn47pimhw"))))
+    (build-system mix-build-system)
+    (propagated-inputs (list elixir-makeup))
+    (synopsis "Erlang lexer for the Makeup syntax highlighter")
+    (description "This package provides @code{elixir-makeup-erlang}, a library
+implementing an Erlang lexer for the Makeup syntax highlighter.")
+    (home-page "https://hexdocs.pm/makeup_erlang/")
+    (license license:bsd-2)))
+
+(define-public elixir-makeup-html
+  (package
+    (name "elixir-makeup-html")
+    (version "0.2.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (hexpm-uri "makeup_html" version))
+       (sha256
+        (base32 "1ciildxh4bmacbkbil4hhsjhp7z31ycnvq072fml59m6p6zgfmh8"))))
+    (build-system mix-build-system)
+    (native-inputs
+     (list elixir-stream-data))
+    (propagated-inputs (list elixir-makeup))
+    (synopsis "HTML lexer for the Makeup syntax highlighter")
+    (description "This package provides @code{elixir-makeup-html}, a library
+implementing an HTML lexer for the Makeup syntax highlighter.")
+    (home-page "https://hexdocs.pm/makeup_html/")
+    (license license:expat)))

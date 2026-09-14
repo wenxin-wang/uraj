@@ -1,0 +1,54 @@
+Author: Antero Mejr <antero@mailbox.org>
+Notes: Disabled function visibility hacks. Enabled non-static builds.
+
+diff --git a/deps/clog/CMakeLists.txt b/deps/clog/CMakeLists.txt
+index 6e50c41..db02e95 100644
+--- a/deps/clog/CMakeLists.txt
++++ b/deps/clog/CMakeLists.txt
+@@ -55,7 +55,7 @@ IF(CLOG_BUILD_TESTS)
+ ENDIF()
+ 
+ # ---[ clog library
+-ADD_LIBRARY(clog STATIC src/clog.c)
++ADD_LIBRARY(clog src/clog.c)
+ SET_TARGET_PROPERTIES(clog PROPERTIES
+   C_STANDARD 99
+   C_EXTENSIONS NO)
+diff --git a/deps/clog/include/clog.h b/deps/clog/include/clog.h
+index 4143761..aa9000f 100644
+--- a/deps/clog/include/clog.h
++++ b/deps/clog/include/clog.h
+@@ -11,16 +11,6 @@
+ #define CLOG_INFO 4
+ #define CLOG_DEBUG 5
+ 
+-#ifndef CLOG_VISIBILITY
+-	#if defined(__ELF__)
+-		#define CLOG_VISIBILITY __attribute__((__visibility__("internal")))
+-	#elif defined(__MACH__)
+-		#define CLOG_VISIBILITY __attribute__((__visibility__("hidden")))
+-	#else
+-		#define CLOG_VISIBILITY
+-	#endif
+-#endif
+-
+ #ifndef CLOG_ARGUMENTS_FORMAT
+ 	#if defined(__GNUC__)
+ 		#define CLOG_ARGUMENTS_FORMAT __attribute__((__format__(__printf__, 1, 2)))
+@@ -33,11 +23,11 @@
+ extern "C" {
+ #endif
+ 
+-CLOG_VISIBILITY void clog_vlog_debug(const char* module, const char* format, va_list args);
+-CLOG_VISIBILITY void clog_vlog_info(const char* module, const char* format, va_list args);
+-CLOG_VISIBILITY void clog_vlog_warning(const char* module, const char* format, va_list args);
+-CLOG_VISIBILITY void clog_vlog_error(const char* module, const char* format, va_list args);
+-CLOG_VISIBILITY void clog_vlog_fatal(const char* module, const char* format, va_list args);
++void clog_vlog_debug(const char* module, const char* format, va_list args);
++void clog_vlog_info(const char* module, const char* format, va_list args);
++void clog_vlog_warning(const char* module, const char* format, va_list args);
++void clog_vlog_error(const char* module, const char* format, va_list args);
++void clog_vlog_fatal(const char* module, const char* format, va_list args);
+ 
+ #define CLOG_DEFINE_LOG_DEBUG(log_debug_function_name, module, level) \
+ 	CLOG_ARGUMENTS_FORMAT \

@@ -1,0 +1,218 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2023 Ricardo Wurmus <rekado@elephly.net>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (gnu packages sourcehut)
+  #:use-module ((guix licenses) #:prefix license:)
+  #:use-module (guix utils)
+  #:use-module (guix packages)
+  #:use-module (guix gexp)
+  #:use-module (guix git-download)
+  #:use-module (guix build-system pyproject)
+  #:use-module (gnu packages check)
+  #:use-module (gnu packages databases)
+  #:use-module (gnu packages markup)
+  #:use-module (gnu packages monitoring)
+  #:use-module (gnu packages python-build)
+  #:use-module (gnu packages python-check)
+  #:use-module (gnu packages python-crypto)
+  #:use-module (gnu packages python-web)
+  #:use-module (gnu packages python-xyz)
+  #:use-module (gnu packages))
+
+(define-public python-core-sr-ht
+  (package
+    (name "python-core-sr-ht")
+    (version "0.84.7")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://git.sr.ht/~sircmpwn/core.sr.ht")
+             (commit version)
+             (recursive? #true)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1pqin2javjzk1bi7058bl1fvkq90lb41g2378fcxfjm2r8fxgdzd"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:tests? #f))                   ;there are none
+    (propagated-inputs
+     (list python-alembic
+           python-beautifulsoup4
+           python-bleach
+           python-celery
+           python-cryptography
+           python-flask
+           python-humanize
+           python-markdown
+           python-mistletoe
+           python-nh3
+           python-prometheus-client
+           python-psycopg2
+           python-pygments
+           python-redis
+           python-requests
+           python-sqlalchemy
+           python-sqlalchemy-utils))
+    (native-inputs
+     (list python-setuptools
+           python-setuptools-scm))
+    (home-page "https://git.sr.ht/~sircmpwn/core.sr.ht")
+    (synopsis "Shared code for all sourcehut projects")
+    (description
+     "This package contains code shared among all sr.ht projects.")
+    (license license:bsd-3)))
+
+(define-public python-builds-sr-ht
+  (package
+    (name "python-builds-sr-ht")
+    (version "0.105.4")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://git.sr.ht/~sircmpwn/builds.sr.ht")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0vgg5j5sms9czpdjaw1rs70rbqngx4090csx43nf53i5w4akr4j6"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list #:tests? #f))                   ;there are none
+    (propagated-inputs
+     (list python-bleach
+           python-core-sr-ht
+           python-markdown
+           python-pyyaml
+           python-redis))
+    (native-inputs
+     (list python-setuptools python-setuptools-scm))
+    (home-page "https://git.sr.ht/~sircmpwn/builds.sr.ht")
+    (synopsis "Sourcehut's build service")
+    (description
+     "This repository contains the code for the sr.ht @acronym{CI, continuous
+integration} build service.")
+    (license license:agpl3)))
+
+(define-public python-hub-sr-ht
+  (package
+    (name "python-hub-sr-ht")
+    (version "0.32.2")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://git.sr.ht/~sircmpwn/hub.sr.ht")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0wpd0bl9jc0p9cdggrpznx7axsx0rmirdl3k13s010x9zmdqff8z"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list #:tests? #f))                   ;there are none
+    (propagated-inputs
+     (list python-core-sr-ht))
+    (native-inputs
+     (list python-setuptools python-setuptools-scm))
+    (home-page "https://git.sr.ht/~sircmpwn/hub.sr.ht")
+    (synopsis "Code for the sr.ht project hub")
+    (description
+     "This repository contains the code for the sr.ht project hub.")
+    (license license:agpl3)))
+
+(define-public python-lists-sr-ht
+  (package
+    (name "python-lists-sr-ht")
+    (version "0.71.4")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://git.sr.ht/~sircmpwn/lists.sr.ht")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1c0hvf2gl05yjf5zaj74b5y8n3y7km6zgffzh7r6y8vjnwhmw995"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list #:tests? #f))                   ;there are none
+    (propagated-inputs
+     (list python-core-sr-ht python-pygit2))
+    (native-inputs
+     (list python-setuptools python-setuptools-scm))
+    (home-page "https://git.sr.ht/~sircmpwn/lists.sr.ht")
+    (synopsis "Code for the sr.ht mailing list service")
+    (description
+     "This repository contains the code for the sr.ht mailing list service.")
+    (license license:agpl3)))
+
+(define-public python-scm-sr-ht
+  (package
+    (name "python-scm-sr-ht")
+    (version "0.22.30")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://git.sr.ht/~sircmpwn/scm.sr.ht")
+             (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1qcp5imzjhm8swcdzfgnlcih97d5jq9rm3idw39pxdhpgh6lczcj"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:tests? #false))                   ;there are none
+    (propagated-inputs
+     (list python-core-sr-ht))
+    (native-inputs
+     (list python-setuptools
+           python-setuptools-scm))
+    (home-page "https://git.sr.ht/~sircmpwn/scm.sr.ht")
+    (synopsis "Shared support code for sr.ht source control services")
+    (description
+     "This package provides shared support code for sr.ht source control
+services.")
+    (license license:agpl3)))
+
+(define-public python-todo-sr-ht
+  (package
+    (name "python-todo-sr-ht")
+    (version "0.85.3")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://git.sr.ht/~sircmpwn/todo.sr.ht")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0q3ls24njl0gh21ni08m0g0j9cv0l0clab9dip7dkmg3vczyn70c"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list #:tests? #false))                   ;there are none
+    (propagated-inputs
+     (list python-core-sr-ht))
+    (native-inputs
+     (list python-setuptools python-setuptools-scm))
+    (home-page "https://git.sr.ht/~sircmpwn/todo.sr.ht")
+    (synopsis "Code for the sr.ht ticket tracking service")
+    (description
+     "This repository contains the code for the sr.ht ticket tracking service.")
+    (license license:agpl3)))

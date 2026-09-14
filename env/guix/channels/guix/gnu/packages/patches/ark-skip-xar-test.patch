@@ -1,0 +1,37 @@
+Guix libarchive no support xar.
+
+--- ark-24.05.2.orig/autotests/kerfuffle/loadtest.cpp	2024-07-08 11:19:30.347366493 +0800
++++ ark-24.05.2/autotests/kerfuffle/loadtest.cpp	2024-07-08 11:19:47.495641516 +0800
+@@ -125,8 +125,6 @@
+         qDebug() << "lz4 executable not found in path. Skipping lz4 test.";
+     }
+ 
+-    QTest::newRow("xar archive") << QFINDTESTDATA("data/simplearchive.xar") << QStringLiteral("simplearchive") << true << false << false << false << false << 0
+-                                 << Archive::Unencrypted << 6 << QStringLiteral("simplearchive") << QString();
+ 
+     QTest::newRow("mimetype child of application/zip") << QFINDTESTDATA("data/test.odt") << QStringLiteral("test") << false << true << false << false << false
+                                                        << 0 << Archive::Unencrypted << 17 << QStringLiteral("test") << QString();
+
+
+--- ark-24.05.2.orig/autotests/kerfuffle/extracttest.cpp	2024-07-08 11:21:25.849219202 +0800
++++ ark-24.05.2/autotests/kerfuffle/extracttest.cpp	2024-07-08 11:22:01.413789814 +0800
+@@ -329,19 +329,6 @@
+         qDebug() << "lz4 executable not found in path. Skipping lz4 test.";
+     }
+ 
+-    archivePath = QFINDTESTDATA("data/simplearchive.xar");
+-    setupRow("extract selected entries from a xar archive without path",
+-             archivePath,
+-             QList<Archive::Entry *>{
+-                 new Archive::Entry(this, QStringLiteral("dir1/file11.txt"), QString()),
+-                 new Archive::Entry(this, QStringLiteral("file4.txt"), QString()),
+-             },
+-             optionsNoPaths,
+-             2);
+-
+-    archivePath = QFINDTESTDATA("data/simplearchive.xar");
+-    setupRow("extract all entries from a xar archive with path", archivePath, QList<Archive::Entry *>(), optionsPreservePaths, 6);
+-
+     // Test tarball with leading /, i.e. here /tmp/testfile instead of tmp/testfile
+     archivePath = QFINDTESTDATA("data/absolutepath.tar.xz");
+     setupRow("extract all entries from a tar archive with absolute path", archivePath, QList<Archive::Entry *>(), optionsPreservePaths, 2);

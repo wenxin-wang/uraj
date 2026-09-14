@@ -1,0 +1,933 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2012 Nikita Karetnikov <nikita@karetnikov.org>
+;;; Copyright © 2013, 2017, 2020, 2021 Ludovic Courtès <ludo@gnu.org>
+;;; Copyright © 2013, 2015 Andreas Enge <andreas@enge.fr>
+;;; Copyright © 2015-2019, 2021, 2024 Efraim Flashner <efraim@flashner.co.il>
+;;; Copyright © 2015, 2017 Leo Famulari <leo@famulari.name>
+;;; Copyright © 2015, 2017 Cyril Roelandt <tipecaml@gmail.com>
+;;; Copyright © 2016 Sou Bunnbu <iyzsong@gmail.com>
+;;; Copyright © 2016 Hartmut Goebel <h.goebel@crazy-compilers.com>
+;;; Copyright © 2016 Danny Milosavljevic <dannym+a@scratchpost.org>
+;;; Copyright © 2016, 2020 Marius Bakke <mbakke@fastmail.com>
+;;; Copyright © 2016, 2017, 2018, 2020 Tobias Geerinckx-Rice <me@tobias.gr>
+;;; Copyright © 2017 Ben Woodcroft <donttrustben@gmail.com>
+;;; Copyright © 2017 Nikita <nikita@n0.is>
+;;; Copyright © 2017 Julien Lepiller <julien@lepiller.eu>
+;;; Copyright © 2018 Alex Vong <alexvong1995@gmail.com>
+;;; Copyright © 2019 Kyle Meyer <kyle@kyleam.com>
+;;; Copyright © 2019 Pierre Langlois <pierre.langlois@gmx.com>
+;;; Copyright © 2020 Lars-Dominik Braun <ldb@leibniz-psychology.org>
+;;; Copyright © 2020 Tanguy Le Carrour <tanguy@bioneland.org>
+;;; Copyright © 2021 Ryan Prior <rprior@protonmail.com>
+;;; Copyright © 2021 Foo Chuan Wei <chuanwei.foo@hotmail.com>
+;;; Copyright © 2022 Maxim Cournoyer <maxim@guixotic.coop>
+;;; Copyright © 2022 Pradana AUMARS <paumars@courrier.dev>
+;;; Copyright © 2023 Sharlatan Hellseher <sharlatanus@gmail.com>
+;;; Copyright © 2024 Liliana Marie Prikler <liliana.prikler@gmail.com>
+;;; Copyright © 2024 Sharlatan Hellseher <sharlatanus@gmail.com>
+;;; Copyright © 2024 Zheng Junjie <873216071@qq.com>
+;;; Copyright © 2024 Vinicius Monego <monego@posteo.net>
+;;; Copyright © 2024, 2025 Ricardo Wurmus <rekado@elephly.net>
+;;; Copyright © 2026 jgart <jgart@dismail.de>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (gnu packages time)
+  #:use-module (gnu packages autotools)
+  #:use-module (gnu packages base)
+  #:use-module (gnu packages build-tools)
+  #:use-module (gnu packages check)
+  #:use-module (gnu packages compression)
+  #:use-module (gnu packages geo)
+  #:use-module (gnu packages golang-build)
+  #:use-module (gnu packages golang-xyz)
+  #:use-module (gnu packages libffi)
+  #:use-module (gnu packages perl)
+  #:use-module (gnu packages python)
+  #:use-module (gnu packages python-build)
+  #:use-module (gnu packages python-check)
+  #:use-module (gnu packages python-xyz)
+  #:use-module (gnu packages rust)
+  #:use-module (gnu packages serialization)
+  #:use-module (gnu packages terminals)
+  #:use-module (gnu packages textutils)
+  #:use-module (gnu packages)
+  #:use-module (guix build-system cargo)
+  #:use-module (guix build-system gnu)
+  #:use-module (guix build-system go)
+  #:use-module (guix build-system pyproject)
+  #:use-module (guix download)
+  #:use-module (guix gexp)
+  #:use-module (guix utils)
+  #:use-module (guix git-download)
+  #:use-module (guix licenses)
+  #:use-module (guix packages))
+
+(define-public termdown
+  (package
+    (name "termdown")
+    (version "1.18.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/trehn/termdown")
+             (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "15i7ilwzwdj831bcd1gjnirydcdbr1b10d7jw5syjv0xwqq3yy8y"))))
+    (build-system pyproject-build-system)
+    (arguments (list #:tests? #f)) ; No tests.
+    (native-inputs (list python-pytest python-setuptools))
+    (propagated-inputs (list python-click python-pyfiglet python-dateutil))
+    (home-page "https://github.com/trehn/termdown")
+    (synopsis "Countdown timer for your terminal")
+    (description
+     "Termdown provides a fancy text display while it counts down to zero from
+a starting point you provide.  The user can pause and resume the countdown
+from the text user interface.  It can also be used in stop watch mode which
+counts forward or for just showing the current time.")
+    (license gpl3)))
+
+(define-public time
+  (package
+    (name "time")
+    (version "1.10")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "mirror://gnu/time/time-"
+                           version ".tar.gz"))
+       (sha256
+        (base32
+         "1hq9vvam1bi8xz9d09xgj2fdxbmq1psii1hywiw897armfs9zhp8"))))
+    (build-system gnu-build-system)
+    (home-page "https://www.gnu.org/software/time/")
+    (synopsis "Run a command, then display its resource usage")
+    (description
+     "Time is a command that displays information about the resources that a
+program uses.  The display output of the program can be customized or saved
+to a file.")
+    (license gpl3+)))
+
+(define-public pps-tools
+  ;; Last tagged release was in 2021
+  (let ((commit "e5083fe1481a34373dee2acfabb63001ee9c40e0")
+        (revision "1"))
+    (package
+      (name "pps-tools")
+      (version (git-version "1.0.3" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+               (url "https://github.com/redlab-i/pps-tools")
+               (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32 "1q3yvkwgqzafpx940cgqjn0harziv9gix1k3r3ymidmip0i5z1cp"))))
+      (arguments
+       (list
+        #:tests? #f ;There is no test suite.
+        #:make-flags
+        #~(list "CC=gcc"
+                (string-append "DESTDIR=" %output))
+        #:phases
+        #~(modify-phases %standard-phases
+            ;; No configure script
+            (delete 'configure)
+            (add-after 'unpack 'patch-makefile
+              (lambda _
+                (substitute* "Makefile"
+                  (("/usr/")
+                   "/")))))))
+      (build-system gnu-build-system)
+      (home-page "https://github.com/redlab-i/pps-tools")
+      (synopsis "User-space tools and headers for LinuxPPS")
+      (description
+       "This package includes the necessary headers for using
+@url{http://linuxpps.org/, LinuxPPS} PPSAPI kernel interface in user-space
+applications, and several support tools.")
+      (license gpl2+))))
+
+(define-public python-pytimeparse
+  (package
+    (name "python-pytimeparse")
+    (version "1.1.8")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/wroberts/pytimeparse")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1r5ybq2brdinqlvvdmfv2lz4g1hwz2zd6k21qwzzw17jfxdv2m6g"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-before 'check 'cleanup
+            (lambda* (#:key inputs outputs #:allow-other-keys)
+              (delete-file-recursively
+               (string-append (site-packages inputs outputs)
+                              "/pytimeparse/tests"))))
+          (replace 'check
+            (lambda* (#:key tests? #:allow-other-keys)
+              (when tests?
+                (invoke "python" "-m" "unittest")))))))
+    (native-inputs
+     (list python-setuptools python-wheel))
+    (home-page "https://github.com/wroberts/pytimeparse")
+    (synopsis "Time expression parser")
+    (description
+     "This small Python module parses various kinds of time expressions.")
+    (license expat)))
+
+(define-public python-pytzdata
+  (package
+    (name "python-pytzdata")
+    (version "2020.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/sdispater/pytzdata")
+             (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1idzpps56wx2lqvflxhpb1isz1ijn9y91ffd6hfg6qv1zikj9xa4"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'use-poetry-core
+            (lambda _
+              ;; Patch to use the core poetry API.
+              (substitute* "pyproject.toml"
+                (("poetry.masonry.api") "poetry.core.masonry.api")))))))
+    (native-inputs (list python-poetry-core python-pytest))
+    (propagated-inputs (list python-cleo))
+    (home-page "https://github.com/sdispater/pytzdata")
+    (synopsis "Timezone database for Python")
+    (description "This library provides a timezone database for Python.")
+    (license expat)))
+
+(define-public python-tzdata
+  (package
+    (name "python-tzdata")
+    ;; This package should be kept in sync with tzdata in (gnu packages base).
+    (version "2025.1")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (pypi-uri "tzdata" version))
+       (sha256
+        (base32 "156nh5d0fagghgyz54ymbd4cnr6z05w8iiin2syjinwcx04lk294"))
+       (modules '((guix build utils)))
+       (snippet #~(delete-file-recursively "src/tzdata/zoneinfo"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list #:phases
+           #~(modify-phases %standard-phases
+               (add-after 'ensure-no-mtimes-pre-1980 'unpack-tzdata
+                 (lambda* (#:key inputs #:allow-other-keys)
+                   (copy-recursively
+                    (search-input-directory inputs "share/zoneinfo")
+                    "src/tzdata/zoneinfo")
+                   (delete-file "src/tzdata/zoneinfo/posix")
+                   (call-with-output-file "src/tzdata/zoneinfo/__init__.py"
+                     (const #t)))))))
+    (inputs (list tzdata))
+    (native-inputs
+     (list python-pytest
+           python-setuptools))
+    (home-page "https://github.com/python/tzdata")
+    (synopsis "Python wrapper of IANA time zone data")
+    (description "This package provides a thin Python wrapper around tzdata.")
+    (license asl2.0)))
+
+(define-public python-pytz-deprecation-shim
+  (package
+    (name "python-pytz-deprecation-shim")
+    (version "0.1.0.post0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (pypi-uri "pytz_deprecation_shim" version))
+       (sha256
+        (base32 "17d58msbi18dc4lk29hcrgylvrv9vhniwi24axfdwvb13fp7n2dg"))))
+    (build-system pyproject-build-system)
+    (propagated-inputs (list python-dateutil python-tzdata))
+    (native-inputs (list python-pytest
+                         python-pytz
+                         python-setuptools
+                         python-wheel))
+    (home-page "https://github.com/pganssle/pytz-deprecation-shim")
+    (synopsis "Shims to make deprecation of pytz easier")
+    (description
+     "This package aims to make the transition away from @code{pytz} easier.
+It is intended for temporary usage only, and should allow you to drop your
+dependency on @code{pytz} while also giving your users notice that eventually
+you will remove support for the pytz-specific interface.")
+    (license asl2.0)))
+
+(define-public python-pytz
+  (package
+    (name "python-pytz")
+    ;; This package should be kept in sync with tzdata in (gnu packages base).
+    (version "2025.1")
+    (source
+     (origin
+      (method url-fetch)
+      (uri (pypi-uri "pytz" version))
+      (sha256
+       (base32
+        "13hpf2my8mgqkr38ch7s3rym9zz60m6pq87rcn7b46155az45ny2"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list #:test-backend #~'unittest
+           #:test-flags #~(list "discover" "pytz/tests")))
+    (native-inputs
+     (list python-setuptools))
+    (home-page "http://pythonhosted.org/pytz")
+    (synopsis "Python timezone library")
+    (description "This library brings the Olson tz database into Python.  It
+allows accurate and cross platform timezone calculations using Python 2.4 or
+higher.  It also solves the issue of ambiguous times at the end of daylight
+saving time.  Almost all of the Olson timezones are supported.")
+    (license expat)))
+
+(define-public python-pendulum
+  (package
+    (name "python-pendulum")
+    (version "3.1.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/sdispater/pendulum")
+             (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0rhh5hnrjbi1ams5ylnymari522k4v2kdk82qzafvmykkcvild36"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:imported-modules `(,@%cargo-build-system-modules
+                           ,@%pyproject-build-system-modules)
+      #:modules '(((guix build cargo-build-system)
+                   #:prefix cargo:)
+                  (guix build pyproject-build-system)
+                  (guix build utils))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'prepare-cargo-build-system
+            (lambda args
+              (with-directory-excursion "rust"
+                (for-each (lambda (phase)
+                            (format #t "Running cargo phase: ~a~%" phase)
+                            (apply (assoc-ref cargo:%standard-phases phase)
+                                   #:cargo-target #$(cargo-triplet) args))
+                          '(unpack-rust-crates configure
+                                               check-for-pregenerated-files
+                                               patch-cargo-checksums))))))))
+    (native-inputs
+     (list maturin
+           python-pytest
+           python-pytest-benchmark
+           python-pytz
+           python-setuptools
+           python-time-machine
+           rust
+           `(,rust "cargo")))
+    (inputs (cargo-inputs 'pendulum))
+    (propagated-inputs (list python-dateutil python-tzdata))
+    (home-page "https://github.com/sdispater/pendulum")
+    (synopsis "Alternate API for Python datetimes")
+    (description
+     "Pendulum is a drop-in replacement for the standard @code{datetime}
+class, providing an alternative API.  As it inherits from the standard
+@code{datetime} all @code{datetime} instances can be replaced by Pendulum
+instances.")
+    (license expat)))
+
+(define-public python-dateutil
+  (package
+    (name "python-dateutil")
+    (version "2.9.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (pypi-uri "python-dateutil" version))
+       (sha256
+        (base32 "02b7qqimar3p311m0y5z8b09v4qdd0qia037lpzj0nrzqqckxrvq"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:test-flags
+      #~(list ;avoid freezegun dependency
+         "--ignore=tests/test_utils.py"
+         "--ignore=tests/test_rrule.py"
+         ;; XXX: Fails to get timezone from /etc/localtime.
+         "--ignore=tests/test_tz.py")
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'relax-pytest-cov-requirement
+            (lambda _
+              (substitute* "tests/conftest.py"
+                (("\\item.add_marker\\(pytest\\.mark\\.no_cover\\)")
+                 "continue")))))))
+    (native-inputs
+     (list python-pytest
+           python-setuptools
+           python-setuptools-scm))
+    (propagated-inputs
+     (list python-six))
+    (home-page "https://dateutil.readthedocs.io/en/stable/")
+    (synopsis "Extensions to the standard datetime module")
+    (description
+     "The dateutil module provides powerful extensions to the standard
+datetime module, available in Python 2.3+.")
+    ;; The license was changed from the three-clause BSD license to a dual
+    ;; Apache 2.0/BSD-3 variant at 2017-12-01.  Some code is only available as
+    ;; BSD-3 still; but all new code is dual licensed (the user can choose).
+    (license (list bsd-3 asl2.0))))
+
+(define-public python-dateutils
+  ;; XXX: The last release was in 2021, no development on the master
+  ;; branch. consider to remove when nothing depends on it.
+  (package
+    (name "python-dateutils")
+    (version "0.6.12")
+    (source (origin
+              (method url-fetch)
+              (uri (pypi-uri "dateutils" version))
+              (sha256
+               (base32
+                "1wg3f3imjq3snvjccv64h5498pqv9xz664xhni7bsh8mnay91p83"))))
+    (build-system pyproject-build-system)
+    (arguments (list #:tests? #f)) ;requires twine
+    (propagated-inputs (list python-dateutil python-pytz))
+    (native-inputs (list python-setuptools))
+    (home-page "https://github.com/jmcantrell/python-dateutils")
+    (synopsis "Various utilities for working with date and datetime objects")
+    (description
+     "The main purpose of this package is to provide more complex arithmetic
+operations on dates/times.  Heavy use is made of the @code{relativedelta} type
+from the @code{dateutil} library.  Much of this package is just a light
+wrapper on top of this with some added features such as range generation and
+business day calculation.")
+    (license bsd-0)))
+
+(define-public python-parsedatetime
+  (package
+    (name "python-parsedatetime")
+    (version "2.6")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/bear/parsedatetime")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "001rxkawjjjffbqzjg96znkhj4z6q7ky349rldd8yx6vk8cgdc2m"))))
+    (build-system pyproject-build-system)
+    (native-inputs
+     (list python-pyicu python-pytest python-setuptools python-wheel))
+    (propagated-inputs
+     (list python-future))
+    (home-page "https://github.com/bear/parsedatetime/")
+    (synopsis "Parse human-readable date/time text")
+    (description
+     "This package provides some tools to parse human-readable date/time text
+in Python.")
+    (license asl2.0)))
+
+(define-public python-ciso8601
+  (package
+    (name "python-ciso8601")
+    (version "2.3.2")
+    (source
+     (origin
+       (method git-fetch)
+       ;; The PyPi distribution doesn't include the tests.
+       (uri (git-reference
+             (url "https://github.com/closeio/ciso8601")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "189adk14ygs1cx3ncm1wqqfh18r72gl299zkllncynp1y79d0nd1"))))
+    (build-system pyproject-build-system)
+    (native-inputs
+     (list python-pytest
+           python-setuptools
+           python-wheel))
+    (home-page "https://github.com/closeio/ciso8601")
+    (synopsis "Fast ISO8601 date time parser")
+    (description
+     "The package ciso8601 converts ISO 8601 or RFC 3339 date time strings
+into Python datetime objects.")
+    (license expat)))
+
+(define-public python-relativetimebuilder
+  (package
+    (name "python-relativetimebuilder")
+    (version "3.0.1")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (pypi-uri "relativetimebuilder" version))
+       (sha256
+        (base32 "1x83vzwajz8rmml8x4ysr4cnxh6x0w42wkhw4zivd8qsbi9zcwzm"))))
+    (build-system pyproject-build-system)
+    (native-inputs
+     (list python-pytest
+           python-setuptools
+           python-wheel))
+    (propagated-inputs
+     (list python-aniso8601
+           python-dateutil))
+    (home-page "https://bitbucket.org/nielsenb/relativetimebuilder")
+    (synopsis "ANISO8601 builder for dateutil relativedeltas")
+    (description
+     "This package provides functionality for utilizing the relativedelta
+feature from the dateutil library, ensuring calendar precision with
+aniso8601.")
+    ;; setup.py and PyPI: "License :: OSI Approved :: BSD License"
+    (license bsd-3)))
+
+(define-public python-timeslot
+  (let ((commit "af35445e96cbb2f3fb671a75aac6aa93e4e7e7a6")
+        (revision "0"))
+    (package
+      (name "python-timeslot")
+      (version (git-version "0.1.2" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+                (url "https://github.com/ErikBjare/timeslot")
+                (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32 "1m0zrr60p4brkdwkkhdzhvmd98flklqgbjryjpdcfq1c4gd60j0q"))))
+      (build-system pyproject-build-system)
+      (native-inputs
+       (list python-poetry-core python-pytest python-setuptools))
+      (home-page "https://github.com/ErikBjare/timeslot")
+      (synopsis "Data type for representing time slots")
+      (description
+       "This package provides a data type for representing time slots with a
+start and end.  It completes the datetime Python module, which can represent a
+time, a duration, a timezone, but not a range or interval.")
+      (license expat))))
+
+(define-public python-timezonefinder
+  (package
+    (name "python-timezonefinder")
+    (version "8.2.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/jannikmi/timezonefinder")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0madqryxm3ynij1n285vakp8l2mz8mzlfg5slcy0mbbz5vh4kqrs"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      ;; tests: 1995 passed, 1 deselected
+      #:test-flags
+      ;; FileNotFoundError: [Errno 2] No such file or directory: 'uv'
+      #~(list "--ignore=tests/test_package_contents.py"
+              "--ignore=tests/test_integration.py"
+              ;; ValueError: Trying to use the clang implementation of the
+              ;; point in polygon algorithm while the C extension in not
+              ;; loaded.
+              "--ignore=tests/utils_test.py"
+              ;; pytz.exceptions.UnknownTimeZoneError: 'America/Coyhaique'
+              (string-append "--deselect=tests/test_compatibility.py::"
+                             "TestCompatibility::test_with_pytz"))))
+    (native-inputs
+     (list python-pytest
+           python-pytz
+           python-setuptools))
+    (propagated-inputs
+     (list python-cffi
+           python-h3
+           python-flatbuffers
+           python-numpy
+           python-pydantic))
+    (home-page "https://timezonefinder.michelfe.it/gui")
+    (synopsis "Finding the timezone of any coordinates on Earth offline")
+    (description "This is a python package for looking up the corresponding
+timezone for given coordinates on earth entirely offline.")
+    (license expat)))
+
+(define-public python-strict-rfc3339
+  (package
+    (name "python-strict-rfc3339")
+    (version "0.7")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/danielrichman/strict-rfc3339")
+              (commit (string-append "version-" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0b12bh9v9gwkm89kxbidxw2z81lg8fx1v5fzgs313v1wgx6qb09p"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:test-backend #~'unittest
+      #:test-flags #~(list "discover")
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'skip-bad-tests
+            (lambda _
+              ;; The timestamp to local offset tests fail due to missing
+              ;; timezone data (see:
+              ;; https://github.com/danielrichman/strict-rfc3339/issues/9).
+              (substitute* "test_strict_rfc3339.py"
+                ((#$(if (or (target-x86-32?) (target-arm32?))
+                        ;; On 32-bit platforms the size of time_t is too small
+                        ;; for these tests.
+                        (string-append "(test_dst_transition|test_float|"
+                                       "test_now|test_simple_cases|"
+                                       "test_leap_year|test_y2038)")
+                        (string-append "(test_dst_transition|test_float|"
+                                       "test_now|test_simple_cases)"))
+                  match)
+                 (string-append "__off_" match))))))))
+    (native-inputs (list python-setuptools))
+    (home-page "https://github.com/danielrichman/strict-rfc3339")
+    (synopsis "RFC3339 procedures library")
+    (description
+     "The @code{strict_rfc3339} Python module provides strict, simple, lightweight
+@url{https://www.rfc-editor.org/rfc/rfc3339, RFC3339} (Date and Time on the
+Internet: Timestamps) procedures.
+
+It enables or aims to:
+@itemize
+@item Convert UNIX timestamps to and from RFC3339.
+@item Produce RFC3339 strings with a UTC offset (Z) or with the offset that
+the C time module reports is the local timezone offset.
+@item Be simple with minimal dependencies/libraries.
+@item Avoid timezones as much as possible.
+@item Be very strict and follow RFC3339.
+@end itemize")
+    (license gpl3+)))
+
+(define-public python-tzlocal
+  (package
+    (name "python-tzlocal")
+    (version "5.2")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/regebro/tzlocal")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "1apa3i5fsfw28jnaaaa7jr976y5wbifl3h04id0bvplvsb9zpmy7"))))
+    (build-system pyproject-build-system)
+    (propagated-inputs
+     (list python-tzdata))
+    (native-inputs
+     (list python-pytest python-pytest-mock python-setuptools))
+    (home-page "https://github.com/regebro/tzlocal")
+    (synopsis "Local timezone information for Python")
+    (description
+     "Tzlocal returns a tzinfo object with the local timezone information.
+This module attempts to fix a glaring hole in pytz, that there is no way to
+get the local timezone information, unless you know the zoneinfo name, and
+under several distributions that's hard or impossible to figure out.")
+    (license expat)))
+
+(define-public python-isodate
+  (package
+    (name "python-isodate")
+    (version "0.7.2")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (pypi-uri "isodate" version))
+       (sha256
+        (base32
+         "1rjkm5qj3lz60sgva5g38cpfqd8byj2jlaf0qskg8xna8c7smlac"))))
+    (build-system pyproject-build-system)
+    (native-inputs
+     (list python-pytest
+           python-setuptools
+           python-setuptools-scm
+           python-wheel))
+    (home-page "https://github.com/gweis/isodate/")
+    (synopsis "Python date parser and formatter")
+    (description
+     "Python-isodate is a python module for parsing and formatting
+ISO 8601 dates, time and duration.")
+    (license bsd-3)))
+
+(define-public python-iso8601
+  (package
+    (name "python-iso8601")
+    (version "2.1.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (pypi-uri "iso8601" version))
+       (sha256
+        (base32 "1px83gnklx1dmwb3n3dcplyfvaczhbvhkjcq34qc88c9xqlkh7bb"))))
+    (build-system pyproject-build-system)
+    (native-inputs (list python-poetry-core python-pytest python-pytz))
+    (home-page "https://github.com/micktwomey/pyiso8601")
+    (synopsis "Module to parse ISO 8601 dates")
+    (description
+     "This module parses the most common forms of ISO 8601 date strings (e.g.
+@code{2007-01-14T20:34:22+00:00}) into @code{datetime} objects.")
+    (license expat)))
+
+;; The only one user is samba/pinned.
+(define-public python-iso8601/pinned
+  (hidden-package
+   (package/inherit python-iso8601
+     (version "1.0.2")
+     (source
+      (origin
+        (method url-fetch)
+        (uri (pypi-uri "iso8601" version))
+        (sha256
+         (base32
+          "1ccl6plks706hxm35cn1wsvxhqh3bfwi5cjgjpdxjib81qi07x97")))))))
+
+(define-public python-pyrfc3339
+  (package
+    (name "python-pyrfc3339")
+    (version "2.0.1")
+    (source
+     (origin
+       (method git-fetch)               ;no tests in PyPI archive
+       (uri (git-reference
+              (url "https://github.com/kurtraschke/pyRFC3339")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1q7kz8i8kp1hk40zswgm7dcyyd2xmjpgn1jdm6rlpv3ddjdxdg48"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-before 'check 'pre-check
+            (lambda* (#:key inputs #:allow-other-keys)
+              (setenv "TZ" "UTC")
+              (setenv "TZDIR"
+                      (search-input-directory inputs "share/zoneinfo")))))))
+    (native-inputs
+     (list python-pytest
+           python-setuptools
+           tzdata-for-tests))
+    (home-page "https://github.com/kurtraschke/pyRFC3339")
+    (synopsis "Python timestamp library")
+    (description "Python library for generating and parsing RFC 3339-compliant
+timestamps.")
+    (license expat)))
+
+(define-public python-arrow
+  (package
+    (name "python-arrow")
+    (version "1.3.0")
+    (source (origin
+              (method url-fetch)
+              (uri (pypi-uri "arrow" version))
+              (sha256
+               (base32
+                "11bssv25jix57igvfmvg2v8dmwk55b4dh6hgffazidccchbhcm6l"))))
+    (build-system pyproject-build-system)
+    ;; Tests: 1837 passed, 2 xpassed.
+    (native-inputs
+     (list python-dateparser
+           python-flit-core
+           python-pytest
+           python-pytest-mock
+           python-pytz
+           python-simplejson))
+    (propagated-inputs
+     (list python-dateutil
+           python-types-python-dateutil))
+    (home-page "https://github.com/arrow-py/arrow")
+    (synopsis "Dates and times for Python")
+    (description
+     "Arrow is a Python library to creating, manipulating, formatting and
+converting dates, times, and timestamps.  It implements and updates the
+datetime type.")
+    (license asl2.0)))
+
+(define-public python-aniso8601
+  (package
+    (name "python-aniso8601")
+    (version "10.0.1")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (pypi-uri "aniso8601" version))
+       (sha256
+        (base32 "0ib8s62d3zh7qy5rnlrisns2bbjixb0lmyal3yp2h5fxcf38yj15"))))
+    (build-system pyproject-build-system)
+    (arguments (list #:test-backend #~'unittest
+                     #:test-flags #~(list "discover" "aniso8601")))
+    (native-inputs
+     (list python-setuptools))
+    (home-page "https://codeberg.org/nielsenb-jf/aniso8601")
+    (synopsis "Python library for parsing ISO 8601 strings")
+    (description
+     "This package contains a library for parsing ISO 8601 datetime strings.")
+    (license bsd-3)))
+
+(define-public rdate
+  (let ((commit "91d84610e3695e90a884e2953908e95a856a9b74")
+        (revision "1"))
+    (package
+      (name "rdate")
+      (version (git-version "1.4" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+               (url "https://github.com/njh/rdate")
+               (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32 "002ryjq8gj1ml5la4v6dr3bh1zw5kxwy65rpziq8d2ccccarhv59"))))
+      (build-system gnu-build-system)
+      (native-inputs (list autoconf automake))
+      (synopsis "Get date and time based on RFC 868")
+      (description
+       "@code{rdate} connects to an RFC 868 time server over a TCP/IP network,
+printing the returned time and/or setting the system clock.")
+      (home-page "https://www.aelius.com/njh/rdate/")
+      (license gpl2+))))
+
+(define-public datefudge
+  (package
+    (name "datefudge")
+    (version "1.27")
+    (source (origin
+              ;; Source code is available from
+              ;; <https://salsa.debian.org/debian/datefudge.git>.  However,
+              ;; for bootstrapping reasons, we do not rely on 'git-fetch' here
+              ;; (since Git -> GnuTLS -> datefudge).
+              (method url-fetch)
+              (uri (list
+                     (string-append
+                       "mirror://debian/pool/main/d/datefudge/datefudge_"
+                       version ".tar.xz")
+                     ;; Update the Debian snapshot URL when updating the package.
+                     (string-append
+                       "https://snapshot.debian.org/archive/debian/"
+                       "20240830T084547Z/pool/main/d/datefudge/"
+                       "datefudge_1.27.tar.xz")))
+              (sha256
+               (base32
+                "0b9azg6z92s74f0rmm3hdd5l5dcldgiq5bza06mgc3ibpnlhqz0g"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:test-target "test"
+       #:make-flags (list (string-append "CC=" ,(cc-for-target))
+                          (string-append "VERSION=" ,version)
+                          (string-append "prefix=" (assoc-ref %outputs "out")))
+       #:phases
+       (modify-phases %standard-phases
+         (delete 'configure))))
+    (native-inputs
+     (list perl))
+    (home-page "https://salsa.debian.org/debian/datefudge")
+    (synopsis "Pretend the system date is different")
+    (description
+     "Utility that fakes the system time by pre-loading a small library that
+modifies the @code{time}, @code{gettimeofday} and @code{clock_gettime} system
+calls.")
+    (license gpl2)))
+
+(define-public tz
+  (package
+    (name "tz")
+    (version "0.8.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/oz/tz")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0pnfz88pbb5jmr1p6m53447d9r8mn9s0f6qd8dpmn0i844lfv5rs"))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:import-path "github.com/oz/tz"
+      #:test-flags #~(list "-vet=off")))
+    (inputs
+     (list go-github-com-charmbracelet-bubbletea
+           go-github-com-mattn-go-isatty
+           go-github-com-muesli-termenv
+           go-github-com-pelletier-go-toml-v2
+           go-github-com-tkuchiki-go-timezone
+           go-golang-org-x-term
+           go-golang-org-x-tools))
+    (home-page "https://github.com/oz/tz")
+    (synopsis "TUI time zone helper")
+    (description
+     "@command{tz} helps you schedule things across time zones.  It is an
+interactive TUI program that displays time across a few time zones of your
+choosing.")
+    (license gpl3+)))
+
+(define-public countdown
+  (package
+    (name "countdown")
+    (version "1.5.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/antonmedv/countdown")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0snz26dvj8v58fyzd51bcf07b5yp2akcyy26w7b0pnkmlh3lknmk"))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:import-path "github.com/antonmedv/countdown"))
+    (native-inputs
+     (list go-github-com-nsf-termbox-go))
+    (home-page "https://github.com/antonmedv/countdown")
+    (synopsis "Counts to zero with a text user interface")
+    (description
+     "Countdown provides a fancy text display while it counts down to zero
+from a starting point you provide.  The user can pause and resume the
+countdown from the text user interface.")
+    (license expat)))

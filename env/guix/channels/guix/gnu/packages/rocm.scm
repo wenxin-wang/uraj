@@ -1,0 +1,867 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2021 Lars-Dominik Braun <lars@6xq.net>
+;;; Copyright © 2022, 2023, 2025 John Kehayias <john.kehayias@protonmail.com>
+;;; Copyright © 2026 Jean-Baptiste Note <jean-baptiste.note@m4x.org>
+;;; Copyright © 2023 Advanced Micro Devices, Inc.
+;;; Copyright © 2026 David Elsing <david.elsing@posteo.net>
+;;;
+;;; This program is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; This program is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (gnu packages rocm)
+  #:use-module ((guix licenses) #:prefix license:)
+  #:use-module (guix packages)
+  #:use-module (guix download)
+  #:use-module (guix gexp)
+  #:use-module (guix utils)
+  #:use-module (guix git-download)
+  #:use-module (guix build-system cmake)
+  #:use-module (guix amd-gpu)
+  #:use-module (gnu packages)
+  #:use-module (gnu packages base)
+  #:use-module (gnu packages boost)
+  #:use-module (gnu packages check)
+  #:use-module (gnu packages cpp)
+  #:use-module (gnu packages curl)
+  #:use-module (gnu packages elf)
+  #:use-module (gnu packages gcc)
+  #:use-module (gnu packages gl)
+  #:use-module (gnu packages instrumentation)
+  #:use-module (gnu packages linux)
+  #:use-module (gnu packages llvm)
+  #:use-module (gnu packages logging)
+  #:use-module (gnu packages opencl)
+  #:use-module (gnu packages pkg-config)
+  #:use-module (gnu packages pretty-print)
+  #:use-module (gnu packages python)
+  #:use-module (gnu packages python-build)
+  #:use-module (gnu packages python-xyz)
+  #:use-module (gnu packages version-control)
+  #:use-module (gnu packages vim)
+  #:use-module (gnu packages perl)
+  #:use-module (gnu packages profiling)
+  #:use-module (gnu packages xdisorg)
+  #:use-module (gnu packages xml)
+  #:use-module (gnu packages xorg)
+  #:use-module (gnu packages libffi)
+  #:use-module (ice-9 match)
+  #:re-export (%default-amd-gpu-targets
+               current-amd-gpu-targets
+               current-amd-gpu-targets-string))
+
+;; The components are tightly integrated and can only be upgraded as a unit. If
+;; you want to upgrade ROCm, bump this version number and the version number in
+;; - rocm-libs.scm
+;; - rocm-tools.scm
+;; - gdb.scm
+;; and update the hashes of the affected packages.
+
+(define %rocm-version "7.1.1")
+
+;; ROCm-systems derived packages belong here.
+
+(define %rocm-systems-url "https://github.com/ROCm/rocm-systems")
+(define %rocm-systems-origin
+  (origin
+    (method git-fetch)
+    (uri (git-reference
+           (url (string-append %rocm-systems-url))
+           (commit (string-append "rocm-" %rocm-version))))
+    (file-name (git-file-name "rocm-systems" %rocm-version))
+    (sha256
+     (base32
+      "056dwpkddjj5gq4xys1vbca0znq4qlhqnfdsgp1y9c5y9avqfkxx"))
+    (patches
+     (search-patches
+      "rocclr-5.6.0-enable-gfx800.patch"
+      "rocm-opencl-runtime-4.3-noclinfo.patch"))))
+
+(define-public rocr-runtime
+  (package
+    (name "rocr-runtime")
+    (version %rocm-version)
+    (source %rocm-systems-origin)
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:tests? #f                       ; No tests.
+      #:build-type "Release"
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'chdir
+            (lambda _
+              (chdir "projects/rocr-runtime")))
+          (add-after 'unpack 'add-rocm-device-lib-path
+            (lambda _
+              (setenv "ROCM_PATH"
+                      #$(this-package-input "rocm-device-libs")))))))
+    (inputs
+     (list libdrm
+           libelf-shared
+           clang-rocm
+           lld-rocm
+           numactl
+           rocm-device-libs
+           rocprofiler-register))
+    (native-inputs (list pkg-config xxd))
+    (home-page %rocm-systems-url)
+    (synopsis "ROCm Platform Runtime")
+    (description "User-mode API interfaces and libraries necessary for host
+applications to launch compute kernels to available HSA ROCm kernel agents.")
+    (license license:ncsa)))
+
+(define-public rocm-opencl-runtime
+  (package
+    (name "rocm-opencl-runtime")
+    (version %rocm-version)
+    (home-page %rocm-systems-url)
+    (source %rocm-systems-origin)
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:tests? #f                       ; Not sure how to run them.
+      #:build-type "Release"
+      #:configure-flags
+      #~(list
+         (string-append "-DAMD_OPENCL_PATH=" #$(package-source this-package))
+         "-DCLR_BUILD_OCL=ON"
+         (string-append "-DROCM_PATH=" #$output)
+         ;; Don't build the ICD loader as we have the opencl-icd-loader
+         ;; package already.
+         "-DBUILD_ICD=OFF"
+         ;; Don't duplicate the install in an "opencl" directory as well.
+         "-DFILE_REORG_BACKWARD_COMPATIBILITY=OFF")
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'chdir
+            (lambda _
+              (chdir "projects/clr")))
+          (add-after 'chdir 'no-os-release
+            (lambda _
+              (substitute* "opencl/packaging/CMakeLists.txt"
+                (("/etc/os-release") "/dev/null"))))
+          (add-after 'install 'create-icd
+            ;; Manually install ICD, which simply consists of dumping
+            ;; the path of the .so into the correct file.
+            (lambda* (#:key outputs #:allow-other-keys)
+              (let* ((vendors (string-append #$output "/etc/OpenCL/vendors"))
+                     (sopath (string-append #$output "/lib/libamdocl64.so")))
+                (mkdir-p vendors)
+                (with-output-to-file (string-append vendors "/amdocl64.icd")
+                  (lambda _ (display sopath)))))))))
+    (inputs
+     (list glew
+           mesa
+           numactl
+           opencl-headers
+           opencl-icd-loader
+           libffi
+           rocm-comgr
+           rocr-runtime))
+    (synopsis "ROCm OpenCL Runtime")
+    (description "OpenCL 2.0 compatible language runtime, supporting offline
+and in-process/in-memory compilation.")
+    (license license:expat)))
+
+;; this runtime includes the hipcc and hip-config present in rocm-hipcc
+;; wrapping them in rocm-hipcc allows the copies that are made here to be
+;; wrapped also.
+(define-public rocm-hip-runtime
+  (package
+    (name "rocm-hip-runtime")
+    (version %rocm-version)
+    (home-page %rocm-systems-url)
+    (source %rocm-systems-origin)
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:tests? #f                       ; Not sure how to run them.
+      #:build-type "Release"
+      #:configure-flags
+      #~(list
+         (string-append "-DAMD_OPENCL_PATH=" #$(package-source this-package))
+         "-DCLR_BUILD_HIP=ON"
+         "-DCLR_BUILD_OCL=OFF"
+         (string-append "-DROCM_PATH=" #$output)
+         "-DHIP_PLATFORM=amd"
+         (string-append
+          "-DHIPCC_BIN_DIR=" #$(this-package-native-input "rocm-hipcc") "/bin")
+         (string-append
+          "-DHIP_COMMON_DIR=" #$(package-source this-package) "/projects/hip")
+         ;; for now
+         "-DUSE_PROF_API=OFF")
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'chdir
+            (lambda _
+              (chdir "projects/clr")))
+          (add-after 'chdir 'no-os-release
+            (lambda _
+              (substitute* '("hipamd/packaging/CMakeLists.txt"
+                             "hipamd/CMakeLists.txt")
+                (("/etc/os-release") "/dev/null"))))
+          (add-after 'chdir 'less-cmake-warnings
+            (lambda _
+              (substitute* "rocclr/cmake/ROCclrLC.cmake"
+                (("2\\.9") "3.0"))))
+          (add-after 'chdir 'fix-clang-location-for-embed-pch
+            (lambda _
+              (substitute* "hipamd/src/CMakeLists.txt"
+                ;; differentiate between CLANG and LLVM packages
+                (("\\$\\{HIP_LLVM_ROOT\\}")
+                 (string-append  "${HIP_LLVM_ROOT} "
+                                 #$(this-package-native-input "clang-rocm"))))
+              (substitute* "hipamd/src/hip_embed_pch.sh"
+                (("\\$5") "$6")
+                (("LLVM_DIR=\"\\$4\"")
+                 "LLVM_DIR=\"$4\"; CLANG_DIR=\"$5\";")
+                (("\\$LLVM_DIR/bin/clang")
+                 (string-append "$CLANG_DIR/bin/clang")))))
+          ;; Packages that require `hipcc' should use the `rocm-hipcc'
+          ;; package. This disables the installation of `hipcc' and
+          ;; `hipconfig' binaries, and makes sure that the references to them
+          ;; are expected to be found in $PATH.
+          (add-after 'chdir 'disable-hipcc-installation
+            (lambda _
+              (substitute* "hipamd/CMakeLists.txt"
+                (("if \\(NOT \\$\\{HIPCC_BIN_DIR\\} STREQUAL \"\"\\)")
+                 "if (FALSE)"))
+              (substitute* "hipamd/hip-config.cmake.in"
+                (("\\$\\{hip_HIPCC_EXECUTABLE\\}")
+                 "hipcc")
+                (("\\$\\{hip_HIPCONFIG_EXECUTABLE\\}")
+                 "hipconfig"))))
+          ;; Adjust CMAKE helper so hipconfig is retrieved from path.
+          (add-after 'install 'adjust-cmake-helpers
+            (lambda _
+              (substitute* (string-append #$output "/bin/hipcc_cmake_linker_helper")
+                (("\\$HIP_PATH/bin/hipconfig")
+                 "hipconfig")
+                (("\\$HIP_PATH/bin/hipcc")
+                 "hipcc")))))))
+    (inputs
+     (list glew
+           mesa
+           numactl
+           perl
+           opencl-headers
+           rocr-runtime
+           rocm-device-libs
+           rocprofiler-register
+           libffi))
+    (native-inputs (list rocm-hipcc clang-rocm))
+    (propagated-inputs
+     (list rocm-comgr rocminfo))
+    (synopsis "ROCm HIP Runtime")
+    (description "HIP language runtime, allowing execution of HIP kernels
+on AMD hardware, with library support for in-process/in-memory
+compilation (hipclr) of HIP kernel code, and its execution on AMD hardware.")
+    (license license:expat)))
+
+(define-public rocminfo
+  (package
+    (name "rocminfo")
+    (version %rocm-version)
+    (source %rocm-systems-origin)
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:tests? #f                       ; No tests.
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'chdir
+            (lambda _
+              (chdir "projects/rocminfo")))
+          (add-after 'chdir 'patch-binary-paths
+            (lambda* (#:key inputs #:allow-other-keys)
+              (substitute* "rocminfo.cc"
+                (("lsmod")
+                 (search-input-file inputs "bin/lsmod"))
+                (("grep")
+                 (search-input-file inputs "bin/grep"))))))))
+    (inputs
+     (list rocr-runtime kmod python))
+    (home-page %rocm-systems-url)
+    (synopsis "ROCm Application for Reporting System Info")
+    (description "List @acronym{HSA,Heterogeneous System Architecture} Agents
+available to ROCm and show their properties.")
+    (license license:ncsa)))
+
+
+
+;; ROCm base helpers.
+
+(define-public rocm-cmake
+  (package
+    (name "rocm-cmake")
+    (version %rocm-version)
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://github.com/ROCm/rocm-cmake/")
+                     (commit (string-append "rocm-" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "19jyymisxiikphzmq6h8vy5cg0r5dz3lxr5wvdf44frb8wxr8vla"))))
+    (build-system cmake-build-system)
+    (arguments `(#:tests? #f))          ; Tests try to use git commit
+    (native-inputs (list git-minimal/pinned))
+    (home-page "https://rocm.docs.amd.com/projects/ROCmCMakeBuildTools/")
+    (synopsis "ROCm cmake modules")
+    (description "ROCm cmake modules provides cmake modules for common build
+tasks needed for the ROCM software stack.")
+    (license license:ncsa)))
+
+(define-public rocm-hip-cpu
+  ;; There are no releases or tags.
+  (let ((commit "e112c935057434897bb12d9ab3910380a8bd5f58")
+        (release "0"))
+    (package
+      (name "rocm-hip-cpu")
+      (version "0.1.4142")              ;from CMakeLists.txt
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+                (url "https://github.com/ROCm/HIP-CPU/")
+                (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32
+           "1rbih56kfry7scvww54dwx8ph11ddzc5bf4ww1vs1vmhi3r05gpa"))))
+      (build-system cmake-build-system)
+      (arguments
+       (list
+        #:configure-flags #~(list "-DBUILD_EXAMPLES=ON")))
+      (home-page "https://github.com/ROCm/HIP-CPU/")
+      (synopsis "Implementation of HIP that works on CPUs")
+      (description "The HIP CPU Runtime is a header-only library that allows
+CPUs to execute unmodified HIP code.  It is generic and does not assume a
+particular CPU vendor or architecture.")
+      (license license:expat))))
+
+(define-public rocm-bandwidth-test
+  (package
+    (name "rocm-bandwidth-test")
+    (version %rocm-version)
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://github.com/ROCm/rocm_bandwidth_test")
+                     (commit (string-append "rocm-" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "03icj943x9qhilw112qbp8lc974f949qz0hc7gn1iv8q9zn2pcp8"))
+              (patches
+               (search-patches
+                "rocm-bandwidth-test-take-default-gpus-from-environment.patch"
+                "rocm-bandwidth-test-fix-hsa-include-file-lookup.patch"
+                "rocm-bandwidth-test-fix-external-packages-search.patch"))))
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:tests? #f
+      #:build-type "Release"
+      #:configure-flags
+      #~(list
+         "-DAMD_APP_TREAT_WARNINGS_AS_ERRORS=FALSE"
+         "-DAMD_APP_ROCM_BUILD_PACKAGE=ON"
+         ;; The rocm build system is very opiniated about the rpath and
+         ;; mangles it beyond recognition, stripping all inputs from it.
+         ;; Avoid the breakage.
+         "-DAMD_APP_ROCM_BUILD_TRY_RPATH=OFF"
+         ;; Allows the plugin files to be correctly rpathed to $#output/lib
+         ;; where shared libraries reside.
+         "-DAMD_WORK_BENCH_PLUGIN_ADD_INSTALL_PREFIX_TO_RPATH=TRUE"
+         ;; Unfortunately this also needs to be patched everywhere, as the
+         ;; value is individually set to OFF for a lot of targets, and not
+         ;; propagated from the top. So set it here, and use substitutions
+         ;; below.
+         "-DCMAKE_INSTALL_RPATH_USE_LINK_PATH=TRUE"
+         (string-append "-DROCM_PATH=" #$output)
+         "-DUSE_LOCAL_FMT_LIB=ON"
+         "-DUSE_LOCAL_NLOHMANN_JSON=ON"
+         "-DUSE_LOCAL_SPDLOG=ON"
+         "-DUSE_LOCAL_BOOST=ON"
+         "-DUSE_LOCAL_CLI11=ON"
+         "-DUSE_LOCAL_CATCH2=ON")
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'patch-out-bogus-git-requirement
+            (lambda _
+              (substitute* "CMakeLists.txt"
+                (("find_package\\(Git QUIET\\)")
+                 "set(GIT_FOUND ON)"))))
+          ;; This converts the 'amd-gpu-targets' property to its proper entry
+          ;; point in this package; this relies on the patch
+          ;; rocm-bandwidth-test-take-default-gpus-from-environment.patch
+          ;; above, as I can't seem to find a way to do multiline matches.
+          ;; Note that compiling for all GPUs architectures is sequential, and
+          ;; will run for a very long time.
+          (add-after 'unpack 'inject-amdgpu-targets
+            (lambda _
+              (substitute* "plugins/tb/transferbench/CMakeLists.txt"
+                (("set\\(DEFAULT_GPUS[^)]*\\)")
+                 (string-append "set(DEFAULT_GPUS "
+                                #$(string-join (current-amd-gpu-targets))
+                                ")" )))))
+          ;; See configure-flags above.
+          (add-after 'unpack 'fix-use-link-path
+            (lambda _
+              (substitute* (find-files "." "CMakeLists\\.txt$|\\.cmake$")
+                ;; NB: this will also catch instances of
+                ;; CMAKE_INSTALL_RPATH_USE_LINK_PATH
+                (("INSTALL_RPATH_USE_LINK_PATH FALSE")
+                 "INSTALL_RPATH_USE_LINK_PATH TRUE"))))
+          ;; For the same reason, just in case patchelf ends up in the inputs
+          ;; (the build system may require it), we remove a hardcoded rpath in
+          ;; a bash build script which triggers if patchelf is detected.
+          (add-after 'unpack 'remove-hardcoded-patchelf
+            (lambda _
+              (substitute* "plugins/tb/transferbench/build_libamd_tb.sh"
+                (("command -v patchelf") "false"))))
+          ;; XXX The build system uses -fuse-ld=lld flag for c++ linking if it
+          ;; finds ld.lld in any way.  Unfortunately, for some reason, ld.lld
+          ;; does not correctly setup the rpath when compiling the
+          ;; rocm_bandwidth_test binary (the only executable which shows the
+          ;; problem).  We do need ld.lld from lld-rocm in the path for
+          ;; ROCm-specific linking however.  Therefore, just disable ld.lld
+          ;; lookup for standard binaries.
+          ;; I guess there's a standard Guix way to have lld behave for rpath
+          ;; -- which should be applied to lld-rocm, probably.
+          (add-after 'unpack 'dont-use-lld-for-executables
+            (lambda _
+              (substitute* "cmake/build_utils.cmake"
+                (("find_program\\(LD_LLD_PATH ld\\.lld\\)")
+                 "#find_program(LD_LLD_PATH ld.lld)"))))
+          ;; This is just cosmetic and removes superfluous rpath entries
+          ;; involving a nonexistent relative llvm/lib path.
+          ;; XXX: RUNPATH checks are okay with $ORIGIN, but it looks like
+          ;; other packages are removing it altogether -- what to do?
+          (add-after 'unpack 'remove-dubious-rpath
+            (lambda _
+              (substitute* (find-files "." "CMakeLists\\.txt$|\\.cmake$")
+                ((":\\\\\\$ORIGIN(/\\.\\./lib)?/llvm/lib") "")))))))
+    (inputs (list rocm-hip-runtime
+                  numactl
+                  curl
+                  fmt-12
+                  spdlog-1.15
+                  boost
+                  catch2))
+    (native-inputs
+     (list cli11
+           nlohmann-json
+           rocm-cmake
+           rocm-toolchain))
+    (properties `((amd-gpu-targets . ,%default-amd-gpu-targets)))
+    (home-page "https://github.com/ROCm/rocm_bandwidth_test")
+    (synopsis "Bandwidth test for ROCm")
+    (description "RocBandwidthTest is designed to capture the performance
+characteristics of buffer copying and kernel read/write operations.  The help
+screen of the benchmark shows various options one can use in initiating
+cop/read/writer operations.  In addition one can also query the topology of
+the system in terms of memory pools and their agents.")
+    (license license:expat)))
+
+;; e-smi looks hard to unbundle correctly from amd-smi
+;; the required esmi version is hardcoded in CMakeLists.txt
+(define (make-esmi-source version hash)
+  (origin
+    (method git-fetch)
+    (uri (git-reference
+           (url "https://github.com/amd/esmi_ib_library.git")
+           (commit version)))
+    (file-name (git-file-name "esmi_ib_library" version))
+    (sha256 hash)))
+
+(define %e-smi-version-for-rocm "esmi_pkg_ver-4.2")
+(define e-smi-for-amd-smi
+  (make-esmi-source
+   %e-smi-version-for-rocm
+   (base32 "0z7yarzf1yzmbjicamcagxj0w1zlnwpg7qa51vp46fq075xpscbk")))
+
+(define-public amd-smi
+  (package
+    (name "amd-smi")
+    (version "26.2.0")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://github.com/ROCm/amdsmi")
+                     (commit (string-append "rocm-" %rocm-version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "10qjisjz4shsznh61in6zjjzsag49mdzj1ahclsyxhh5qvxvfrq4"))
+              (patches
+               (search-patches "amd-smi-python.patch"
+                               "amd-smi-newer-libdrm.patch"))))
+    (build-system cmake-build-system)
+    (arguments (list
+                #:tests? #f ;; The test suite is empty and failing as of 25.5.1
+                #:configure-flags
+                #~(list
+                   "-DBUILD_SHARED_LIBS=ON"
+                   ;; this requires ctypeslib2 packaging
+                   ;; "-DBUILD_WRAPPER=ON"
+                   "-DENABLE_ESMI_LIB=ON"
+                   "-DBUILD_CLI=ON")
+                #:phases
+                #~(modify-phases %standard-phases
+                    (add-after 'unpack 'add-e-smi
+                      (lambda* _
+                        (copy-recursively
+                         #$(this-package-input
+                            (origin-file-name e-smi-for-amd-smi))
+                         "esmi_ib_library")
+                        ;; Fool cmake, which uses failing git calls above this.
+                        (substitute* "CMakeLists.txt"
+                          (("# Update to latest tags if not matched")
+                           (format #f "set(latest_esmi_tag ~s)"
+                                   #$%e-smi-version-for-rocm)))))
+                    (add-after 'add-e-smi 'patch-dlopen
+                      (lambda* (#:key inputs #:allow-other-keys)
+                        (substitute* (find-files "src" "\\.cc$")
+                          (("libdrm.so.2")
+                           (search-input-file inputs "/lib/libdrm.so.2"))
+                          (("libdrm_amdgpu.so")
+                           (search-input-file inputs "/lib/libdrm_amdgpu.so")))))
+                    (add-after 'add-e-smi 'patch-python
+                      (lambda* _
+                        (substitute* (find-files "py-interface" "\\.py$")
+                          (("/opt/rocm") #$output)))))))
+    (inputs (list libdrm
+                  python
+                  e-smi-for-amd-smi))
+    (native-inputs (list pkg-config))
+    (home-page "https://github.com/ROCm/amdsmi")
+    (synopsis "ROCm library and application for managing AMD devices")
+    (description "The AMD @acronym{SMI,System Management Interface} allows
+managing and monitoring AMD devices, particularly in high-performance
+computing environments.  It provides a user-space interface that allows
+applications to control GPU operations, monitor performance, and retrieve
+information about the system's drivers and GPUs.  It also provides a
+command-line tool, @command{amd-smi}, which can be used to do the same.")
+    (license (list license:expat license:ncsa))))
+
+(define-public rocprofiler
+  (package
+    (name "rocprofiler")
+    (version %rocm-version)
+    (home-page %rocm-systems-url)
+    (source %rocm-systems-origin)
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:tests? #f ; requires GPU
+      #:build-type "Release"
+      #:configure-flags
+      #~(list
+         "-DROCPROFILER_BUILD_PLUGIN_PERFETTO=OFF"
+         (string-append "-DCMAKE_CXX_COMPILER=clang++")
+         (string-append "-DCMAKE_C_COMPILER=clang")
+         "-DROCPROFILER_LD_AQLPROFILE=ON")
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'chdir
+            (lambda _
+              (chdir "projects/rocprofiler")))
+          (add-after 'chdir 'disable-tests
+            (lambda _
+              (substitute* "CMakeLists.txt"
+                (("set.*ROCPROFILER_BUILD_(TESTS|CI).*") ""))))
+          (add-after 'chdir 'disable-git
+            (lambda _
+              (substitute* "plugin/perfetto/CMakeLists.txt"
+                (("rocprofiler_checkout_git_submodule") "message"))))
+          (add-after 'chdir 'fix-experimental
+            (lambda _
+              (substitute* (find-files "." "\\.(h|cpp)$")
+                (("experimental(/|::)") ""))))
+          (add-after 'chdir 'fix-script-path
+            (lambda _
+              (substitute* "bin/rocprofv2"
+                (("ROCM_DIR=.*")
+                 (string-append "ROCM_DIR=" #$output "\n"))
+                (("LD_LIBRARY_PATH=.*")
+                 (string-append
+                  "LD_LIBRARY_PATH=" #$(this-package-input "aqlprofile") "/lib"
+                  ":$LD_LIBRARY_PATH\n")))))
+          (add-after 'install 'remove-rocprof
+            (lambda _
+              (delete-file (string-append #$output "/bin/rocprof")))))))
+    (propagated-inputs (list roctracer))
+    (inputs
+     (list aqlprofile
+           barectf
+           elfutils
+           libffi
+           libpciaccess
+           numactl
+           rocm-hip-runtime))
+    (native-inputs
+     (list perfetto
+           python
+           python-cppheaderparser
+           python-lxml
+           python-pyyaml
+           python-setuptools
+           rocm-cmake
+           rocm-toolchain))
+    (synopsis "ROC profiler library")
+    (description "ROC profiler library.  Profiling with perf-counters
+and derived metrics.")
+    (license license:expat)))
+
+(define-public rocprofiler-register
+  (package
+    (name "rocprofiler-register")
+    (version %rocm-version)
+    (source %rocm-systems-origin)
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:configure-flags
+      #~(list
+         "-DROCPROFILER_REGISTER_BUILD_GLOG=OFF"
+         "-DROCPROFILER_REGISTER_BUILD_FMT=OFF"
+         "-DROCPROFILER_REGISTER_BUILD_TESTS=ON")
+      #:phases
+      '(modify-phases %standard-phases
+         (add-after 'unpack 'chdir
+           (lambda _
+             (chdir "projects/rocprofiler-register")))
+         (add-after 'chdir 'patch-cmake
+           (lambda _
+             (substitute* "CMakeLists.txt"
+               (("find_package\\(Git.*") ""))
+             (substitute* "cmake/rocprofiler_register_config_packaging.cmake"
+               (("set\\(_DESC.*" orig)
+                (string-append orig "\ninclude(CPack)\n")))
+             (substitute* "source/lib/rocprofiler-register/CMakeLists.txt"
+               (("target_link_libraries" orig)
+                (string-append
+                 "find_package(fmt REQUIRED)\n"
+                 "find_package(glog REQUIRED)\n"
+                 orig))))))))
+    (inputs (list glog-next))
+    (native-inputs (list fmt-11))
+    (home-page %rocm-systems-url)
+    (synopsis "Support library to be used with rocprofiler")
+    (description "The rocprofiler-register library coordinates the
+modification of the intercept API table(s) of the HSA/HIP/ROCTx
+runtime libraries by the ROCprofiler (v2) library.")
+    (license license:expat)))
+
+(define-public rocm-core
+  (package
+    (name "rocm-core")
+    (version %rocm-version)
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://github.com/ROCm/rocm-core")
+                     (commit (string-append "rocm-" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "1a0sp50vql4nl6h19frpf1swka8j2hwmy0iaw8l1lbgvpd3hyr6x"))))
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:tests? #f ; no tests
+      #:configure-flags
+      `(list ,(string-append "-DROCM_VERSION=" %rocm-version))))
+    (home-page "https://github.com/Rocm/rocm-core")
+    (synopsis "Utility to get the ROCm release version")
+    (description "Utility to get the ROCm release version")
+    (license license:expat)))
+
+(define-public aqlprofile
+  (package
+    (name "aqlprofile")
+    (version %rocm-version)
+    (source %rocm-systems-origin)
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:phases
+      '(modify-phases %standard-phases
+         (add-after 'unpack 'chdir
+           (lambda _
+             (chdir "projects/aqlprofile"))))
+      ;; XXX: Tests require CMake HIP language support, which expects a common
+      ;; ROCm root directory.
+      #:tests? #f))
+    (inputs (list rocr-runtime))
+    (home-page %rocm-systems-url)
+    (synopsis "Architected Queuing Language Profiling Library")
+    (description "AQLprofile is an open source library that enables advanced
+ GPU profiling and tracing on AMD platforms.")
+    (license license:expat)))
+
+(define-public roctracer
+  (package
+    (name "roctracer")
+    (version %rocm-version)
+    (source %rocm-systems-origin)
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:tests? #f ; requires GPU
+      #:build-type "Release"
+      #:configure-flags
+      #~(list
+         (string-append "-DCMAKE_CXX_COMPILER=clang++")
+         (string-append "-DCMAKE_C_COMPILER=clang")
+         (string-append "-DCMAKE_MODULE_PATH="
+                        #$(this-package-input "rocm-hip-runtime")
+                        "/lib/cmake/hip"))
+      #:modules '((srfi srfi-1)
+                  (guix build cmake-build-system)
+                  (guix build utils))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'chdir
+            (lambda _
+              (chdir "projects/roctracer")))
+          (add-after 'chdir 'fix-experimental
+            (lambda _
+              (substitute* (list
+                            "plugin/file/file.cpp"
+                            "src/hip_stats/hip_stats.cpp"
+                            "src/roctracer/loader.h"
+                            "src/tracer_tool/tracer_tool.cpp")
+                (("experimental(/|::)") "")))))))
+    (inputs (list rocm-hip-runtime))
+    (native-inputs
+     (list
+      rocm-toolchain
+      python
+      python-cppheaderparser
+      rocm-cmake))
+    (home-page %rocm-systems-url)
+    (synopsis "ROCm performance tracing library")
+    (description "The ROCTracer library provides APIs for tracing (also
+asynchronous) runtime calls in an application.  It is intended for tracing
+ROCm API calls in GPU applications, such as kernel dispatches and memory
+moves.")
+    (license license:expat)))
+
+(define-public rccl
+  (package
+    (name "rccl")
+    (version %rocm-version)
+    ;; TODO: Switch to
+    ;; (source %rocm-systems-origin)
+    ;; with %rocm-version 7.1.3
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/ROCm/rccl")
+              (commit (string-append "rocm-" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "0k1k181az3hifripd99srvshq9bw9kj2p77z5nw7zmnydbfc7vny"))))
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:tests? #f ; requires GPU
+      #:build-type "Release"
+      #:configure-flags
+      #~(list
+         (string-append "-DCMAKE_CXX_COMPILER="
+                        #$(this-package-native-input "rocm-toolchain")
+                        "/bin/hipcc")
+         (string-append "-DEXPLICIT_ROCM_VERSION=" #$%rocm-version)
+         #$(string-append "-DGPU_TARGETS=" (current-amd-gpu-targets-string)))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'patch-rocm-version
+            (lambda _
+              (substitute* "CMakeLists.txt"
+                (("cat \\$\\{ROCM_PATH\\}/\\.info/version")
+                 (string-append "echo " #$%rocm-version)))))
+          (add-after 'unpack 'fix-cmake
+            (lambda _
+              (substitute* "CMakeLists.txt"
+                (("bash.*/etc/os-release.*")
+                 "echo guix\n")))))))
+    (inputs
+     (list libdrm
+           rocm-hip-runtime
+           rocprofiler-register
+           (@ (gnu packages rocm-tools) hipify)
+           rocm-smi-lib))
+    (native-inputs
+     (list fmt
+           perl
+           python
+           rocm-cmake
+           rocm-core
+           rocm-toolchain))
+    (properties `((amd-gpu-targets . ,%default-amd-gpu-targets)))
+    (home-page %rocm-systems-url)
+    (synopsis "ROCm Communication Collectives Library")
+    (description "@code{RCCL} (ROCm Communication Collectives Library) is a
+library for collective communication on GPUs, such as reduce, gather or
+scatter operations.")
+    (license license:bsd-3)))
+
+(define-public rocm-smi-lib
+  (package
+    (name "rocm-smi-lib")
+    (version %rocm-version)
+    (source %rocm-systems-origin)
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:tests? #f ; requires GPU
+      #:build-type "Release"
+      #:configure-flags
+      #~(list (string-append "-DCMAKE_INSTALL_LIBEXECDIR="
+                             #$output:bin "/lib")
+              (string-append "-DCMAKE_INSTALL_BINDIR="
+                             #$output:bin "/bin"))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'setup
+            (lambda _
+              (chdir "projects/rocm-smi-lib")
+              ;; Remove relative prefix so 'CMAKE_INSTALL_LIBEXECDIR' can be
+              ;; an absolute path, that allows pointing it to a different
+              ;; output in the store, such as `#$output:bin'.
+              (substitute* "rocm_smi/CMakeLists.txt"
+                (("../(\\$\\{CMAKE_INSTALL_LIBEXECDIR\\}/\\$\\{ROCM_SMI\\}/rocm_smi.py)" _ suffix)
+                 suffix)))))))
+    (native-inputs (list pkg-config))
+    (inputs (list libdrm python))
+    (propagated-inputs (list grep coreutils))
+    ;; The 'bin' output will store Python utilities in order to reduce the
+    ;; closure size size of the package.  That way the 'out' output will not
+    ;; depend on Python.
+    (outputs '("out" "bin"))
+    (home-page %rocm-systems-url)
+    (synopsis "The ROCm System Management Interface (ROCm SMI) Library")
+    (description "The ROCm System Management Interface Library, or
+ROCm SMI library, is part of the Radeon Open Compute ROCm software
+stack.  It is a C library for Linux that provides a user space
+interface for applications to monitor and control GPU applications.")
+    (license license:expat)))
+
+(define-deprecated-package rocm-smi rocm-smi-lib)

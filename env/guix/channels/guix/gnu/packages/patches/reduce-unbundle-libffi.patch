@@ -1,0 +1,123 @@
+Copyright (C) 2025-2026 Nigko Yerden <nigko.yerden@gmail.com>
+
+Index: autogen.sh
+===================================================================
+diff --git a/autogen.sh b/autogen.sh
+--- a/autogen.sh	(revision 7333)
++++ b/autogen.sh	(working copy)
+@@ -143,18 +143,6 @@
+   ;;
+ *--with-csl* | *--with-both*)
+   L="$L ./csl ./csl/cslbase ./csl/cslbase-nothrow ./libraries/SoftFloat-3a/source"
+-# On Apple m1 (ie arm64) I will want to build a universal version of the
+-# libffi library and that is done in a way that differs from standrad builds.
+-  case "`uname -s` `uname -m`" in
+-  *Darwin*arm64*)
+-    L="$L ./libraries/libffi-for-mac/libffi-3.3-arm64"
+-    L="$L ./libraries/libffi-for-mac/libffi-3.3-x86_64"
+-    L="$L ./libraries/libffi"
+-    ;;
+-  *)
+-    L="$L ./libraries/libffi"
+-    ;;
+-  esac
+   case $a in
+   *--without-fox* | *with-fox=no* | \
+   *--without-gui* | *with-gui=no*)
+Index: configure.ac
+===================================================================
+diff --git a/configure.ac b/configure.ac
+--- a/configure.ac	(revision 7333)
++++ b/configure.ac	(working copy)
+@@ -1542,33 +1542,6 @@
+   cd "$builddir"
+ fi
+ 
+-# On the Macintosh I will use a version of libffi provided either by
+-# macports or by homebrew, so I do not want to configure to build a
+-# private copy.
+-if test `uname` != "Darwin" 
+-then
+-  AC_MSG_NOTICE([About to configure libffi])
+-  mkdir -p libffi
+-  cd libffi
+-  setpasscc
+-  doconfig="$SHELL $abssrcdir/libraries/libffi/configure -C $filtered \
+-          $pass_host \
+-          CPPFLAGS=\"$CPPFLAGS\" \
+-          CFLAGS=\"$CFLAGS\" \
+-          CXXFLAGS=\"$CXXFLAGS\" \
+-          LDFLAGS=\"$LDFLAGS\" \
+-          $passcc \
+-          --disable-multi-os-directory \
+-          --disable-docs \
+-          --prefix=\"$builddir\" \
+-          --libdir=\"$builddir/lib\" \
+-          --includedir=\"$builddir/include\""
+-  AC_MSG_NOTICE([doconfig = $doconfig])
+-  printf "\n\n+++ About to configure libffi +++\n\n"
+-  eval "$doconfig"
+-  cd "$builddir"
+-fi
+-
+ AC_MSG_NOTICE([About to configure libsoftfloat])
+ mkdir -p softfloat
+ cd softfloat
+Index: csl/cslbase/Makefile.am
+===================================================================
+diff --git a/csl/cslbase/Makefile.am b/csl/cslbase/Makefile.am
+--- a/csl/cslbase/Makefile.am	(revision 7333)
++++ b/csl/cslbase/Makefile.am	(working copy)
+@@ -897,38 +897,6 @@
+ 
+ else !mac_framework
+ 
+-LIBFFIDEPS=../lib/libffi.a ../include/ffi.h
+-
+-FFIDEP = ../include/ffi.h
+-FFIINC = -I../include
+-AM_CPPFLAGS     += $(FFINC)
+-reduce_CPPFLAGS += $(FFINC)
+-reduce_web_CPPFLAGS += $(FFINC)
+-bootstrapreduce_CPPFLAGS += $(FFINC)
+-csl_CPPFLAGS    += $(FFINC)
+-flatcsl_CPPFLAGS    += $(FFINC)
+-
+-# The following ugly dependencies are here so that one can go, for
+-# instance, "make csl.o" in a clean tree and libffi building will get
+-# triggered.
+-
+-csl_LDADD += ../lib/libffi.a
+-flatcsl_LDADD += ../lib/libffi.a
+-bootstrapreduce_LDADD += ../lib/libffi.a
+-reduce_LDADD += ../lib/libffi.a
+-reduce_web_LDADD += ../lib/libffi.a
+-
+-csl_DEPENDENCIES += $(LIBFFIDEPS)
+-flatcsl_DEPENDENCIES += $(LIBFFIDEPS)
+-bootstrapreduce_DEPENDENCIES += $(LIBFFIDEPS)
+-reduce_DEPENDENCIES += $(LIBFFIDEPS)
+-reduce_web_DEPENDENCIES += $(LIBFFIDEPS)
+-
+-$(LIBFFIDEPS):
+-	@printf "About to build libffi for %s ($@)\n" `pwd`
+-	printf "\n\n=== About to build libffi library\n\n";
+-	-$(TRACE)@$(MAKE) -C ../libffi install
+-
+ endif !mac_framework
+ 
+ SOFTFLOATDEPS=../lib/libsoftfloat.a ../include/softfloat.h
+Index: csl/cslbase/configure.ac
+===================================================================
+diff --git a/csl/cslbase/configure.ac b/csl/cslbase/configure.ac
+--- a/csl/cslbase/configure.ac	(revision 7333)
++++ b/csl/cslbase/configure.ac	(working copy)
+@@ -146,6 +146,8 @@
+   AC_DEFINE(WITHOUT_FFI, [1], [remove the foreign function support])
+ fi
+ 
++AC_SEARCH_LIBS([ffi_call], [ffi])
++
+ # What host am I on?
+ AC_CANONICAL_HOST()
+ 

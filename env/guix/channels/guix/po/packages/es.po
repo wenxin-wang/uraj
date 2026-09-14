@@ -1,0 +1,5025 @@
+# Spanish translation for guix-packages 1.2.0-pre1
+# Copyright (C) 2019, 2020 the authors of Guix (msgids) and the following authors (msgstr)
+# This file is distributed under the same license as the guix package.
+# Francisco Javier Serrador <fserrador@gmail.com>, 2018.
+# Miguel Ángel Arruga Vivas <rosen644835@gmail.com> 2019.
+# Emilio Herrera <ehespinosa57@gmail.com>, 2021, 2022.
+# Florian Pelz <pelzflorian@pelzflorian.de>, 2025.
+# Javier Francisco <fserrador@gmail.com>, 2025.
+# "Fco. Javier F. Serrador" <fserrador@gmail.com>, 2025.
+# Weblate Translation Memory <noreply-mt-weblate-translation-memory@weblate.org>, 2025.
+# Jordán <switz@francemel.fr>, 2025.
+#: gnu/packages/firmware.scm:1665 gnu/packages/firmware.scm:1932
+#: gnu/packages/linux.scm:1260
+msgid ""
+msgstr ""
+"Project-Id-Version: guix-packages 1.2.0-pre3\n"
+"Report-Msgid-Bugs-To: bug-guix@gnu.org\n"
+"POT-Creation-Date: 2025-10-20 03:18+0000\n"
+"PO-Revision-Date: 2026-04-22 10:58+0000\n"
+"Last-Translator: fserrador <fserrador@noreply.codeberg.org>\n"
+"Language-Team: Spanish <https://translate.codeberg.org/projects/guix/packages/es/>\n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: Weblate 5.17\n"
+"X-Bugs: Report translation errors to the Language-Team address.\n"
+
+msgid "Word processing program"
+msgstr "Programa de procesamiento de textos"
+
+msgid ""
+"AbiWord is a word processing program.  It is rapidly\n"
+"becoming a state of the art word processor, with lots of features useful for\n"
+"your daily work, personal needs, or for just some good old typing fun."
+msgstr ""
+"AbiWord es un programa de procesamiento de textos.  Se está\n"
+"convirtiendo rápidamente en un procesador de textos de última generación,\n"
+"con multitud de funciones útiles para el trabajo diario, las necesidades\n"
+"personales o simplemente para divertirse tecleando."
+
+msgid "Portable Braille Library"
+msgstr "Biblioteca Braille portable"
+
+msgid ""
+"Libbraille is a library to easily access Braille displays and\n"
+"terminals."
+msgstr ""
+"Libbraille es una biblioteca para acceder fácilmente a pantallas\n"
+"y terminales Braille."
+
+msgid "Braille TTY"
+msgstr "Braille TTY"
+
+msgid ""
+"BRLTTY is a background process (daemon) which provides access\n"
+"to the Linux/Unix console (when in text mode) for a blind person using a\n"
+"refreshable braille display.  It drives the braille display, and provides\n"
+"complete screen review functionality.  Some speech capability has also been\n"
+"incorporated."
+msgstr ""
+"BRLTTY es un proceso en segundo plano (demonio) que proporciona\n"
+"acceso a la consola de Linux/Unix (en modo texto) a una persona ciega\n"
+"que utiliza una pantalla braille actualizable. Controla la pantalla braille y\n"
+"ofrece una funcionalidad completa de revisión de pantalla. También\n"
+"incorpora capacidad de reconocimiento de voz."
+
+msgid "Extensible, scalable virtual keyboard for X11"
+msgstr "Teclado virtual extensible y escalable para X11"
+
+msgid ""
+"Florence is an extensible scalable virtual keyboard for X11.\n"
+"It is useful for people who can't use a real hardware keyboard (for\n"
+"example for people with disabilities), but you must be able to use\n"
+"a pointing device (as a mouse, a trackball, a touchscreen or opengazer).\n"
+"\n"
+"Florence stays out of your way when you don't need it: it appears on the\n"
+"screen only when you need it.  A timer-based auto-click input method is\n"
+"available to help to click."
+msgstr ""
+"Florence es un teclado virtual escalable y extensible para X11.\n"
+"Es útil para personas que no pueden usar un teclado físico (por\n"
+"ejemplo, personas con discapacidad), pero es necesario poder\n"
+"usar un dispositivo señalador (como un ratón, un trackball, una\n"
+"pantalla táctil u OpenGazer).\n"
+"\n"
+"Florence no interfiere cuando no se necesita: aparece en la pantalla\n"
+"solo cuando se requiere. Dispone de un método automático de\n"
+"entrada de pulsación basado en temporizador para facilitar la pulsación."
+
+msgid "Command line utilities for PCsensor and Scythe foot switches"
+msgstr "Utilidades de línea de comandos para los interruptores de pedal PCsensor y Scythe"
+
+msgid ""
+"This package provides command line utilities for programming PCsensor\n"
+"and Scythe foot switches.  It works for both single pedal and three pedal\n"
+"devices."
+msgstr ""
+"Este paquete proporciona utilidades de línea de comandos para programar\n"
+"interruptores de pie PCsensor y Scythe. Funciona tanto con dispositivos de\n"
+"un solo pedal como de tres pedales."
+
+msgid "Tiny screen magnifier for X11"
+msgstr "Lupa de pantalla pequeña para X11"
+
+msgid ""
+"This program magnifies a screen region by an integer positive factor and\n"
+"draws the result on a window.  It is useful as an accessibility tool, which\n"
+"works with every X Window System based GUI (depends only on libX11); or as an\n"
+"assistant for graphic designers, who need to select individual pixels."
+msgstr ""
+"Este programa amplía una región de la pantalla mediante un factor entero\n"
+"positivo y muestra el resultado en una ventana. Es útil como herramienta\n"
+"de accesibilidad, ya que funciona con cualquier interfaz gráfica de usuario\n"
+"basada en el Sistema X Window (solo depende de libX11); o como asistente\n"
+"para diseñadores gráficos que necesitan seleccionar píxeles individuales."
+
+msgid "Bridge for espeak and speakup"
+msgstr "Puente para hablar en línea y hablar en voz alta"
+
+msgid ""
+"Espeakup is a bridge between the speakup driver implemented in\n"
+"the Linux kernel and the espeak-ng text to speech synthesizer.\n"
+"In order for this package to work, you need to have the following\n"
+"kernel modules built:\n"
+"@itemize @bullet\n"
+"@item\n"
+"CONFIG_SPEAKUP=m\n"
+"@item\n"
+"CONFIG_SPEAKUP_SOFT=m\n"
+"@end itemize"
+msgstr ""
+"Espeakup es un puente entre el controlador speakup implementado\n"
+"en el kernel de Linux y el sintetizador de voz espeak-ng.\n"
+"Para que este paquete funcione, necesita tener compilados los\n"
+"siguientes módulos del kernel:\n"
+"@itemize @bullet\n"
+"@item\n"
+"CONFIG_SPEAKUP=m\n"
+"@item\n"
+"CONFIG_SPEAKUP_SOFT=m\n"
+"@end itemize"
+
+msgid "Screen magnifier tool for people with low vision"
+msgstr "Herramienta de ampliación de pantalla para personas con baja visión"
+
+msgid ""
+"MouseLoupe is a kind of magnifying glass combined with the\n"
+"mouse pointer which allows an easy and pleasant web navigation."
+msgstr ""
+"MouseLoupe es una especie de lupa combinada con el puntero\n"
+"del ratón que permite una navegación web fácil y agradable."
+
+msgid "Standard login and process accounting utilities"
+msgstr "Utilidades estándar de inicio de sesión y contabilidad de procesos"
+
+msgid ""
+"GNU acct provides a means for system administrators to determine\n"
+"system usage patterns.  It provides information on, for example, connections,\n"
+"programs executed, and system resources used."
+msgstr ""
+"GNU acct proporciona a los administradores de sistemas una herramienta para determinar\n"
+"los patrones de uso del sistema. Ofrece información sobre, por ejemplo, las conexiones,\n"
+"los programas ejecutados y los recursos del sistema utilizados."
+
+msgid "Library and tools for manipulating access control lists"
+msgstr "Biblioteca y herramientas para la manipulación de listas de control de acceso"
+
+msgid "Library and tools for manipulating access control lists."
+msgstr "Biblioteca y herramientas para la manipulación de listas de control de acceso."
+
+msgid "POSIX.1e @acronym{ACLs, access control lists} for Python"
+msgstr "POSIX.1e @acronym{ACLs, listas de control de acceso} para Python"
+
+msgid ""
+"This Python extension module manipulates the POSIX.1e @acronym{ACLs,\n"
+"Access Control Lists} available on many file systems.  These allow more\n"
+"fine-grained access control than traditional user/group permissions."
+msgstr ""
+"Este módulo de extensión de Python manipula las ACL (Listas de Control de\n"
+"Acceso) de POSIX.1e disponibles en muchos sistemas de archivos. Estas permiten\n"
+"un control de acceso más preciso que los permisos tradicionales de usuario/grupo."
+
+msgid "Ada 83 interpreter"
+msgstr "Intérprete de Ada 83"
+
+msgid ""
+"Ada/Ed is a translator-interpreter for Ada 83.  It's intended\n"
+"primarily as a teaching tool and lacks the capacity, performance, and robustness\n"
+"of other contemporary or modern-day Ada compilers.\n"
+"\n"
+"Ada/Ed was the first Ada compiler to pass the @acronym{ACVC, Ada Compiler\n"
+"Validation Suite} version 1.7 but fails many newer tests and is not a validated\n"
+"Ada system.  Being an interpreter, it does not implement most representation\n"
+"clauses, and thus does not support systems programming close to the machine\n"
+"level."
+msgstr ""
+"Ada/Ed es un traductor-intérprete para Ada 83. Está diseñado\n"
+"principalmente como herramienta didáctica y carece de la capacidad, el rendimiento y\n"
+"la robustez de otros compiladores de Ada contemporáneos o modernos.\n"
+"\n"
+"Ada/Ed fue el primer compilador de Ada en superar la versión 1.7 de la\n"
+"@acronym{ACVC, Ada Compiler Validation Suite}, pero falla en muchas pruebas más\n"
+"recientes y no es un sistema Ada validado. Al ser un intérprete, no implementa la\n"
+"mayoría de las cláusulas de representación y, por lo tanto, no admite la programación\n"
+"de sistemas a nivel de máquina."
+
+msgid "File and directory integrity checker"
+msgstr "Comprobador de integridad de archivos y directorios"
+
+msgid ""
+"AIDE (Advanced Intrusion Detection Environment) is a file and directory\n"
+"integrity checker.  It creates a database from the regular expression rules\n"
+"that it finds from its configuration files.  Once this database is initialized\n"
+"it can be used to verify the integrity of the files.  It has several message\n"
+"digest algorithms that are used to check the integrity of files.  All of the\n"
+"usual file attributes can be checked for inconsistencies."
+msgstr ""
+"AIDE (Advanced Intrusion Detection Environment) es un verificador de\n"
+"integridad de archivos y directorios.  Crea una base de datos a partir de\n"
+"las reglas de expresiones regulares que encuentra en sus archivos de\n"
+"configuración. Una vez inicializada, esta base de datos se puede usar\n"
+"para verificar la integridad de los archivos. Cuenta con varios algoritmos\n"
+"de resumen de mensajes que se utilizan para comprobar la integridad de\n"
+"los archivos.  Se pueden verificar todos los atributos habituales de los\n"
+"archivos en busca de inconsistencias."
+
+msgid "Tools for managing UNIX style services"
+msgstr "Herramientas de gestión de servicios al estilo UNIX"
+
+msgid ""
+"@code{daemontools} is a collection of tools for managing UNIX\n"
+"services."
+msgstr ""
+"@code{daemontools} es una colección de herramientas para\n"
+"administrar servicios UNIX."
+
+msgid "Clean up file names"
+msgstr "Vaciar nombres de archivo"
+
+msgid ""
+"Detox is a program that renames files to make them easier to work with\n"
+"under Unix and related operating systems.  Spaces and various other unsafe\n"
+"characters (such as \"$\") get replaced with \"_\".  ISO 8859-1 (Latin-1)\n"
+"characters can be replaced as well, as can UTF-8 characters."
+msgstr ""
+"Detox es un programa que renombra archivos para facilitar su manejo\n"
+"en Unix y sistemas operativos relacionados. Los espacios y otros caracteres\n"
+"no seguros (como el símbolo \"$\") se reemplazan por guiones bajos (_). También\n"
+"se pueden reemplazar caracteres ISO 8859-1 (Latin-1) y UTF-8."
+
+msgid "Command-line interface for the Hetzner Cloud service"
+msgstr "Interfaz de línea de comandos para el servicio Hetzner Cloud"
+
+msgid ""
+"This package provides the @code{hcloud} binary, a command-line interface\n"
+"for interacting with the @url{https://www.hetzner.com/,Hetzner Cloud}\n"
+"service."
+msgstr ""
+"Este paquete proporciona el binario @code{hcloud}, una interfaz de línea de\n"
+"comandos para interactuar con el servicio @url{https://www.hetzner.com/,\n"
+"Hetzner Cloud}."
+
+msgid "Single tool that combines @command{cat} & @command{rm}"
+msgstr "Herramienta única que combina @command{cat} y @command{rm}"
+
+msgid ""
+"hungrycat prints the contents of a file to standard output, while\n"
+"simultaneously freeing the disk space it occupied.  It is useful if you need\n"
+"to process a large file, don't have enough space to store both the input and\n"
+"output files, and don't need the input file afterwards.\n"
+"While similar in principle to running @command{cat} immediately followed by\n"
+"@command{rm}, @command{hungrycat} actually frees blocks as soon as they are\n"
+"printed instead of after the entire file has been read, which is often too\n"
+"late."
+msgstr ""
+"hungrycat imprime el contenido de un archivo en la salida estándar,\n"
+"al tiempo que libera el espacio en disco que ocupaba. Es útil si necesita\n"
+"procesar un archivo grande, no tiene suficiente espacio para almacenar tanto\n"
+"el archivo de entrada como el de salida, y no necesita el archivo de entrada\n"
+"posteriormente. Aunque en principio es similar a ejecutar @command{cat}\n"
+"seguido inmediatamente de @command{rm}, @command{hungrycat} libera\n"
+"los bloques en cuanto se imprimen, en lugar de después de que se haya leído\n"
+"todo el archivo, lo cual suele ser demasiado tarde."
+
+msgid "Graphical front end for @command{su}"
+msgstr "Interfaz gráfica para @command{su}"
+
+msgid ""
+"Ktsuss stands for ``Keep the @command{su} simple, stupid''.\n"
+"It is a graphical version of @command{su} written in C and GTK+ 2, with\n"
+"simplicity in mind."
+msgstr ""
+"Ktsuss significa «Mantén el comando @command{su} simple, estúpido».\n"
+"Es una versión gráfica de @command{su} escrita en C y GTK+ 2, con la\n"
+"simplicidad como prioridad."
+
+msgid "Program to view the progress of the coreutils commands"
+msgstr "Programa para visualizar el progreso de los comandos coreutils"
+
+msgid ""
+"A program that looks for coreutils basic commands (cp, mv,\n"
+"dd, tar, gzip/gunzip, cat, etc.) currently running on your system and displays\n"
+"the percentage of copied data.  It can also show estimated time and throughput,\n"
+"and provides a \"top-like\" mode (monitoring)."
+msgstr ""
+"Un programa que busca los comandos básicos de coreutils (cp, mv,\n"
+"dd, tar, gzip/gunzip, cat, etc.) que se estén ejecutando en su sistema y muestra\n"
+"el porcentaje de datos copiados. También puede mostrar el tiempo estimado y\n"
+"el rendimiento, y proporciona un modo de monitorización similar a top)."
+
+msgid "System service manager"
+msgstr "Gestor de servicios del sistema"
+
+msgid ""
+"The GNU Shepherd is a daemon-managing daemon, meaning that it supervises\n"
+"the execution of system services, replacing similar functionality found in\n"
+"typical init systems.  It provides dependency-handling through a convenient\n"
+"interface and is based on GNU Guile."
+msgstr ""
+"GNU Shepherd es un demonio gestor de demonios, lo que significa que supervisa\n"
+"la ejecución de los servicios del sistema, reemplazando funcionalidades similares\n"
+"presentes en los sistemas de inicio típicos. Proporciona gestión de dependencias\n"
+"mediante una interfaz intuitiva y está basado en GNU Guile."
+
+msgid "The Shepherd for Guix Home, without @command{halt} and @command{reboot}"
+msgstr "El Shepherd para Guix Home, sin @command{halt} ni @command{reboot}"
+
+msgid "Create GNU Shepherd services from the command line"
+msgstr "Cree servicios de GNU Shepherd desde la línea de comandos"
+
+msgid ""
+"Shepherd-run is a script which assists in creating one-off shepherd\n"
+"services from the command line.  It is meant to partially fill the void left\n"
+"by @command{systemd-run}, since GNU Guix uses GNU Shepherd as its system service\n"
+"manager."
+msgstr ""
+"Shepherd-run es un script que ayuda a crear servicios Shepherd\n"
+"puntuales desde la línea de comandos. Su objetivo es suplir parcialmente\n"
+"la ausencia de @command{systemd-run}, ya que GNU Guix utiliza GNU\n"
+"Shepherd como gestor de servicios del sistema."
+
+msgid "System container manager"
+msgstr "Gestor de contenedores del sistema"
+
+msgid ""
+"This project aims to provide an extension to the Shepherd, retraining it\n"
+"as a swineherd, a manager of crude system containers.  It does this by\n"
+"providing a Shepherd service @code{swineherd} that talks to the Shepherd\n"
+"process to create Guix System containers as Shepherd services.  It also comes\n"
+"with an optional HTTP API server."
+msgstr ""
+"Este proyecto tiene como objetivo extender el Shepherd, reestrenándolo\n"
+"como un administrador de contenedores de sistema básicos. Para ello,\n"
+"proporciona un servicio Shepherd (@code{swineherd}) que se comunica\n"
+"con el proceso Shepherd para crear contenedores del sistema Guix como\n"
+"servicios Shepherd. También incluye un servidor API HTTP opcional."
+
+msgid "Simple terminal file manager with @command{vi}-inspired key bindings"
+msgstr "Administrador de archivos de terminal sencillo con combinaciones de teclas inspiradas en @command{vi}"
+
+msgid ""
+"The Cactus File Manager (@command{cfm}) helps you manage your files\n"
+"visually from a text terminal.  It aims to be simple and fast, with key bindings\n"
+"inspired by @command{vi}."
+msgstr ""
+"El gestor de archivos Cactus (@command{cfm}) te ayuda a administrar tus\n"
+"archivos visualmente desde una terminal de texto. Su objetivo es ser simple y\n"
+"rápido, con combinaciones de teclas inspiradas en @command{vi}."
+
+msgid "Set of utilities for cloud computing environments"
+msgstr "Conjunto de utilidades para entornos de computación en la nube"
+
+msgid ""
+"This package contains a set of utilities for cloud computing\n"
+"environments:\n"
+"\n"
+"@itemize @bullet\n"
+"@item @command{cloud-localds} Create a disk for cloud-init to utilize nocloud\n"
+"@item @command{cloud-publish-image} Wrapper for cloud image publishing\n"
+"@item @command{cloud-publish-tarball} Wrapper for publishing cloud tarballs\n"
+"@item @command{cloud-publish-ubuntu} Import a Ubuntu cloud image\n"
+"@item @command{ec2metadata} Query and display @acronym{EC2,Amazon Elastic\n"
+"  Compute Cloud} metadata\n"
+"@item @command{growpart} Grow a partition to fill the device\n"
+"@item @command{mount-image-callback} Mount a file and run a command\n"
+"@item @command{resize-part-image} Resize a partition image to a new size\n"
+"@item @command{ubuntu-cloudimg-query} Get the latest Ubuntu\n"
+"  @acronym{AMI,Amazon Machine Image}\n"
+"@item @command{ubuntu-ec2-run} Run a @acronym{EC2,Amazon Elastic Compute\n"
+"  Cloud} instance using Ubuntu\n"
+"@item @command{vcs-run} Obtain a repository, and run a command\n"
+"@item @command{write-mime-multipart} Handle multipart\n"
+"  @acronym{MIME,Multipurpose Internet Mail Extensions} messages\n"
+"@end itemize"
+msgstr ""
+"Este paquete contiene un conjunto de utilidades para entornos de computación en la nube:\n"
+"\n"
+"@itemize @bullet\n"
+"@item @command{cloud-localds} Crea un disco para que cloud-init lo utilice (nocloud)\n"
+"@item @command{cloud-publish-image} Envoltorio para la publicación de imágenes en la nube\n"
+"@item @command{cloud-publish-tarball} Envoltorio para la publicación de archivos tar en la nube\n"
+"@item @command{cloud-publish-ubuntu} Importa una imagen de Ubuntu en la nube\n"
+"@item @command{ec2metadata} Consulta y muestra los metadatos de @acronym{EC2,Amazon Elastic\n"
+"\n"
+"Compute Cloud}\n"
+"@item @command{growpart} Amplía una partición para que ocupe todo el dispositivo\n"
+"@item @command{mount-image-callback} Monta un archivo y ejecuta un comando\n"
+"@item @command{resize-part-image} Cambia el tamaño de una imagen de partición\n"
+"@item @command{ubuntu-cloudimg-query} Obtén la última versión de Ubuntu\n"
+"\n"
+"@acronym{AMI,Amazon Machine Image}\n"
+"@item @command{ubuntu-ec2-run} Ejecuta una instancia de @acronym{EC2,Amazon Elastic Compute\n"
+"\n"
+"Cloud} usando Ubuntu\n"
+"@item @command{vcs-run} Obtén un repositorio y ejecuta un comando\n"
+"@item @command{write-mime-multipart} Procesa mensajes multipart\n"
+"\n"
+"@acronym{MIME,Multipurpose Internet Mail Extensions}\n"
+"@end itemize"
+
+msgid "Performance data collector"
+msgstr "Recopilador de datos de rendimiento"
+
+msgid ""
+"This package provides a program that collects various performance\n"
+"measurement data like CPU, memory, disk and network performance numbers."
+msgstr ""
+"Este paquete proporciona un programa que recopila diversos datos\n"
+"de medición del rendimiento, como cifras de rendimiento de la CPU, la\n"
+"memoria, el disco y la red."
+
+msgid "Command line utility to run a program as a daemon"
+msgstr "Utilidad de línea de comandos para ejecutar un programa como un demonio"
+
+msgid ""
+"daemonize runs a command as a Unix daemon.  It will close all open file\n"
+"descriptors, change working directory of the process to the root filesystem,\n"
+"reset its umask, run in the background, ignore I/O signals, handle\n"
+"@code{SIGCHLD}, etc.  Most programs that are designed to be run as daemons do\n"
+"that work for themselves.  However, you’ll occasionally run across one that\n"
+"does not.  When you must run a daemon program that does not properly make\n"
+"itself into a true Unix daemon, you can use daemonize to force it to run as a\n"
+"true daemon."
+msgstr ""
+"daemonize ejecuta un comando como un demonio de Unix. Cerrará todos los\n"
+"descriptores de archivo abiertos, cambiará el directorio de trabajo del proceso\n"
+"al sistema de archivos raíz, restablecerá su umask, se ejecutará en segundo plano,\n"
+"ignorará las señales de E/S, gestionará @code{SIGCHLD}, etc. La mayoría de los\n"
+"programas diseñados para ejecutarse como demonios hacen esto por sí mismos.\n"
+"Sin embargo, ocasionalmente te encontrarás con alguno que no lo hace. Cuando\n"
+"necesitas ejecutar un programa demonio que no se comporta correctamente como\n"
+"un verdadero demonio de Unix, puedes usar daemonize para forzarlo a ejecutarse\n"
+"como tal."
+
+msgid "Display file system space usage using graphs and colors"
+msgstr "Exhibe el uso del espacio del sistema de archivos mediante gráficos y colores"
+
+msgid ""
+"dfc (df color) is a modern version of df.  It uses colors, draws pretty\n"
+"graphs and can export its output to different formats."
+msgstr ""
+"dfc (df color) es una versión moderna de df. Utiliza colores, dibuja\n"
+"gráficos atractivos y puede exportar su resultado a diferentes formatos."
+
+msgid "Collect and display system facts"
+msgstr "Recopilar y exhibir información del sistema"
+
+msgid ""
+"Facter is a tool that gathers basic facts about nodes (systems) such\n"
+"as hardware details, network settings, OS type and version, and more.  These\n"
+"facts can be collected on the command line with the @command{facter} command\n"
+"or via the @code{facter} Ruby library."
+msgstr ""
+"Facter es una herramienta que recopila información básica sobre\n"
+"nodos (sistemas), como detalles de hardware, configuración de red, tipo y\n"
+"versión del sistema operativo, entre otros. Esta información se puede obtener\n"
+"mediante la línea de comandos con el comando `@command{facter}` o a través\n"
+"de la biblioteca Ruby `@code{facter}`."
+
+msgid "Console based color-coded graphs of CPU load average"
+msgstr "Gráficos codificados por colores basados en consola de la carga promedio de la CPU"
+
+msgid ""
+"Show graphs for 1 minute, 5 minute, 15 minute load averages on the\n"
+"console."
+msgstr ""
+"Muestra en la consola gráficos con los promedios de carga de 1 minuto,\n"
+"5 minutos y 15 minutos."
+
+msgid "Resource monitor"
+msgstr "Monitor de recursos"
+
+msgid ""
+"Btop++ provides unified monitoring of CPU, memory, network\n"
+"and processes."
+msgstr ""
+"Btop++ proporciona monitorización unificada de la CPU, la\n"
+"memoria, la red y los procesos."
+
+msgid "Memory reporting tool"
+msgstr "Herramienta de informes de memoria"
+
+msgid ""
+"This package provides a command line tool that can give numerous reports\n"
+"on memory usage on GNU/Linux systems."
+msgstr ""
+"Este paquete proporciona una herramienta de línea de comandos que puede\n"
+"generar numerosos informes sobre el uso de memoria en sistemas GNU/Linux."
+
+msgid "Interactive process viewer"
+msgstr "Visor de procesos interactivo"
+
+msgid ""
+"This is htop, an interactive process viewer.  It is a text-mode\n"
+"application (for console or X terminals) and requires ncurses."
+msgstr ""
+"Este es htop, un visor de procesos interactivo. Es una aplicación\n"
+"en modo texto (para consola o terminales X) y requiere ncurses."
+
+msgid "Linux/OSX/FreeBSD resource monitor"
+msgstr "Monitor de recursos de Linux/OSX/FreeBSD"
+
+msgid ""
+"Resource monitor that shows usage and stats for processor,\n"
+"memory, disks, network and processes."
+msgstr ""
+"Monitor de recursos que muestra el uso y las estadísticas del\n"
+"procesador, la memoria, los discos, la red y los procesos."
+
+msgid ""
+"Resource monitor that shows usage and stats for processor,\n"
+"memory, disks, network and processes.  It's a Python port and continuation of\n"
+"@command{bashtop}."
+msgstr ""
+"Monitor de recursos que muestra el uso y las estadísticas del\n"
+"procesador, la memoria, los discos, la red y los procesos. Es una adaptación a\n"
+"Python y una continuación de @command{bashtop}."
+
+msgid "Program invocation and execution supervisor"
+msgstr "Supervisor de invocación y ejecución de programas"
+
+msgid ""
+"GNU pies is a program that supervises the invocation and execution of\n"
+"other programs.  It reads the list of programs to be started from its\n"
+"configuration file, executes them, and then monitors their status,\n"
+"re-executing them as necessary."
+msgstr ""
+"GNU pies es un programa que supervisa la invocación y ejecución de\n"
+"otros programas. Lee la lista de programas que se deben iniciar desde\n"
+"su archivo de configuración, los ejecuta y luego supervisa su estado,\n"
+"volviéndolos a ejecutar según sea necesario."
+
+msgid "Basic networking utilities"
+msgstr "Utilidades básicas de red"
+
+msgid ""
+"Inetutils is a collection of common network programs, such as an ftp\n"
+"client and server, a telnet client and server, an rsh client and server, and\n"
+"hostname."
+msgstr ""
+"Inetutils es una colección de programas de red comunes, como un\n"
+"cliente y servidor FTP, un cliente y servidor Telnet, un cliente y servidor\n"
+"RSH y un programa para gestionar nombres de host."
+
+msgid "Authentication-related tools such as passwd, su, and login"
+msgstr "Herramientas relacionadas con la autenticación, como passwd, su y login"
+
+msgid ""
+"Shadow provides a number of authentication-related tools, including:\n"
+"login, passwd, su, groupadd, and useradd."
+msgstr ""
+"Shadow proporciona varias herramientas relacionadas con la autenticación,\n"
+"entre ellas: login, passwd, su, groupadd y useradd."
+
+msgid "Getty for the text console"
+msgstr "Getty para la consola de texto"
+
+msgid ""
+"Small console getty that is started on the Linux text console,\n"
+"asks for a login name and then transfers over to @code{login}.  It is extended\n"
+"to allow automatic login and starting any app."
+msgstr ""
+"Pequeño getty de consola que se ejecuta en la consola de texto de Linux,\n"
+"solicita un nombre de usuario y luego se redirige a @code{login}. Se ha extendido\n"
+"para permitir el inicio de sesión automático y la ejecución de cualquier aplicación."
+
+msgid "IANA protocol, port, and RPC number assignments"
+msgstr "Protocolo IANA, puerto, y asignaciones del números RPC"
+
+msgid ""
+"This package provides the /etc/services, /etc/protocols, and /etc/rpc\n"
+"files, which contain information about the IANA-assigned port, protocol, and\n"
+"ONC RPC numbers."
+msgstr ""
+"Este paquete proporciona los archivos /etc/services, /etc/protocols y /etc/rpc,\n"
+"que contienen información sobre el puerto, el protocolo y los números RPC\n"
+"de ONC asignados por la IANA."
+
+msgid "Read and write data over TCP/IP"
+msgstr "Leer y escribir datos a través de TCP/IP"
+
+msgid ""
+"Netcat is a featured networking utility which reads and writes data\n"
+"across network connections, using the TCP/IP protocol.  It is designed to be a\n"
+"reliable \"back-end\" tool that can be used directly or easily driven by other\n"
+"programs and scripts.  At the same time, it is a feature-rich network debugging\n"
+"and exploration tool, since it can create almost any kind of connection you\n"
+"would need and has several interesting built-in capabilities."
+msgstr ""
+"Netcat es una utilidad de red que permite leer y escribir datos a través\n"
+"de conexiones de red mediante el protocolo TCP/IP. Está diseñada para ser una\n"
+"herramienta de back-end fiable que puede utilizarse directamente o integrarse\n"
+"fácilmente con otros programas y scripts. Al mismo tiempo, es una herramienta de\n"
+"depuración y exploración de redes muy completa, ya que puede crear prácticamente\n"
+"cualquier tipo de conexión necesaria y cuenta con varias funciones integradas interesantes."
+
+msgid ""
+"Netcat is a simple Unix utility which reads and writes data across\n"
+"network connections using TCP or UDP protocol.  It is designed to be a reliable\n"
+"\"back-end\" tool that can be used directly or easily driven by other programs\n"
+"and scripts.  At the same time it is a feature-rich network debugging and\n"
+"exploration tool, since it can create almost any kind of connection you would\n"
+"need and has several interesting built-in capabilities.\n"
+"\n"
+"This package contains the OpenBSD rewrite of netcat, including support for\n"
+"IPv6, proxies, and Unix sockets."
+msgstr ""
+"Netcat es una sencilla utilidad de Unix que lee y escribe datos a través\n"
+"de conexiones de red mediante los protocolos TCP o UDP. Está diseñada para ser\n"
+"una herramienta de back‐end fiable que puede utilizarse directamente o integrarse\n"
+"fácilmente con otros programas y scripts. Al mismo tiempo, es una herramienta de\n"
+"depuración y exploración de redes muy completa, ya que puede crear prácticamente\n"
+"cualquier tipo de conexión que necesite y cuenta con varias funcionalidades integradas\n"
+"interesantes.\n"
+"\n"
+"Este paquete contiene la reescritura de netcat para OpenBSD, que incluye compatibilidad\n"
+"con IPv6, proxies y sockets de Unix."
+
+msgid "Monitor system performance in a terminal or to a @file{.csv} log file"
+msgstr "Supervise el rendimiento del sistema en una terminal o en una bitácora @file{.csv}"
+
+msgid ""
+"@acronym{Nmon, Nigel's performance monitor} is yet another system monitor\n"
+"useful in systems administration, debugging, tuning, and benchmarking.\n"
+"\n"
+"The configurable ncurses interface displays all the classic resource usage\n"
+"statistics (CPU, memory, network, disk, ...) as real-time graphs or numbers.\n"
+"It can also list the processes responsible in a @command{top}-like table.\n"
+"\n"
+"A less common nmon feature is its ability to create highly detailed log files\n"
+"in @acronym{CSV, comma-separated values} format.  These can be imported into\n"
+"spreadsheets or fed straight into an @acronym{RRD, round-robin database} using\n"
+"@command{rrdtool} for further analysis, or to create colourful graphs."
+msgstr ""
+"Nmon (Monitor de rendimiento de Nigel) es otro monitor de sistema útil para la\n"
+"administración, depuración, optimización y evaluación comparativa de sistemas.\n"
+"\n"
+"Su interfaz configurable de ncurses muestra las estadísticas clásicas de uso de\n"
+"recursos (CPU, memoria, red, disco, etc.) en gráficos o números en tiempo real.\n"
+"También puede listar los procesos responsables en una tabla similar a la de top.\n"
+"\n"
+"Una función menos común de nmon es su capacidad para crear archivos de registro\n"
+"muy detallados en formato CSV (valores separados por comas). Estos archivos se pueden\n"
+"importar a hojas de cálculo o introducir directamente en una base de datos RRD\n"
+"(Round-Robin) mediante rrdtool para su posterior análisis o para crear gráficos\n"
+"visualmente atractivos."
+
+msgid "Command-line IP subnet calculator"
+msgstr "Calculadora de subred IP por línea de comandos"
+
+msgid ""
+"Sipcalc is an advanced command-line IP subnet calculator.  It can take\n"
+"multiple forms of input (IPv4/IPv6/interface/hostname) and output a multitude\n"
+"of information about a given subnet.\n"
+"\n"
+"Features include:\n"
+"\n"
+"@itemize @bullet\n"
+"@item IPv4\n"
+"@itemize\n"
+"@item Retrieving of address information from interfaces.\n"
+"@item Classfull and CIDR output.\n"
+"@item Multiple address and netmask input and output formats (dotted quad, hex,\n"
+"number of bits).\n"
+"@item Output of broadcast address, network class, Cisco wildcard,\n"
+"hosts/range, network range.\n"
+"@item The ability to split a network based on a smaller netmask, now also with\n"
+"recursive runs on the generated subnets.  (also IPv6)\n"
+"@end itemize\n"
+"@item IPv6\n"
+"@itemize\n"
+"@item Compressed and expanded input and output addresses.\n"
+"@item Standard IPv6 network output.\n"
+"@item v4 in v6 output.\n"
+"@item Reverse DNS address generation.\n"
+"@end itemize\n"
+"@end itemize\n"
+msgstr ""
+"Sipcalc es una calculadora avanzada de subredes IP de línea de comandos.\n"
+"Admite múltiples tipos de entrada (IPv4/IPv6/interfaz/nombre de host) y genera\n"
+"una gran cantidad de información sobre una subred determinada.\n"
+"\n"
+"Entre sus características se incluyen:\n"
+"\n"
+"@itemize @bullet\n"
+"@item IPv4\n"
+"@itemize\n"
+"@item Recuperación de información de direcciones de interfaces.\n"
+"\n"
+"@item Salida de clase completa y CIDR.\n"
+"\n"
+"@item Múltiples formatos de entrada y salida de direcciones y máscaras de red\n"
+"(cuatro puntos, hexadecimal, número de bit).  @item Salida de dirección de difusión,\n"
+"clase de red, comodín de Cisco, hosts/rango y rango de red.\n"
+"@item Posibilidad de dividir una red según una máscara de red más pequeña, ahora también con\n"
+"ejecuciones recursivas en las subredes generadas (también IPv6).\n"
+"@end itemize\n"
+"@item IPv6\n"
+"@itemize\n"
+"@item Direcciones de entrada y salida comprimidas y expandidas.\n"
+"@item Salida de red IPv6 estándar.\n"
+"@item v4 en la salida de v6.\n"
+"\n"
+"@item Generación de dirección DNS inversa.\n"
+"\n"
+"@end itemize\n"
+"@end itemize\n"
+
+msgid "Tool that prints the IP addresses in a given range"
+msgstr "Herramienta que imprime las direcciones IP en un rango determinado"
+
+msgid ""
+"Prips can be used to print all of the IP addresses in\n"
+" a given range.  This allows the enhancement of tools only work\n"
+" on one host at a time (e.g. whois)."
+msgstr ""
+"Prips se puede usar para imprimir todas las direcciones IP en\n"
+"un rango determinado. Esto permite mejorar las herramientas que solo\n"
+"funcionan en un host a la vez (p.ej., whois)."
+
+msgid "Autologin and keep-alive daemon"
+msgstr "Inicio de sesión automático y demonio de mantenimiento de conexión"
+
+msgid ""
+"GNU Alive sends periodic pings to a server, generally to keep a\n"
+"connection alive."
+msgstr ""
+"GNU Alive envía señales periódicas a un servidor, generalmente\n"
+"para mantener activa la conexión."
+
+msgid "Dynamic Host Configuration Protocol (DHCP) tools"
+msgstr "Herramientas del Protocolo de Configuración Dinámica de Host (DHCP)"
+
+msgid ""
+"ISC's Dynamic Host Configuration Protocol (DHCP) distribution provides a\n"
+"reference implementation of all aspects of DHCP, through a suite of DHCP\n"
+"tools: server, client, and relay agent.\n"
+"\n"
+"This software is @emph{end-of-life}!  ISC does not intend to issue any further\n"
+"maintenance releases."
+msgstr ""
+"La distribución del Protocolo de Configuración Dinámica de Host (DHCP) de\n"
+"ISC proporciona una implementación de referencia de todos los aspectos de\n"
+"DHCP, mediante un conjunto de herramientas DHCP: servidor, cliente y agente\n"
+"de retransmisión.\n"
+"\n"
+"¡Este software ha llegado al final de su ciclo de vida! ISC no tiene previsto\n"
+"publicar más actualizaciones de mantenimiento."
+
+msgid "Feature-rich DHCP and DHCPv6 client"
+msgstr "Cliente DHCP y DHCPv6 con numerosas funciones"
+
+msgid ""
+"Provides a DHCP and a DHCPv6 client.  Additionally,\n"
+"dhcpcd is also an IPv4LL (aka ZeroConf) client.  In layperson's terms,\n"
+"dhcpcd runs on your machine and silently configures your computer to work\n"
+"on the attached networks without trouble and mostly without configuration."
+msgstr ""
+"Proporciona un cliente DHCP y un cliente DHCPv6. Además,\n"
+"dhcpcd también es un cliente IPv4LL (también conocido como ZeroConf).\n"
+"En términos sencillos, dhcpcd se ejecuta en su equipo y lo configura\n"
+"automáticamente para que funcione en las redes conectadas sin problemas y,\n"
+"en la mayoría de los casos, sin necesidad de configuración."
+
+msgid "IPv6 Router Advertisement Daemon"
+msgstr "Demonio de anuncio de enrutador IPv6"
+
+msgid ""
+"The Router Advertisement Daemon (radvd) is run on systems acting as IPv6\n"
+"routers.  It sends Router Advertisement messages specified by RFC 2461\n"
+"periodically and when requested by a node sending a Router Solicitation\n"
+"message.  These messages are required for IPv6 stateless autoconfiguration."
+msgstr ""
+"El demonio de anuncios de enrutador (radvd) se ejecuta en sistemas que\n"
+"actúan como enrutadores IPv6. Envía mensajes de anuncio de enrutador,\n"
+"según lo especificado en la RFC 2461, periódicamente y cuando un nodo\n"
+"que envía un mensaje de solicitud de enrutador lo solicita. Estos mensajes\n"
+"son necesarios para la auto‐configuración sin estado de IPv6."
+
+msgid "NDP Proxy Daemon"
+msgstr "Demonio proxy NDP"
+
+msgid ""
+"The Neighbor Discovery Protocol Proxy Daemon (ndppd) proxies some IPv6\n"
+"NDP messages between interfaces to allow IPv6 routing between machines that\n"
+"are in the same network but not on the same local link.  It currently only\n"
+"supports Neighbor Solicitation and Neighbor Advertisement messages."
+msgstr ""
+"El demonio proxy del Protocolo de descubrimiento de vecinos (ndppd) actúa\n"
+"como proxy para algunos mensajes NDP IPv6 entre interfaces, permitiendo el\n"
+"enrutamiento IPv6 entre máquinas que se encuentran en la misma red pero no en\n"
+"el mismo enlace local. Actualmente, solo admite mensajes de solicitud y Anuncio\n"
+"de Vecinos."
+
+msgid "Network packet capture library"
+msgstr "Biblioteca de captura de paquetes de red"
+
+msgid ""
+"libpcap is an interface for user-level packet capture.  It provides a\n"
+"portable framework for low-level network monitoring.  Applications include\n"
+"network statistics collection, security monitoring, network debugging, etc."
+msgstr ""
+"libpcap es una interfaz para la captura de paquetes a nivel de usuario.\n"
+"Proporciona un marco de trabajo portátil para la monitorización de\n"
+"redes de bajo nivel. Entre sus aplicaciones se incluyen la recopilación de\n"
+"estadísticas de red, la monitorización de seguridad, la depuración de redes, etc."
+
+msgid "Network packet analyzer"
+msgstr "Analizador de paquetes de red"
+
+msgid "Portable version of OpenBSD's doas command"
+msgstr "Versión portátil del comando doas de OpenBSD"
+
+msgid "Load and stress-test a computer system in various ways"
+msgstr "Someter un sistema informático a pruebas de carga y estrés de diversas maneras"
+
+msgid "Japanese input method"
+msgstr "Método de entrada para japonés"
+
+msgid "Antivirus engine"
+msgstr "Motor anti-virus"
+
+msgid "Spell checker"
+msgstr "Corrector ortográfico"
+
+msgid ""
+"Aspell is a spell-checker which can be used either as a library or as\n"
+"a standalone program.  Notable features of Aspell include its full support of\n"
+"documents written in the UTF-8 encoding and its ability to use multiple\n"
+"dictionaries, including personal ones."
+msgstr ""
+"Aspell es un corrector ortográfico que puede utilizarse como librería o como\n"
+"programa independiente.  Entre las características más destacadas de Aspell\n"
+"se encuentran su total compatibilidad con documentos escritos en la\n"
+"codificación UTF-8 y su capacidad para utilizar varios diccionarios, incluidos\n"
+"los personales."
+
+msgid "This package provides a dictionary for the GNU Aspell spell checker."
+msgstr "Este paquete proporciona un diccionario para el corrector ortográfico GNU Aspell."
+
+msgid "Interactive spell-checking tool for Unix"
+msgstr "Herramienta interactiva de comprobación ortográfica para Unix"
+
+msgid ""
+"Ispell is an interactive spell-checking tool supporting many\n"
+"European languages."
+msgstr ""
+"Ispell es una herramienta interactiva de corrección ortográfica\n"
+"compatible con muchas lenguas europeas."
+
+msgid "Embedded Audio Acceleration"
+msgstr "Aceleración de audio embebido"
+
+msgid ""
+"OpenSLES is a royalty-free, cross-platform,\n"
+"hardware-accelerated audio API tuned for embedded systems.  It provides a\n"
+"standardized, high-performance, low-latency method to access audio\n"
+"functionality for developers of native applications on embedded mobile\n"
+"multimedia devices, enabling straightforward cross-platform deployment of\n"
+"hardware and software audio capabilities, reducing implementation effort, and\n"
+"promoting the market for advanced audio."
+msgstr ""
+"OpenSLES es una API de audio libre de regalías, multiplataforma,\n"
+"acelerada por hardware y adaptada a sistemas embebidos.  Proporciona\n"
+"un método estandarizado, de alto rendimiento y baja latencia para acceder\n"
+"a la funcionalidad de audio para desarrolladores de aplicaciones nativas\n"
+"en dispositivos multimedia móviles embebidos, permitiendo el despliegue\n"
+"directo multiplataforma de capacidades de audio de hardware y software,\n"
+"reduciendo el esfuerzo de implementación y promoviendo el mercado de\n"
+"audio avanzado."
+
+msgid "Software Synthesizer"
+msgstr "Sintetizador de software"
+
+msgid ""
+"WildMIDI is a simple software midi player which has a core\n"
+"softsynth library that can be used with other applications."
+msgstr ""
+"WildMIDI es un sencillo software de reproducción midi que\n"
+"dispone de una librería central de softsynth que puede ser\n"
+"utilizada con otras aplicaciones."
+
+msgid "Measure the roundtrip time of MIDI messages"
+msgstr "Mide el tempo de ida y vuelta de los mensajes MIDI"
+
+msgid ""
+"@code{alsa-midi-latency-test} measures the roundtrip time of a MIDI\n"
+"message in the alsa subsystem of the Linux kernel using a high precision timer.\n"
+"It calculates the worst case roundtrip time of all sent MIDI messages and\n"
+"displays a histogram of the roundtrip time jitter."
+msgstr ""
+"@code{alsa-midi-latency-test} mide el tiempo de ida y vuelta de un\n"
+"mensaje MIDI en el subsistema alsa del kernel Linux utilizando un temporizador\n"
+"de alta precisión. Calcula el tiempo de ida y vuelta en el peor de los casos de\n"
+"todos los mensajes MIDI enviados y muestra un histograma de la fluctuación\n"
+"del tiempo de ida y vuelta."
+
+msgid "WebRTC's Audio Processing Library"
+msgstr "Librería de procesamiento de audio WebRTC"
+
+msgid ""
+"WebRTC-Audio-Processing library based on Google's\n"
+"implementation of WebRTC."
+msgstr ""
+"Librería de procesamiento de audio WebRTC basada\n"
+"en la implementación de Google de WebRTC."
+
+msgid "VisualOn AAC Encoder"
+msgstr "Codificador AAC VisualOn"
+
+msgid ""
+"VO-AACENC is the VisualOn implementation of Advanced Audio\n"
+"Coding (AAC) encoder."
+msgstr ""
+"VO-AACENC es la implementación de VisualOn del codificador\n"
+"Advanced Audio Coding (AAC)."
+
+msgid "ALSA interfacing library"
+msgstr "Librería de interfaces ALSA"
+
+msgid ""
+"TinyALSA is a small library to interface with ALSA in the\n"
+"Linux kernel."
+msgstr ""
+"TinyALSA es una pequeña librería para interactuar con\n"
+"ALSA en el kernel Linux."
+
+msgid "Frequency modulation synthesizer plugin"
+msgstr "Complemento sintetizador de modulación de frecuencia"
+
+msgid ""
+"fmsynth is an LV2 plugin which implements an @dfn{FM} (Frequency\n"
+"Modulation) synthesizer.  Unlike most FM synth implementations in software,\n"
+"this FM synthesizer does not aim to emulate or replicate a particular\n"
+"synth (like DX7) or FM chip."
+msgstr ""
+"fmsynth es un complemento de LV2 que implementa un sintetizador\n"
+"@dfn{FM} (Modulación de Frecuencia).  A diferencia de la mayoría de las\n"
+"implementaciones de sintetizadores FM en software, este sintetizador\n"
+"FM no pretende emular o replicar un sintetizador en particular (como el\n"
+"DX7) o un chip FM."
+
+msgid "Video game music file playback library"
+msgstr "Librería de reproducción de ficheros musicales para videojuegos"
+
+msgid ""
+"Game-music-emu is a collection of video game music file emulators that\n"
+"support the following formats and systems:\n"
+"@table @code\n"
+"@item AY\n"
+"ZX Spectrum/Asmtrad CPC\n"
+"@item GBS\n"
+"Nintendo Game Boy\n"
+"@item GYM\n"
+"Sega Genesis/Mega Drive\n"
+"@item HES\n"
+"NEC TurboGrafx-16/PC Engine\n"
+"@item KSS\n"
+"MSX Home Computer/other Z80 systems (doesn't support FM sound)\n"
+"@item NSF/NSFE\n"
+"Nintendo NES/Famicom (with VRC 6, Namco 106, and FME-7 sound)\n"
+"@item SAP\n"
+"Atari systems using POKEY sound chip\n"
+"@item SPC\n"
+"Super Nintendo/Super Famicom\n"
+"@item VGM/VGZ\n"
+"Sega Master System/Mark III, Sega Genesis/Mega Drive, BBC Micro\n"
+"@end table"
+msgstr ""
+"Game-music-emu es una colección de emuladores de ficheros de música\n"
+"para videojuegos que soportan los siguientes formatos y sistemas:\n"
+"@table @code\n"
+"@item AY\n"
+"ZX Spectrum/Asmtrad CPC\n"
+"@item GBS\n"
+"Nintendo Game Boy\n"
+"@item GYM\n"
+"Sega Genesis/Mega Drive\n"
+"@item HES\n"
+"NEC TurboGrafx-16/PC Engine\n"
+"@item KSS\n"
+"MSX Home Computer/otros sistemas Z80 (no soporta sonido FM)\n"
+"@item NSF/NSFE\n"
+"Nintendo NES/Famicom (con VRC 6, Namco 106, y sonido FME-7)\n"
+"@item SAP\n"
+"Sistemas Atari que utilizan el chip de sonido POKEY\n"
+"@item SPC\n"
+"Super Nintendo/Super Famicom\n"
+"@item VGM/VGZ\n"
+"Sega Master System/Mark III, Sega Genesis/Mega Drive, BBC Micro\n"
+"@end table"
+
+msgid "Audio tracking library"
+msgstr "Librería de seguimiento de audio"
+
+msgid ""
+"LibOpenMPT is a cross-platform C++ and C module playback\n"
+"library.  It is based on the player code of the Open ModPlug Tracker project."
+msgstr ""
+"LibOpenMPT es una librería multiplataforma de reproducción\n"
+"de módulos en C++ y C.  Se basa en el código del reproductor\n"
+"del proyecto Open ModPlug Tracker."
+
+msgid "Open Fingerprint Architecture"
+msgstr "Arquitectura abierta de huellas digitales"
+
+msgid ""
+"LibOFA is an audio fingerprint library, created and provided\n"
+"by MusicIP."
+msgstr ""
+"LibOFA es una biblioteca de huellas dactilares de audio, creada y\n"
+"proporcionada por MusicIP."
+
+msgid "MIDI to WAVE converter library"
+msgstr "Biblioteca de conversión de MIDI a WAVE"
+
+msgid ""
+"LibTiMidity is a MIDI to WAVE converter library that uses\n"
+"Gravis Ultrasound-compatible patch files to generate digital audio data from\n"
+"General MIDI files."
+msgstr ""
+"LibTiMidity es un MIDI para la librería del conversor WAVE que utiliza\n"
+"archivos de parche compatibles con Gravis Ultrasound para generar\n"
+"datos de audio digital desde archivos General MIDI."
+
+msgid "Adaptive Multi Rate Codec"
+msgstr "Codec de Proporción Adaptativa Múltiple"
+
+msgid ""
+"VO-AMR is a library of VisualOn implementation of\n"
+"Adaptive Multi Rate Narrowband and Wideband (AMR-NB and AMR-WB) speech codec."
+msgstr ""
+"VO-AMR es una librería de implementación VisualOn de\n"
+"codec de voz Adaptive Multi Rate Narrowband y Wideband\n"
+"(AMR-NB y AMR-WB)."
+
+msgid ""
+"OpenCore-AMR is a library of OpenCORE Framework\n"
+"implementation of Adaptive Multi Rate Narrowband and Wideband\n"
+"(AMR-NB and AMR-WB) speech codec."
+msgstr ""
+"OpenCore-AMR es una librería de OpenCORE Framework\n"
+"implementación del codec de voz Adaptive Multi Rate Narrowband y\n"
+"Wideband (AMR-NB y AMR-WB)."
+
+msgid "Realtime modular synthesizer and effect processor"
+msgstr "Sintetizador modular y procesador de efectos de tiempo real"
+
+msgid ""
+"AlsaModularSynth is a digital implementation of a classical analog\n"
+"modular synthesizer system.  It uses virtual control voltages to control the\n"
+"parameters of the modules.  The control voltages which control the frequency\n"
+"e.g. of the VCO (Voltage Controlled Oscillator) and VCF (Voltage Controlled\n"
+"Filter) modules follow the convention of 1V / Octave."
+msgstr ""
+"AlsaModularSynth es una implementación digital de un sistema\n"
+"sintetizador modular clásico analógico.  Usa voltajes virtuales de\n"
+"control para controlar los parámetros de los módulos.  Los voltajes\n"
+"de control que controlan la frecuencia p.ej. de los módulos VCO\n"
+"(Voltage Controlled Oscillator) y VCF (Voltage Controlled Filter) siguen\n"
+"la convención de 1V / Octave."
+
+msgid "Library for audio labelling"
+msgstr "Biblioteca para etiquetado de sonido"
+
+msgid ""
+"aubio is a tool designed for the extraction of annotations from audio\n"
+"signals.  Its features include segmenting a sound file before each of its\n"
+"attacks, performing pitch detection, tapping the beat and producing MIDI\n"
+"streams from live audio."
+msgstr ""
+"aubio es una herramienta diseñada para la extracción de anotaciones\n"
+"de las señales de audio. Sus funciones incluyen la segmentación de un\n"
+"archivo de sonido antes de cada uno de sus ataques, realizando detección\n"
+"de tono, del ritmo y produciendo corrientes MIDI desde el audio en vivo."
+
+msgid "Audio processing program with an interactive mode"
+msgstr "Programa de procesamiento de sonido con un modo interactivo"
+
+msgid "dsp is an audio processing program with an interactive mode."
+msgstr "dsp es un programa de procesamiento de sonido con un modo interactivo."
+
+msgid "C++ library of functions for DSP and Music Informatics purposes"
+msgstr "La biblioteca C++ de funciones para propósitos de DSP y Music Informatics"
+
+msgid ""
+"QM-DSP is a C++ library of functions for DSP and Music Informatics\n"
+"purposes developed at Queen Mary, University of London."
+msgstr ""
+"QM-DSP es na biblioteca de funciones en C++ para DSP y propósito\n"
+"se Informáticas de Música DSP desarrollada en Queen Mary, Universidad de Londres."
+
+msgid "Audio effect processor for PipeWire and PulseAudio clients"
+msgstr "Procesador de efectos de sonido para clientes PipeWire y PulseAudio"
+
+msgid "Digital audio workstation"
+msgstr "Estación de trabajo para sonido digital"
+
+msgid ""
+"Ardour is a multi-channel digital audio workstation, allowing users to\n"
+"record, edit, mix and master audio and MIDI projects.  It is targeted at audio\n"
+"engineers, musicians, soundtrack editors and composers."
+msgstr ""
+"Ardour es una estación de trabajo de audio digital multicanal, que\n"
+"permite a los usuarios grabar, editar, mezclar y masterizar proyectos\n"
+"de audio y MIDI.  Está dirigido a los ingenieros de audio, músicos, editores\n"
+"de bandas sonoras y compositores."
+
+msgid "Software for recording and editing sounds"
+msgstr "Sofware para grabación y edición de sonido"
+
+msgid ""
+"Audacity is a multi-track audio editor designed for recording, playing\n"
+"and editing digital audio.  It features digital effects and spectrum analysis\n"
+"tools."
+msgstr ""
+"Audacity es un editor de audio multipista diseñado para grabar,\n"
+"reproducir y editar audio digital. Implementa efectos digitales y\n"
+"herramientas de análisis del espectro de onda."
+
+msgid ""
+"Tenacity is a multi-track audio editor designed for recording, playing\n"
+"and editing digital audio.  It features digital effects and spectrum analysis\n"
+"tools."
+msgstr ""
+"Tenacity es un editor de audio multi-pista diseñado para grabar,\n"
+"reproducir y editar audio digital. Implementa efectos digitales y\n"
+"herramientas de análisis del espectro de onda."
+
+msgid "Library to handle various audio file formats"
+msgstr "Biblioteca para el manejo de varios formatos de fichero de audio"
+
+msgid "Pitch-correction LADSPA audio plugin"
+msgstr "Módulo LADSPA para corrección de frecuencia"
+
+msgid ""
+"Autotalent is a LADSPA plugin for real-time pitch-correction.  Among its\n"
+"controls are allowable notes, strength of correction, LFO for vibrato and\n"
+"formant warp."
+msgstr ""
+"Autotalent es un complemento LADSPA para corrección de agudos en\n"
+"tiempo real.  Entre estos controles son permitidas las notas notes, dureza\n"
+"de corrección, LFO para vibrato y formato warp."
+
+msgid "Tonewheel organ synthesizer"
+msgstr "Sintetizador de órgano Tonewheel"
+
+msgid "Barebones, fast LV2 bass enhancement plugin."
+msgstr "Elementos básicos, complemento rápido de mejora de graves LV2."
+
+msgid "This package provides a barebones, fast LV2 bass enhancement plugin."
+msgstr "Este paquete proporciona un barebone, complemento rápido de mejora de graves LV2."
+
+msgid "GUI for pipewire and wireplumber settings and connections"
+msgstr "IGU para opciones de conducto cableado y fontanería y conexiones"
+
+msgid "Audio plug-in pack for LV2 and JACK environments"
+msgstr "Paquete de complementos de audio para entornos LV2 y JACK"
+
+msgid "LV2 port of the CAPS audio plugin collection"
+msgstr "Puerto LV2 de la colección de complemento de audio CAPS"
+
+msgid "Physical modeling for analog tape machines"
+msgstr "Modelado físico para máquinas de cinta analógicas"
+
+msgid "Real-time C++ @acronym{IIR, infinite impulse response} filter library"
+msgstr "Biblioteca de filtro en tiempo real en C++ para @acronym{IIR, respuesta de impulso infinita}"
+
+msgid "LV2 plugins for live use"
+msgstr "Complementos LV2 para usar live"
+
+msgid "LV2 audio plugins for modular synthesis"
+msgstr "Complemento audio LV2 para síntesis modular"
+
+msgid ""
+"Omins-lv2 is a small collection of LV2 audio plugins for modular\n"
+"synthesis."
+msgstr ""
+"Ominis-lv2 es una colección pequeña de complementos de sonido\n"
+"LV2 para síntesis modular."
+
+msgid "Synchronous multiroom audio player"
+msgstr "Reproductor de sonido muli-habitación síncrona"
+
+msgid ""
+"Snapcast is a multi-room client-server audio player.  Clients are time\n"
+"synchronized with the server to play synced audio."
+msgstr ""
+"Snapcast es un reproductor de audio cliente-servidor multisala. Los clientes\n"
+"están sincronizados en tiempo con el servidor para reproducir audio sincronizado."
+
+msgid "The SWH Plugins package for the LADSPA plugin system"
+msgstr "El paquete de complementos SWH para el sistema del complemento LADSPA"
+
+msgid "This package provides Steve Harris's LADSPA plugins."
+msgstr "Este paquete proporciona los complementos LADSPA de Steve Harris."
+
+msgid "SWH plugins in LV2 format"
+msgstr "Módulos SWH en formato LV2"
+
+msgid "C++ library for access to DJ record libraries"
+msgstr "Biblioteca C++ para acceso a bibliotecas de grabación DJ"
+
+msgid ""
+"@code{libdjinterop} is a C++ library that allows access to database\n"
+"formats used to store information about DJ record libraries."
+msgstr ""
+"@code{libdjinterop} es una biblioteca de C++ que permite acceder a\n"
+"formatos de bases de datos utilizados para almacenar información sobre bibliotecas de discos de DJ."
+
+msgid "Sound Synthesis with Physical Models"
+msgstr "Síntesis de Sonido con Modelos Físicos"
+
+msgid "Sound synthesis with physical models"
+msgstr "Síntesis de sonido con modelos físicos"
+
+msgid "Sound and music computing system"
+msgstr "Sistema de computación de música y sonido"
+
+msgid "Convert SMF MIDI files to and from plain text"
+msgstr "Convierte archivos MIDI SMF a y desde texto simple"
+
+msgid "Pre-GM Roland MIDI device emulator"
+msgstr "Emulador de dispositivo MIDI Roland Pre-GM"
+
+msgid "C++ wrapper around the ALSA API"
+msgstr "Recubrimiento C++ sobre la interfaz de ALSA"
+
+msgid ""
+"clalsadrv is a C++ wrapper around the ALSA API simplifying access to\n"
+"ALSA PCM devices."
+msgstr ""
+"clalsadrv es un contenedor de C++ alrededor de la API de ALSA que\n"
+"simplifica el acceso a los dispositivos PCM de ALSA."
+
+msgid "LADSPA ambisonics plugins"
+msgstr "Módulo LADSPA ambisonics"
+
+msgid "Chorus, phaser, and vintage high-pass and low-pass filters"
+msgstr "«Chorus», «phaser» y filtros de paso bajo y paso alto «vintage»"
+
+msgid ""
+"This package provides various LADSPA plugins.  @code{cs_chorus} and\n"
+"@code{cs_phaser} provide chorus and phaser effects, respectively;\n"
+"@code{mvclpf24} provides four implementations of the low-pass filter used in\n"
+"vintage Moog synthesizers; @code{mvchpf24} is based on the voltage-controlled\n"
+"high-pass filter by Robert Moog.  The filters attempt to accurately emulate\n"
+"the non-linear circuit elements of their original analog counterparts."
+msgstr ""
+"Este paquete proporciona varios complementos LADSPA.  @code{cs_chorus} y\n"
+"@code{cs_phaser} proporcionan efectos de coro y phaser, respectivamente;\n"
+"@code{mvclpf24} proporciona cuatro implementaciones del filtro paso bajo\n"
+"utilizado en sintetizadores Moog clásicos; @code{mvchpf24} se basa en el filtro de\n"
+"paso alto controlado por voltaje de Robert Moog.  Los filtros intentan emular con\n"
+"precisión los elementos del circuito no lineal de sus contrapartes analógicas originales."
+
+msgid "LADSPA reverb plugin"
+msgstr "Módulo LADSPA de efecto «reverb»"
+
+msgid ""
+"This package provides a stereo reverb LADSPA plugin based on the\n"
+"well-known greverb."
+msgstr ""
+"Este paquete proporciona un complemento LADSPA de reverberación\n"
+"estéreo basado en el conocido greverb."
+
+msgid "LADSPA four-band parametric equalizer plugin"
+msgstr "Módulo LADSPA de ecualizador de cuatro-bandas paramétrico"
+
+msgid "LADSPA stereo width plugin"
+msgstr "Módulo LADSPA para amplitud estéreo"
+
+msgid ""
+"This package provides a LADSPA plugin to manipulate the stereo width of\n"
+"audio signals."
+msgstr ""
+"Este paquete proporciona un complemento LADSPA para manipular el ancho\n"
+"estéreo de las señales de audio."
+
+msgid "LADSPA plugin for synthesizer oscillators"
+msgstr "Módulo LADSPA para sintetizadores de oscilador"
+
+msgid "LADSPA Autowah effect plugin"
+msgstr "Módulo LADSPA de efecto «auto-wah»"
+
+msgid ""
+"This package provides a LADSPA plugin for a Wah effect with envelope\n"
+"follower."
+msgstr ""
+"Este paquete proporciona un complemento LADSPA para un efecto\n"
+"Wah con cobertura seguida."
+
+msgid "LADSPA stereo reverb plugin"
+msgstr "Módulo LADSPA de efecto «reverb» estéreo"
+
+msgid "This package provides a LADSPA plugin for a stereo reverb effect."
+msgstr "Este paquete proporciona un complemento LADSPA para un efecto de reverberación estéreo."
+
+msgid "SoundFont synthesizer"
+msgstr "Sintetizador SoundFont"
+
+msgid "MPEG-4 and MPEG-2 AAC decoder"
+msgstr "Decodificador MPEG-4 y MPEG-2 AAC"
+
+msgid "FAAD2 is an MPEG-4 and MPEG-2 AAC decoder supporting LC, Main, LTP, SBR, -PS, and DAB+."
+msgstr "FAAD2 es un decodificador MPEG-4 y MPEG-2 AAC compatible con LC, Main, LTP, SBR, -PS y DAB+."
+
+msgid "Signal processing language"
+msgstr "Lenguaje de procesamiento de señales"
+
+msgid "Faust is a programming language for realtime audio signal processing."
+msgstr "Faust es un lenguaje de programación para el procesamiento de señales de audio en tiempo real."
+
+msgid "GUS compatible patches for MIDI players"
+msgstr "Parches compatibles con GUS para reproductores MIDI"
+
+msgid ""
+"FreePats is a project to create a free and open set of GUS compatible\n"
+"patches that can be used with softsynths such as Timidity and WildMidi."
+msgstr ""
+"FreePats es un proyecto para crear un conjunto gratuito y abierto de parches\n"
+"compatibles con GUS que se puedan usar con sintetizadores de software como Timidity y WildMidi."
+
+msgid "General MIDI sound set"
+msgstr "Conjunto de sonido MIDI general"
+
+msgid "Virtual guitar amplifier"
+msgstr "Amplificador de guitarra virtual"
+
+msgid "Audio effects processor"
+msgstr "Procesador de efectos de sonido"
+
+msgid "LV2 convolution reverb"
+msgstr "Efecto «reverb» de convolución de LV2"
+
+msgid "JACK audio connection kit"
+msgstr "Conjunto de conexión de sonido JACK"
+
+msgid "Tools for JACK connections"
+msgstr "Herramientas para conexiones JACK"
+
+msgid "Multi-machine audio system for network music performance"
+msgstr ""
+"Sistema de sonido multi-máquina para rendimiento de red\n"
+"musical"
+
+msgid "JACK Mixer: A multi-channel audio mixer for the JACK Audio Connection Kit"
+msgstr "Mezclador JACK: un mezclador de audio multicanal para el Kit de Conexión de Audio JACK"
+
+msgid "Simple LV2 host for JACK"
+msgstr "Host LV2 simple para JACK"
+
+msgid "Linux Audio Developer's Simple Plugin API (LADSPA)"
+msgstr "API de complementos simples para desarrolladores de audio de Linux (LADSPA)"
+
+msgid ""
+"LADSPA is a standard that allows software audio processors and effects\n"
+"to be plugged into a wide range of audio synthesis and recording packages."
+msgstr ""
+"LADSPA es un estándar que permite integrar procesadores y efectos de audio\n"
+"por software en una amplia gama de paquetes de síntesis y grabación de audio."
+
+msgid "Bauer stereophonic-to-binaural DSP"
+msgstr "DSP estereofónico a binaural Bauer"
+
+msgid "Implementation of the Open Sound Control protocol"
+msgstr "Implementación del protocolo Open Sound Control"
+
+msgid "Common API for real-time audio I/O"
+msgstr "API común para E/S de audio en tiempo real"
+
+msgid "JACK Audio Connection Kit (JACK) client for Python"
+msgstr "Kit de conexión de audio JACK cliente para Python"
+
+msgid ""
+"This package provides a JACK Audio Connection Kit (JACK)\n"
+"client for Python.  This variant uses the compatibility JACK implementation\n"
+"provided by Pipewire."
+msgstr ""
+"Este paquete proporciona un cliente JACK Audio Connection\n"
+"Kit (JACK) para Python.  Esta variante utiliza la implementación de compatibilidad\n"
+"JACK proporcionada por Pipewire."
+
+msgid "Bindings for PortAudio v19"
+msgstr "Vínculos para PortAudio v19"
+
+msgid ""
+"This package provides bindings for PortAudio v19, the\n"
+"cross-platform audio input/output stream library."
+msgstr ""
+"Este paquete proporciona enlaces para PortAudio v19, la\n"
+"biblioteca de flujo de entrada/salida de audio multiplataforma."
+
+msgid "Python bindings for mixer-like controls in PulseAudio"
+msgstr "Vínculos Python para controles como mezclador en PulseAudio"
+
+msgid "Python bindings for liblo"
+msgstr "Enlaces binarios para liblo"
+
+msgid "Python bindings for libsndfile"
+msgstr "Vínculo Python para libsndfile"
+
+msgid ""
+"This package provides python bindings for libsndfile based on\n"
+"CFFI and NumPy."
+msgstr ""
+"Este paquete proporciona un vínculo python para libsndfile\n"
+"basado en CFFI y NumPy."
+
+msgid "High quality, one-dimensional sample-rate conversion library"
+msgstr "Alta calidad, biblioteca de una-dimensional de conversión tasa-muestra"
+
+msgid ""
+"Python-SoXR is a Python wrapper of libsoxr, a high quality,\n"
+"one-dimensional sample-rate conversion library."
+msgstr ""
+"Python-SoXR es un contenedor de Python de libsoxr, una biblioteca\n"
+"de conversión de frecuencia de muestreo unidimensional de alta calidad."
+
+msgid "Python MIDI API"
+msgstr "API MIDI Python"
+
+msgid ""
+"This package provides a python API to read and write MIDI\n"
+"files."
+msgstr ""
+"Este paquete proporciona un API de Python para leer y\n"
+"escribir archivos MIDI."
+
+msgid "Convert audio to multichannel MIDI"
+msgstr "Convierte sonido a MIDI multicanal"
+
+msgid "Library to simplify use of LV2 plugins in applications"
+msgstr "Biblioteca para simplificar el uso de complementos LV2 en aplicaciones"
+
+msgid "LV2 audio plugin specification"
+msgstr "Especificación de complemento para audio LV2"
+
+msgid "Turtle to C header conversion utility for LV2 plugins"
+msgstr "Utilidad de conversión de encabezado Turtle a C para complementos LV2"
+
+msgid ""
+"This package provides a conversion utility for LV2 Plugin developers to\n"
+"generate C headers from Turtle files."
+msgstr ""
+"Este paquete proporciona una utilidad de conversión para que los\n"
+"desarrolladores de complementos LV2 generen encabezados C a partir de archivos Turtle."
+
+msgid "LV2 port of the mda Piano plugin"
+msgstr "Puerto LV2 del complemento mda Piano"
+
+msgid "An LV2 port of the mda Piano VSTi."
+msgstr "Un puerto LV2 del mda Piano VSTi."
+
+msgid "LV2 port of the mda EPiano plugin"
+msgstr "Puerto LV2 del complemento EPiano mda"
+
+msgid "An LV2 port of the mda EPiano VSTi."
+msgstr "Un puerto LV2 del EPiano mda VSTi."
+
+msgid "C++ libraries for LV2 plugins"
+msgstr "Bibliotecas C++ para complementos LV2"
+
+msgid ""
+"The LV2 Toolkit (LVTK) contains libraries that wrap the LV2 C API and\n"
+"extensions into easy to use C++ classes.  It is the successor of\n"
+"lv2-c++-tools."
+msgstr ""
+"El kit de herramientas LV2 (LVTK) contiene bibliotecas que integran la\n"
+"API de C LV2 y sus extensiones en clases de C++ fáciles de usar. Es el sucesor\n"
+"de las herramientas lv2-c++."
+
+msgid "3D audio API"
+msgstr "API para sonido en 3D"
+
+msgid "Free implementation of OpenAL's ALUT standard"
+msgstr "Implementación libre del estándar ALUT de OpenAL"
+
+msgid "freealut is the OpenAL Utility Toolkit."
+msgstr "freealut es el OpenAL Utility Toolkit."
+
+msgid "OpenAL utility library"
+msgstr "Biblioteca utilitaria para OpenAL"
+
+msgid "PulseAudio or PipeWire volume notification"
+msgstr "Notificación de volumen PulseAudio o PipeWire"
+
+msgid ""
+"The pa-notify daemon sends notifications about\n"
+"the current volume level of PulseAudio or PipeWire using libnotify."
+msgstr ""
+"El demonio pa-notify envía notificaciones sobre\n"
+"el nivel de volumen actual de PulseAudio o PipeWire usando libnotify."
+
+msgid "Modular patch bay for audio and MIDI systems"
+msgstr "Bahía de conexiones modular para sistemas de audio y MIDI"
+
+msgid ""
+"Patchage is a modular patch bay for audio and MIDI systems based on JACK\n"
+"and ALSA."
+msgstr ""
+"Patchage es un parche de bahía modular para sistemas de audio y MIDI basado\n"
+"en JACK y ALSA."
+
+msgid "Portable C audio library"
+msgstr "Biblioteca para C de audio portable"
+
+msgid "Jack server control application"
+msgstr "Aplicación controladora de servicio Jack"
+
+msgid ""
+"Control a Jack server.  Allows you to plug various sources\n"
+"into various outputs and to start, stop and configure jackd"
+msgstr ""
+"Controla un servidor Jack.  Permite conectar varias fuentes a\n"
+"varias salidas e iniciar, detener y configurar jackd."
+
+msgid "Stereo audio recorder for JACK"
+msgstr "Grabadora de sonido estéreo para JACK"
+
+msgid "Synthesis engine and programming language"
+msgstr "Motor de síntesis y lenguaje de programación"
+
+msgid "This package provides libshout plus IDJC extensions."
+msgstr ""
+"Este paquete proporciona un diccionario para la biblioteca\n"
+"de comprobación ortográfica Hunspell."
+
+msgid "Low-level CD/DVD dumper"
+msgstr "Volcador de CD/DVD de bajo nivel"
+
+msgid "Sampling rate conversion and filter design utilities"
+msgstr "Utilidades para conversión de muestreo y diseño de filtros"
+
+msgid "Audio time-stretching and pitch-shifting library"
+msgstr "Biblioteca de sonido para reducción de tiempo y arrastre de tono"
+
+msgid "Cross-platform MIDI library for C++"
+msgstr "Plataforma cruzada de biblioteca MIDI para C++"
+
+msgid "Library for serialising LV2 atoms to/from RDF"
+msgstr "Biblioteca para serializar átomos LV2 destino/origen RDF"
+
+msgid "Library for loading and wrapping LV2 plugin UIs"
+msgstr "Biblioteca para carga y contorno de complemento IU LV2"
+
+msgid "Library implementing the EBU R 128 loudness standard"
+msgstr "Biblioteca implementando el volumen estándar EBU R 128"
+
+msgid "Library for time stretching and pitch scaling of audio"
+msgstr "Biblioteca para la reducción de tiempo y escalado de tono de audio"
+
+msgid "Mod file playing library"
+msgstr "Fichero Mod reproduciendo biblioteca"
+
+msgid "Module player library"
+msgstr "Biblioteca de módulo jugador"
+
+msgid "Extended module player"
+msgstr "Módulo jugador extendido"
+
+msgid "Audio processing library for changing tempo, pitch and playback rate"
+msgstr "Sonido procesando biblioteca para modificar tempo, tono y tasa de reproducción"
+
+msgid "Sound processing utility"
+msgstr "Utilidad de sonido procesado"
+
+msgid "Audio I/O library"
+msgstr "Biblioteca E/S del sonido"
+
+msgid "Graphical user interface for FluidSynth"
+msgstr "Interfaz gráfico del usuario para FluidSynth"
+
+msgid "Networked audio system"
+msgstr "Sistema de sonido por red"
+
+msgid "JACK audio frequency analyzer and display"
+msgstr "Analizador y presentación de frecuencia de audio JACK"
+
+msgid "C++ library for resampling audio signals"
+msgstr "Biblioteca C++ para remuestreo de señales de sonido"
+
+msgid "Analyze MPEG layer I/II/III files"
+msgstr "Analiza archivos con capa MPEG I/II/III"
+
+msgid "DTS Coherent Acoustics decoder"
+msgstr "Decodificador de Coherencia Acústica DTS"
+
+msgid "Tool to adjust loudness of media files"
+msgstr "Herramienta para ajustar volumen de los archivos del medio"
+
+msgid "Fast audio loudness scanner & tagger"
+msgstr "Analizador y etiquetador rápido de volumen de sonido"
+
+msgid "Lightweight audio filtering library"
+msgstr "Biblioteca de filtro de sonido ligero"
+
+msgid "LDAC Bluetooth encoder and ABR library"
+msgstr "Codificador Bluetooth LDAC y biblioteca ABR"
+
+msgid "Bluetooth ALSA backend"
+msgstr "Backend ALSA Bluetooth"
+
+msgid "Sound editor"
+msgstr "Editor de sonido"
+
+msgid "LV2 plugin for broadband noise reduction"
+msgstr "Complemento LV2 para reducción de ruido en banda ancha"
+
+msgid "Command-line audio visualizer"
+msgstr "Visualizador de audio para línea de órdenes"
+
+msgid "Console audio visualizer for ALSA, MPD, and PulseAudio"
+msgstr "Visualizador de sonido de consola para ALSA, MPD, y PulseAudio"
+
+msgid "aptX codec library"
+msgstr "Biblioteca de código aptX"
+
+msgid "XAudio reimplementation"
+msgstr "Reimplementación de XAudio"
+
+msgid "Binaural beat synthesizer"
+msgstr "Sintetizador rítmico binaural"
+
+msgid "Live audio streamer"
+msgstr "Flujo de audio en directo"
+
+msgid "TTA lossless audio encoder"
+msgstr "Codificador para audio sin pérdida TTA"
+
+msgid "C library for real-time audio input and output"
+msgstr "Biblioteca C para entrada y salida de sonido en tiempo real"
+
+msgid "Multitrack audio processing"
+msgstr "Procesamiento de audio multipista"
+
+msgid "Library for reading and resampling audio files"
+msgstr "Biblioteca para la lectura y re-muestreo de archivos de audio"
+
+msgid "LV2 plugin lint tool"
+msgstr "Herramienta lint de complemento LV2"
+
+msgid "Documentation generator for LV2 plugins"
+msgstr "Generador de documentación para módulos LV2"
+
+msgid "GUI toolkit for LV2 plugins"
+msgstr "Biblioteca de interfaz gráfica para complementos LV2"
+
+msgid "ZToolkit with SVG support"
+msgstr "ZToolkit con implementación para SVG"
+
+msgid "Instrument file software library"
+msgstr "Biblioteca de software para archivo de instrumento"
+
+msgid "Speech codec"
+msgstr "Codec de habla"
+
+msgid "Synchronize musical beat, tempo, and phase across multiple applications"
+msgstr "Sincroniza golpe musical, tempo y fase a través de múltiples aplicaciones"
+
+msgid "Python module for audio and music processing"
+msgstr "Módulo Python para sonido y procesamiento de música"
+
+msgid "Audio plug-in pack for LV2"
+msgstr "Paquete para LV2 complemento de sonido"
+
+msgid "Cubeb is Mozilla's cross-platform audio library."
+msgstr "Cubeb es biblioteca de sonido de plataforma cruzada de Mozilla."
+
+msgid "Command line CD ripper and encoder"
+msgstr "Línea de comando de extractor y codificador de CD"
+
+msgid "Encrypted backup using rsync algorithm"
+msgstr "Respaldo cifrado usando algoritmo rsync"
+
+msgid "File verification and repair tools"
+msgstr "Herramientas para verificación y reparación de ficheros"
+
+msgid "Simple incremental backup tool"
+msgstr "Herramienta de respaldo incremental sencillo"
+
+msgid "Provide a list of files to backup"
+msgstr "Proporciona una lista de fichero para respaldo"
+
+msgid "Tar-compatible archiver"
+msgstr "Archivador compatible con tar"
+
+msgid "Local/remote mirroring+incremental backup"
+msgstr "Espejo local/remoto+respaldo incremental"
+
+msgid "Deduplicating snapshot backup utility based on rsync"
+msgstr "Instantáneas deduplicando utilizadad de respaldo basada en rsync"
+
+msgid "Deduplicated, encrypted, authenticated and compressed backups"
+msgstr "Respaldos deduplicados, cifrados, autenticados y comprimidos"
+
+msgid "WIM file manipulation library and utilities"
+msgstr "Biblioteca y utilidades de manipulación de archivos WIM"
+
+msgid "Backup program with multiple revisions, encryption and more"
+msgstr "Programa de respaldo con múltiples revisiones, cifrado y más"
+
+msgid "Ext2/3/4 file system dump/restore utilities"
+msgstr "Utilidades de volcado/restauración de sistema de archivo ext2/3/4"
+
+msgid "Backup tool for Btrfs subvolumes"
+msgstr "Herramienta de respaldo para subvolúmenes Btrfs"
+
+msgid "Differential backup and restore"
+msgstr "Respaldo y restauración diferencial"
+
+msgid "Software archive disassembler"
+msgstr "Desensamblador de archivador de software"
+
+msgid "Graphical backup client based on BorgBackup"
+msgstr "Cliente de respaldo gráfico basado en BorgBackup"
+
+msgid "Example GNU package"
+msgstr "Ejemplo de paquete GNU"
+
+msgid ""
+"GNU Hello prints the message \"Hello, world!\" and then exits.  It\n"
+"serves as an example of standard GNU coding practices.  As such, it supports\n"
+"command-line arguments, multiple languages, and so on."
+msgstr ""
+"GNU Hello imprime el mensaje \"¡Hola mundo!\" y termina. Sirve\n"
+"como ejemplo de las prácticas de codificación estándar de GNU.\n"
+"Por tanto permite parámetros en la línea de órdenes, implementa\n"
+"múltiples idiomas, etcétera."
+
+msgid "Print lines matching a pattern"
+msgstr "Escribe líneas coincidiendo un patrón"
+
+msgid "Stream editor"
+msgstr "Editorde flujo"
+
+msgid "Managing tar archives"
+msgstr "Gestionando archivos tar"
+
+msgid "Apply differences to originals, with optional backups"
+msgstr "Aplica diferencias a originales, con respaldos opcionales"
+
+msgid "Comparing and merging files"
+msgstr "Comparando y uniendo ficheros"
+
+msgid "Operating on files matching given criteria"
+msgstr "Operando en archivos coincidiendo criterio dado"
+
+msgid "Core GNU utilities (file, text, shell)"
+msgstr "Utilidades core de GNU (archivo, texto, shell)"
+
+msgid "Remake files automatically"
+msgstr "Recrear ficheros automáticamente"
+
+msgid "The GNU C Library"
+msgstr "La biblioteca GNU C"
+
+msgid "All the locales supported by the GNU C Library"
+msgstr "Todos los locales compatibles por la Biblioteca GNU C"
+
+msgid "Find full path of shell commands"
+msgstr "Encontrar ruta completa de instrucciones del intérprete"
+
+msgid "Database of current and historical time zones"
+msgstr "Base de datos de zona horaria actual e histórica"
+
+msgid "Character set conversion library"
+msgstr "Biblioteca de conversión de conjunto de caracteres"
+
+msgid "BitTorrent client"
+msgstr "Cliente BitTorrent"
+
+msgid "Gtk frontend to the Transmission daemon"
+msgstr "Frontend GTK para el daemon Transmission"
+
+msgid "BitTorrent library of rtorrent"
+msgstr "Biblioteca BitTorrent de rtorrent"
+
+msgid "BitTorrent client with ncurses interface"
+msgstr "Cliente BitTorrent con interfaz ncurses"
+
+msgid "Console client for the Transmission BitTorrent daemon"
+msgstr "Consola cliente para el daemon Transmission de BitTorrent"
+
+msgid "Utility for parallel downloading files"
+msgstr "Utilidad para paralelos descargando ficheros"
+
+msgid "Universal download manager with GTK+ interface"
+msgstr "Gestor de descarga universal con interfaz GTK+"
+
+msgid "Utility to create BitTorrent metainfo files"
+msgstr "Utilidad para crear ficheros metainfo de BitTorrent"
+
+msgid "Feature-complete BitTorrent implementation"
+msgstr "Implementación de BitTorrent repleta de características"
+
+msgid "Graphical BitTorrent client"
+msgstr "Cliente BitTorrent gráfico"
+
+msgid "Utility to split TLS certificates data into multiple PEM files"
+msgstr "Utilidad para desglosar datos de certificados TLS en múltiples archivos PEM"
+
+msgid "Certbot DNS challenge automatization for deSEC"
+msgstr "Automatización de desafío Certbol DNS para deSEC"
+
+msgid "Let's Encrypt root and intermediate certificates"
+msgstr "Raíz de Let's Encrypt y certificados intermediatos"
+
+msgid "R5RS Scheme implementation that compiles native code via C"
+msgstr "Implementación Scheme S5R5 que compila código nativo vía C"
+
+msgid "Compression library"
+msgstr "Biblioteca de compresión"
+
+msgid "Zip Compression library"
+msgstr "Biblioteca de compresión Zip"
+
+msgid "Replacement for Sun's 'jar' utility"
+msgstr "Reemplazo de la herramienta de Sun 'jar'"
+
+msgid "C library for manipulating POSIX tar files"
+msgstr "Biblioteca C para manipulación de ficheros tar POSIX"
+
+msgid "General file (de)compression (using lzw)"
+msgstr "Archivo general (des)compresión (utilizando lzw)"
+
+msgid "High-quality data compression program"
+msgstr "Programa de compresión de datos de alta calidad"
+
+msgid "Parallel bzip2 compression utility"
+msgstr "Utilidad de compresión bzip2 paralela"
+
+msgid "Parallel bzip2 implementation"
+msgstr "Implementación bzip2 paralelo"
+
+msgid "General-purpose data compression"
+msgstr "Propósito general de compresión de datos"
+
+msgid "Data compression library for embedded/real-time systems"
+msgstr "Biblioteca de compresión de datos para sistemas embebidos/tiempo real"
+
+msgid "LHA archive decompressor"
+msgstr "Extractor de archivos LHA"
+
+msgid "Compress or expand files"
+msgstr "Comprime o expande ficheros"
+
+msgid "Recover and decompress data from damaged lzip files"
+msgstr "Recupera y descomprime datos desde archivos lzip dañados"
+
+msgid "Archives in shell scripts, uuencode/uudecode"
+msgstr "Archivadores en guiones de intérprete, uuencode/uudecode"
+
+msgid "Library for SoundFont decompression"
+msgstr "Biblioteca descompresión SoundFont"
+
+msgid "Basic sfArk decompressor"
+msgstr "Descompresor básico sfArk"
+
+msgid "Compression tools for some formats used by Microsoft"
+msgstr "Herramientas de compresión para algunos formatos utilizados por Microsoft"
+
+msgid "Compression algorithm focused on speed"
+msgstr "Compresión algorítmica dedicada a velocidad"
+
+msgid "Parallel implementation of gzip"
+msgstr "Paralelismo implementado para gzip"
+
+msgid "Parallel indexing implementation of LZMA"
+msgstr "Implementado indizada paralela de LZMA"
+
+msgid "Tool to unpack Cabinet archives"
+msgstr "Herramienta para desempaquetar archivadores Cabinet"
+
+msgid "Extracts files out of Microsoft Cabinet (.cab) archives"
+msgstr "Extrae archivos fuera de archivadores Cabinet Microsoft (.cab)"
+
+msgid "Library for reading and writing Jcat files"
+msgstr "Biblioteca para leer y escribir archivos Jcat"
+
+msgid "Delta encoder for binary files"
+msgstr "Codificador delta para archivos binarios"
+
+msgid "Large file compressor with a very high compression ratio"
+msgstr "Compresor de archivo grande con una proporción de compresión muy alta"
+
+msgid "Fast compressor/decompressor"
+msgstr "Compresor/descompresor rápido"
+
+msgid "Compressed C++ iostream"
+msgstr "Flujo E/S C++ comprimido"
+
+msgid "Incremental journaling archiver"
+msgstr "Archivador diario incremental"
+
+msgid "Extract CAB files from InstallShield installers"
+msgstr "Extrae archvos CAB desde instaladores InstallShield"
+
+msgid "Threaded implementation of the Zstandard compression algorithm"
+msgstr "Implementación multihilo del algoritmo de compresión Zstandard"
+
+msgid "Compression and file packing utility"
+msgstr "Utilidad de empaquetado y compresión"
+
+msgid "Decompression and file extraction utility"
+msgstr "Utilidad de extracción y descompresión de fichero"
+
+msgid "Normalize @file{.zip} archive header timestamps"
+msgstr "Normaliza sello horario de cabecera de archivador @file{.zip}"
+
+msgid "Library for accessing zip files"
+msgstr "Biblioteca para acceso a archivos zip"
+
+msgid "ZZipLib is a library based on zlib for accessing zip files."
+msgstr "ZZipLib es una biblioteca basada en zlib para acceder a archivos zip."
+
+msgid "C library for reading, creating, and modifying zip archives"
+msgstr "Biblioteca C para leer, crear y modificar archivadores zip"
+
+msgid "Universal tool to manage file archives of various types"
+msgstr "Herramienta universal para gestionar archivadores de archivo de varios tipos"
+
+msgid "Small, stand-alone lzip decompressor"
+msgstr "Descompresor lzip aislado, pequeño"
+
+msgid "Small, stand-alone lzip compressor and decompressor"
+msgstr "Compresor/descompresor lzip aislado, pequeño"
+
+msgid "Lzip data compression C library"
+msgstr "Biblioteca de C para compresión de datos con Lzip"
+
+msgid "Parallel lossless data compressor for the lzip format"
+msgstr "Compresión de datos sin pérdida paralelo para formato lzip"
+
+msgid "Tool for extracting Inno Setup installers"
+msgstr "Herramienta para extraer instaladores Inno Setup"
+
+msgid "Intelligent storage acceleration library"
+msgstr "Biblioteca de aceleración de almacenaje inteligente"
+
+msgid "General-purpose lossless compression"
+msgstr "Compresión sin pérdida de propósito general"
+
+msgid "Portable lossless data compression library"
+msgstr "Biblioteca portable de compresión de datos sin pérdida"
+
+msgid "Compression tool for executables"
+msgstr "Herramienta de compresión para ejecutables"
+
+msgid "Compressed file format for efficient deltas"
+msgstr "Formato de archivo comprimido para deltas eficiente"
+
+msgid "Utilities that transparently operate on compressed files"
+msgstr "Utilidades que operan transparentemente en archivos comprimidos"
+
+msgid "Extract makeself and mojo archives without running untrusted code"
+msgstr "Extrae archivadores makeself y mojo sin ejecutar código no confiado"
+
+msgid "Graphical front-end for archive operations"
+msgstr "Interfaz gráfica para manipular archivadores"
+
+msgid "Multithreaded tar utility"
+msgstr "Herramienta tar multihilo"
+
+msgid "Error code modeler"
+msgstr "Modelador de código de error"
+
+msgid "Library for DEFLATE/zlib/gzip compression and decompression"
+msgstr "Biblioteca para compresor y descompresor de DEFLATE/zlib/gzip"
+
+msgid "Zip password cracker"
+msgstr "Ruptura de contraseña zip"
+
+msgid "Fcrackzip is a Zip file password cracker."
+msgstr "Fcrackzip es un rompedor de contraseñas de archivos Zip."
+
+msgid "Extract files from RAR archives"
+msgstr "Extraer archivos desde archivador RAR"
+
+msgid "Independent implementation of zlib and Deflate compression"
+msgstr "Implementación independiente de zlib y compresión Deflate"
+
+msgid "R tools for HTML"
+msgstr "Herramientas R para HTML"
+
+msgid "HTML Widgets for R"
+msgstr "Cubiertas HTML para R"
+
+msgid "Advanced tables for Markdown/HTML"
+msgstr "Distribuciones avanzadas para Markdown/HTML"
+
+msgid "Output R objects in HTML format"
+msgstr "Salida de objetos R en formato HTML"
+
+msgid "JSON library for R"
+msgstr "Biblioteca JSON para R"
+
+msgid "Web server interface for R"
+msgstr "Servicio web para R"
+
+msgid "In-process SQL OLAP database management system"
+msgstr "Sistema gestor de BBDD OLAP SQL en proceso"
+
+msgid "Run temporary PostgreSQL databases"
+msgstr "Ejecución de bases de datos PostgreSQL temporales"
+
+msgid "Utility for dumping and restoring ElasticSearch indexes"
+msgstr "Utilidad para volcar y restaurar índices de ElasticSearch"
+
+msgid "Fast key-value storage library"
+msgstr "Biblioteca de almacenaje llave-valor rápido"
+
+msgid "In-memory caching service"
+msgstr "Servicio de caché en memoria"
+
+msgid "C++ library for memcached"
+msgstr "Biblioteca C++ para memcached"
+
+msgid "Generic entrypoint for ADBC drivers in Python"
+msgstr "Punto de entrada genérica para controladores ADBC en Python"
+
+msgid "Fully type-safe database client"
+msgstr "Cliente de base de datos de tipo-seguro completamante"
+
+msgid "Python client for memcached"
+msgstr "Cliente Python para memcached"
+
+msgid "SQL database server"
+msgstr "Servidor BBDD SQL"
+
+msgid "Powerful object-relational database system"
+msgstr "Sistema BBDD objeto-relacional poderoso"
+
+msgid "Postgres SQL parser"
+msgstr "Intérprete SQL PostgreSQL"
+
+msgid "This package provides a Postgres SQL parser as a library."
+msgstr "Este paquete proporciona un intérprete Postgres SQL como una biblioteca."
+
+msgid "Time-series extension for PostgreSQL"
+msgstr "Extensión de series temporales para PostgreSQL"
+
+msgid "Tool to migrate data to PostgreSQL"
+msgstr "Herramienta para migrar datos a PostgreSQL"
+
+msgid "Key-value database"
+msgstr "Valor-clave de BD"
+
+msgid "Manipulate plain text files as databases"
+msgstr "Manipulación de ficheros de texto como bases de datos"
+
+msgid "Emacs mode for working with recutils database files"
+msgstr "Modo de Emacs para trabajar con ficheros de base de datos de recutils"
+
+msgid "Persistent key-value store for fast storage"
+msgstr "Almacenaje clave-valor persistente para almacenar rápido"
+
+msgid "Command-line tool for accessing SPARQL endpoints over HTTP"
+msgstr "Herramienta de línea de comando para acceder a puntos finales SPARQL sobre HTTP"
+
+msgid "Database change management tool"
+msgstr "Herramienta gestora de cambio de base de datos"
+
+msgid "Text console-based database viewer and editor"
+msgstr "Visor y editor de base de datos de texto basado en consola"
+
+msgid "Trivial database"
+msgstr "Base de datos trivial"
+
+msgid "Database independent interface for Perl"
+msgstr "Interfaz de base de datos independiente para Perl"
+
+msgid "This package provides a database interface for Perl."
+msgstr "Este paquete proporciona un interfaz de base de datos para Perl."
+
+msgid "Extensible and flexible object <-> relational mapper"
+msgstr "Distribuidor objeto <-> relacional extensible y flexible"
+
+msgid "Cursor with built-in caching support"
+msgstr "Cursor empotrado son soporte caché"
+
+msgid "Introspect many-to-many relationships"
+msgstr "Introspección relaciones muchos-a-muchos"
+
+msgid "Create a DBIx::Class::Schema based on a database"
+msgstr "Crea un DBIx::Class::Schema basado en una base de datos"
+
+msgid "Extensible DBIx::Class deployment"
+msgstr "Despliegue DBIx::Class extensible"
+
+msgid "Create a temporary database from a DBIx::Class::Schema"
+msgstr "Crea una base de datos temporal desde un DBIx::Class::Schema"
+
+msgid "Automatically set and update fields"
+msgstr "Establece y actualiza campos automáticamente"
+
+msgid "DBIx::Class extension to update and create date and time based fields"
+msgstr "Extensión DBIx::Class para actualizar y crear campos basada en datos y hora"
+
+msgid "DBI PostgreSQL interface"
+msgstr "Interfaz DBI de PostgreSQL"
+
+msgid "DBI MySQL interface"
+msgstr "Interfaz DBI de MySQL"
+
+msgid "SQlite interface for Perl"
+msgstr "Interfaz SQlite para Perl"
+
+msgid "Parse and utilize MySQL's /etc/my.cnf and ~/.my.cnf files"
+msgstr "Interpreta y utiliza archivos /etc/my.cnf y ~/.my.cnf de MySQL"
+
+msgid "Split SQL code into atomic statements"
+msgstr "Desglosar código SQL en enunciados atómicos"
+
+msgid ""
+"This module tries to split any SQL code, even including\n"
+"non-standard extensions, into the atomic statements it is composed of."
+msgstr ""
+"Este módulo intente desglosar cualquier código SQL, incluso incluyendo\n"
+"extensiones no estándar, en los enunciados atómicos de los que está compuesto."
+
+msgid "SQL tokenizer"
+msgstr "Generador de vale SQL"
+
+msgid "Data source abstraction library"
+msgstr "Biblioteca abstracta de origen de datos"
+
+msgid "In-memory key/value and document store"
+msgstr "Almacén en memoria de clave/valor y documento"
+
+msgid "Key-value cache and store"
+msgstr "Caché de valor-llave y almacenaje"
+
+msgid "Tokyo Cabinet is a modern implementation of the DBM database"
+msgstr "Tokyo Cabinet es una implementación moderna de la base de datos DBM"
+
+msgid "NoSQL data engine"
+msgstr "Motor de datos NoSQL"
+
+msgid "WiredTiger bindings for GNU Guile"
+msgstr "Interfaz GNU Guile para WiredTiger"
+
+msgid "Perl5 access to Berkeley DB version 1.x"
+msgstr "Acceso Perl5 a versión 1.x de BD Berkeley"
+
+msgid "C++ connector for PostgreSQL"
+msgstr "Conector C++ para PostgreSQL"
+
+msgid "Pypika fork for tortoise-orm"
+msgstr "Bifurcación Pypika para orm de tortoise"
+
+msgid "Fast PostgreSQL database client library for Python"
+msgstr "Biblioteca de cliente de base de datos PostSQL rápido para Python"
+
+msgid "Python ODBC Library"
+msgstr "Biblioteca Python ODBC"
+
+msgid "Read Microsoft Access databases"
+msgstr "Lee bases de datos Microsoft Access"
+
+msgid "Python binding for the ‘Lightning’ database (LMDB)"
+msgstr "Vínculo Python para la base de datos 'Lightning' (LMDB)"
+
+msgid "Multi-model database system"
+msgstr "Sistema BBDD multi-modelo"
+
+msgid "Database abstraction library"
+msgstr "Biblioteca abstracta de BD"
+
+msgid "Mock helpers for SQLAlchemy"
+msgstr "Ayudantes Mock para SQLAlchemy"
+
+msgid "Database migration tool for SQLAlchemy"
+msgstr "Herramienta de migración de BD para SQLAlchemy"
+
+msgid ""
+"Alembic is a lightweight database migration tool for usage with the\n"
+"SQLAlchemy Database Toolkit for Python."
+msgstr ""
+"Alembic es una herramienta de migración de base de datos ligera\n"
+"para utilizar con el Kit de Herramienta de BD SQLAlchemy para Python."
+
+msgid "Tiny key value database with concurrency support"
+msgstr "Base de datos de valor clave pequeña con soporte de concurrencia"
+
+msgid "Asyncio bridge for sqlite3"
+msgstr "Puente Asyncio para sqlite3"
+
+msgid "Python PostgreSQL adapter"
+msgstr "Adaptador Python PosgreSQL"
+
+msgid "SQLAlchemy schema displayer"
+msgstr "Consultador de schema SQLAlchemy"
+
+msgid "Database migrations with SQL"
+msgstr "Migración de bases de datos con SQL"
+
+msgid "Redis Python client"
+msgstr "Cliente Python Redis"
+
+msgid "Library to write SQL queries in a pythonic way"
+msgstr "Biblioteca para escribir peticiones SQL dentro de una forma pythonisa"
+
+msgid "SQL query builder API for Python"
+msgstr "Biblioteca Python para construcción de consultas SQL"
+
+msgid "Python bindings for Apache Arrow"
+msgstr "Interfaz Python para Apache Arrow"
+
+msgid "CrateDB Python client"
+msgstr "Cliente Python de CrateDB"
+
+msgid "Database independent abstraction layer in C"
+msgstr "Capa de abstracción independiente para bases de datos en C"
+
+msgid "C++ Database Access Library"
+msgstr "Biblioteca de acceso a bases de datos en C++"
+
+msgid "Berkeley database"
+msgstr "DB Berkeley"
+
+msgid "Heuristical file minimizer"
+msgstr "Minimizador de ficheros heurístico"
+
+msgid ""
+"Zzuf is a transparent application input fuzzer.  It works by\n"
+"intercepting file operations and changing random bits in the program's\n"
+"input.  Zzuf's behaviour is deterministic, making it easy to reproduce bugs."
+msgstr ""
+"Zzuf es una entrada de aplicación transparente fuzzer. Funciona\n"
+"para interceptar operaciones de archivo y modifica aleatoriamente\n"
+"varios bit dentro de la entrada del programa.  El comportamiento\n"
+"de Zzuf es determinalístico, creando fácil su reproducción de\n"
+"defectos."
+
+msgid "Memory leaks detection tool"
+msgstr "Herramienta para detección de pérdidas de memoria"
+
+msgid "Console front-end to the GNU debugger"
+msgstr "Front-end de consola para el depurador GNU"
+
+msgid "This package provides a frontend to GDB, the GNU debugger."
+msgstr ""
+"Este paquete proporciona un frontend para GDB, el depurador\n"
+"de GNU."
+
+msgid "Graphical front-end for GDB and other debuggers"
+msgstr "Interfaz gráfica para GDB y otros depuradores"
+
+msgid "Delve is a debugger for the Go programming language."
+msgstr "Delve es un depurador para el lenguaje de programación Go."
+
+msgid "GNU software testing framework"
+msgstr "Marco de pruebas de software GNU"
+
+msgid "Z-machine interpreter"
+msgstr "Intérprete de Z-machine"
+
+msgid "Nintendo DS emulator"
+msgstr "Emulador Nintendo DS"
+
+msgid ""
+"The shared-mime-info package contains the core database of common types\n"
+"and the update-mime-database command used to extend it.  It requires glib2 to\n"
+"be installed for building the update command.  Additionally, it uses intltool\n"
+"for translations, though this is only a dependency for the maintainers.  This\n"
+"database is translated at Transifex."
+msgstr ""
+"El paquete shared-mime-info contiene la base de datos principal de\n"
+"tipos comunes y la orden @command{update-mime-database} usada para\n"
+"extenderla. Necesita que se haya instalado glib2 para construir el\n"
+"ejecutable de actualización. De manera adicional, usa intltool para\n"
+"las traducciones, aunque esta es una dependencia unicamente para\n"
+"quienes mantienen el proyecto. Esta base de datos se traduce en\n"
+"Transifex."
+
+msgid "Action game in four spatial dimensions"
+msgstr "Juego de acción en cuatro dimensiones espaciales"
+
+msgid "Tron clone in 3D"
+msgstr "Clon de Tron en 3D"
+
+msgid "Game data for Vdrift"
+msgstr "Datos de juego para Vdrift"
+
+msgid ""
+"This package contains the assets for the Vdrift racing\n"
+"game."
+msgstr ""
+"Este paquete proporciona un diccionario para el comprobante\n"
+"ortográfico GNU Aspell."
+
+msgid "Racing simulator"
+msgstr "Simulador Racing"
+
+msgid "Terminal-based Tetris clone"
+msgstr "Clon de Tetris basado en terminal"
+
+msgid "Survival horror roguelike video game"
+msgstr "Videojuego de horror y supervivencia tipo mazmorra"
+
+msgid "Implementation of the @i{Theme Hospital} game engine"
+msgstr "Implementación del motor de juegos @i{Theme Hospital}"
+
+msgid "Speaking cow text filter"
+msgstr "Filtro de texto para una vaca hablante"
+
+msgid "3D billiard game"
+msgstr "Juego de billar 3D"
+
+msgid "Free content game based on the Doom engine"
+msgstr "Juego de contenido libre basado en el motor de Doom"
+
+msgid "Isometric role-playing game against killer robots"
+msgstr "Juego de rol isométrico contra robots asesinos"
+
+msgid "Software for exploring cellular automata"
+msgstr "Software para la exploración de autómatas celulares"
+
+msgid ""
+"This package provides a userspace daemon for the Nintendo\n"
+"Joy-Con controllers."
+msgstr ""
+"Este paquete proporciona un daemon en espacio de usuario\n"
+"para controladores de Nintendo Joy-Con."
+
+msgid "Re-implementation of Caesar III game engine"
+msgstr "Reimplementación del motor del juego Caesar III"
+
+msgid "Re-implementation of Caesar III game engine with gameplay changes"
+msgstr ""
+"Re-implementación del motor del juego Caesar III con cambios\n"
+"en el juego"
+
+msgid "Puzzle/platform game"
+msgstr "Juego de plataformas/puzzles"
+
+msgid "2D retro side-scrolling game"
+msgstr "Juego 2D de arrastre lateral"
+
+msgid "Multiplayer dungeon game involving knights and quests"
+msgstr "Juego de mazmorras multijugador que incluye caballeros y desafíos"
+
+msgid "Chess board for GNOME"
+msgstr "Tablero de ajedrez para GNOME"
+
+msgid "Backgammon game"
+msgstr "Juego backgammon"
+
+msgid "3d Rubik's cube game"
+msgstr "Juego del cubo de Rubik 3d"
+
+msgid "Game of Shogi (Japanese chess)"
+msgstr "Juego de Shogi (Ajedrez japonés)"
+
+msgid ""
+"GNU Shogi is a program that plays the game Shogi (Japanese Chess).\n"
+"It is similar to standard chess but this variant is far more complicated."
+msgstr ""
+"GNU Shogi es un programa que juega al Shogi (ajedrez japonés). Es\n"
+"parecido al ajedrez estándar pero esta variante es mucho más\n"
+"complicada."
+
+msgid "Tetris clone based on the SDL library"
+msgstr "Clon de Tetris basado en la biblioteca SDL"
+
+msgid "Classic dungeon crawl game"
+msgstr "Juego de exploración de mazmorras clásico"
+
+msgid "Version of the classic 3D shoot'em'up game Doom"
+msgstr "Versión del clásico juego 3D de disparos Doom"
+
+msgid "Action platformer game"
+msgstr "Juego de acción de plataformas"
+
+msgid "UFO: AI map generator"
+msgstr "Generador de mapas de UFO: AI"
+
+msgid "UFO: AI data files"
+msgstr "Ficheros de datos de UFO: AI"
+
+msgid "Turn-based tactical strategy game"
+msgstr "Juego de estrategia basado en turnos"
+
+msgid "User interface for gnushogi"
+msgstr "Interfaz de usuario para gnushogi"
+
+msgid "A graphical user interface for the package @code{gnushogi}."
+msgstr "Un interfaz gráfico para usuario para el paquete @code{gnushogi}."
+
+msgid "Dungeon exploration roguelike"
+msgstr "Explorador de mazmorra similar a Dungeon Rogue"
+
+msgid "Lemmings clone"
+msgstr "Clon de Lemmings"
+
+msgid "Convert English text to humorous dialects"
+msgstr "Convierte texto inglés a dialectos humorísticos"
+
+msgid "Simulate the display from \"The Matrix\""
+msgstr "Simula la pantalla de «The Matrix»"
+
+msgid ""
+"CMatrix simulates the display from \"The Matrix\" and is\n"
+"based on the screensaver from the movie's website.  It works with terminal\n"
+"settings up to 132x300 and can scroll lines all at the same rate or\n"
+"asynchronously and at a user-defined speed."
+msgstr ""
+"CMatrix simula la pantalla de «The Matrix» y está basado en el\n"
+"salvapantallas de sitio web de la película. Funciona con\n"
+"configuraciones de terminal hasta 132x300 y puede desplazar\n"
+"todas las líneas al mismo ritmo o de forma asíncrona y a una\n"
+"velocidad definida por la usuaria."
+
+msgid "Full chess implementation"
+msgstr "Implementación completa de ajedrez"
+
+msgid ""
+"GNU Chess is a chess engine.  It allows you to compete\n"
+"against the computer in a game of chess, either through the default terminal\n"
+"interface or via an external visual interface such as GNU XBoard."
+msgstr ""
+"GNU Chess es un motor de ajedrez. Le permite competir contra la\n"
+"máquina en una partida de ajedrez, tanto a través de la interfaz\n"
+"predeterminada del terminal o mediante una interfaz visual externa\n"
+"como GNU XBoard."
+
+msgid "Game data for GNU Freedink"
+msgstr "Datos de juego para GNU Freedink"
+
+msgid "Graphical user interface for chess programs"
+msgstr "Interfaz gráfica para programas de ajedrez"
+
+msgid ""
+"GNU XBoard is a graphical board for all varieties of chess,\n"
+"including international chess, xiangqi (Chinese chess), shogi (Japanese chess)\n"
+"and Makruk.  Several lesser-known variants are also supported.  It presents a\n"
+"fully interactive graphical interface and it can load and save games in the\n"
+"Portable Game Notation."
+msgstr ""
+"GNU XBoard es un tablero gráfico para todas las variedades de ajedrez,\n"
+"incluyendo ajedrez internacional, xiangqi (ajedrez chino), shogi\n"
+"(ajedrez japonés) y Makruk. Algunas variantes menos conocidas\n"
+"también están implementadas. Presenta una interfaz gráfica\n"
+"completamente interactiva y puede cargar y almacenar juegos en la\n"
+"notación de juegos portable (PGN)."
+
+msgid "Typing tutor"
+msgstr "Tutor de mecanografía"
+
+msgid "3D game engine written in C++"
+msgstr "Motor de juegos 3D escrito en C++"
+
+msgid "2D space shooter"
+msgstr "Caza espacial 2D"
+
+msgid "Interpreter for Glulx VM"
+msgstr "Intérprete para Glulx VM"
+
+msgid "Play the game of Go"
+msgstr "Juego de Go"
+
+msgid "This package contains data files for SuperTuxKart."
+msgstr "Este paquete contiene archivos de datos para SuperTuxKart."
+
+msgid "3D kart racing game"
+msgstr "Juego de carreras de kart 3D"
+
+msgid "Turn-based strategy game"
+msgstr "Juego de estrategia basado en turnos"
+
+msgid "Dedicated @emph{Battle for Wesnoth} server"
+msgstr "Servidor dedicado de @emph{Battle for Wesnoth}"
+
+msgid "Mouse and keyboard discovery for children"
+msgstr "Descubrimiento de ratón y teclado para niños"
+
+msgid "Client for 'The Mana World' and similar games"
+msgstr "Cliente para 'The Mana World' y juegos similares"
+
+msgid "Transportation economics simulator game"
+msgstr "Juego de simulación económica de transportes"
+
+msgid "Base graphics set for OpenTTD"
+msgstr "Conjunto de gráficos básicos para OpenTTD"
+
+msgid "Base sounds for OpenTTD"
+msgstr "Sonidos básicos para OpenTTD"
+
+msgid "Music set for OpenTTD"
+msgstr "Conjunto de música para OpenTTD"
+
+msgid "Title sequences for OpenRCT2"
+msgstr "Secuencias de título para OpenRCT2"
+
+msgid "Objects for OpenRCT2"
+msgstr "Objetos para OpenRCT2"
+
+msgid "Board game inspired by The Settlers of Catan"
+msgstr "Juego de mesa inspirado en «The Settlers of Catan»"
+
+msgid ""
+"Pioneers is an emulation of the board game The Settlers of\n"
+"Catan.  It can be played on a local network, on the internet, and with AI\n"
+"players."
+msgstr ""
+"Pioneros es una emulación del juego The Settlers od Catan.\n"
+"Puede jugarse en una red local, o en interred, y con jugadores IA."
+
+msgid "Logic puzzle game"
+msgstr "Juego lógico de puzzle"
+
+msgid "MUD and telnet client"
+msgstr "Cliente MUD y telnet"
+
+msgid "Text adventure game"
+msgstr "Juego textual de aventura"
+
+msgid "3D Real-time strategy and real-time tactics game"
+msgstr "Juego táctico y estratégico en tiempo real en 3D"
+
+msgid "Fantasy real-time strategy game"
+msgstr "Juego de estrategia en tiempo real con temática fantástica"
+
+msgid "2D scrolling shooter game"
+msgstr "Juego disparador multiplataforma 2D"
+
+msgid ""
+"In the year 2579, the intergalactic weapons corporation, WEAPCO, has\n"
+"dominated the galaxy.  Guide Chris Bainfield and his friend Sid Wilson on\n"
+"their quest to liberate the galaxy from the clutches of WEAPCO.  Along the\n"
+"way, you will encounter new foes, make new allies, and assist local rebels\n"
+"in strikes against the evil corporation."
+msgstr ""
+"En el año 2579, la compañía de armamento intergaláctico,\n"
+"WEAPCO, tiene dominada la galaxia.  Guide Chris Bainfield y\n"
+"su amigo Sid Wilson en su lucha para liberar la galaxia desde\n"
+"los embrages de WEAPCO.  A lo largo de ese camino, necesitara\n"
+"colaborar nuevos enemigos, crear nuevas alianzas, y asistir\n"
+"rebeliones locales en intentos frente la corporación maligna."
+
+msgid "Drawing software for children"
+msgstr "Software de dibujo para niños"
+
+msgid "Stamp images for Tux Paint"
+msgstr "Imágenes selladas para Pintor Tux"
+
+msgid "Configure Tux Paint"
+msgstr "Configurar Pintor Tux"
+
+msgid "2D platformer game"
+msgstr "Juego de plataforma 2D"
+
+msgid "MUD client"
+msgstr "Cliente MUD"
+
+msgid "Programming game"
+msgstr "Programación de juegos"
+
+msgid "Arcade-style fire fighting game"
+msgstr "Juego de lucha a tiros estilo arcade"
+
+msgid "Shooter with space station destruction"
+msgstr "Disparos con destrucción de estaciones del espacio"
+
+msgid "Turn-based empire building strategy game"
+msgstr "Juego de construcción de imperios y estrategia por turnos"
+
+msgid "Data files for MegaGlest"
+msgstr "Datos de fichero para MegaGlest"
+
+msgid "3D real-time strategy (RTS) game"
+msgstr "Juego estratégico 3D en tiempo real (RTS)"
+
+msgid "3D puzzle game"
+msgstr "Juego de puzzle 3D"
+
+msgid "2D retro multiplayer shooter game"
+msgstr "Juego disparador multiplataforma retro de 2D"
+
+msgid "Puzzle game with a dexterity component"
+msgstr "Juego de puzzle con un componente de destreza"
+
+msgid "Abstract puzzle game"
+msgstr "Juego de puzzles abstractos"
+
+msgid "Puzzle game"
+msgstr "Juego de Puzzle"
+
+msgid "Data files for 0ad"
+msgstr "Datos de fichero para 0ad"
+
+msgid "0ad-data provides the data files required by the game 0ad."
+msgstr "0ad-data proporciona el fichero de datos solicitado por el juego 0ad."
+
+msgid "3D real-time strategy game of ancient warfare"
+msgstr "Juego estratégico en tiempo real 3D de guerras antiguas"
+
+msgid ""
+"0 A.D. is a real-time strategy (RTS) game of ancient\n"
+"warfare.  It's a historically-based war/economy game that allows players to\n"
+"relive or rewrite the history of twelve ancient civilizations, each depicted\n"
+"at their peak of economic growth and military prowess.\n"
+"\n"
+"0ad needs a window manager that supports 'Extended Window Manager Hints'."
+msgstr ""
+"0 A.D. es un juego estratégico en tiempo real (RTS) de\n"
+"guerras históricas.  Es una guerra histórica-económica basada que\n"
+"este juego permite jugar para revivir o reescribir la historia de\n"
+"veinte civilizaciones antiguas, cada una detallada en su punto de\n"
+"crecimiento económico y militar progresado.\n"
+"\n"
+"0ad requiere un gestor de ventanas que sea compatible con\n"
+"'Extended Window Manager Hints'."
+
+msgid "Colossal Cave Adventure"
+msgstr "Colossal Cave Adventure"
+
+msgid "Realistic physics puzzle game"
+msgstr "Juego de puzzles con física realista"
+
+msgid "Game of lonely space adventure"
+msgstr "Juego de aventuras espaciales solitarias"
+
+msgid "Multiplayer Doom port"
+msgstr "Adaptación multijugador de Doom"
+
+msgid "Data files for Xonotic"
+msgstr "Ficheros de datos para Xonotic"
+
+msgid "Xonotic-data provides the data files required by the game Xonotic."
+msgstr ""
+"Xonotic-data proporciona los ficheros de datos necesarios para el\n"
+"juego Xonotic."
+
+msgid "Fast-paced first-person shooter game"
+msgstr "Juego de disparos en primera persona de acción rápida"
+
+msgid "Game controller library"
+msgstr "Biblioteca de controladores para juegos"
+
+msgid "GNOME version of Tetris"
+msgstr "Versión de Tetris de GNOME"
+
+msgid "2d action platformer game"
+msgstr "Juego de acción de plataformas 2d"
+
+msgid "Flight simulator"
+msgstr "Simulador de vuelo"
+
+msgid ""
+"The goal of the FlightGear project is to create a\n"
+"sophisticated flight simulator framework for use in research or academic\n"
+"environments, pilot training, as an industry engineering tool, for DIY-ers to\n"
+"pursue their favorite interesting flight simulation idea, and last but\n"
+"certainly not least as a fun, realistic, and challenging desktop flight\n"
+"simulator."
+msgstr ""
+"La meta del proyecto FlightGear es crear un sofisticado marco de\n"
+"simulación de vuelo para el uso en entornos de investigación o\n"
+"académicos, entrenamiento para el pilotaje, como herramienta\n"
+"industrial, para gente que quiere perseguir su interesante idea de\n"
+"simulacion de vuelo por su cuenta, y, por ultimo pero no menos\n"
+"importante, como un simulador de vuelo de escritorio divertido,\n"
+"realista y desafiante."
+
+msgid "Toy train simulation game"
+msgstr "Juego de simulación sobre un tren de juguete"
+
+msgid "Turn-based space empire and galactic conquest computer game"
+msgstr "Juego de creación de un imperio espacial y conquista galáctica por turnos"
+
+msgid "Program playing the game of Go"
+msgstr "Programa para jugar al juego Go"
+
+msgid "Qt GUI to play the game of Go"
+msgstr "Interfaz gráfica QT para jugar al juego Go"
+
+msgid "GNU Compiler Collection"
+msgstr "Colección de compiladores GNU"
+
+msgid ""
+"GCC is the GNU Compiler Collection.  It provides compiler front-ends\n"
+"for several languages, including C, C++, Objective-C, Fortran, Java, Ada, and\n"
+"Go.  It also includes runtime support libraries for these languages."
+msgstr ""
+"GCC es la colección de compiladores de GNU. Proporciona compiladores\n"
+"para varios lenguajes, incluyendo C, C++, Objective-C, Fortran, Java,\n"
+"Ada y Go. También incluye bibliotecas de soporte en tiempo de\n"
+"ejecuciñon para dichos lenguajes."
+
+msgid ""
+"GCC is the GNU Compiler Collection.  It provides compiler front-ends\n"
+"for several languages, including C, C++, Objective-C, Fortran, Ada, and Go.\n"
+"It also includes runtime support libraries for these languages."
+msgstr ""
+"GCC es la colección de compiladores de GNU. Proporciona compiladores\n"
+"para varios lenguajes, incluyendo C, C++, Objective-C, Fortran, Ada y\n"
+"Go. También incluye bibliotecas de soporte en tiempo de ejecuciñon\n"
+"para dichos lenguajes."
+
+msgid "GNU C++ standard library"
+msgstr "Biblioteca estándar de C++ de GNU"
+
+msgid "Collection of subroutines used by various GNU programs"
+msgstr "Collección de subrutinas usadas por varios programas GNU"
+
+msgid "GNU libstdc++ documentation"
+msgstr "Documentación de GNU libstdc++"
+
+msgid "Reference manual for the C programming language"
+msgstr "Manual de referencia para el lenguaje de programación C"
+
+msgid ""
+"This is a reference manual for the C programming language, as\n"
+"implemented by the GNU C Compiler (gcc).  As a reference, it is not intended\n"
+"to be a tutorial of the language.  Rather, it outlines all of the constructs\n"
+"of the language.  Library functions are not included."
+msgstr ""
+"Este es el manual de referencia para el lenguaje de programación C,\n"
+"como lo implementa el compilador de C de GNU (gcc). Como referencia,\n"
+"no es su propósito servir de tutorial para el lenguaje. En vez de eso,\n"
+"enumera todas las construcciones del lenguaje. Las funciones de la\n"
+"biblioteca no están incluidas."
+
+msgid "Tools and documentation for translation (used to build other packages)"
+msgstr "Herramientas y documentación para traducciones (usadas para construir otros paquetes)"
+
+msgid ""
+"GNU Gettext is a package providing a framework for translating the\n"
+"textual output of programs into multiple languages.  It provides translators\n"
+"with the means to create message catalogs, and a runtime library to load\n"
+"translated messages from the catalogs.  Nearly all GNU packages use Gettext."
+msgstr ""
+"GNU Gettext es un paquete que proporciona un marco de trabajo para la\n"
+"traducción de salida textual de programas en múltiples\n"
+"lenguas. Proporciona a las traductoras los medios para crear catálogos\n"
+"de mensajes, y una biblioteca de tiempo de ejecución para cargar los\n"
+"mensajes traducidos desde los catálogos. Prácticamente todos los\n"
+"paquetes GNU usan Gettext."
+
+msgid "Tools and documentation for translation"
+msgstr "Herramientas y documentación para traducción"
+
+msgid "Scripts to ease maintenance of translations"
+msgstr "Guiones para facilitar el mantenimiento de traducciones"
+
+msgid "Arc icon theme"
+msgstr "Tema icónico Arc"
+
+msgid "Faba icon theme"
+msgstr "Tema icónico Faba"
+
+msgid "Moka icon theme"
+msgstr "Tema icónico Moka"
+
+msgid "CD/DVD burning tool for Gnome"
+msgstr "Herramienta de grabación de CD/DVD para Gnome"
+
+msgid ""
+"Brasero is an application to burn CD/DVD for the Gnome\n"
+"Desktop.  It is designed to be as simple as possible and has some unique\n"
+"features to enable users to create their discs easily and quickly."
+msgstr ""
+"Brasero es una aplicación de grabación de CD/DVD para el escritorio\n"
+"Gnome. Ha sido diseñada para ser lo más sencilla posible y tiene\n"
+"algunas características únicas que permiten a las usuarias crear sus\n"
+"discos de manera fácil y rápida."
+
+msgid "Common JS Modules"
+msgstr "Módulos JS comunes"
+
+msgid ""
+"GNOME-JS-Common provides common modules for GNOME JavaScript\n"
+"bindings."
+msgstr ""
+"GNOME-JS-Common proporciona módulos comunes del acceso a las\n"
+"bibliotecas de GNOME con Javascript."
+
+msgid "GObject JavaScriptCore bridge"
+msgstr "Puente GObject para JavaScriptCore"
+
+msgid "Media management library"
+msgstr "Biblioteca de gestión de medios"
+
+msgid "GLib Testing Framework"
+msgstr "Biblioteca para pruebas de Glib"
+
+msgid "Desktop Activity Logging"
+msgstr "Registro de la actividad del escritorio"
+
+msgid "Access, organize and share your photos on GNOME desktop"
+msgstr "Acceso, organización y compartición de sus fotos en el escritorio GNOME"
+
+msgid "Notification Daemon for GNOME Desktop"
+msgstr "Daemon de notificaciones para el escritorio GNOME"
+
+msgid "Simple backup tool, for regular encrypted backups"
+msgstr "Herramienta simple de respaldo, para respaldo cifrado regular"
+
+msgid ""
+"Déjà Dup is a simple backup tool, for regular encrypted backups.  It\n"
+"uses duplicity as the backend, which supports incremental backups and storage\n"
+"either on a local, or remote machine via a number of methods."
+msgstr ""
+"Déjà Dup es una herramienta simple de respaldo, para respaldos regulares\n"
+"para cifrado.  Utiliza duplicity como el fondo, el cual aporta respaldos incrementales\n"
+"y almacenaje ya sea en un local, o una máquina remota vía un número de métodos."
+
+msgid "Diagram creation for GNOME"
+msgstr "Creación de diagrama para GNOME"
+
+msgid "Library for accessing online service APIs"
+msgstr "Biblioteca para acceso por conexión a varias API de servicio"
+
+msgid "Bootstrap GNOME modules built from Git"
+msgstr "Módulos GNOME de arranque compilados desde Git"
+
+msgid ""
+"gnome-common contains various files needed to bootstrap\n"
+"GNOME modules built from Git.  It contains a common \"autogen.sh\" script that\n"
+"can be used to configure a source directory checked out from Git and some\n"
+"commonly used macros."
+msgstr ""
+"gnome-common contiene varios ficheros requeridos para bootstrap\n"
+"módulos GNOME compilados desde Git.  Contiene un guión común\n"
+"\"autogen.sh\" que puede ser utilizado para configurar un directorio de\n"
+"fuente comprobado desde Git y empleados algunos normalmente en\n"
+"macros."
+
+msgid "Disk management utility for GNOME"
+msgstr "Utilidad de gestión de disco para GNOME"
+
+msgid "Disk management utility for GNOME."
+msgstr "Utilidad de gestión de disco para GNOME."
+
+msgid "Libraries for displaying certificates and accessing key stores"
+msgstr "Bibliotecas para visualización de certificados y acceso a almacenes de claves"
+
+msgid ""
+"The GCR package contains libraries used for displaying certificates and\n"
+"accessing key stores.  It also provides the viewer for crypto files on the\n"
+"GNOME Desktop."
+msgstr ""
+"El paquete GCR contiene bibliotecas usadas para la visualización de\n"
+"certificados y el acceso a almacenes de claves. También se usa para la\n"
+"visualización de ficheros cifrados en el escritorio GNOME."
+
+msgid "Accessing passwords from the GNOME keyring"
+msgstr "Acceso a contraseñas del anillo de claves de GNOME"
+
+msgid "Client library to access passwords from the GNOME keyring."
+msgstr "Biblioteca para el acceso de clientes a contraseñas del anillo de claves de GNOME."
+
+msgid "Daemon to store passwords and encryption keys"
+msgstr "Daemon para el almacenamiento de contraseñas y claves de cifrado"
+
+msgid "GNOME's document viewer"
+msgstr "Visor documental de GNOME"
+
+msgid ""
+"Evince is a document viewer for multiple document formats.  It\n"
+"currently supports PDF, PostScript, DjVu, TIFF and DVI.  The goal\n"
+"of Evince is to replace the multiple document viewers that exist\n"
+"on the GNOME Desktop with a single simple application."
+msgstr ""
+"Evince es un visor de documentos para múltiples formatos. Actualmente\n"
+"implementa PDF, PostScript, DjVu, TIFF y DVI. El objetivo de Evince es\n"
+"sustituir a los múltiples visores de documentos ya existentes en el\n"
+"escritorio GNOME con una única y simple aplicación."
+
+msgid "GNOME settings for various desktop components"
+msgstr "Configuración de GNOME para varios componentes del escritorio"
+
+msgid "Utility to implement the Freedesktop Icon Naming Specification"
+msgstr "Herramienta para implementar la especificación de nombrado de iconos de Freedesktop"
+
+msgid ""
+"To help with the transition to the Freedesktop Icon Naming\n"
+"Specification, the icon naming utility maps the icon names used by the\n"
+"GNOME and KDE desktops to the icon names proposed in the specification."
+msgstr ""
+"Para ayudar con la transición a la especificación de nombrado de\n"
+"iconos de Freedesktop, la herramienta de nombrado de iconos asocia los\n"
+"nombres de icono usados en los escritorios GNOME y KDE con los nombres\n"
+"propuestos en la especificación."
+
+msgid "GNOME icon theme"
+msgstr "Tema de iconos de GNOME"
+
+msgid "Icons for the GNOME desktop."
+msgstr "Iconos para el escritorio GNOME."
+
+msgid "Tango icon theme"
+msgstr "Tema de iconos Tango"
+
+msgid ""
+"This is an icon theme that follows the Tango visual\n"
+"guidelines."
+msgstr "Tema de iconos que sigue las guías de estilo visual Tango."
+
+msgid "CUPS administration tool"
+msgstr "Herramienta de administración de CUPS"
+
+msgid ""
+"system-config-printer is a CUPS administration tool.  It's written in\n"
+"Python using GTK+, and uses the @acronym{IPP, Internet Printing Protocol} when\n"
+"configuring CUPS."
+msgstr ""
+"system-config-printer es una herramienta de administración de\n"
+"CUPS. Está escrita en Python usando GTK+, y usa el protocolo de\n"
+"impresión de internet @acronym{IPP, Internet Printing Protocol} para\n"
+"configurar CUPS."
+
+msgid "Freedesktop icon theme"
+msgstr "Tema de iconos de Freedesktop"
+
+msgid "Freedesktop icon theme."
+msgstr "Tema de iconos Freedesktop."
+
+msgid "GNOME desktop notification library"
+msgstr "Biblioteca de notificación de escritorio GNOME"
+
+msgid "GObject plugin system"
+msgstr "Sistema de módulos basado en GObject"
+
+msgid "OpenGL extension to GTK+"
+msgstr "Extensión OpenGL para GTK+"
+
+msgid "GTK+ rapid application development tool"
+msgstr "Herramienta para desarrollo rápido de aplicaciones con GTK+"
+
+msgid "CSS2 parsing and manipulation library"
+msgstr "Biblioteca para procesado y manipulación de CSS2"
+
+msgid "Store application preferences"
+msgstr "Almacenamiento de preferencias de aplicaciones"
+
+msgid ""
+"Gconf is a system for storing application preferences.  It\n"
+"is intended for user preferences; not arbitrary data storage."
+msgstr ""
+"Gconf es un sistema para el almacenamiento de preferencias de\n"
+"aplicaciones. Está pensado para las preferencias de cada usuaria; no\n"
+"para el almacenamiento arbitrario de datos."
+
+msgid "Base MIME and Application database for GNOME"
+msgstr "Base MIME y base de datos de Aplicación para GNOME"
+
+msgid "Access files and folders in GNOME applications"
+msgstr "Fichero de acceso y carpetas en aplicaciones GNOME"
+
+msgid "2D drawing library"
+msgstr "Biblioteca de dibujo 2D"
+
+msgid "Additional widgets for applications"
+msgstr "Widgets adicional para aplicaciones"
+
+msgid "Document-centric objects and utilities"
+msgstr "Objeto documental céntrico y utilidades"
+
+msgid "A GLib/GTK+ set of document-centric objects and utilities."
+msgstr "Un conjunto GLib/GTK+ de objetos y utilidades documentales-centrados."
+
+msgid "Spreadsheet application"
+msgstr "Aplicación de hojas de cálculo"
+
+msgid "Virtual Terminal Emulator"
+msgstr "Emulador de Terminal Virtual"
+
+msgid "Remote desktop viewer for GNOME"
+msgstr "Visor de escritorio remoto para GNOME"
+
+msgid "GLib-based HTTP Library"
+msgstr "Biblioteca HTTP basada en GLib"
+
+msgid "GObject bindings for \"Secret Service\" API"
+msgstr "Enlazando GObject para API «Servicio Secreto»"
+
+msgid "Minesweeper game"
+msgstr "Juego buscaminas"
+
+msgid "Japanese logic game"
+msgstr "Juego lógico japonés"
+
+msgid "Terminal emulator"
+msgstr "Emulador de terminal"
+
+msgid "GNOME text editor"
+msgstr "Editor de texto de GNOME"
+
+msgid "Color management service"
+msgstr "Servicio de gestión de color"
+
+msgid "Geolocation service"
+msgstr "Servicio de geolocalización"
+
+msgid "Geocoding and reverse-geocoding library"
+msgstr "Biblioteca de geocódigo y reversión de geocódigo"
+
+msgid "Solitaire card games"
+msgstr "Juegos de cartas solitatias"
+
+msgid "API documentation browser for GNOME"
+msgstr "Documentación de API para GNOME"
+
+msgid "C library providing a ClutterActor to display maps"
+msgstr "Biblioteca C proporcionando un ClustterActor para enseñar distribuciones"
+
+msgid "Object mapper from GObjects to SQLite"
+msgstr "Asociación automática de objetos GObject con SQLite"
+
+msgid ""
+"Gom provides an object mapper from GObjects to SQLite.  It helps you\n"
+"write applications that need to store structured data as well as make complex\n"
+"queries upon that data."
+msgstr ""
+"Gom implementa un sistema de asociación automática de objetos GObject\n"
+"con SQLite.  Le ayuda a escribir aplicaciones que necesitan almacenar\n"
+"datos estructurados así como realizar consultas complejas sobre dichos\n"
+"datos."
+
+msgid "Sliding block puzzles"
+msgstr "Puzzles de bloque corredizo"
+
+msgid "Simple media player for GNOME based on GStreamer"
+msgstr "Reproductor multimedia para GNOME basado en GStreamer"
+
+msgid ""
+"Totem is a simple yet featureful media player for GNOME\n"
+"which can read a large number of file formats."
+msgstr ""
+"Totem es un reproductor multimedia simple pero completo en\n"
+"características para GNOME que puede leer un gran número de formatos\n"
+"de fichero."
+
+msgid "Music player for GNOME"
+msgstr "Reproductor musical para GNOME"
+
+msgid "GNOME image viewer"
+msgstr "Visor de imágenes de GNOME"
+
+msgid ""
+"Eye of GNOME is the GNOME image viewer.  It\n"
+"supports image conversion, rotation, and slideshows."
+msgstr ""
+"«Eye of GNOME» es el visor de imágenes de GNOME. Es posible convertir,\n"
+"rotar y mostrar en diapositivas las imágenes."
+
+msgid "Extensions for the Eye of GNOME image viewer"
+msgstr "Extensiones para el visor de imágenes de GNOME"
+
+msgid ""
+"This package provides plugins for the Eye of GNOME (EOG) image viewer,\n"
+"notably:\n"
+"\n"
+"@itemize\n"
+"@item @dfn{EXIF Display}, which displays camera (EXIF) information;\n"
+"@item @dfn{Map}, which displays a map of where the picture was taken on the\n"
+"side panel;\n"
+"@item @dfn{Slideshow Shuffle}, to shuffle images in slideshow mode.\n"
+"@end itemize\n"
+msgstr ""
+"Este paquete proporciona módulos para el visor de imágenes de GNOME\n"
+"(«Eye of GNOME» o EOG), destacando:\n"
+"\n"
+"@itemize\n"
+"@item @dfn{EXIF Display}, que muestra la información de la cámara (EXIF);\n"
+"@item @dfn{Map}, que muestra un mapa de donde se tomó la fotografía en\n"
+"el panel lateral;\n"
+"@item @dfn{Slideshow Shuffle}, para mostrar las imágenes en orden\n"
+"aleatorio cuando se muestran como diapositivas.\n"
+"@end itemize\n"
+
+msgid "GObject bindings for libudev"
+msgstr "Enlaces GObject para libudev"
+
+msgid "Userspace virtual file system for GIO"
+msgstr "Sistema de ficheros en espacio de usuaria para GIO"
+
+msgid "GLib binding for libusb1"
+msgstr "Enlazando GLib para libusb1"
+
+msgid "Document and image scanner"
+msgstr "Documento e imagen analíticos (escaner)"
+
+msgid "GNOME web browser"
+msgstr "Explorador web GNOME"
+
+msgid "D-Bus debugger"
+msgstr "Depurador D-Bus"
+
+msgid "XSL stylesheets for Yelp"
+msgstr "Hojas de estilos XSL para Yelp"
+
+msgid "GNOME help browser"
+msgstr "Explorador ayuda GNOME"
+
+msgid "Yelp documentation tools"
+msgstr "Herramientas documentales Yelp"
+
+msgid "GObject collection library"
+msgstr "Colección bibliotecaria de GObject"
+
+msgid "Photo manager for GNOME 3"
+msgstr "Gestor de fotos para GNOME"
+
+msgid "Graphical archive manager for GNOME"
+msgstr "Gestor de archivo gráfico para GNOME"
+
+msgid "Session manager for GNOME"
+msgstr "Gestor de sesión para GNOME"
+
+msgid "Javascript bindings for GNOME"
+msgstr "Enlazados Javascript para GNOME"
+
+msgid "Window and compositing manager"
+msgstr "Ventana y composicion de gestor"
+
+msgid "Store address books and calendars"
+msgstr "Dirección de almacén de libros y calendarios"
+
+msgid "Text entry and UI navigation application"
+msgstr "Entrada textual y aplicación de explorador IU"
+
+msgid "Network connection manager"
+msgstr "Gestor de conexión a red"
+
+msgid "Database of broadband connection configuration"
+msgstr "Configuración de BD para conexión ancha"
+
+msgid "Database of broadband connection configuration."
+msgstr "Configuración de BD para conexión ancha."
+
+msgid "Applet for managing network connections"
+msgstr "Applet para gestión de conexiones de red"
+
+msgid "Display manager for GNOME"
+msgstr "Gestor de pantalla para GNOME"
+
+msgid "Portable system access library"
+msgstr "Biblioteca de sistema de acceso portable"
+
+msgid "GNOME Bluetooth subsystem"
+msgstr "Subsistema Bluetooth GNOME"
+
+msgid "Utilities to configure the GNOME desktop"
+msgstr "Utilidades para configurar el escritorio de GNOME"
+
+msgid "Desktop shell for GNOME"
+msgstr "Shell de escritorio para GNOME"
+
+msgid "File manager for GNOME"
+msgstr "Gestor de ficheros para GNOME"
+
+msgid "Disk usage analyzer for GNOME"
+msgstr "Análisis de utilización de disco para GNOME"
+
+msgid "Background images for the GNOME desktop"
+msgstr "Fondo de imágenes para el escritorio GNOME"
+
+msgid "Take pictures of your screen"
+msgstr "Toma cuadros en su pantalla"
+
+msgid "Default MIME type associations for the GNOME desktop"
+msgstr "Tipo MIME predeterminado para el escritorio GNOME"
+
+msgid "Desktop recording program"
+msgstr "Escritorio grabando programa"
+
+msgid "GObject wrapper for libcanberra"
+msgstr "Envoltura GObject para libcanberra"
+
+msgid "Library for accessing SkyDrive and Hotmail"
+msgstr "Biblioteca para acceso a SkyDrive y Hotmail"
+
+msgid "GNOME's clock application"
+msgstr "Aplicación reloj de GNOME"
+
+msgid "GNOME's calendar application"
+msgstr "Aplicación calendario de GNOME"
+
+msgid ""
+"GNOME Calendar is a simple calendar application designed to fit the GNOME\n"
+"desktop.  It supports multiple calendars, month, week and year view."
+msgstr ""
+"Calendario GNOME es una pliacación simple de calendario diseñado para ajustar\n"
+"el escritorio de GNOME.  Apoya múltiples vistas de calendarios, meses, semanas y año."
+
+msgid "GNOME's ToDo Application"
+msgstr "Aplicación ToDo de GNOME"
+
+msgid "Extensions for GNOME Shell"
+msgstr "Extensiones para GNOME Shell"
+
+msgid "Library to aggregate data about people"
+msgstr "Biblioteca para agregar datos acerca de gente"
+
+msgid "GNOME keyboard configuration library"
+msgstr "Biblioteca de configuración de teclado GNOME"
+
+msgid "Desktop calculator"
+msgstr "Calculadora para escritorio"
+
+msgid "Virtual sticky note"
+msgstr "Anotación chincheta virtual"
+
+msgid "Web development studio"
+msgstr "Estudio de desarrollo web"
+
+msgid "Process viewer and system resource monitor for GNOME"
+msgstr "Visor de procesos y monitor de recursos del sistema para GNOME"
+
+msgid ""
+"GNOME System Monitor is a GNOME process viewer and system monitor with\n"
+"an attractive, easy-to-use interface.  It has features, such as a tree view\n"
+"for process dependencies, icons for processes, the ability to hide processes,\n"
+"graphical time histories of CPU/memory/swap usage and the ability to\n"
+"kill/reinice processes."
+msgstr ""
+"GNOME System Monitor es un visor de procesos y monitor de recursos del\n"
+"sistema de GNOME con una interfaz atractiva y fácil de usar. Entre sus\n"
+"características se encuentran la vista en forma de árbol de las\n"
+"dependencias de los procesos, iconos para los proccesos, la abilidad\n"
+"de ocultar procesos, gráficos históricos de uso de procesador, memoria\n"
+"y memoria de intercambio y la capacidad de finalizar o cambiar el\n"
+"valor «nice» de procesos."
+
+msgid "Screen reader for individuals who are blind or visually impaired"
+msgstr "Lector de pantalla para personas ciegas o con dificultades visuales"
+
+msgid ""
+"Orca is a screen reader that provides access to the graphical desktop\n"
+"via speech and refreshable braille.  Orca works with applications and toolkits\n"
+"that support the Assistive Technology Service Provider Interface (AT-SPI)."
+msgstr ""
+"Orca es un lector de pantalla que proporciona acceso al escritorio\n"
+"gráfico a través de la voz y de braille refrescable. Orca trabaja con\n"
+"aplicaciones y biblootecas de herramienteas e implementa la interfaz\n"
+"AT-SPI (interfaz para proveedores de servicios de tecnologías de\n"
+"asistencia)."
+
+msgid "GNOME's alternative spell checker"
+msgstr "Comprobador ortográfico alternativo de GNOME"
+
+msgid "Project management software for the GNOME desktop"
+msgstr "Software de gestión de proyectos para el escritorio GNOME"
+
+msgid "GNOME music playing application"
+msgstr "Aplicación de reproducción musical de GNOME"
+
+msgid "Video effects for Cheese and other GNOME applications"
+msgstr "Efectos de vídeo para Cheese y otras aplicaciones de GNOME"
+
+msgid ""
+"A collection of GStreamer video filters and effects to be used in\n"
+"photo-booth-like software, such as Cheese."
+msgstr ""
+"Una colección de filtros de vídeo GStreamer y efectos para ser\n"
+"utilizados en software de captura fotográfica, como Cheese."
+
+msgid "Webcam photo booth software for GNOME"
+msgstr "Software de captura fotográfica y audiovisual para GNOME"
+
+msgid ""
+"Cheese uses your webcam to take photos and videos.  Cheese can also\n"
+"apply fancy special effects and lets you share the fun with others."
+msgstr ""
+"Cheese utiliza su cámara web para tomar fotos y vídeos.  Cheese también\n"
+"puede aplicar efectos especiales divertidos y deja compartir con otros."
+
+msgid "Audio music cd ripper"
+msgstr "Extractor de música de CD"
+
+msgid "GNOME hexadecimal editor"
+msgstr "Editor hexadecimal de GNOME"
+
+msgid "Headers of the GNU Mach kernel."
+msgstr "Cabeceras del núcleo GNU Mach."
+
+msgid "GNU Hurd headers"
+msgstr "Cabeceras de GNU Hurd"
+
+msgid "GNU Hurd libraries"
+msgstr "Bibliotecas de GNU Hurd"
+
+msgid "Microkernel of the GNU system"
+msgstr "Micronúcleo del sistema GNU"
+
+msgid "GNU Mach is the microkernel upon which a GNU Hurd system is based."
+msgstr "GNU Mach es el micronúcleo sobre el que se basa un sistema GNU Hurd."
+
+msgid "The kernel servers for the GNU operating system"
+msgstr "Servidores del núcleo para el sistema operativo GNU"
+
+msgid ""
+"The Hurd is the kernel for the GNU system, a replacement and\n"
+"augmentation of standard Unix kernels.  It is a collection of protocols for\n"
+"system interaction (file systems, networks, authentication), and servers\n"
+"implementing them."
+msgstr ""
+"Hurd es el núcleo del sistema GNU, un reemplazo de y un incremento\n"
+"sobre los núcleos estándar de Unix.  Se compone de una colección de\n"
+"protocolos para la interacción con el sistema (sistemas de ficheros,\n"
+"redes, identificación) y servidores que los implementan."
+
+msgid "Perl interface to ImageMagick"
+msgstr "Interfaz Perl para ImageMagic"
+
+msgid "Paginator for terminals"
+msgstr "Paginador para terminales"
+
+msgid "File import filter library for spreadsheet documents"
+msgstr "Importar fichero filtrador de biblioteca para docuento de hojas de cálculo"
+
+msgid "Document importer for office suites"
+msgstr "Importador documento para suites ofimáticas"
+
+msgid "Library for importing WordPerfect documents"
+msgstr "Biblioteca para importar documentos WordPerfect"
+
+msgid "CMIS client library"
+msgstr "Cliente biblioteca CMIS"
+
+msgid "Library for parsing the AbiWord format"
+msgstr "Biblioteca para interpretación del formato AbiWord"
+
+msgid "Library for parsing the CorelDRAW format"
+msgstr "Biblioteca para interpretación del formato CorelDraw"
+
+msgid "Library for parsing the Apple Keynote format"
+msgstr "Biblioteca para interpretación del formato Apple Keynote"
+
+msgid "Text Categorization library"
+msgstr "Biblioteca de Categoría Textual"
+
+msgid "Library for parsing the FreeHand format"
+msgstr "Biblioteca para interpretación del formato FreeHand"
+
+msgid "Library for parsing the Microsoft Publisher format"
+msgstr "Biblioteca para interpretación del formato Microsoft Publisher"
+
+msgid "Library for parsing the PageMaker format"
+msgstr "Biblioteca para interpretación del formato PageMaker"
+
+msgid "Library for parsing the Microsoft Visio format"
+msgstr "Biblioteca para interpretación del formato Microsoft Visio"
+
+msgid "Import library for some old Macintosh text documents"
+msgstr "Importar biblioteca para algunos antiguos documentos de texto Macintosh"
+
+msgid "Import library for Microsoft Works text documents"
+msgstr "Importar biblioteca para texto documental Microsoft Works"
+
+msgid "Hyphenation library"
+msgstr "Biblioteca separación silábica"
+
+msgid "Thesaurus"
+msgstr "Tesausus"
+
+msgid "Office suite"
+msgstr "Suite oficina"
+
+msgid "GNU Linux-Libre kernel headers"
+msgstr "Cabeceras de núcleo GNU Linux-Libre"
+
+msgid "Headers of the Linux-Libre kernel."
+msgstr "Cabeceras de núcleo Linux-Libre."
+
+msgid "100% free redistribution of a cleaned Linux kernel"
+msgstr "Redistribución 100% libre de un núcleo Linux limpio"
+
+msgid ""
+"A *Free* project to implement OSF's RFC 86.0.\n"
+"Pluggable authentication modules are small shared object files that can\n"
+"be used through the PAM API to perform tasks, like authenticating a user\n"
+"at login.  Local and dynamic reconfiguration are its key features."
+msgstr ""
+"Un proyecto *Libre* para implementar RFC 86.0 de OSF.\n"
+"Módulos autenticados adjuntos son objetos compartidos pequeños que\n"
+"pueden ser utilizados a través de API PAM para realizar tareas, como \n"
+"autenticando un usuario en el registro de entrada.  Local y dinámica \n"
+"reconfiguración son su característica de clave."
+
+msgid "Collection of utilities for the Linux kernel"
+msgstr "Colección de utilidades para el núcleo Linux"
+
+msgid "Creating and checking ext2/ext3/ext4 file systems"
+msgstr "Creando y comprobando sistemas de ficheros ext2/ext3/ext4"
+
+msgid "System call tracer for Linux"
+msgstr "Traza de llamada al sistema para Linux"
+
+msgid "Library call tracer for Linux"
+msgstr "Traza de llamada bibliotecaria para Linux"
+
+msgid "Library for working with POSIX capabilities"
+msgstr "Biblioteca para trabajar con capacidades POSIX"
+
+msgid "Manipulate Ethernet bridges"
+msgstr "Puente manipulador Ethernet"
+
+msgid "Support file systems implemented in user space"
+msgstr "Sistema de fichero compatible implementado en espacio de usuario"
+
+msgid "User-space union file system"
+msgstr "Unión de espacio de usuario al fichero de sistema"
+
+msgid "User-space union file system (statically linked)"
+msgstr "Unión de espacio de usuario al fichero de sistema (enlazado estático)"
+
+msgid "Neo2 console layout"
+msgstr "Entorno de consola Neo2"
+
+msgid "Monitor file accesses"
+msgstr "Monitor de acceso a fichero"
+
+msgid "Kernel module tools"
+msgstr "Herramientas de módulo del núcleo"
+
+msgid "Userspace device management"
+msgstr "Gestión de dispositivo en espacio de usuario"
+
+msgid "Logical volume management for Linux"
+msgstr "Gesto de volumen lógico para Linux"
+
+msgid "Logical volume management for Linux (statically linked)"
+msgstr "Gesto de volumen lógico para Linux (enlace estático)"
+
+msgid "Wireless regulatory database"
+msgstr "BB regulatorio sin cable de red"
+
+msgid "I2C tools for Linux"
+msgstr "Herramientas I2C para Linux"
+
+msgid "Hardware health information viewer"
+msgstr "Visor de información para salud del hardware"
+
+msgid "Linux profiling with performance counters"
+msgstr "Perfilado Linux con monitorización de rendimiento"
+
+msgid "Display information on ACPI devices"
+msgstr "Enseña información sobre dispositivos ACPI"
+
+msgid "AV/C protocol library for IEEE 1394"
+msgstr "Biblioteca de protocolo AV/C para IEEE 1394"
+
+msgid "Isochronous streaming media library for IEEE 1394"
+msgstr "Flujo isocrono de biblioteca de medio para IEEE 1394"
+
+msgid "Access block devices through multiple paths"
+msgstr "Acceso de bloque de dispositivos a través de rutas múltiples"
+
+msgid "Bluetooth subband audio codec"
+msgstr "Código de sonido versátil Bluetooth"
+
+msgid "Mount exFAT file systems"
+msgstr "Montar fichero del sistema exFAT"
+
+msgid "Userland tools for f2fs"
+msgstr "Herramientas de usuario para f2fs"
+
+msgid "Simple fan control program"
+msgstr "Programa simple del control del ventilador"
+
+msgid "Read-write access to NTFS file systems"
+msgstr "Acceso lectura-escritura para sistema de ficheros NTFS"
+
+msgid "Random number generator daemon"
+msgstr "Daemon de generador de número aleatorias"
+
+msgid "Performance monitoring tools for Linux"
+msgstr "Herramientas monitorizada de rendimiento para Linux"
+
+msgid "GNU/Linux application to control backlights"
+msgstr "Aplicación GNU/Linux para controlar luces de fondo"
+
+msgid "Power management tool for Linux"
+msgstr "Herramienta de gestor de energía para Linux"
+
+msgid "List hardware information"
+msgstr "Información listada de hardware"
+
+msgid "Netlink utility library"
+msgstr "Biblioteca utilitaria para Netlink"
+
+msgid "Utility to show process environment"
+msgstr "Utilidad para mostrar entorno de procesos"
+
+msgid "Open Fabric Interfaces"
+msgstr "Abrir Interfaz Fábrica"
+
+msgid "Document layout system"
+msgstr "Sistema de diseño documental"
+
+msgid "Music Player Daemon client library"
+msgstr "Biblioteca cliente del Music Player Daemon"
+
+msgid "Music Player Daemon"
+msgstr "Music Player Daemon"
+
+msgid "Music Player Daemon client"
+msgstr "Cliente del Music Player Daemon"
+
+msgid "Curses Music Player Daemon client"
+msgstr "Cliente Curses de Music Player Daemon"
+
+msgid "Featureful ncurses based MPD client inspired by ncmpc"
+msgstr "Característica ncurses basada en cliente MPD inspirado por ncmpc"
+
+msgid "MPD client for track scrobbling"
+msgstr "Cliente MPD para seguimiento de rollo de papel"
+
+msgid "Python MPD client library"
+msgstr "Cliente biblioteca Python MPD"
+
+msgid "Elegant client for the Music Player Daemon"
+msgstr "Cliente elegante para el Music Player Daemon"
+
+msgid "Toolkit for manipulation of images"
+msgstr "Herramientas para manipulación de imágenes"
+
+msgid "C library for low-level cryptographic functionality"
+msgstr "Biblioteca C para funcionalidad criptográfica de bajo nivel"
+
+msgid "CA certificates from Mozilla"
+msgstr "Certificados de AC (autoridad de certificación/CA) de Mozilla"
+
+msgid "PDF rendering library"
+msgstr "Biblioteca renderizadora de PDF"
+
+msgid "Library for generating PDF files"
+msgstr "Biblioteca para generación de ficheros PDF"
+
+msgid "PS support for zathura (libspectre backend)"
+msgstr "Apoyo PS para zathura (libspectre backend)"
+
+msgid "DjVu support for zathura (DjVuLibre backend)"
+msgstr "Apoyo DjVu para zathura (DjVuLibre backend)"
+
+msgid "PDF support for zathura (mupdf backend)"
+msgstr "Apoyo PDF para zathura (mupdf backend)"
+
+msgid "PDF support for zathura (poppler backend)"
+msgstr "Apoyo PDF para zathura (poppler backend)"
+
+msgid "Tools to work with the PDF file format"
+msgstr "Herramientas para trabajar con el formato de fichero PDF"
+
+msgid "Notetaking using a stylus"
+msgstr "Anotación utilizando un estilo"
+
+msgid "PDF presentation tool with visual effects"
+msgstr "Herramienta de presentación PDF con efectos visuales"
+
+msgid "PDF to SVG converter"
+msgstr "Conversor PDF a SVG"
+
+msgid "Command-line utility to search text in PDF files"
+msgstr "Utilidad de línea de mandato para buscar texto en ficheros PDF"
+
+msgid "Personal expenses manager"
+msgstr "Gestor de gastos personales"
+
+msgid "Implementation of the Perl programming language"
+msgstr "Implementación del lenguaje de programación Perl"
+
+msgid "Allow C/XS libraries to interrupt perl asynchronously"
+msgstr "Permite bibliotecas C/XS para interrumpir perl asíncronamente"
+
+msgid "Lexically disable autovivification"
+msgstr "Léxicamente desactiva autovivificación"
+
+msgid "Open a browser in a given URL"
+msgstr "Abre un explorador dentro de una URL dada"
+
+msgid "Benchmarking with statistical confidence"
+msgstr "Medición con confianza estadísticas"
+
+msgid "Bit vector library"
+msgstr "Biblioteca vectorial bit"
+
+msgid "Boolean support for Perl"
+msgstr "Apoyo booleano para Perl"
+
+msgid "Data files for Business::ISBN"
+msgstr "Datos de fichero para  Business::ISBN"
+
+msgid "Cache interface for Perl"
+msgstr "Caché de interfaz para Perl"
+
+msgid "Executable comments for Perl"
+msgstr "Comentarios ejecutable para Perl"
+
+msgid "Automated accessor generation"
+msgstr "Generación accesor automático"
+
+msgid ""
+"A chained accessor is one that always returns the object\n"
+"when called with parameters (to set), and the value of the field when called\n"
+"with no arguments.  This module subclasses Class::Accessor in order to provide\n"
+"the same mk_accessors interface."
+msgstr ""
+"Un accesor encadenado es uno que siempre devuelve el objeto\n"
+"cuando es llamado con parámetros (para establecer), y el valor del campo cuando\n"
+"llamó sin ningún argumento.  Este módulo subclase Class::Accessor en orden de\n"
+"proporcionar el mismo interfaz mk_accesors."
+
+msgid "Build groups of accessors"
+msgstr "Compilar grupos de accesorios"
+
+msgid "Drop-in replacement for NEXT"
+msgstr "Soltar sustitución para NEXT"
+
+msgid "Class for easy date and time manipulation"
+msgstr "Clase para manipulación de fecha y hora fácil"
+
+msgid "Base class for error handling"
+msgstr "Clase base para manipulado de error"
+
+msgid "Utility methods for factory classes"
+msgstr "Métodos utilizados para clases factoriales"
+
+msgid ""
+"\"require EXPR\" only accepts Class/Name.pm style module\n"
+"names, not Class::Name.  For that, this module provides \"load_class\n"
+"'Class::Name'\"."
+msgstr ""
+"«requerir EXPR» solo acepta nombres de estilo Clase/Nombre.pm\n"
+"modulares, no Clase::Nombre.  Por eso, este módulo proporciona \n"
+"«load_class 'Clase::Nombre'»."
+
+msgid "Implementation of a singleton class for Perl"
+msgstr "Implementación de una clase simple para Perl"
+
+msgid "Minimalist class construction"
+msgstr "Construcción de clase minimalista"
+
+msgid "Unload a class"
+msgstr "Descarga una clase"
+
+msgid "Recursively copy Perl datatypes"
+msgstr "Copiar recursivamente tipos de datos Perl"
+
+msgid "Sane defaults for Perl programs"
+msgstr "Predeterminación Sane para progrmas Perl"
+
+msgid "Generic Config Module"
+msgstr "Módulo Configurable Genérico"
+
+msgid "JSON::XS for Cpanel"
+msgstr "JSON::XS para Cpanel"
+
+msgid "Random password generator"
+msgstr "Generador de contraseñas aleatorias"
+
+msgid "A pure Perl implementation of the RC4 algorithm."
+msgstr "Una implementación Perl pura del algoritmo RC4."
+
+msgid "Temporarily change working directory"
+msgstr "Temporalmente modificar directorio de trabajo"
+
+msgid "Library for genomic analysis"
+msgstr "Biblioteca para análisis genómico"
+
+msgid "Base classes wrapping fundamental Perl data types"
+msgstr "Clases base cubriendo tipos de datos fundamentales Perl"
+
+msgid "Compare Perl data structures"
+msgstr "Compara datos Perl estructurados"
+
+msgid "Pretty printing of data structures"
+msgstr "Impresión bonita de estructura de datos"
+
+msgid "Concise data dumper"
+msgstr "Volcador de fechas concisas"
+
+msgid "Help when paging through sets of results"
+msgstr "Ayuda cuando paginado a través de conjuntos de resultados"
+
+msgid "Structured tags datastructures"
+msgstr "Etiquetas estructuradas de estructura de datos"
+
+msgid "Date manipulation routines"
+msgstr "Fecha del rutinas de manipulación"
+
+msgid "Simple date handling"
+msgstr "Manipular fecha simple"
+
+msgid "Date and time object for Perl"
+msgstr "Objetos de fecha y hora para Perl"
+
+msgid "Dates in the Julian calendar"
+msgstr "Fechas en el calendario juliano"
+
+msgid "DateTime set objects"
+msgstr "Objetos establecen FechaHora"
+
+msgid "DateTime rfc2445 recurrences"
+msgstr "Recurrencia FechaHora rfc2445"
+
+msgid "Parse and format iCal datetime and duration strings"
+msgstr "Interpreta y formatea fecha y hora iCal y cadenas de duración"
+
+msgid "Parse and format strp and strf time patterns"
+msgstr "Interpreta y formatea patrones temporales strp y strf"
+
+msgid "Localization support for DateTime.pm"
+msgstr "Apoyo a localización para  DateTime.pm"
+
+msgid "Time zone object for Perl"
+msgstr "Objeto de zona horaria para Perl"
+
+msgid "Parse date/time strings"
+msgstr "Interpreta cadenas textuales de fecha/hora"
+
+msgid "Parse and format W3CDTF datetime strings"
+msgstr "Interpreta y rellena cadenas de fecha y hora W3CDTF"
+
+msgid "Meatier version of caller"
+msgstr "Versión carnosa de llamador"
+
+msgid "Check that a command is available"
+msgstr "Marcar que una función está disponible"
+
+msgid "Check compiler availability"
+msgstr "Marcar disponibilidad del compilador"
+
+msgid "Find memory cycles in objects"
+msgstr "Encontrar ciclos de memoria en objetos"
+
+msgid "Forces the unavailability of specified Perl modules (for testing)"
+msgstr "Fuerza la indisponibilidad de módulos Perl especificados (para pruebas)"
+
+msgid "Alias lexical variables"
+msgstr "Variables léxicas alias"
+
+msgid "Introspect overloaded operators"
+msgstr "Introspección de operadores sobrecargados"
+
+msgid "Partial dumping of data structures"
+msgstr "Volcado parcial de estructuras de datos"
+
+msgid "Object representing a stack trace"
+msgstr "Objeto representando una traza de pila"
+
+msgid "Displays stack trace in HTML"
+msgstr "Enseña trazas de pilas en HTML"
+
+msgid "Dump symbol names or the symbol table"
+msgstr "Volcar nombres de símbolos o la distribución simbólica"
+
+msgid "Keyed-Hashing for Message Authentication"
+msgstr "Hash del Ojo para Mensaje Autenticado"
+
+msgid "Perl interface to the MD-5 algorithm"
+msgstr "Interfaz Perl para algoritmo MD-5"
+
+msgid "Declare version conflicts for your dist"
+msgstr "Declara conflictos de versiones para su distro"
+
+msgid "Detect the encoding of data"
+msgstr "Detecta la codificación de datos"
+
+msgid "JIS X 0212 (aka JIS 2000) encodings"
+msgstr "Codificaciones JIS X 0212 (aka JIS 2000)"
+
+msgid "Additional Chinese encodings"
+msgstr "Codificación china adicional"
+
+msgid "Advanced operations on path variables"
+msgstr "Operaciones avanzadas en rutas variables"
+
+msgid "Allows you to declare real exception classes in Perl"
+msgstr "Permite a usted declarar excepciones reales de clases en Perl"
+
+msgid "Wrapper for perl's configuration"
+msgstr "Recubridor de configuración de Perl"
+
+msgid "Tool to build C libraries"
+msgstr "Herramienta para compilar bibliotecas C"
+
+msgid "Watch for changes to files"
+msgstr "Vigile modificaciones a ficheros"
+
+msgid "Get directories of configuration files"
+msgstr "Obtiene directorios de ficheros de configuración"
+
+msgid "Recursively copy files and directories"
+msgstr "Copia recursivamente de ficheros y directorios"
+
+msgid "Alternative interface to File::Find"
+msgstr "Interfaz alternativo para Fichero::Encontrar"
+
+msgid "Create or remove directory trees"
+msgstr "Crear o quitar árboles directóricos"
+
+msgid "Change directory temporarily for a limited scope"
+msgstr "Temporalmente modificar directorio para un ámbito limitado"
+
+msgid "Remove files and directories in Perl"
+msgstr "Quita ficheros y directorios en Perl"
+
+msgid "Install shared files"
+msgstr "Instalar ficheros compartidos"
+
+msgid "Simple file reader and writer"
+msgstr "Lectura y escritura simple de ficheros"
+
+msgid "Module to handle parsing command line options"
+msgstr "Módulo para  manipular opciones de líneas de mandatos interpretandos"
+
+msgid "Graph data structures and algorithms"
+msgstr "Estructuras y algoritmos de datos gráficos"
+
+msgid "Merge arbitrarily deep hashes into a single hash"
+msgstr "Combina arbitrariamente hashes profundos dentro de un hash único"
+
+msgid "Alternative but compatible interface to modules that export symbols"
+msgstr "Interfaz alternativo pero compatible para módulos que exportan símbolos"
+
+msgid "Import packages into other packages"
+msgstr "Importar paquetes dentro de otros paquetes"
+
+msgid "Utilities for interactive I/O"
+msgstr "Utilidades para E/S interactiva"
+
+msgid "Perl interface to pseudo ttys"
+msgstr "Interfaz Perl para pseudo ttys"
+
+msgid "Run interactive command-line programs"
+msgstr "Ejecución interactiva de programa por línea de mandato"
+
+msgid "Lightweight interface to shared memory"
+msgstr "Interfaz ligero para memoria compartida"
+
+msgid "JSON encoder/decoder for Perl"
+msgstr "Codificador/decodificador JSON para Perl"
+
+msgid "Wrapper for Perl JSON classes"
+msgstr "Recubridor de clases JSON de Perl"
+
+msgid "Cpanel::JSON::XS with fallback"
+msgstr "Cpanel::JSON::XS con retroceso"
+
+msgid "JSON serialising/deserialising for Perl"
+msgstr "Serialización/deserialización de JSON para Perl"
+
+msgid "Log4j implementation for Perl"
+msgstr "Implementación Log4j para Perl"
+
+msgid "Log::Report in the lightest form"
+msgstr "Log::Report en formato ligero"
+
+msgid "Get messages to users and logs"
+msgstr "Obtiene mensajes para usuarios y boletines"
+
+msgid "Charset information for MIME messages"
+msgstr "Información del conjunto de caracteres en mensajes MIME"
+
+msgid "Tools to manipulate MIME messages"
+msgstr "Herramientas para manipulación de mensajes MIME"
+
+msgid "Definition of MIME types"
+msgstr "Definición de tipos MIME"
+
+msgid "Tiny replacement for Module::Build"
+msgstr "Pequeña sustitución para Module::Build"
+
+msgid "Module name tools and transformations"
+msgstr "Herramientas de nombre modular y transformaciones"
+
+msgid "Code attribute introspection"
+msgstr "Interprospección código atributado"
+
+msgid "Apply roles to a related Perl class"
+msgstr "Aplica oficios a una clase Perl relativa"
+
+msgid "Moose roles with composition parameters"
+msgstr "Actores alce con composiciones paramétricas"
+
+msgid ""
+"Adds support on top of MooseX::Traits for class precedence\n"
+"search for traits and some extra attributes."
+msgstr ""
+"Añade apoyo en máximo de MooseX::Traits para clases precedente\n"
+"busca tratados y algunos atributos adicionales."
+
+msgid "Moosish types and type builder"
+msgstr "Tipos de alce y tipo de constructor"
+
+msgid "Extend attribute interfaces for Mouse"
+msgstr "Extiende atributo interfaz para Ratón"
+
+msgid "Perl client for Etsy's statsd daemon"
+msgstr "Cliente Perl para el daemon statsd de Etsy"
+
+msgid "Numeric comparisons"
+msgstr "Comparaciones numéricas"
+
+msgid "Read and write OLE storage files"
+msgstr "Fichero almacén de lectura y escritura OLE"
+
+msgid "Anonymous packages"
+msgstr "Paquetes anónimos"
+
+msgid "Routines for manipulating stashes"
+msgstr "Rutinas para manipulación de alijos"
+
+msgid "Validate method/function parameters"
+msgstr "Valida parámetros de métodos/función"
+
+msgid "Path specification manipulation"
+msgstr "Manipulación especificante de ruta"
+
+msgid "File path utility"
+msgstr "Ruta de fichero de utilidad"
+
+msgid "Fast and correct UTF-8 IO"
+msgstr "Rápida y correcta E/S UTF-8"
+
+msgid "Parsing library for text in Pod format"
+msgstr "Interpreta biblioteca para texto en formato Pod"
+
+msgid "Information about the currently running perl"
+msgstr "Información sobre la actualmente ejecución de perl"
+
+msgid "Roles, as a slice of Moose"
+msgstr "Actores, como una rodaja de Moose"
+
+msgid "Infinite sets"
+msgstr "Conjuntos infinitos"
+
+msgid "Set operations for Perl"
+msgstr "Establece operaciones para Perl"
+
+msgid "String printing alternatives to printf"
+msgstr "Escritura de cadenas alternativas para imprimir"
+
+msgid "Tool to inspect subroutines"
+msgstr "Herramienta para inspeccionar subrutinas"
+
+msgid "Install subroutines into packages easily"
+msgstr "Instala subrutinas dentro de paquetes fácilmente"
+
+msgid "(Re)name a sub"
+msgstr "(Re)nombrar un sub"
+
+msgid "Apparently run a function in a higher stack frame"
+msgstr "Aparentemente ejecuta una función en un marco de pila más alto"
+
+msgid "Switch statement for Perl"
+msgstr "Declaración intercambio para Perl"
+
+msgid "Get full hostname in Perl"
+msgstr "Obtiene nombre de anfitrión completo en Perl"
+
+msgid "Template processing system for Perl"
+msgstr "Sistema procesando plantilla para Perl"
+
+msgid "Profiling for Template Toolkit"
+msgstr "Perfilando para Plantillas de Kit de Herramientas"
+
+msgid "Detect encoding of the current terminal"
+msgstr "Detecta codificación del terminal actual"
+
+msgid "Simple terminal control"
+msgstr "Terminal controladora única"
+
+msgid "Retrieve terminal size"
+msgstr "Obtener tamaño del terminal"
+
+msgid "Format a header and rows into a table"
+msgstr "Formatear una cabecera y filas dentro de una tabla"
+
+msgid "Align text"
+msgstr "Texto alineado"
+
+msgid "Interface to read and parse BibTeX files"
+msgstr "Interfaz para leer e interpretar ficheros BibTeX"
+
+msgid "Manipulate comma-separated values"
+msgstr "Manipula valorer separados por coma"
+
+msgid "Simple ASCII tables"
+msgstr "Distribución simple ASCII"
+
+msgid "Organize Data in Tables"
+msgstr "Organizar Datos en Tablas"
+
+msgid "Role for classes that can be thrown"
+msgstr "Cargo para clases que puedan ser referenciada"
+
+msgid "Perl script tidier"
+msgstr "Guiones Perl tipado"
+
+msgid "Ordered associative arrays for Perl"
+msgstr "Matrices asociadas ordenadas para Perl"
+
+msgid "Tie to an existing Perl object"
+msgstr "Vínculo a un objeto existente para Perl"
+
+msgid "English expression of durations"
+msgstr "Expresión inglesa de duraciones"
+
+msgid "Parse time duration strings"
+msgstr "Interpreta cadenas textuales de duración temporal"
+
+msgid "Date parsing/formatting subroutines"
+msgstr "Interpretando/formando datos de subrutinas"
+
+msgid "Shift and scale time"
+msgstr "Mayúsculas y escala temporal"
+
+msgid "Simple tree object"
+msgstr "Objeto arbóreo único"
+
+msgid "Tie a variable to a type constraint"
+msgstr "Vincula una variable a un tipo constante"
+
+msgid "Unicode normalization forms"
+msgstr "Formato de normalización Unicode"
+
+msgid "Unicode collation algorithm"
+msgstr "Algoritmo adoptado Unicode"
+
+msgid "Unicode line breaking algorithm"
+msgstr "Línea Unicode dividiendo algoritmo"
+
+msgid "Encoding and decoding of UTF-8 encoding form"
+msgstr "Codificación y decodificación de relleno en UTF-8"
+
+msgid "UNIVERSAL::can() reimplementation"
+msgstr "UNIVERSAL::can() reimplementación"
+
+msgid "UNIVERSAL::isa() reimplementation"
+msgstr "UNIVERSAL::isa() reimplementación"
+
+msgid "YAML for Perl"
+msgstr "YAML para Perl"
+
+msgid "Read/Write YAML files"
+msgstr "Ficheros Lectura/Escritura YAML"
+
+msgid "Generate and use LALR parsers"
+msgstr "Genera y utiliza intérpretes LALR"
+
+msgid "Distribution metadata for a CPAN dist"
+msgstr "Distribuir matadatos para un dist CPAN"
+
+msgid "Build and install Perl modules"
+msgstr "Compila e instala módulos Perl"
+
+msgid ""
+"File::Find::Object is an object-oriented\n"
+"File::Find replacement in Perl."
+msgstr ""
+"File::Find::Object es un objecto-orientado\n"
+"File::Find sustitución en Perl."
+
+msgid "Alternative interface to File::Find::Object"
+msgstr "Interfaz alternativo para Fichero::Encontrar::Objeto"
+
+msgid "Raw image decoder"
+msgstr "Decodificador de imagen cruda"
+
+msgid "Accessing digital cameras"
+msgstr "Accediendo cámaras digitales"
+
+msgid "Library for panoramic images"
+msgstr "Biblioteca para imágenes panorámicas"
+
+msgid "Panorama photo stitcher"
+msgstr "Grapadora de foto panorámica"
+
+msgid "Ruby hyphenation patterns"
+msgstr "Patrones de separación silábica para Ruby"
+
+msgid "Efficient Scheme compiler"
+msgstr "Compilador eficiente Scheme"
+
+msgid "Efficient Scheme interpreter and compiler"
+msgstr "Interpretador y compilador Scheme eficiente"
+
+msgid "Small embeddable Scheme implementation"
+msgstr "Pequeña implementación Scheme embebible"
+
+msgid "Compatibility and utility library for Scheme"
+msgstr "Compatibilizar y utilidad bibliotecaria para Scheme"
+
+msgid "Brutally efficient Scheme compiler"
+msgstr "Compilador Scheme brutalmente eficiente"
+
+msgid "Scheme-like lisp implementation"
+msgstr "Implementación de lisp de tipo Scheme"
+
+msgid "LibYAML is a YAML 1.1 parser and emitter written in C."
+msgstr "LibYAML es un YAML 1.1 interpretador y emisor escrito en C."
+
+msgid "(u)Common C++ framework for threaded applications"
+msgstr "Biblioteca (u)Common C++ para aplicaciones multihilo"
+
+msgid "Common C++ framework for threaded applications"
+msgstr "Biblioteca Common C++ para aplicaciones multihilo"
+
+msgid "Implementation of RTP (real-time transport protocol)"
+msgstr "Implementación de RTP (protocolo de transporte en tiempo real)"
+
+msgid "Library implementing SIP (RFC-3261)"
+msgstr "Biblioteca implementando SIP (RFC-3261)"
+
+msgid "Sip abstraction library"
+msgstr "Biblioteca de abstracción de Sip"
+
+msgid "DVI to PostScript drivers"
+msgstr "Controladores DVI a PostScript"
+
+msgid "Files for creating TeX formats"
+msgstr "Ficheros para creación de formatos TeX"
+
+msgid "Metafont base files"
+msgstr "Ficheros Metafont básicos"
+
+msgid "Scheme for naming fonts in TeX"
+msgstr "Esquema para el nombrado de tipografías en TeX"
+
+msgid "Computer Modern fonts for TeX"
+msgstr "Tipografías de Computer Modern para TeX"
+
+msgid "Computer Modern Super family of fonts"
+msgstr "Familia de tipografías Computer Modern Super"
+
+msgid "Small library of METAFONT sources"
+msgstr "Pequeña biblioteca de fuentes de METAFONT"
+
+msgid "TeX fonts from the American Mathematical Society"
+msgstr "Tipografías TeX desde la Sociedad Americana de Matemáticas"
+
+msgid "Plain TeX format and supporting files"
+msgstr "Formato Tex simple y soportando ficheros"
+
+msgid "Sophisticated verbatim text"
+msgstr "Texto verborreo sofisticado"
+
+msgid "Extensive support for hypertext in LaTeX"
+msgstr "Apoyo extensivo para hipertexto en LaTeX"
+
+msgid "Advanced font selection in XeLaTeX and LuaLaTeX"
+msgstr "Selección tipográfica avanzada en XeLaTeX y LuaLaTeX"
+
+msgid "AMS mathematical facilities for LaTeX"
+msgstr "Capacidad matemática AMS para LaTeX"
+
+msgid "AMS document classes for LaTeX"
+msgstr "Clases documentales AMS para LaTeX"
+
+msgid "Babel support for English"
+msgstr "Capacidad Babel para inglés"
+
+msgid "Font support for common PostScript fonts"
+msgstr "Capacidad de tipografía para tipos PostScript comunes"
+
+msgid "Footnotes for critical editions"
+msgstr "Anotaciones pie para ediciones críticas"
+
+msgid "German letter DIN style"
+msgstr "Estilo DIN de letra alemana"
+
+msgid "Expanded description environments"
+msgstr "Entorno descripción expandido"
+
+msgid "Flexible bibliography support"
+msgstr "Compatibilidad bibliográfica flexible"
+
+msgid "Make overhead slides"
+msgstr "Crear ranuras suspendidas"
+
+msgid "e-TeX tools for LaTeX"
+msgstr "Herramientas e-TeX para LaTeX"
+
+msgid "Letter document class"
+msgstr "Clase de documentos de carta"
+
+msgid "Typeset Galois connections"
+msgstr "Conexiones Typeset Galois"
+
+msgid "Citations in a reader-friendly style"
+msgstr "Citaciones dentro de un estilo lector-amistoso"
+
+msgid "Miscellaneous tools by Mark Wooding"
+msgstr "Varias herramientas por Mark Wooding"
+
+msgid "Extra control of appendices"
+msgstr "Control adicional de apéndices"
+
+msgid "Generate changebars in LaTeX documents"
+msgstr "Genera modificaciones de barras en documentos LaTeX"
+
+msgid "Add colour to LaTeX tables"
+msgstr "Añade color a tablas LaTeX"
+
+msgid "Range of footnote options"
+msgstr "Ancho de opciones de anotaciones"
+
+msgid "Miscellaneous packages by Joerg Knappen"
+msgstr "Varios paquetes por Joerg Knappen"
+
+msgid "Ralph Smith's Formal Script font"
+msgstr "Tipografía de Guión Formal de Ralph Smith"
+
+msgid "Add picture commands (or backgrounds) to every page"
+msgstr "Añade mandatos pictóricos (o fondos) a cada página"
+
+msgid "Include PDF documents in LaTeX"
+msgstr "Incluye documentos PDF en LaTeX"
+
+msgid "Tabular with variable width columns balanced"
+msgstr "Tabulado con ancho de columna variable equilibrado"
+
+msgid "Create scalable illustrations"
+msgstr "Crea ilustraciones escalables"
+
+msgid "Extract bits of a LaTeX source for output"
+msgstr "Extrae varios bit de una fuente LaTeX para salida"
+
+msgid "Wrapper for LaTeX and friends"
+msgstr "Recubridor para LaTeX y similares"
+
+msgid "LaTeX editor"
+msgstr "Editor LaTeX"
+
+msgid "Book on TeX, plain TeX and Eplain"
+msgstr "Libro en TeX, TeX simple y Eplain"
+
+msgid "The GNU documentation format"
+msgstr "El formato de documentación GNU"
+
+msgid "Convert Texinfo to HTML"
+msgstr "Convierte Texinfo a HTML"
+
+msgid "GNU Image Manipulation Program"
+msgstr "Programa de Manipulación de Imágenes GNU GIMP"
+
+msgid "GIMP plug-in to edit image in fourier space"
+msgstr "Complemento GIMP para editar imagen en espacio Fourier"
+
+msgid "GIMP plugins for texture synthesis"
+msgstr "Módulos de GIMP para síntesis de texturas"
+
+msgid "2D graphics library (with X11 support)"
+msgstr "Biblioteca de gráficos 2D (con apoyo X11)"
+
+msgid "Obsolete pango functions"
+msgstr "Funciones pango obsoletas"
+
+msgid "GNOME source code widget"
+msgstr "Widget de código fuente GNOME"
+
+msgid "Cairo bindings for GNU Guile"
+msgstr "Enlazando Cairo para GNU Guile"
+
+msgid "Python bindings for cairo"
+msgstr "Enlace Python para cairo"
+
+msgid "Theming engines for GTK+ 2.x"
+msgstr "Motores de temarios para GTK+ 2.x"
+
+msgid "Lightweight GTK+ clipboard manager"
+msgstr "Gestor de portapapeles GTK+ ligero"
+
+msgid "Thin layer of graphic data types"
+msgstr "Capa delgada para tipos de datos gráficos"
+
+msgid "Extend Bash using Guile"
+msgstr "Extiende Bash utilizando Guile"
+
+msgid "DSV module for Guile"
+msgstr "Módulo DSV para Guile"
+
+msgid "Colorized REPL for Guile"
+msgstr "REPL colorizado para Guile"
+
+msgid "XOSD bindings for Guile"
+msgstr "Enlazando XOSD para Guile"
+
+msgid "Guile database abstraction layer"
+msgstr "Capa abstracta de BBDD Guile"
+
+msgid "Guile DBI driver for SQLite"
+msgstr "Controlador DBI Guile para SQLite"
+
+msgid "Guile bindings to ncurses"
+msgstr "Enlazando Guile para ncurses"
+
+msgid "Redis client library for Guile"
+msgstr "Cliente biblioteca Redis para Guile"
+
+msgid "CommonMark parser for Guile"
+msgstr "Interprete CommonMark para Guile"
+
+msgid "JSON module for Guile"
+msgstr "JSON modular para Guile"
+
+msgid "Access SQLite databases from Guile"
+msgstr "BD Access SQLite desde Guile"
+
+msgid "Guile bindings for libgit2"
+msgstr "Enlazando Guile para libgit2"
+
+msgid "Distributed Revision Control System"
+msgstr "Sistema de Control de Revisión Distribuido"
+
+msgid ""
+"This package provides a dictionary for the Hunspell spell-checking\n"
+"library."
+msgstr ""
+"Este paquete proporciona un diccionario para la biblioteca de\n"
+"comprobación ortográfica Hunspell."
+
+msgid "Hunspell dictionary for ``classic'' French (recommended)"
+msgstr "Diccionario Hunspell para francés ``clásico'' (recomendado)"
+
+msgid "Hunspell dictionary for ``modern'' French"
+msgstr "Diccionario Hunspell para el ``moderno'' francés"
+
+msgid "Hunspell dictionary for the post @dfn{1990 réforme} French"
+msgstr "Diccionario Hunspell para francés posterior @dfn{1990 réforme}"
+
+msgid "Hunspell dictionary for all variants of French"
+msgstr "Diccionario Hunspell para todas las variantes francesas"
+
+msgid "Hunspell dictionary for English"
+msgstr "Diccionario Hunspell para inglés"
+
+msgid "Hunspell dictionary for Australian English"
+msgstr "Diccionario Hunspell para inglés australiano"
+
+msgid "Hunspell dictionary for Canadian English"
+msgstr "Diccionario Hunspell para inglés canadiense"
+
+msgid "Hunspell dictionary for British English, with -ise endings"
+msgstr "Diccionario Hunspell para inglés británico, con finalización -ise"
+
+msgid "Hunspell dictionary for British English, with -ize endings"
+msgstr "Diccionario Hunspell para inglés británico, con finalización -ize"
+
+msgid "Hunspell dictionary for United States English"
+msgstr "Diccionario Hunspell para inglés norteamericano"
+
+msgid "Computer vision library"
+msgstr "Biblioteca de visión de computación"
+
+msgid "Fast and light imlib2-based image viewer"
+msgstr "Visor de imagen ligero y rápido basado en imlib2"
+
+msgid "Simple and fast image viewer for X"
+msgstr "Visor de imagen simple y rápido para X"
+
+msgid "Simple X Image Viewer"
+msgstr "Visor Imagen X Simple"
+
+msgid "Simple, fast and elegant image viewer"
+msgstr "Visor de imagen elegante, rápido y simple"
+
+msgid "Render images in the terminal"
+msgstr "Tratamiento de imágenes dentro del terminal"
+
+msgid "Image viewer for comics"
+msgstr "Visor imagen para comics"
+
+msgid "Library for handling PNG files"
+msgstr "Biblioteca para manipulación de ficheros PNG"
+
+msgid "APNG patch for libpng"
+msgstr "Parche APNG para libpng"
+
+msgid "Utility to compress PNG files"
+msgstr "Utilidad para comprimir ficheros PNG"
+
+msgid "Library for handling JPEG files"
+msgstr "Biblioteca para manipulación de ficheros JPEG"
+
+msgid "Optimize JPEG images"
+msgstr "Optimiza imágenes JPEG"
+
+msgid "Library for handling Mac OS icns resource files"
+msgstr "Biblioteca para manipulación de ficheros de recursos icns Mac OS"
+
+msgid "Library for handling TIFF files"
+msgstr "Biblioteca para manipulación de ficheros TIFF"
+
+msgid "GIF decompression library"
+msgstr "Biblioteca descompresora GIF"
+
+msgid "Lossless and lossy image compression"
+msgstr "Compresión de Imagen de pérdida menor y mínima"
+
+msgid "Library for handling MNG files"
+msgstr "Biblioteca para manipulación de ficheros MNG"
+
+msgid "JPEG-2000 library"
+msgstr "Biblioteca JPEG-2000"
+
+msgid "Perceptual image comparison utility"
+msgstr "Utilidad de comparación de imagen perceptible"
+
+msgid "Color picker"
+msgstr "Escogedor de color"
+
+msgid "Vector graphics editor"
+msgstr "Editor gráfico vectorial"
+
+msgid "Compression/decompression algorithm in Java"
+msgstr "Compresión/descompresión algorítmica en Java"
+
+msgid "Java bzip2 compression/decompression library"
+msgstr "Biblioteca compresión/descompresión bzip2 en Java"
+
+msgid "XZ in Java"
+msgstr "XZ en Java"
+
+msgid "Number logic game"
+msgstr "Juego de lógica numérica"
+
+msgid "Miniature golf game"
+msgstr "Juego de golf en miniatura"
+
+msgid "Shared library for kmahjongg and kshisen"
+msgstr "Biblioteca compartida por kmahjongg y kshisen"
+
+msgid "Classical Mah Jongg game for 4 players"
+msgstr "Juego Mah Jongg clásico para 4 participantes"
+
+msgid "IRC to instant messaging gateway"
+msgstr "IRC para pórtico de mensajería instantánea"
+
+msgid "Off-the-Record Messaging plugin for Pidgin"
+msgstr "Complemento de mensajería Off-the-Record para Pidgin"
+
+msgid "IRC network bouncer"
+msgstr "Red IRC limitada"
+
+msgid "Jabber (XMPP) server"
+msgstr "Servidor Jabber (XMPP)"
+
+msgid "Lightweight Tox client"
+msgstr "Cliente ligero Tox"
+
+msgid "Perl implementation of PSYC protocol"
+msgstr "Implementación Perl de protocolo PSYC"
+
+msgid "PSYC library in C"
+msgstr "Biblioteca PSYC en C"
+
+msgid "Asynchronous XMPP library"
+msgstr "Biblioteca XMPP asíncrona)"
+
+msgid "Small XMPP console client"
+msgstr "Cliente pequeño de consola XMPP"
+
+msgid "Extensible console-based Jabber client"
+msgstr "Cliente extensible Jabber basado en consola"
+
+msgid "Console-based XMPP client"
+msgstr "Cliente XMPP basado en consola"
+
+msgid "Apache Kafka C/C++ client library"
+msgstr "Biblioteca cliente Apache Kafka C/C++"
+
+msgid "Display or change Ethernet device settings"
+msgstr "Enseña o modifica opciones de dispositivos Ethernet"
+
+msgid "Network traffic analyzer"
+msgstr "Análisis del tráfico de red"
+
+msgid "Visualize curl statistics"
+msgstr "Visualizar estadísticas curl"
+
+msgid "Assess WiFi network security"
+msgstr "Evaluar seguridad de redes WiFi"
+
+msgid "Manages IPv4 and IPv6 addresses and subnets"
+msgstr "Gestiona direcciones IPv4 e IPv6 y subredes"
+
+msgid "Patricia Trie Perl module for fast IP address lookups"
+msgstr "Módulo Perl Patricia Trie para direccionamiento de bucles IP rápido"
+
+msgid "Usenet binary file downloader"
+msgstr "Descargador de fichero binario Usenet"
+
+msgid "Virtual network switch"
+msgstr "Intercambio de red virtual"
+
+msgid "Internet bandwidth tester"
+msgstr "Probando anchura de banda Internet"
+
+msgid ""
+"Command line interface for testing internet bandwidth using\n"
+"speedtest.net."
+msgstr ""
+"Interfaz de mandato lineal para probar ancho de banda de \n"
+"interred utilizando speedtest.net."
+
+msgid "HPA's tftp client"
+msgstr "Cliente tftp de HPA"
+
+msgid "Routing Software Suite"
+msgstr "Enrutando Suite Software"
+
+msgid "IPv6 security research toolkit"
+msgstr "Kit de herramientas de análisis de seguridad IPv6"
+
+msgid "Bandwidth monitor"
+msgstr "Monitor ancho de banda"
+
+msgid "String compression"
+msgstr "Compresión de cadena"
+
+msgid "HTTP client mock for Python"
+msgstr "Cliente mofa HTTP para Python"
+
+msgid "Search Engine Library"
+msgstr "Biblioteca de Motor de Búsqueda"
+
+msgid "Command-line interface to libtocc"
+msgstr "Interfaz de mandato lineal para libtocc"
+
+msgid "Full-text search system"
+msgstr "Sistema de búsqueda de texto completo"
+
+msgid "Locate files on the file system"
+msgstr "Localiza ficheros en el sistema del fichero"
+
+msgid "Web indexing system"
+msgstr "Sistema indizado web"
+
+msgid "Personal document indexing system"
+msgstr "Sistema personal de indexado de documentos"
+
+msgid "The friendly interactive shell"
+msgstr "El shell interactivo amigable"
+
+msgid "Alternative implementation of the rc shell by Byron Rakitzis"
+msgstr "Implementación alternativa de los rc shell por Byron Rakitzis"
+
+msgid "Unix shell based on csh"
+msgstr "Unix shell basada en csh"
+
+msgid "Python-ish shell"
+msgstr "Shell Pytoniso"
+
+msgid "Unix shell embedded in Scheme"
+msgstr "Unix shell embebido en Scheme"
+
+msgid "Korn Shell from OpenBSD"
+msgstr "Shell Korn desde OpenBSD"
+
+msgid "Korn Shell from MirBSD"
+msgstr "Shell Korn de MirBSD"
+
+msgid "Software speech synthesizer"
+msgstr "Sintetizador pronunciador de software"
+
+msgid "DOS/Mac to Unix and vice versa text file format converter"
+msgstr "Conversor de ficheros de texto de formato DOS/Mac a Unix y viceversa"
+
+msgid ""
+"dos2unix is a tool to convert line breaks in a text file from Unix format\n"
+"to DOS format and vice versa."
+msgstr ""
+"dos2unix es una herramienta para convertir línea de ruptura en un fichero\n"
+"de texto desde formato Unix a formato DOS y viceversa."
+
+msgid "Text encoding converter"
+msgstr "Texto codificando conversor"
+
+msgid "Text encoding detection tool"
+msgstr "Herramienta de detección de codificación del texto"
+
+msgid "Configuration file parser library"
+msgstr "Biblioteca interpreta fichero de configuración"
+
+msgid "Gordon's text utils library"
+msgstr "Biblioteca de utilidades textuales de Gordon"
+
+msgid "C/C++ configuration file library"
+msgstr "Biblioteca de fichero de configuración C/C++"
+
+msgid "Regular expression library"
+msgstr "Biblioteca de expresión regular"
+
+msgid "Microsoft Word document reader"
+msgstr "Lector de documento Word Microsoft"
+
+msgid "MS-Word to TeX or plain text converter"
+msgstr "Conversor de MS-Word a TeX o texto simple"
+
+msgid "Bayesian text and email classifier"
+msgstr "Texto baesiano y clasificador de correo-e"
+
+msgid "C library for creating and parsing configuration files."
+msgstr "Biblioteca C para crear e interpretar ficheros de configuración."
+
+msgid "Distributed version control system"
+msgstr "Sistema de control de versión distribuída"
+
+msgid "Whole remote repository encryption"
+msgstr "Cifrado de repositorio remoto completo"
+
+msgid "Web frontend for git repositories"
+msgstr "Web frontal para repositorios git"
+
+msgid "Stacked Git"
+msgstr "Apilados Git"
+
+msgid "Version control system for @code{$HOME}"
+msgstr "Sistema de control de versión para @code{$HOME}"
+
+msgid "Run a command over a sequence of commits"
+msgstr "Ejecuta una orden sobre una secuencia de revisiones"
+
+msgid "Git access control layer"
+msgstr "Placa de control de acceso Git"
+
+msgid "Decentralized version control system"
+msgstr "Sistema de control de versión descentralizado"
+
+msgid "HTTP and WebDAV client library"
+msgstr "Biblioteca de cliente HTTP y WebDAV"
+
+msgid "Revision control system"
+msgstr "Sistema de control de revisiones"
+
+msgid "Per-file local revision control system"
+msgstr "Sistema de control local de revisiones por fichero"
+
+msgid "Historical centralized version control system"
+msgstr "Sistema histórico de control de versiones centralizado"
+
+msgid "Make histograms from the output of @command{diff}"
+msgstr "Genera histogramas de la salida de @command{diff}"
+
+msgid "File-based version control like SCCS"
+msgstr "Control de versión basado en ficheros como SCCS"
+
+msgid "Project change supervisor"
+msgstr "Supervisor de cambios en el proyecto"
+
+msgid ""
+"Aegis is a project change supervisor, and performs some of\n"
+"the Software Configuration Management needed in a CASE environment.  Aegis\n"
+"provides a framework within which a team of developers may work on many\n"
+"changes to a program independently, and Aegis coordinates integrating these\n"
+"changes back into the master source of the program, with as little disruption\n"
+"as possible.  Resolution of contention for source files, a major headache for\n"
+"any project with more than one developer, is one of Aegis's major functions."
+msgstr ""
+"Aegis es un supervisor de cambios en el proyecto, y realiza parte de\n"
+"la gestión de configuración del software necesaria para un entorno\n"
+"CASE. Aegis proporciona un marco de trabajo dentro del que un equipo\n"
+"de desarrolladoras puede trabajar en muchos cambios en un programa de\n"
+"manera independiente, y Aegis coordina la integración de dichos\n"
+"cambios de vuelta a las fuentes principales del programa, con la menor\n"
+"disrupción posible. La resolución de contención por ficheros de\n"
+"fuentes, un quebradero de cabeza para cualquier proyecto con más de un\n"
+"desarrollador, es una de las mayores funciones de Aegis."
+
+msgid "Print the modification time of the latest file"
+msgstr "Escribe las horas de modificación del último fichero"
+
+msgid "Multiple repository management tool"
+msgstr "Herramienta gestora de múltiples repositorios"
+
+msgid "Software configuration management system"
+msgstr "Sistema de gestión de configuración de software"
+
+msgid "Featureful HTTP server"
+msgstr "Característica completa servidor HTTP"
+
+msgid "HTTP and reverse proxy server"
+msgstr "HTTP y servidor proxy reverso"
+
+msgid "PSGI/Plack web server"
+msgstr "Servicio web PSGI/Plack"
+
+msgid "Java Web Start"
+msgstr "Inicio de Web Java"
+
+msgid "JSON C library"
+msgstr "Biblioteca C JSON"
+
+msgid "JSON implementation in C"
+msgstr "Implementación JSON en C"
+
+msgid "WebSockets library written in C"
+msgstr "Biblioteca WebSockets escrita en C"
+
+msgid "CSS pre-processor"
+msgstr "CSS pre-procesador"
+
+msgid "SASL authentication framework"
+msgstr "Marco de trabajo para autenticación SASL"
+
+msgid "Sensible default Catalyst action"
+msgstr "Distingue acción Catalyst predeterminada"
+
+msgid "Catalyst Development Tools"
+msgstr "Herramientas Desarrollo Catalyst"
+
+msgid "Regex DispatchType for Catalyst"
+msgstr "Exreg DispatchType para Catalyst"
+
+msgid "DBIx::Class::Schema Model Class"
+msgstr "Modelo de Clase DBIx::Class::Schema"
+
+msgid "Role-based authorization for Catalyst"
+msgstr "Autorización de cargo basado para Catalyst"
+
+msgid "Captchas for Catalyst"
+msgstr "Vista para Catalyst"
+
+msgid "Catalyst generic session plugin"
+msgstr "Política de sesión genérica complementaria"
+
+msgid "Simple serving of static pages"
+msgstr "Servicio simple de páginas estáticas"
+
+msgid "The Catalyst Framework Runtime"
+msgstr "El Armazón Catalyst en Tiempo de Ejecución"
+
+msgid "Download data in many formats"
+msgstr "Descarga datos en muchos formatos"
+
+msgid "Catalyst JSON view"
+msgstr "Vista catalyst JSON"
+
+msgid "Template View Class"
+msgstr "Plantilla Vista Clase"
+
+msgid "Apply roles to Catalyst classes"
+msgstr "Aplicar oficios a clases Catalyst"
+
+msgid "Build structures from CGI data"
+msgstr "Construye estructuras desde datos CGI"
+
+msgid "Date conversion routines"
+msgstr "Fecha del conversión de rutinas"
+
+msgid "Perl locale encoding determination"
+msgstr "Determinación de codificación Perl local"
+
+msgid "Perl directory listing parser"
+msgstr "Directorio Perl listando intérprete"
+
+msgid "Stock and mutual fund quotes"
+msgstr "Acciones y fondos de inversión"
+
+msgid "Manipulate tables of HTML::Element"
+msgstr "Manipula tablas de HTML::Element"
+
+msgid "Perl HTML parser class"
+msgstr "Clase interpretada HTML en Perl"
+
+msgid "HTML-like templates"
+msgstr "Plantillas parecidas a HTML"
+
+msgid "HTTP Body Parser"
+msgstr "Interpretador Cuerpo HTTP"
+
+msgid "Perl date conversion routines"
+msgstr "Rutinas de conversión de fecha Perl"
+
+msgid "An HTTP::Message object contains some headers and a content body."
+msgstr "Un objeto HTTP::Message contiene algunas cabeceras y un cuerpo de contenido."
+
+msgid "Perl http content negotiation"
+msgstr "Negociación de contenido http Perl"
+
+msgid "Parse HTTP/1.1 requests"
+msgstr "Interpreta peticiones HTTP/1.1"
+
+msgid "Fast HTTP request parser"
+msgstr "Intérprete de peticiones HTTP rápida"
+
+msgid "Lightweight HTTP server"
+msgstr "Servidor ligero HTTP"
+
+msgid "HTTP/1.1 client"
+msgstr "HTTP/1.1 cliente"
+
+msgid "Perl modules for the WWW"
+msgstr "Módulos Perl para la WWW"
+
+msgid "Perl interface to Amazon S3"
+msgstr "Interfaz Perl para Amazon S3"
+
+msgid "This module provides a Perlish interface to Amazon S3."
+msgstr "Este módulo proporciona un interfaz Perlish para Amazon S3."
+
+msgid "SSL support for Net::SMTP"
+msgstr "Capacidad SSL para Net::SMTP"
+
+msgid "SSL support for Net::SMTP."
+msgstr "Capacidad SSL para Net::SMTP."
+
+msgid "Testing TCP programs"
+msgstr "Probando programa TCP"
+
+msgid "Test::WWW::Mechanize for Catalyst"
+msgstr "Test::WWW::Mechanize para Catalyst"
+
+msgid "Find URIs in arbitrary text"
+msgstr "Encuentra URI en texto arbitrario"
+
+msgid "Perl extension interface for libcurl"
+msgstr "Extensión de interfaz Perl para libcurl"
+
+msgid "Web browsing in a Perl object"
+msgstr "Explorador web dentro de un objeto Perl"
+
+msgid "Parse feeds in Python"
+msgstr "Interpreta novedades para Python"
+
+msgid "HTML5 parsing library"
+msgstr "Biblioteca interpretando HTML5"
+
+msgid "Application container server"
+msgstr "Aplicación contenedora de servicio"
+
+msgid "Command-line JSON processor"
+msgstr "Procesador mandato lineal JSON"
+
+msgid "Single file web server"
+msgstr "Fichero web simple de servidor"
+
+msgid "Build system for the Netsurf project"
+msgstr "Sistema compilador para proyecto Netsurf"
+
+msgid "Parser building library"
+msgstr "Interpretador construyendo biblioteca"
+
+msgid "HTML5 compliant parsing library"
+msgstr "Biblioteca interpretando HTML5 completo"
+
+msgid "String internment library"
+msgstr "Biblioteca de cadena interna"
+
+msgid "CSS parser and selection library"
+msgstr "Intérprete CSS y selección de biblioteca"
+
+msgid "Implementation of the W3C DOM"
+msgstr "Implementación de DOM W3C"
+
+msgid "Library for parsing SVG files"
+msgstr "Biblioteca para interpretar ficheros SVG"
+
+msgid "Decoding library for BMP and ICO files"
+msgstr "Descodificando biblioteca para ficheros BMP e ICO"
+
+msgid "Decoding library for GIF files"
+msgstr "Biblioteca descodificante para ficheros GIF"
+
+msgid "Utility library for NetSurf"
+msgstr "Biblioteca utilitaria para NetSurf"
+
+msgid "Generate JavaScript to DOM bindings"
+msgstr "Genera JavaScript para enlaces DOM"
+
+msgid "Web browser"
+msgstr "Explorador web"
+
+msgid "Unix command line interface to the www"
+msgstr "Interfaz Unix de mandato lineal para www"
+
+msgid "Simple static web server"
+msgstr "Servicio web estático simple"
+
+msgid "Analyze Web server logs in real time"
+msgstr "Analiza boletines de servicios Web en tiempo real"
+
+msgid "Internet services daemon"
+msgstr "Daemon de servicios de Internet"
+
+msgid "HTML Tidy with HTML5 support"
+msgstr "HTML Tidy con apoyo HTML5"
+
+msgid "Webserver with focus on security"
+msgstr "Servidor web centrado en seguridad"
+
+msgid "HTTP request and response service"
+msgstr "Petición HTTP y respuesta de servicio"
+
+msgid "HTTP request/response parser for C"
+msgstr "Petición/respuestas HTTP interpretadas para C"
+
+msgid "Output JSON from a shell"
+msgstr "Salida JSON desde una shell"
+
+msgid "Command-line interface to archive.org"
+msgstr "Interfaz de mandato lineal para archive.org"
+
+msgid "Universal Binary JSON encoder/decoder"
+msgstr "Codificador/decodificador JSON Binario Universal"
+
+msgid ""
+"Java Servlet, JavaServer Pages, Java Expression Language and Java\n"
+"WebSocket"
+msgstr ""
+"Java Servlet, JavaServer Pages, Java Expression Language y Java\n"
+"WebSocket"
+
+msgid "Helper classes for jetty tests"
+msgstr "Clases ayudante para pruebas Jetty"
+
+msgid "Utility classes for Jetty"
+msgstr "Clases utilidad para Jetty"
+
+msgid "Jetty :: IO Utility"
+msgstr "Utilidad Jetty :: E/S"
+
+msgid "Jetty :: Http Utility"
+msgstr "Utilidad Jetty :: Http"
+
+msgid "Jetty :: JMX Management"
+msgstr "Gestión Jetty :: JMX"
+
+msgid "Jetty security infrastructure"
+msgstr "Infraestructura segura Jetty"
+
+msgid "Jetty Servlet Container"
+msgstr "Contenedor Servicios Jetty"
+
+msgid "Validate HTML"
+msgstr "Validar HTML"
+
+msgid "(X)HTML validation in a Perl object"
+msgstr "Validación (X)HTML dentro de objeto Perl"
+
+msgid "Speex processing library"
+msgstr "Biblioteca de procesamiento Speex"
+
+msgid "Cross platform audio library"
+msgstr "Plataforma de biblioteca de sonido cruzada"
+
+msgid "Free lossless audio codec"
+msgstr "Código de sonido sin pérdida libre"
+
+msgid "Karaoke and text codec for embedding in ogg"
+msgstr "Karaoke y código textual para empotrar en ogg"
+
+msgid "Ogg vorbis tools"
+msgstr "Herramientas Ogg Vorbis"
+
+msgid "Versatile audio codec"
+msgstr "Código de sonido versátil"
+
+msgid "Command line utilities to encode, inspect, and decode .opus files"
+msgstr "Utilidades de línea de mandato para codificar, inspeccionar y decodificar ficheros .opus"
+
+msgid "Streaming media server"
+msgstr "Medio por flujo del servidor"
+
+msgid "Machine emulator and virtualizer"
+msgstr "Máquina emuladora y virtualizadora"
+
+msgid "Operating system information database"
+msgstr "BD de información del sistema operativo"
+
+msgid "Linux container tools"
+msgstr "Herramientas contenedoras Linux"
+
+msgid "Simple API for virtualization"
+msgstr "API simple para virtualización"
+
+msgid "Python bindings to libvirt"
+msgstr "Enlazando Python para libvirt"
+
+msgid "Manage virtual machines"
+msgstr "Gestionar máquinas virtuales"
+
+msgid "Checkpoint and restore in user space"
+msgstr "Comprobador y restauración dentro del espacio de usuario"
+
+msgid "Lightweight Emacs clone"
+msgstr "Clon ligero de Emacs"
+
+msgid "Xorg WindowsWM library"
+msgstr "Biblioteca WindowsWM de Xorg"
+
+msgid "Xorg Composite library"
+msgstr "Biblioteca Composite de Xorg"
+
+msgid "Xorg Xmu library"
+msgstr "Biblioteca Xmu de Xorg"
+
+msgid "Xorg XPM library"
+msgstr "Biblioteca XPM de Xorg"
+
+msgid "Xorg XvMC library"
+msgstr "Biblioteca XvMC de Xorg"
+
+msgid "Xorg XvMC library."
+msgstr "Biblioteca XvMC de Xorg."

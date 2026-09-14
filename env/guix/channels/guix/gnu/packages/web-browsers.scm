@@ -1,0 +1,960 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2014 John Darrington <jmd@gnu.org>
+;;; Copyright © 2014, 2019 Mark H Weaver <mhw@netris.org>
+;;; Copyright © 2015, 2016, 2019, 2021-2023, 2025 Efraim Flashner <efraim@flashner.co.il>
+;;; Copyright © 2016 Kei Kebreau <kkebreau@posteo.net>
+;;; Copyright © 2017, 2024, 2025 Eric Bavier <bavier@posteo.net>
+;;; Copyright © 2018–2021 Tobias Geerinckx-Rice <me@tobias.gr>
+;;; Copyright © 2018 Rutger Helling <rhelling@mykolab.com>
+;;; Copyright © 2018 Timo Eisenmann <eisenmann@fn.de>
+;;; Copyright © 2018 Pierre Neidhardt <mail@ambrevar.xyz>
+;;; Copyright © 2019 Clément Lassieur <clement@lassieur.org>
+;;; Copyright © 2019 Brett Gilio <brettg@gnu.org>
+;;; Copyright © 2020 Raghav Gururajan <raghavgururajan@disroot.org>
+;;; Copyright © 2020 B. Wilson <elaexuotee@wilsonb.com>
+;;; Copyright © 2020 Michael Rohleder <mike@rohleder.de>
+;;; Copyright © 2020 Nicolò Balzarotti <nicolo@nixo.xyz>
+;;; Copyright © 2020 Alexandru-Sergiu Marton <brown121407@posteo.ro>
+;;; Copyright © 2020 Hartmut Goebel <h.goebel@crazy-compilers.com>
+;;; Copyright © 2021, 2022 Cage <cage-dev@twistfold.it>
+;;; Copyright © 2021 Benoit Joly <benoit@benoitj.ca>
+;;; Copyright © 2021 Alexander Krotov <krotov@iitp.ru>
+;;; Copyright © 2020 Hartmut Goebel <h.goebel@crazy-compilers.com>
+;;; Copyright © 2021 Christopher Howard <christopher@librehacker.com>
+;;; Copyright © 2023 Herman Rimm <herman@rimm.ee>
+;;; Copyright © 2024 Zheng Junjie <873216071@qq.com>
+;;; Copyright © 2025 Sergey Trofimov <sarg@sarg.org.ru>
+;;; Copyright © 2025 Janneke Nieuwenhuizen <janneke@gnu.org>
+;;; Copyright © 2025 jgart <jgart@dismail.de>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (gnu packages web-browsers)
+  #:use-module (guix build-system cmake)
+  #:use-module (guix build-system glib-or-gtk)
+  #:use-module (guix build-system gnu)
+  #:use-module (guix build-system go)
+  #:use-module (guix build-system meson)
+  #:use-module (guix build-system pyproject)
+  #:use-module (guix download)
+  #:use-module (guix gexp)
+  #:use-module (guix git-download)
+  #:use-module ((guix licenses) #:prefix license:)
+  #:use-module (guix packages)
+  #:use-module (guix utils)
+  #:use-module (gnu packages)
+  #:use-module (gnu packages autotools)
+  #:use-module (gnu packages backup)
+  #:use-module (gnu packages base)
+  #:use-module (gnu packages bash)
+  #:use-module (gnu packages bison)
+  #:use-module (gnu packages compression)
+  #:use-module (gnu packages curl)
+  #:use-module (gnu packages databases)
+  #:use-module (gnu packages documentation)
+  #:use-module (gnu packages fltk)
+  #:use-module (gnu packages fontutils)
+  #:use-module (gnu packages fonts)
+  #:use-module (gnu packages freedesktop)
+  #:use-module (gnu packages fribidi)
+  #:use-module (gnu packages gcc)
+  #:use-module (gnu packages gettext)
+  #:use-module (gnu packages glib)
+  #:use-module (gnu packages gnome)
+  #:use-module (gnu packages gnome-xyz)
+  #:use-module (gnu packages gnupg)
+  #:use-module (gnu packages golang)
+  #:use-module (gnu packages gstreamer)
+  #:use-module (gnu packages gtk)
+  #:use-module (gnu packages image)
+  #:use-module (gnu packages imagemagick)
+  #:use-module (gnu packages javascript)
+  #:use-module (gnu packages libevent)
+  #:use-module (gnu packages libidn)
+  #:use-module (gnu packages libunistring)
+  #:use-module (gnu packages linux)
+  #:use-module (gnu packages lisp)
+  #:use-module (gnu packages lisp-check)
+  #:use-module (gnu packages lisp-xyz)
+  #:use-module (gnu packages lua)
+  #:use-module (gnu packages man)
+  #:use-module (gnu packages markup)
+  #:use-module (gnu packages mp3)
+  #:use-module (gnu packages ncurses)
+  #:use-module (gnu packages pcre)
+  #:use-module (gnu packages perl)
+  #:use-module (gnu packages pkg-config)
+  #:use-module (gnu packages python)
+  #:use-module (gnu packages python-crypto)
+  #:use-module (gnu packages python-build)
+  #:use-module (gnu packages python-web)
+  #:use-module (gnu packages python-xyz)
+  #:use-module (gnu packages qt)
+  #:use-module (gnu packages readline)
+  #:use-module (gnu packages regex)
+  #:use-module (gnu packages sdl)
+  #:use-module (gnu packages sqlite)
+  #:use-module (gnu packages suckless)
+  #:use-module (gnu packages tcl)
+  #:use-module (gnu packages text-editors)
+  #:use-module (gnu packages tls)
+  #:use-module (gnu packages web)
+  #:use-module (gnu packages webkit)
+  #:use-module (gnu packages xdisorg)
+  #:use-module (gnu packages xml)
+  #:use-module (gnu packages xorg)
+  #:use-module ((guix search-paths) #:select ($SSL_CERT_DIR $SSL_CERT_FILE)))
+
+(define-public midori
+  (package
+    (name "midori")
+    (version "9.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri
+        (string-append "https://github.com/midori-browser/core/releases/"
+                       "download/v" version "/" name "-v" version ".tar.gz"))
+       (sha256
+        (base32
+         "05i04qa83dnarmgkx4xsk6fga5lw1lmslh4rb3vhyyy4ala562jy"))))
+    (build-system cmake-build-system)
+    (arguments
+     `(#:imported-modules
+       (,@%cmake-build-system-modules
+        (guix build glib-or-gtk-build-system))
+       #:modules
+       ((guix build cmake-build-system)
+        ((guix build glib-or-gtk-build-system) #:prefix glib-or-gtk:)
+        (guix build utils))
+       #:configure-flags
+       ;; Relax gcc-14's strictness.
+       '("-DCMAKE_C_FLAGS=-Wno-error=int-conversion")
+       #:phases
+       (modify-phases %standard-phases
+         (add-after 'install 'glib-or-gtk-compile-schemas
+           (assoc-ref glib-or-gtk:%standard-phases
+                      'glib-or-gtk-compile-schemas))
+         (add-after 'install 'glib-or-gtk-wrap
+           (assoc-ref glib-or-gtk:%standard-phases
+                      'glib-or-gtk-wrap)))))
+    (native-inputs
+     `(("desktop-file-utils" ,desktop-file-utils) ;for tests
+       ("glib:bin" ,glib "bin")
+       ("gtk+:bin" ,gtk+ "bin")
+       ("intltool" ,intltool)
+       ("pkg-config" ,pkg-config)
+       ("which" ,which))) ;for tests
+    (inputs
+     `(("adwaita-icon-theme" ,adwaita-icon-theme)
+       ("gcr" ,gcr-3)
+       ("glib" ,glib)
+       ("glib-networking" ,glib-networking)
+       ("gsettings-desktop-schemas" ,gsettings-desktop-schemas)
+       ("gtk+" ,gtk+)
+       ("json-glib" ,json-glib)
+       ("libarchive" ,libarchive)
+       ("libpeas" ,libpeas)
+       ("sqlite" ,sqlite)
+       ("vala" ,vala)
+       ("webkitgtk" ,webkitgtk-with-libsoup2)))
+    (synopsis "Lightweight graphical web browser")
+    (description "@code{Midori} is a lightweight, Webkit-based web browser.
+It features integration with GTK+3, configurable web search engine, bookmark
+management, extensions such as advertisement blocker and colorful tabs.")
+    (home-page "https://www.midori-browser.org")
+    (license license:lgpl2.1+)))
+
+(define-public links
+  (package
+    (name "links")
+    (version "2.30")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "http://links.twibright.com/download/"
+                                  "links-" version ".tar.bz2"))
+              (sha256
+               (base32
+                "0rpi2l1v9b8d86z9dm91n312aavz7g12z1xp7kf7qlhib9miqqy4"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+       #:configure-flags #~(list "--enable-graphics")
+       #:phases
+       #~(modify-phases %standard-phases
+           (replace 'configure
+             (lambda* (#:key outputs (configure-flags '()) #:allow-other-keys)
+               ;; The tarball uses a very old version of autoconf. It doesn't
+               ;; understand extra flags like `--enable-fast-install', so
+               ;; we need to invoke it with just what it understands.
+               (let ((out (assoc-ref outputs "out")))
+                 ;; 'configure' doesn't understand '--host'.
+                 #$@(if (%current-target-system)
+                       #~((setenv "CHOST" #$(%current-target-system)))
+                       #~())
+                 (setenv "CONFIG_SHELL" (which "bash"))
+                 (apply invoke "./configure"
+                        (string-append "--prefix=" out)
+                        configure-flags)))))))
+    (native-inputs (list pkg-config))
+    (inputs
+     (list gpm
+           libevent
+           libjpeg-turbo
+           libpng
+           libtiff
+           libxt
+           openssl
+           zlib))
+    (synopsis "Text and graphics mode web browser")
+    (description "Links is a graphics and text mode web browser, with many
+features including, tables, builtin image display, bookmarks, SSL and more.")
+    (home-page "http://links.twibright.com")
+    ;; The distribution contains a copy of GPLv2
+    ;; However, the copyright notices simply say:
+    ;; "This file is a part of the Links program, released under GPL."
+    ;; Therefore, under the provisions of Section 9, we can choose
+    ;; any version ever published by the FSF.
+    ;; One file (https.c) contains an exception permitting
+    ;; linking of the program with openssl.
+    (license license:gpl1+)))
+
+(define-public elinks
+  (package
+    (name "elinks")
+    (version "0.19.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/rkd77/elinks")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "1802lh9zsmwmsd4b4kzxzgv3y8f6fmi6i0cjjbwmnkdfivcal3v9"))))
+    (build-system meson-build-system)
+    (arguments
+     (list
+      #:configure-flags
+      #~(list "-D256-colors=true"
+              "-Dbrotli=true"
+              "-Dcgi=true"
+              "-Dfinger=true"
+              "-Dgemini=true"
+              "-Dgopher=true"
+              ;; FIXME: gpm is disabled because Meson cannot find its shared
+              ;; library even though "gpm" is given as an input.
+              "-Dgpm=false"
+              "-Dhtml-highlight=true"
+              "-Dlibev=true"
+              "-Dlzma=true"
+              "-Dnntp=true"
+              "-Dreproducible=true"
+              "-Dsource-date-epoch=1"
+              "-Dtest=true"
+              "-Dtrue-color=true"
+              ;; Fix GCC 14 build
+              "-Dc_args=-Wno-implicit-function-declaration")))
+    (native-inputs
+     (list autoconf
+           automake
+           gettext-minimal
+           perl
+           pkg-config
+           python-minimal))
+    (inputs
+     (list brotli
+           bzip2
+           curl
+           expat
+           gnutls
+           gpm
+           libcss
+           libdom
+           libev
+           libgcrypt
+           libidn
+           lua
+           openssl
+           tre
+           xz
+           zlib))
+    (home-page "http://elinks.cz/")
+    (synopsis "Advanced text mode web browser")
+    (description
+     "ELinks is a feature-rich program for browsing the web in text mode.
+It can render both frames and tables, is highly customisable and can be
+extended via Lua scripts.  It is like an enhanced Lynx and Links.")
+    (license license:gpl2+)))
+
+(define-public luakit
+  (package
+    (name "luakit")
+    (version "2.4.0")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/luakit/luakit")
+                    (commit version)))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "15l0xb8ddv9j8hlrd4d11brngpss77ih9f8m08jfc18ir4rb32y5"))))
+    (build-system glib-or-gtk-build-system)
+    (arguments
+     (list
+      #:tests? #false                   ;require un-packaged "luassert"
+      #:test-target "run-tests"
+      #:make-flags
+      #~(list (string-append "CC=" #$(cc-for-target))
+              "LUA_BIN_NAME=lua"
+              "DEVELOPMENT_PATHS=0"
+              (string-append "PREFIX=" #$output)
+              (string-append "XDGPREFIX=" #$output "/etc/xdg"))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-before 'build 'lfs-workaround
+            (lambda _
+              (setenv "LUA_CPATH"
+                      (string-append #$(this-package-input "lua5.1-filesystem")
+                                     "/lib/lua/5.1/?.so;;"))))
+          (add-before 'build 'set-version
+            (lambda _
+              (setenv "VERSION_FROM_GIT" #$version)))
+          (delete 'configure)
+          (add-after 'install 'wrap
+            (lambda _
+              (wrap-program (string-append #$output "/bin/luakit")
+                `("LUA_CPATH" prefix
+                  (,(string-append #$(this-package-input "lua5.1-filesystem")
+                                   "/lib/lua/5.1/?.so;;")))
+                `("XDG_CONFIG_DIRS" prefix
+                  (,(string-append #$output "/etc/xdg/")))))))))
+    (native-inputs
+     (list pkg-config))
+    (inputs
+     (list bash-minimal
+           glib-networking
+           gsettings-desktop-schemas
+           gtk+
+           lua-5.1
+           lua5.1-filesystem
+           luajit
+           sqlite
+           webkitgtk-for-gtk3))
+    (synopsis "Fast, lightweight, and simple browser based on WebKit")
+    (description "Luakit is a fast, lightweight, and simple to use
+micro-browser framework extensible by Lua using the WebKit web content engine
+and the GTK+ toolkit.")
+    (home-page "https://luakit.github.io/")
+    (license license:gpl3+)))
+
+(define-public lynx
+  (package
+    (name "lynx")
+    (version "2.9.2")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "http://invisible-mirror.net/archives/lynx/tarballs"
+                    "/lynx" version ".tar.bz2"))
+              (sha256
+               (base32
+                "1kh7zfv7m9srqapppandx3hkc82rr7r9fkhz22g6d4fr6scvhx3k"))))
+    (build-system gnu-build-system)
+    (native-inputs (list pkg-config perl))
+    (inputs (list ncurses
+                  libidn
+                  openssl
+                  libgcrypt
+                  unzip
+                  zlib
+                  gzip
+                  bzip2))
+    (native-search-paths (list $SSL_CERT_DIR $SSL_CERT_FILE))
+    (arguments
+     (list #:configure-flags
+           #~(let ((openssl #$(this-package-input "openssl")))
+               (list "--with-pkg-config"
+                     "--with-screen=ncurses"
+                     "--with-zlib"
+                     "--with-bzlib"
+                     (string-append "--with-ssl=" openssl)
+                     ;; "--with-socks5"    ; XXX TODO
+                     "--enable-widec"
+                     "--enable-ascii-ctypes"
+                     "--enable-local-docs"
+                     "--enable-htmlized-cfg"
+                     "--enable-gzip-help"
+                     "--enable-nls"
+                     "--enable-ipv6"))
+           #:tests? #f                  ; no check target
+           #:phases
+           #~(modify-phases %standard-phases
+               (add-before 'configure 'set-makefile-shell
+                 (lambda _ (substitute* "po/makefile.inn"
+                             (("/bin/sh") (which "sh")))))
+               (replace 'install
+                 (lambda* (#:key (make-flags '()) #:allow-other-keys)
+                   (apply invoke "make" "install-full" make-flags))))))
+    (synopsis "Text Web Browser")
+    (description
+     "Lynx is a fully-featured @acronym{WWW, World Wide Web} client for users
+of cursor-addressable, character-cell display devices.  It will display
+@acronym{HTML, Hypertext Markup Language} documents containing links to files
+on the local system, as well as files on remote systems running http, gopher,
+ftp, wais, nntp, finger, or cso/ph/qi servers.
+
+Lynx can be used to access information on the WWW, or to build information
+systems intended primarily for local access.")
+    (home-page "https://lynx.invisible-island.net/")
+    (license license:gpl2)))
+
+(define-public qutebrowser
+  (package
+    (name "qutebrowser")
+    (version "3.7.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/qutebrowser/qutebrowser")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1mg4nghf9zw6z1qrw7c6zpbcdzsqr5al5s2svms0wa4dp45rzp69"))))
+    (build-system pyproject-build-system)
+    (native-inputs
+     (list python-setuptools
+           python-wheel
+           python-attrs                      ; for tests
+           asciidoc))
+    (inputs
+     (list bash-minimal
+           python-colorama
+           python-jinja2
+           python-markupsafe
+           python-pygments
+           python-pynacl
+           python-pypeg2
+           python-pyyaml
+           python-pyqt-6
+           python-pyqtwebengine-6
+           python-tldextract
+           ;; While qtwebengine is provided by python-pyqtwebengine-6, it's
+           ;; included here so we can wrap QTWEBENGINE_RESOURCES_PATH.
+           qtwebengine))
+    (arguments
+     `(;; FIXME: With the existence of qtwebengine, tests can now run.  But
+       ;; they are still disabled because test phase hangs.  It's not readily
+       ;; apparent as to why.
+       #:tests? #f
+       #:phases
+       (modify-phases %standard-phases
+         (add-after 'unpack 'patch-systemdir
+           (lambda* (#:key outputs #:allow-other-keys)
+             (let ((out (assoc-ref outputs "out")))
+               (substitute* "qutebrowser/utils/standarddir.py"
+                 (("/usr/share") (string-append out "/share"))))))
+         (add-after 'unpack 'find-userscripts
+           (lambda* (#:key outputs #:allow-other-keys)
+             (substitute* "qutebrowser/commands/userscripts.py"
+               (("os.path.join.*system=True)")
+                (string-append "os.path.join(\""
+                               (assoc-ref outputs "out")
+                               "\", \"share\", \"qutebrowser\"")))))
+         (add-before 'build 'build-docs
+           (lambda _
+               (substitute* "scripts/asciidoc2html.py"
+                 (("sys.executable, \"-m\", \"asciidoc\"")
+                  "\"asciidoc\""))
+               (invoke "python" "scripts/asciidoc2html.py")))
+         (add-before 'check 'set-env-offscreen
+           (lambda _
+             (setenv "QT_QPA_PLATFORM" "offscreen")))
+         (add-after 'install 'install-more
+           (lambda* (#:key outputs #:allow-other-keys)
+             (let ((out (assoc-ref outputs "out")))
+               (rename-file "misc/Makefile" "Makefile")
+               (substitute* "Makefile"
+                 ((".*setup\\.py.*") ""))
+               (invoke "make" "install" (string-append "PREFIX=" out))
+               (delete-file-recursively (string-append out "/share/metainfo")))))
+         (add-after 'install-more 'wrap-scripts
+           (lambda* (#:key inputs outputs #:allow-other-keys)
+             (let* ((out (assoc-ref outputs "out"))
+                    (python (assoc-ref inputs "python"))
+                    (path (string-append out "/lib/python"
+                                         ,(version-major+minor (package-version
+                                                                python))
+                                         "/site-packages:"
+                                         (getenv "GUIX_PYTHONPATH"))))
+               (for-each
+                (lambda (file)
+                  (wrap-program file
+                    `("GUIX_PYTHONPATH" ":" prefix (,path))))
+                (append
+                 (find-files
+                  (string-append out "/share/qutebrowser/scripts") "\\.py$")
+                 (find-files
+                  (string-append out "/share/qutebrowser/userscripts")))))))
+         (add-after 'wrap 'wrap-qt-process-path
+           (lambda* (#:key inputs outputs #:allow-other-keys)
+             (wrap-program (search-input-file outputs "bin/qutebrowser")
+               `("QTWEBENGINE_RESOURCES_PATH" =
+                 (,(search-input-directory
+                    inputs "/share/qt6/resources")))))))))
+    (home-page "https://qutebrowser.org/")
+    (synopsis "Minimal, keyboard-focused, vim-like web browser")
+    (description "qutebrowser is a keyboard-focused browser with a minimal
+GUI.  It is based on PyQt6 and QtWebEngine.")
+    (license license:gpl3+)))
+
+(define-public vimb
+  (package
+    (name "vimb")
+    (version "3.7.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/fanglingsu/vimb/")
+             (commit version)))
+       (sha256
+        (base32 "13gq6grhkscb0ms35k527fc49yrnkd4p3d1i0hv3pl4h6571s7ny"))
+       (file-name (git-file-name name version))))
+    (build-system glib-or-gtk-build-system)
+    (arguments
+     (list #:tests? #f                      ; no tests
+           #:make-flags #~(list (string-append "CC=" #$(cc-for-target))
+                                "DESTDIR="
+                                (string-append "PREFIX=" #$output))
+           #:phases
+           #~(modify-phases %standard-phases
+               (delete 'configure))))
+    (inputs (list glib-networking gsettings-desktop-schemas webkitgtk-for-gtk3))
+    (native-inputs (list pkg-config))
+    (home-page "https://fanglingsu.github.io/vimb/")
+    (synopsis "Fast and lightweight Vim-like web browser")
+    (description "Vimb is a fast and lightweight vim like web browser based on
+the webkit web browser engine and the GTK toolkit.  Vimb is modal like the great
+vim editor and also easily configurable during runtime.  Vimb is mostly keyboard
+driven and does not detract you from your daily work.")
+    (license license:gpl3+)))
+
+(define-public lagrange
+  (package
+    (name "lagrange")
+    (version "1.20.5")
+    (source
+     (origin
+       (method url-fetch)
+       (uri
+        (string-append "https://git.skyjake.fi/skyjake/lagrange/releases/"
+                       "download/v" version "/lagrange-" version ".tar.gz"))
+       (sha256
+        (base32 "1kha8p9bfhfr7bs3ihpzji3jz9qgwizz1f580nylnlrz418x9wkr"))
+       (modules '((guix build utils)))
+       (snippet
+        '(begin
+           ;; TODO: unbundle fonts.
+           (delete-file-recursively "lib/fribidi")
+           (delete-file-recursively "lib/harfbuzz")
+           (delete-file-recursively "lib/sealcurses")))))
+    (build-system cmake-build-system)
+    (arguments
+     (list
+       #:tests? #false                  ;no tests
+       #:configure-flags
+       #~(list "-DTFDN_ENABLE_SSE41=OFF"
+               (string-append "-DUNISTRING_DIR="
+                              #$(this-package-input "libunistring")))))
+    (native-inputs
+     (list pkg-config zip))
+    (inputs
+     (list freetype
+           fribidi
+           harfbuzz
+           libmpg123
+           libunistring
+           libwebp
+           openssl
+           pcre
+           sdl2
+           zlib))
+    (native-search-paths
+     (list (search-path-specification
+            (variable "XDG_DATA_DIRS")
+            (files '("share")))))
+    (home-page "https://gmi.skyjake.fi/lagrange/")
+    (synopsis "Graphical Gemini client")
+    (description
+     "Lagrange is a desktop GUI client for browsing Geminispace.  It offers
+modern conveniences familiar from web browsers, such as smooth scrolling,
+inline image viewing, multiple tabs, visual themes, Unicode fonts, bookmarks,
+history, and page outlines.")
+    (properties
+     '((release-monitoring-url . "https://git.skyjake.fi/gemini/lagrange/releases")))
+    (license license:bsd-2)))
+
+(define-public gmni
+  (package
+    (name "gmni")
+    (version "1.0")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://git.sr.ht/~sircmpwn/gmni")
+                    (commit version)))
+              (sha256
+               (base32
+                "0bky9fd8iyr13r6gj4aynb7j9nd36xdprbgq6nh5hz6jiw04vhfw"))
+              (file-name (git-file-name name version))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? #f                       ;no check target
+      #:make-flags #~(list #$(string-append "CC=" (cc-for-target)))))
+    (inputs
+     (list bearssl))
+    (native-inputs
+     (list pkg-config scdoc))
+    (home-page "https://sr.ht/~sircmpwn/gmni")
+    (synopsis "Minimalist command line Gemini client")
+    (description "The gmni package includes:
+
+@itemize
+@item A CLI utility (like curl): gmni
+@item A line-mode browser: gmnlm
+@end itemize")
+    (license (list license:gpl3+
+                   (license:non-copyleft
+                    "https://curl.se/docs/copyright.html"
+                    "Used only for files taken from curl.")))))
+
+(define-public bombadillo
+  (package
+    (name "bombadillo")
+    (version "2.4.0")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://tildegit.org/sloum/bombadillo")
+                    (commit version)))
+              (sha256
+               (base32
+                "03gcd813bmiy7ad179zg4p61nfa9z5l94sdmsmmn2x204h1ksd8n"))
+              (file-name (git-file-name name version))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:import-path "tildegit.org/sloum/bombadillo"
+      #:install-source? #f
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'install 'install-data
+            (lambda _
+              (let* ((builddir "src/tildegit.org/sloum/bombadillo")
+                     (pkg (strip-store-file-name #$output))
+                     (sharedir (string-append #$output "/share"))
+                     (appdir (string-append sharedir "/applications"))
+                     (docdir (string-append sharedir "/doc/" pkg))
+                     (mandir (string-append sharedir "/man/man1"))
+                     (pixdir (string-append sharedir "/pixmaps")))
+                (with-directory-excursion builddir
+                  (install-file "bombadillo.desktop" appdir)
+                  (install-file "bombadillo.1" mandir)
+                  (install-file "bombadillo-icon.png" pixdir))))))
+      #:test-flags #~(list "-vet=off")))
+    (home-page "https://bombadillo.colorfield.space")
+    (synopsis "Terminal browser for the gopher, gemini, and finger protocols")
+    (description "Bombadillo is a non-web browser for the terminal with
+vim-like key bindings, a document pager, configurable settings, and robust
+command selection.  The following protocols are supported as first-class
+citizens: gopher, gemini, finger, and local.  There is also support for telnet,
+http, and https via third-party applications.")
+    (license license:gpl3+)))
+
+(define-public tinmop
+  (package
+    (name "tinmop")
+    (version "0.9.9.14142135623730951")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://codeberg.org/cage/tinmop")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0dgx0p1g9xq2kq71ycq5mfjj5h5sw8xs26nk648w3lc8a6764mji"))))
+    (build-system gnu-build-system)
+    (native-inputs
+     (list autoconf
+           automake
+           bash-completion
+           gettext-minimal
+           libjpeg-turbo
+           imagemagick
+           mandoc
+           nano
+           openssl
+           pkg-config
+           sbcl
+           tk
+           unzip
+           which
+           xdg-utils))
+    (inputs
+     (list xsel
+           ncurses
+           sbcl-access
+           sbcl-alexandria
+           sbcl-babel
+           sbcl-bordeaux-threads
+           sbcl-cl+ssl
+           sbcl-cl-base64
+           sbcl-cl-colors2
+           sbcl-cl-html5-parser
+           sbcl-cl-i18n
+           sbcl-cl-ppcre
+           sbcl-cl-spark
+           sbcl-cl-sqlite
+           sbcl-clunit2
+           sbcl-croatoan
+           sbcl-chronicity
+           sbcl-crypto-shortcuts
+           sbcl-drakma
+           sbcl-esrap
+           sbcl-flexi-streams
+           sbcl-ieee-floats
+           sbcl-local-time
+           sbcl-log4cl
+           sbcl-marshal
+           sbcl-nodgui
+           sbcl-parse-number
+           sbcl-percent-encoding
+           sbcl-purgatory
+           sbcl-sxql
+           sbcl-sxql-composer
+           sbcl-tooter
+           sbcl-trivial-clipboard
+           sbcl-unix-opts
+           sbcl-usocket
+           sbcl-yason
+           sdl2-ttf
+           sqlite))
+    (arguments
+     `(#:tests? #f
+       #:strip-binaries? #f
+       #:phases
+       (modify-phases %standard-phases
+         (add-after 'unpack 'set-home
+           (lambda _
+             (setenv "HOME" "/tmp")
+             #t))
+         (add-after 'unpack 'fix-configure.ac
+           (lambda _
+             (delete-file "configure")
+             (substitute* "configure.ac"
+               (("AC_PATH_PROG.+CURL")
+                "dnl")
+               (("AC_PATH_PROGS.+GIT")
+                "dnl")
+               (("AC_PATH_PROG.+GPG")
+                "dnl")
+               (("AC_PATH_PROG.+SDL2")
+                "dnl ")
+               (("AC_CHECK_HEADER.+ttf")
+                "dnl "))
+             (substitute* "Makefile.am"
+               (("dist_completion_DATA")
+                "#")
+               (("completiondir")
+                "#"))
+             #t)))))
+    (synopsis
+     "Gemini, gopher, kami and mastodon/pleroma client with a terminal interface")
+    (description
+     "This package provides a Gemini, gopher, kami and mastodon/pleroma client
+with a terminal interface, for Gemini also a GUI is available.")
+    (home-page "https://www.autistici.org/interzona/tinmop.html")
+    (license license:gpl3+)))
+
+(define-public telescope
+  (package
+    (name "telescope")
+    (version "0.9")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "https://github.com/omar-polo/telescope/releases/download/"
+                           version "/telescope-" version ".tar.gz"))
+       (sha256
+        (base32 "1xbwdm3xcahwl6sjqx6f8hhx7nyzyygkjsnxglwxazp8zlmchqy9"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:tests? #f))                    ;no tests
+    (native-inputs
+     (list gettext-minimal pkg-config))
+    (inputs
+     (list libgrapheme libressl ncurses))
+    (home-page "https://telescope.omarpolo.com/")
+    (synopsis "Gemini client with a terminal interface")
+    (description "Telescope is a w3m-like browser for Gemini.")
+    (license license:x11)))
+
+(define-public leo
+  ;; PyPi only provides a wheel.
+  (let ((commit "88cc10a87afe2ec86be06e6ea2bcd099f5360b74")
+        (version "1.0.4")
+        (revision "1"))
+    (package
+      (name "leo")
+      (version (git-version version revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+               (url "https://github.com/xyzshantaram/leo")
+               (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32 "0jp4v4jw82qqynqqs7x35g5yvm1sd48cvbqh7j2r1ixw1z6ldhc4"))))
+      (build-system pyproject-build-system)
+      (arguments (list #:tests? #f))    ; No tests.
+      (native-inputs (list python-setuptools))
+      (home-page "https://github.com/xyzshantaram/leo")
+      (synopsis "Gemini client written in Python")
+      (description
+       "@command{leo} is a gemini client written in Python with no external
+dependencies that fully implements the Gemini spec.  A list of URLs can be
+saved to a file for further viewing in another window.")
+      (license license:expat))))
+
+(define-public av-98
+  (package
+    (name "av-98")
+    (version "1.4")
+    (properties '((upstream-name . "AV-98")))
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://git.sr.ht/~solderpunk/AV-98")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "04dzkzsan1cnrslsvfgn1whpwald8xy34wqzvq81hd2mvw9a2n69"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:tests? #f                       ; No tests.
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-before 'sanity-check 'configure-sanity-check
+            (lambda _
+              (setenv "HOME" (getcwd)))))))
+    (native-inputs (list python-setuptools))
+    (home-page "https://git.sr.ht/~solderpunk/AV-98")
+    (synopsis "Command line Gemini client")
+    (description
+     "AV-98 is an experimental client for the Gemini protocol. Features include
+@itemize
+@item TOFU or CA server certificate validation;
+@item Extensive client certificate support if an openssl binary is available;
+@item Ability to specify external handler programs for different MIME types;
+@item Gopher proxy support;
+@item Advanced navigation tools like tour and mark (as per VF-1);
+@item Bookmarks;
+@item IPv6 support;
+@item Support for any character encoding recognised by Python.
+@end itemize")
+    (license license:bsd-2)))
+
+(define-public dillo
+  (package
+    (name "dillo")
+    (version "3.3.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://git.dillo-browser.org/dillo")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "14mrm84br4p6iq3ihzlyq07p8v8cdvrh8zhs9yhv1dxbdkjxhdrk"))))
+    (build-system gnu-build-system)
+    (native-inputs (list autoconf automake))
+    (inputs (list fltk-1.3
+                  fontconfig
+                  openssl
+                  libjpeg-turbo
+                  libpng
+                  libwebp
+                  libxext
+                  libx11
+                  libxfixes
+                  libxft
+                  libxrender
+                  zlib))
+    (home-page "https://dillo-browser.org/")
+    (synopsis "Very small and fast graphical web browser")
+    (description
+     "Dillo is a minimalistic web browser particularly intended for
+-older or slower computers and embedded systems.")
+    (license license:gpl3+)))
+
+(define-public edbrowse
+  (package
+    (name "edbrowse")
+    (version "3.8.18")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/edbrowse/edbrowse")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "04fly77d20h1g6i36rv3pca44vpi0adin8k3hfan57bxy9nx8iww"))))
+    (build-system gnu-build-system)
+    (inputs (list curl-ssh pcre2 quickjs-ng openssl readline unixodbc))
+    (native-inputs (list perl pkg-config))
+    (arguments
+     (list
+      #:make-flags
+      #~(list (string-append "CC=" #$(cc-for-target))
+              (string-append "PREFIX=" #$output)
+              "CPPFLAGS=-DQ_NG=1"
+              "QUICKJS_LIB_NAME=qjs")
+      #:tests? #f ; Edbrowse doesn't have tests
+      #:phases
+      #~(modify-phases %standard-phases
+          (delete 'configure))))
+    (home-page "https://edbrowse.org/")
+    (synopsis "Command-line editor and web browser")
+    (description "Edbrowse is a combination editor, browser, and mail client that is
+100% text based.  The interface is similar to /bin/ed, though there are many more
+features, such as editing multiple files simultaneously, and rendering html.  This
+program was originally written for blind users, but many sighted users have taken
+advantage of the unique scripting capabilities of this program, which can be found
+nowhere else.  A batch job, or cron job, can access web pages on the internet, submit
+forms, and send email, with no human intervention whatsoever.  edbrowse can also tap
+into databases through odbc.  It was primarily written by Karl Dahlke.")
+    (license license:gpl2+)))

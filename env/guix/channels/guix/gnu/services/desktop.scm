@@ -1,0 +1,2793 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2014-2022 Ludovic Courtès <ludo@gnu.org>
+;;; Copyright © 2015 Andy Wingo <wingo@igalia.com>
+;;; Copyright © 2015 Mark H Weaver <mhw@netris.org>
+;;; Copyright © 2016 Sou Bunnbu <iyzsong@gmail.com>
+;;; Copyright © 2017, 2020, 2022, 2023, 2025 Maxim Cournoyer <maxim@guixotic.coop>
+;;; Copyright © 2017 Nikita <nikita@n0.is>
+;;; Copyright © 2017, 2019 Hartmut Goebel <h.goebel@crazy-compilers.com>
+;;; Copyright © 2018, 2020, 2022, 2025 Efraim Flashner <efraim@flashner.co.il>
+;;; Copyright © 2018, 2023 Ricardo Wurmus <rekado@elephly.net>
+;;; Copyright © 2017, 2019 Christopher Baines <mail@cbaines.net>
+;;; Copyright © 2019 Tim Gesthuizen <tim.gesthuizen@yahoo.de>
+;;; Copyright © 2019 David Wilson <david@daviwil.com>
+;;; Copyright © 2020, 2024 Tobias Geerinckx-Rice <me@tobias.gr>
+;;; Copyright © 2020 Reza Alizadeh Majd <r.majd@pantherx.org>
+;;; Copyright © 2021 Brice Waegeneire <brice@waegenei.re>
+;;; Copyright © 2021, 2022 muradm <mail@muradm.net>
+;;; Copyright © 2023 Bruno Victal <mirai@makinata.eu>
+;;; Copyright © 2023 Zheng Junjie <873216071@qq.com>
+;;; Copyright © 2024 45mg <45mg.writes@gmail.com>
+;;; Copyright © 2024 Raven Hallsby <karl@hallsby.com>
+;;; Copyright © 2025 Jonathan Brielmaier <jonathan.brielmaier@web.de>
+;;; Copyright © 2025 Sergio Pastor Pérez <sergio.pastorperez@gmail.com>
+;;; Copyright © 2025 dan <i@dan.games>
+;;; Copyright © 2026 Noé Lopez <noelopez@free.fr>
+;;; Copyright © 2026 Herman Rimm <herman@rimm.ee>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (gnu services desktop)
+  #:use-module ((gnu home services utils) #:select (object->camel-case-string))
+  #:use-module (gnu services)
+  #:use-module (gnu services shepherd)
+  #:use-module (gnu services base)
+  #:use-module (gnu services configuration)
+  #:use-module (gnu services dbus)
+  #:use-module (gnu services avahi)
+  #:use-module (gnu services xorg)
+  #:use-module (gnu services networking)
+  #:use-module (gnu services sound)
+  #:use-module ((gnu system file-systems)
+                #:select (%control-groups
+                          %elogind-file-systems
+                          file-system))
+  #:autoload   (gnu services sddm) (sddm-service-type)
+  #:use-module (gnu system)
+  #:use-module (gnu system privilege)
+  #:use-module (gnu system shadow)
+  #:use-module (gnu system uuid)
+  #:use-module (gnu system pam)
+  #:use-module (gnu packages glib)
+  #:use-module (gnu packages admin)
+  #:use-module (gnu packages bash)
+  #:use-module (gnu packages cups)
+  #:use-module (gnu packages dns)
+  #:use-module (gnu packages freedesktop)
+  #:use-module (gnu packages gnome)
+  #:use-module (gnu packages kde-plasma)
+  #:use-module (gnu packages pulseaudio)
+  #:use-module (gnu packages xfce)
+  #:use-module (gnu packages xdisorg)
+  #:use-module (gnu packages scanner)
+  #:use-module (gnu packages suckless)
+  #:use-module (gnu packages sugar)
+  #:use-module (gnu packages linux)
+  #:use-module (gnu packages libusb)
+  #:use-module (gnu packages lxqt)
+  #:use-module (gnu packages mate)
+  #:use-module (gnu packages nfs)
+  #:use-module (gnu packages enlightenment)
+  #:use-module (gnu packages haskell-apps)
+  #:use-module (gnu packages rust-apps)
+  #:use-module (gnu packages video)
+  #:use-module (guix deprecation)
+  #:use-module (guix i18n)
+  #:use-module (guix records)
+  #:use-module (guix packages)
+  #:use-module (guix search-paths)
+  #:use-module (guix store)
+  #:use-module (guix ui)
+  #:use-module (guix utils)
+  #:use-module (guix gexp)
+  #:use-module (guix modules)
+  #:use-module (srfi srfi-1)
+  #:use-module (srfi srfi-26)
+  #:use-module (ice-9 format)
+  #:use-module (ice-9 match)
+  #:export (<upower-configuration>
+            upower-configuration
+            upower-configuration?
+            upower-configuration-upower
+            upower-configuration-watts-up-pro?
+            upower-configuration-poll-batteries?
+            upower-configuration-ignore-lid?
+            upower-configuration-use-percentage-for-policy?
+            upower-configuration-percentage-low
+            upower-configuration-percentage-critical
+            upower-configuration-percentage-action
+            upower-configuration-time-low
+            upower-configuration-time-critical
+            upower-configuration-time-action
+            upower-configuration-critical-power-action
+
+            upower-service-type
+
+            udisks-configuration
+            udisks-configuration?
+            udisks-service  ; deprecated
+            udisks-service-type
+
+            gvfs-configuration
+            gvfs-configuration?
+            gvfs-service-type
+
+            colord-service-type
+
+            kmonad-configuration
+            kmonad-configuration-keymaps
+            kmonad-configuration-kmonad
+            kmonad-configuration?
+            kmonad-service-type
+
+            kanata-service-type
+            kanata-configuration
+            kanata-configuration?
+            kanata-configuration-kanata
+            kanata-configuration-keymaps
+
+            gpu-screen-recorder-configuration
+            gpu-screen-recorder-configuration?
+            gpu-screen-recorder-service-type
+
+            geoclue-application
+            geoclue-configuration
+            geoclue-configuration?
+            %standard-geoclue-applications
+            geoclue-service  ; deprecated
+            geoclue-service-type
+
+            iio-sensor-proxy-configuration
+            iio-sensor-proxy-configuration?
+            iio-sensor-proxy-configuration-io-sensor-proxy
+            iio-sensor-proxy-service-type
+
+            bluetooth-service-type
+            bluetooth-configuration
+            bluetooth-configuration?
+            bluetooth-service  ; deprecated
+
+            elogind-configuration
+            elogind-configuration?
+            elogind-service  ; deprecated
+            elogind-service-type
+
+            gardenhostd-configuration
+            gardenhostd-service-type
+
+            %gdm-file-system
+            gdm-file-system-service
+
+            %fontconfig-file-system
+            fontconfig-file-system-service
+
+            accountsservice-service-type
+            accountsservice-service  ; deprecated
+
+            cups-pk-helper-service-type
+
+            sane-configuration
+            sane-configuration?
+            sane-configuration-backends
+            sane-configuration-sane
+            sane-service-type
+
+            gnome-desktop-configuration
+            gnome-desktop-configuration?
+            gnome-desktop-configuration-core-services
+            gnome-desktop-configuration-shell
+            gnome-desktop-configuration-utilities
+            gnome-desktop-configuration-extra-packages
+            gnome-desktop-configuration-polkit-ignorelist
+            gnome-desktop-configuration-udev-ignorelist
+            gnome-desktop-configuration-keyring
+            gnome-desktop-service
+            gnome-desktop-service-type
+
+            mate-desktop-configuration
+            mate-desktop-configuration?
+            mate-desktop-service-type
+
+            lxqt-desktop-configuration
+            lxqt-desktop-configuration?
+            lxqt-desktop-service-type
+
+            sugar-desktop-configuration
+            sugar-desktop-configuration?
+            sugar-desktop-service-type
+
+            plasma-desktop-configuration
+            plasma-desktop-configuration?
+            plasma-desktop-service-type
+
+            xfce-desktop-configuration
+            xfce-desktop-configuration?
+            xfce-desktop-service-type
+
+            x11-socket-directory-service ;deprecated
+            x11-socket-directory-service-type
+
+            enlightenment-desktop-configuration
+            enlightenment-desktop-configuration?
+            enlightenment-desktop-service-type
+
+            inputattach-configuration
+            inputattach-configuration?
+            inputattach-service-type
+
+            polkit-wheel-service
+
+            gnome-keyring-configuration
+            gnome-keyring-configuration?
+            gnome-keyring-service-type
+
+            kwallet-configuration
+            kwallet-configuration?
+            kwallet-service-type
+
+            seatd-configuration
+            seatd-service-type
+
+            %desktop-services))
+
+;;; Commentary:
+;;;
+;;; This module contains service definitions for a "desktop" environment.
+;;;
+;;; Code:
+
+
+;;;
+;;; Helpers.
+;;;
+
+(define (bool value)
+  (if value "true\n" "false\n"))
+
+(define list-of-file-likes?
+  (list-of file-like?))
+
+(define (package-direct-input-selector tree)
+  "Return a procedure that selects TREE from the inputs of PACKAGE.  If TREE
+is a list, it recursively searches it until it locates the last item of TREE."
+  (lambda (package)
+    (let loop ((tree (if (pair? tree)
+                         tree
+                         (list tree)))
+               (package package))
+      (if (null? tree)
+          package
+          (loop (cdr tree)
+                (car (assoc-ref (package-direct-inputs package)
+                                (car tree))))))))
+(define (pascal-case text)
+  (object->camel-case-string text 'upper))
+
+
+;;;
+;;; Upower D-Bus service.
+;;;
+
+(define-record-type* <upower-configuration>
+  upower-configuration make-upower-configuration
+  upower-configuration?
+  (upower                     upower-configuration-upower
+                              (default upower))
+  (watts-up-pro?              upower-configuration-watts-up-pro?
+                              (default #f))
+  (poll-batteries?            upower-configuration-poll-batteries?
+                              (default #t))
+  (ignore-lid?                upower-configuration-ignore-lid?
+                              (default #f))
+  (use-percentage-for-policy? upower-configuration-use-percentage-for-policy?
+                              (default #t))
+  (percentage-low             upower-configuration-percentage-low
+                              (default 20))
+  (percentage-critical        upower-configuration-percentage-critical
+                              (default 5))
+  (percentage-action          upower-configuration-percentage-action
+                              (default 2))
+  (time-low                   upower-configuration-time-low
+                              (default 1200))
+  (time-critical              upower-configuration-time-critical
+                              (default 300))
+  (time-action                upower-configuration-time-action
+                              (default 120))
+  (critical-power-action      upower-configuration-critical-power-action
+                              (default 'hybrid-sleep)))
+
+(define* upower-configuration-file
+  ;; Return an upower-daemon configuration file.
+  (match-lambda
+    (($ <upower-configuration> upower
+        watts-up-pro? poll-batteries? ignore-lid? use-percentage-for-policy?
+        percentage-low percentage-critical percentage-action time-low
+        time-critical time-action critical-power-action)
+     (plain-file "UPower.conf"
+                 (string-append
+                  "[UPower]\n"
+                  "EnableWattsUpPro=" (bool watts-up-pro?)
+                  "NoPollBatteries=" (bool (not poll-batteries?))
+                  "IgnoreLid=" (bool ignore-lid?)
+                  "UsePercentageForPolicy=" (bool use-percentage-for-policy?)
+                  "PercentageLow=" (number->string percentage-low) "\n"
+                  "PercentageCritical=" (number->string percentage-critical) "\n"
+                  "PercentageAction=" (number->string percentage-action) "\n"
+                  "TimeLow=" (number->string time-low) "\n"
+                  "TimeCritical=" (number->string time-critical) "\n"
+                  "TimeAction=" (number->string time-action) "\n"
+                  "CriticalPowerAction=" (match critical-power-action
+                                           ('hybrid-sleep "HybridSleep")
+                                           ('hibernate "Hibernate")
+                                           ('power-off "PowerOff"))
+                  "\n")))))
+
+(define %upower-activation
+  #~(begin
+      (use-modules (guix build utils))
+      (mkdir-p "/var/lib/upower")))
+
+(define (upower-dbus-service config)
+  (list (wrapped-dbus-service (upower-configuration-upower config)
+                              "libexec/upowerd"
+                              `(("UPOWER_CONF_FILE_NAME"
+                                 ,(upower-configuration-file config))))))
+
+(define (upower-shepherd-service config)
+  "Return a shepherd service for UPower with CONFIG."
+  (let ((upower (upower-configuration-upower config))
+        (config (upower-configuration-file config)))
+    (list (shepherd-service
+           (documentation "Run the UPower power and battery monitor.")
+           (provision '(upower-daemon))
+           (requirement '(user-processes dbus-system udev))
+
+           (start #~(make-forkexec-constructor
+                     (list (string-append #$upower "/libexec/upowerd"))
+                     #:environment-variables
+                     (list (string-append "UPOWER_CONF_FILE_NAME="
+                                          #$config))))
+           (stop #~(make-kill-destructor))
+           (actions (list (shepherd-configuration-action config)))))))
+
+(define upower-service-type
+  (let ((upower-package (compose list upower-configuration-upower)))
+    (service-type (name 'upower)
+                  (description
+                   "Run @command{upowerd}, a system-wide monitor for power
+consumption and battery levels, with the given configuration settings.  It
+implements the @code{org.freedesktop.UPower} D-Bus interface, and is notably
+used by GNOME.")
+                  (extensions
+                   (list (service-extension dbus-root-service-type
+                                            upower-dbus-service)
+                         (service-extension shepherd-root-service-type
+                                            upower-shepherd-service)
+                         (service-extension activation-service-type
+                                            (const %upower-activation))
+                         (service-extension udev-service-type
+                                            upower-package)
+
+                         ;; Make the 'upower' command visible.
+                         (service-extension profile-service-type
+                                            upower-package)))
+                  (default-value (upower-configuration)))))
+
+
+;;;
+;;; GeoClue D-Bus service.
+;;;
+
+(define* (geoclue-application name #:key (allowed? #t) system? (users '()))
+  "Configure default GeoClue access permissions for an application.  NAME is
+the Desktop ID of the application, without the .desktop part.  If ALLOWED? is
+true, the application will have access to location information by default.
+The boolean SYSTEM? value indicates that an application is a system component
+or not.  Finally USERS is a list of UIDs of all users for which this
+application is allowed location info access.  An empty users list means all
+users are allowed."
+  (string-append
+   "[" name "]\n"
+   "allowed=" (bool allowed?)
+   "system=" (bool system?)
+   "users=" (string-join users ";") "\n"))
+
+(define %standard-geoclue-applications
+  (list (geoclue-application "gnome-datetime-panel" #:system? #t)
+        (geoclue-application "epiphany" #:system? #f)
+        (geoclue-application "firefox" #:system? #f)
+        (geoclue-application "librewolf" #:system? #f)
+        (geoclue-application "icecat" #:system? #f)
+        (geoclue-application "redshift" #:system? #f)))
+
+;; TODO: Use define-configuration and export accessors.
+(define-record-type* <geoclue-configuration>
+  geoclue-configuration make-geoclue-configuration
+  geoclue-configuration?
+  (geoclue geoclue-configuration-geoclue
+           (default geoclue))
+  (whitelist geoclue-configuration-whitelist
+             (default '()))
+  (wifi-geolocation-url
+   geoclue-configuration-wifi-geolocation-url
+   ;; BeaconDB geolocation service:
+   (default "https://api.beacondb.net/v1/geolocate?key=geoclue_guix.gnu.org"))
+  (submit-data? geoclue-configuration-submit-data?
+                (default #f))
+  (wifi-submission-url
+   geoclue-configuration-wifi-submission-url
+   (default "https://api.beacondb.net/v2/geosubmit"))
+  (submission-nick geoclue-configuration-submission-nick
+                   (default "geoclue"))
+  (applications geoclue-configuration-applications
+                (default %standard-geoclue-applications)))
+
+(define* (geoclue-configuration-file config)
+  "Return a geoclue configuration file."
+  (plain-file "geoclue.conf"
+              (string-append
+               "[agent]\n"
+               "whitelist="
+               (string-join (geoclue-configuration-whitelist config)
+                            ";") "\n"
+               "[wifi]\n"
+               "url=" (geoclue-configuration-wifi-geolocation-url config) "\n"
+               "submit-data=" (bool (geoclue-configuration-submit-data? config))
+               "submission-url="
+               (geoclue-configuration-wifi-submission-url config) "\n"
+               "submission-nick="
+               (geoclue-configuration-submission-nick config)
+               "\n"
+               (string-join (geoclue-configuration-applications config)
+                            "\n"))))
+
+(define (geoclue-dbus-service config)
+  (list (wrapped-dbus-service (geoclue-configuration-geoclue config)
+                              "libexec/geoclue"
+                              `(("GEOCLUE_CONFIG_FILE"
+                                 ,(geoclue-configuration-file config))))))
+
+(define %geoclue-accounts
+  (list (user-group (name "geoclue") (system? #t))
+        (user-account
+         (name "geoclue")
+         (group "geoclue")
+         (system? #t)
+         (comment "GeoClue daemon user")
+         (home-directory "/var/empty")
+         (shell "/run/current-system/profile/sbin/nologin"))))
+
+(define geoclue-service-type
+  (service-type (name 'geoclue)
+                (extensions
+                 (list (service-extension dbus-root-service-type
+                                          geoclue-dbus-service)
+                       (service-extension account-service-type
+                                          (const %geoclue-accounts))))
+                (description "Run the @command{geoclue} location service.
+This service provides a D-Bus interface to allow applications to request
+access to a user's physical location, and optionally to add information to
+online location databases.")
+                (default-value (geoclue-configuration))))
+
+(define-deprecated
+  (geoclue-service #:key (geoclue geoclue)
+                   (whitelist '())
+                   (wifi-geolocation-url
+                    ;; Mozilla geolocation service:
+                    "https://location.services.mozilla.com/v1/geolocate?key=geoclue")
+                   (submit-data? #f)
+                   (wifi-submission-url
+                    "https://location.services.mozilla.com/v1/submit?key=geoclue")
+                   (submission-nick "geoclue")
+                   (applications %standard-geoclue-applications))
+  geoclue-service-type
+  "Return a service that runs the @command{geoclue} location service.  This
+service provides a D-Bus interface to allow applications to request access to
+a user's physical location, and optionally to add information to online
+location databases.  By default, only the GNOME date-time panel and the Icecat
+and Epiphany web browsers are able to ask for the user's location, and in the
+case of Icecat and Epiphany, both will ask the user for permission first.  See
+@uref{https://wiki.freedesktop.org/www/Software/GeoClue/, the geoclue web
+site} for more information."
+  (service geoclue-service-type
+           (geoclue-configuration
+            (geoclue geoclue)
+            (whitelist whitelist)
+            (wifi-geolocation-url wifi-geolocation-url)
+            (submit-data? submit-data?)
+            (wifi-submission-url wifi-submission-url)
+            (submission-nick submission-nick)
+            (applications applications))))
+
+
+;;;
+;;; IIO Sensor proxy.
+;;;
+
+(define-record-type* <iio-sensor-proxy-configuration>
+  iio-sensor-proxy-configuration make-iio-sensor-proxy-configuration
+  iio-sensor-proxy-configuration?
+  (iio-sensor-proxy iio-sensor-proxy-configuration-iio-sensor-proxy
+                    (default iio-sensor-proxy)))
+
+(define iio-sensor-proxy-shepherd-service
+  (match-record-lambda <iio-sensor-proxy-configuration>
+      (iio-sensor-proxy)
+    (list (shepherd-service
+            (documentation "IIO sensors to D-Bus proxy")
+            (requirement '(user-processes dbus-system udev))
+            (provision '(iio-sensor-proxy))
+            (start #~(make-forkexec-constructor
+                      (list #$(file-append iio-sensor-proxy
+                                           "/libexec/iio-sensor-proxy"))))
+            (stop #~(make-kill-destructor))))))
+
+(define iio-sensor-proxy-service-type
+  (let ((iio-sensor-proxy-package
+         (match-record-lambda <iio-sensor-proxy-configuration>
+             (iio-sensor-proxy)
+           (list iio-sensor-proxy))))
+    (service-type
+      (name 'iio-sensor-proxy)
+      (extensions
+       (list (service-extension polkit-service-type
+                                iio-sensor-proxy-package)
+             (service-extension dbus-root-service-type
+                                iio-sensor-proxy-package)
+             (service-extension udev-service-type
+                                iio-sensor-proxy-package)
+             (service-extension shepherd-root-service-type
+                                iio-sensor-proxy-shepherd-service)))
+      (default-value (iio-sensor-proxy-configuration))
+      (description
+       "Run the @command{iio-sensor-proxy} daemon, which provides IIO sensors data
+through a D-Bus interface."))))
+
+
+;;;
+;;; Bluetooth.
+;;;
+
+(define-record-type* <bluetooth-configuration>
+  bluetooth-configuration make-bluetooth-configuration
+  bluetooth-configuration?
+  (bluez bluetooth-configuration-bluez (default bluez))
+
+  ;;; [General]
+  (name bluetooth-configuration-name (default "BlueZ"))
+  (class bluetooth-configuration-class (default #x000000))
+  (discoverable-timeout
+   bluetooth-configuration-discoverable-timeout (default 180))
+  (always-pairable? bluetooth-configuration-always-pairable? (default #f))
+  (pairable-timeout bluetooth-configuration-pairable-timeout (default 0))
+
+  ;;; MAYBE: Exclude into separate <device-id> record-type?
+  (device-id bluetooth-configuration-device-id (default #f))
+  (reverse-service-discovery?
+   bluetooth-configuration-reverse-service-discovery (default #t))
+  (name-resolving? bluetooth-configuration-name-resolving? (default #t))
+  (debug-keys? bluetooth-configuration-debug-keys? (default #f))
+
+  ;;; Possible values:
+  ;;; 'dual, 'bredr, 'le
+  (controller-mode bluetooth-configuration-controller-mode (default 'dual))
+
+  ;;; Possible values:
+  ;;; 'off, 'single, 'multiple
+  (multi-profile bluetooth-configuration-multi-profile (default 'off))
+  (fast-connectable? bluetooth-configuration-fast-connectable? (default #f))
+
+  ;;; Possible values:
+  ;;; for LE mode: 'off, 'network/on, 'device
+  ;;; for Dual mode: 'off, 'network/on', 'device, 'limited-network, 'limited-device
+  ;;; Source: https://git.kernel.org/pub/scm/bluetooth/bluez.git/tree/src/main.conf#n68
+  (privacy bluetooth-configuration-privacy (default 'off))
+
+  ;;; Possible values:
+  ;;; 'never, 'confirm, 'always
+  (just-works-repairing
+   bluetooth-configuration-just-works-repairing (default 'never))
+  (temporary-timeout bluetooth-configuration-temporary-timeout (default 30))
+  (refresh-discovery? bluetooth-configuration-refresh-discovery (default #t))
+
+  ;;; Possible values: #t, #f, (uuid <uuid>)
+  ;;; Possible UUIDs:
+  ;;; d4992530-b9ec-469f-ab01-6c481c47da1c (BlueZ Experimental Debug)
+  ;;; 671b10b5-42c0-4696-9227-eb28d1b049d6 (BlueZ Experimental Simultaneous Central and Peripheral)
+  ;;; 15c0a148-c273-11ea-b3de-0242ac130004 (BlueZ Experimental LL privacy)
+  ;;; 330859bc-7506-492d-9370-9a6f0614037f (BlueZ Experimental Bluetooth Quality Report)
+  ;;; a6695ace-ee7f-4fb9-881a-5fac66c629af (BlueZ Experimental Offload Codecs)
+  ;;; Source: https://git.kernel.org/pub/scm/bluetooth/bluez.git/tree/src/main.conf#n110
+  (experimental bluetooth-configuration-experimental (default #f))
+  (remote-name-request-retry-delay
+   bluetooth-configuration-remote-name-request-retry-delay (default 300))
+
+  ;;; [BR]
+  (page-scan-type bluetooth-configuration-page-scan-type (default #f))
+  (page-scan-interval bluetooth-configuration-page-scan-interval (default #f))
+  (page-scan-window bluetooth-configuration-page-scan-window (default #f))
+  (inquiry-scan-type bluetooth-configuration-inquiry-scan-type (default #f))
+  (inquiry-scan-interval bluetooth-configuration-inquiry-scan-interval (default #f))
+  (inquiry-scan-window bluetooth-configuration-inquiry-scan-window (default #f))
+  (link-supervision-timeout bluetooth-configuration-link-supervision-timeout (default #f))
+  (page-timeout bluetooth-configuration-page-timeout (default #f))
+  (min-sniff-interval bluetooth-configuration-min-sniff-interval (default #f))
+  (max-sniff-interval bluetooth-configuration-max-sniff-interval (default #f))
+
+  ;;; [LE]
+  (min-advertisement-interval
+   bluetooth-configuration-min-advertisement-interval (default #f))
+  (max-advertisement-interval
+   bluetooth-configuration-max-advertisement-interval (default #f))
+  (multi-advertisement-rotation-interval
+   bluetooth-configuration-multi-advertisement-rotation-interval (default #f))
+  (scan-interval-auto-connect
+   bluetooth-configuration-scan-interval-auto-connect (default #f))
+  (scan-window-auto-connect
+   bluetooth-configuration-scan-window-auto-connect (default #f))
+  (scan-interval-suspend
+   bluetooth-configuration-scan-interval-suspend (default #f))
+  (scan-window-suspend
+   bluetooth-configuration-scan-window-suspend (default #f))
+  (scan-interval-discovery
+   bluetooth-configuration-scan-interval-discovery (default #f))
+  (scan-window-discovery
+   bluetooth-configuration-scan-window-discovery (default #f))
+  (scan-interval-adv-monitor
+   bluetooth-configuration-scan-interval-adv-monitor (default #f))
+  (scan-window-adv-monitor
+   bluetooth-configuration-scan-window-adv-monitor (default #f))
+  (scan-interval-connect
+   bluetooth-configuration-scan-interval-connect (default #f))
+  (scan-window-connect
+   bluetooth-configuration-scan-window-connect (default #f))
+  (min-connection-interval
+   bluetooth-configuration-min-connection-interval (default #f))
+  (max-connection-interval
+   bluetooth-configuration-max-connection-interval (default #f))
+  (connection-latency
+   bluetooth-configuration-connection-latency (default #f))
+  (connection-supervision-timeout
+   bluetooth-configuration-connection-supervision-timeout (default #f))
+  (autoconnect-timeout
+   bluetooth-configuration-autoconnect-timeout (default #f))
+  (adv-mon-allowlist-scan-duration
+   bluetooth-configuration-adv-mon-allowlist-scan-duration (default 300))
+  (adv-mon-no-filter-scan-duration
+   bluetooth-configuration-adv-mon-no-filter-scan-duration (default 500))
+  (enable-adv-mon-interleave-scan?
+   bluetooth-configuration-enable-adv-mon-interleave-scan (default #t))
+
+  ;;; [GATT]
+  ;;; Possible values: 'yes, 'no, 'always
+  (cache bluetooth-configuration-cache (default 'always))
+
+  ;;; Possible values: 7 ... 16, 0 (don't care)
+  (key-size bluetooth-configuration-key-size (default 0))
+
+  ;;; Possible values: 23 ... 517
+  (exchange-mtu bluetooth-configuration-exchange-mtu (default 517))
+
+  ;;; Possible values: 1 ... 5
+  (att-channels bluetooth-configuration-att-channels (default 3))
+
+  ;;; [AVDTP]
+  ;;; Possible values: 'basic, 'ertm
+  (session-mode bluetooth-configuration-session-mode (default 'basic))
+
+  ;;; Possible values: 'basic, 'streaming
+  (stream-mode bluetooth-configuration-stream-mode (default 'basic))
+
+  ;;; [Policy]
+  (reconnect-uuids bluetooth-configuration-reconnect-uuids (default '()))
+  (reconnect-attempts bluetooth-configuration-reconnect-attempts (default 7))
+  (reconnect-intervals bluetooth-configuration-reconnect-intervals
+                       (default (list 1 2 4 8 16 32 64)))
+  (auto-enable? bluetooth-configuration-auto-enable? (default #f))
+  (resume-delay bluetooth-configuration-resume-delay (default 2))
+
+  ;;; [AdvMon]
+  ;;; Possible values:
+  ;;; "0x00", "0xFF",
+  ;;; "N = 0x00" ... "N = 0xFF"
+  ;;; Source: https://git.kernel.org/pub/scm/bluetooth/bluez.git/tree/src/main.conf#n286
+  (rssi-sampling-period bluetooth-configuration-rssi-sampling-period
+                        (default #xFF)))
+
+(define (bluetooth-configuration-file config)
+  "Return a configuration file for the systemd bluetooth service, as a string."
+  (string-append
+   "[General]"
+   "\nName = " (bluetooth-configuration-name config)
+   "\nClass = " (string-append
+                 "0x"
+                 (format #f "~6,'0x" (bluetooth-configuration-class config)))
+   "\nDiscoverableTimeout = " (number->string
+                               (bluetooth-configuration-discoverable-timeout
+                                config))
+   "\nAlwaysPairable = " (bool (bluetooth-configuration-always-pairable?
+                                config))
+   "\nPairableTimeout = " (number->string
+                           (bluetooth-configuration-pairable-timeout
+                            config))
+   (if (bluetooth-configuration-device-id config)
+       (string-append "\nDeviceID = " (bluetooth-configuration-device-id config))
+       "")
+   "\nReverseServiceDiscovery = " (bool
+                                   (bluetooth-configuration-reverse-service-discovery
+                                    config))
+   "\nNameResolving = " (bool (bluetooth-configuration-name-resolving? config))
+   "\nDebugKeys = " (bool (bluetooth-configuration-debug-keys? config))
+   "\nControllerMode = " (symbol->string
+                          (bluetooth-configuration-controller-mode config))
+   "\nMultiProfile = " (symbol->string (bluetooth-configuration-multi-profile
+                                        config))
+   "\nFastConnectable = " (bool (bluetooth-configuration-fast-connectable? config))
+   "\nPrivacy = " (symbol->string (bluetooth-configuration-privacy config))
+   "\nJustWorksRepairing = " (symbol->string
+                              (bluetooth-configuration-just-works-repairing config))
+   "\nTemporaryTimeout = " (number->string
+                            (bluetooth-configuration-temporary-timeout config))
+   "\nRefreshDiscovery = " (bool (bluetooth-configuration-refresh-discovery config))
+   "\nExperimental = " (let ((experimental (bluetooth-configuration-experimental config)))
+                         (cond ((or (eq? experimental #t)
+                                    (eq? experimental #f)) (bool experimental))
+                               ((list? experimental)
+                                (string-join (map uuid->string experimental) ","))))
+   "\nRemoteNameRequestRetryDelay = " (number->string
+                                       (bluetooth-configuration-remote-name-request-retry-delay
+                                        config))
+   "\n[BR]"
+   (if (bluetooth-configuration-page-scan-type config)
+       (string-append
+        "\nPageScanType = "
+        (number->string (bluetooth-configuration-page-scan-type config)))
+       "")
+   (if (bluetooth-configuration-page-scan-interval config)
+       (string-append
+        "\nPageScanInterval = "
+        (number->string (bluetooth-configuration-page-scan-interval config)))
+       "")
+   (if (bluetooth-configuration-page-scan-window config)
+       (string-append
+        "\nPageScanWindow = "
+        (number->string (bluetooth-configuration-page-scan-window config)))
+       "")
+   (if (bluetooth-configuration-inquiry-scan-type config)
+       (string-append
+        "\nInquiryScanType = "
+        (number->string (bluetooth-configuration-inquiry-scan-type config)))
+       "")
+   (if (bluetooth-configuration-inquiry-scan-interval config)
+       (string-append
+        "\nInquiryScanInterval = "
+        (number->string (bluetooth-configuration-inquiry-scan-interval config)))
+       "")
+   (if (bluetooth-configuration-inquiry-scan-window config)
+       (string-append
+        "\nInquiryScanWindow = "
+        (number->string (bluetooth-configuration-inquiry-scan-window config)))
+       "")
+   (if (bluetooth-configuration-link-supervision-timeout config)
+       (string-append
+        "\nLinkSupervisionTimeout = "
+        (number->string (bluetooth-configuration-link-supervision-timeout config)))
+       "")
+   (if (bluetooth-configuration-page-timeout config)
+       (string-append
+        "\nPageTimeout = "
+        (number->string (bluetooth-configuration-page-timeout config)))
+       "")
+   (if (bluetooth-configuration-min-sniff-interval config)
+       (string-append
+        "\nMinSniffInterval = "
+        (number->string (bluetooth-configuration-min-sniff-interval config)))
+       "")
+   (if (bluetooth-configuration-max-sniff-interval config)
+       (string-append
+        "\nMaxSniffInterval = "
+        (number->string (bluetooth-configuration-max-sniff-interval config)))
+       "")
+
+   "\n[LE]"
+   (if (bluetooth-configuration-min-advertisement-interval config)
+       (string-append
+        "\nMinAdvertisementInterval = "
+        (number->string (bluetooth-configuration-min-advertisement-interval config)))
+       "")
+   (if (bluetooth-configuration-max-advertisement-interval config)
+       (string-append
+        "\nMaxAdvertisementInterval = "
+        (number->string (bluetooth-configuration-max-advertisement-interval config)))
+       "")
+   (if (bluetooth-configuration-multi-advertisement-rotation-interval config)
+       (string-append
+        "\nMultiAdvertisementRotationInterval = "
+        (number->string
+         (bluetooth-configuration-multi-advertisement-rotation-interval config)))
+       "")
+   (if (bluetooth-configuration-scan-interval-auto-connect config)
+       (string-append
+        "\nScanIntervalAutoConnect = "
+        (number->string (bluetooth-configuration-scan-interval-auto-connect config)))
+       "")
+   (if (bluetooth-configuration-scan-window-auto-connect config)
+       (string-append
+        "\nScanWindowAutoConnect = "
+        (number->string (bluetooth-configuration-scan-window-auto-connect config)))
+       "")
+   (if (bluetooth-configuration-scan-interval-suspend config)
+       (string-append
+        "\nScanIntervalSuspend = "
+        (number->string (bluetooth-configuration-scan-interval-suspend config)))
+       "")
+   (if (bluetooth-configuration-scan-window-suspend config)
+       (string-append
+        "\nScanWindowSuspend = "
+        (number->string (bluetooth-configuration-scan-window-suspend config)))
+       "")
+   (if (bluetooth-configuration-scan-interval-discovery config)
+       (string-append
+        "\nScanIntervalDiscovery = "
+        (number->string (bluetooth-configuration-scan-interval-discovery config)))
+       "")
+   (if (bluetooth-configuration-scan-window-discovery config)
+       (string-append
+        "\nScanWindowDiscovery = "
+        (number->string (bluetooth-configuration-scan-window-discovery config)))
+       "")
+   (if (bluetooth-configuration-scan-interval-adv-monitor config)
+       (string-append
+        "\nScanIntervalAdvMonitor = "
+        (number->string (bluetooth-configuration-scan-interval-adv-monitor config)))
+       "")
+   (if (bluetooth-configuration-scan-window-adv-monitor config)
+       (string-append
+        "\nScanWindowAdvMonitor = "
+        (number->string (bluetooth-configuration-scan-window-adv-monitor config)))
+       "")
+   (if (bluetooth-configuration-scan-interval-connect config)
+       (string-append
+        "\nScanIntervalConnect = "
+        (number->string (bluetooth-configuration-scan-interval-connect config)))
+       "")
+   (if (bluetooth-configuration-scan-window-connect config)
+       (string-append
+        "\nScanWindowConnect = "
+        (number->string (bluetooth-configuration-scan-window-connect config)))
+       "")
+   (if (bluetooth-configuration-min-connection-interval config)
+       (string-append
+        "\nMinConnectionInterval = "
+        (number->string (bluetooth-configuration-min-connection-interval config)))
+       "")
+   (if (bluetooth-configuration-max-connection-interval config)
+       (string-append
+        "\nMaxConnectionInterval = "
+        (number->string (bluetooth-configuration-max-connection-interval config)))
+       "")
+   (if (bluetooth-configuration-connection-latency config)
+       (string-append
+        "\nConnectionLatency = "
+        (number->string (bluetooth-configuration-connection-latency config)))
+       "")
+   (if (bluetooth-configuration-connection-supervision-timeout config)
+       (string-append
+        "\nConnectionSupervisionTimeout = "
+        (number->string (bluetooth-configuration-connection-supervision-timeout config)))
+       "")
+   (if (bluetooth-configuration-autoconnect-timeout config)
+       (string-append
+        "\nAutoconnecttimeout = "
+        (number->string (bluetooth-configuration-autoconnect-timeout config)))
+       "")
+   "\nAdvMonAllowlistScanDuration = " (number->string
+                                       (bluetooth-configuration-adv-mon-allowlist-scan-duration
+                                        config))
+   "\nAdvMonNoFilterScanDuration = " (number->string
+                                      (bluetooth-configuration-adv-mon-no-filter-scan-duration
+                                       config))
+   "\nEnableAdvMonInterleaveScan = " (number->string
+                                      (if (eq? #t
+                                               (bluetooth-configuration-enable-adv-mon-interleave-scan
+                                                config))
+                                          1 0))
+
+   "\n[GATT]"
+   "\nCache = " (symbol->string (bluetooth-configuration-cache config))
+   "\nKeySize = " (number->string (bluetooth-configuration-key-size config))
+   "\nExchangeMTU = " (number->string (bluetooth-configuration-exchange-mtu config))
+   "\nChannels = " (number->string (bluetooth-configuration-att-channels config))
+
+   "\n[AVDTP]"
+   "\nSessionMode = " (symbol->string (bluetooth-configuration-session-mode config))
+   "\nStreamMode = " (symbol->string (bluetooth-configuration-stream-mode config))
+
+   "\n[Policy]"
+   (let ((uuids (bluetooth-configuration-reconnect-uuids config)))
+     (if (not (eq? '() uuids))
+         (string-append
+          "\nReconnectUUIDs = "
+          (string-join (map uuid->string uuids) ","))
+         ""))
+   "\nReconnectAttempts = " (number->string
+                             (bluetooth-configuration-reconnect-attempts config))
+   "\nReconnectIntervals = " (string-join
+                              (map number->string
+                                   (bluetooth-configuration-reconnect-intervals
+                                    config))
+                              ",")
+   "\nAutoEnable = " (bool (bluetooth-configuration-auto-enable?
+                            config))
+   "\nResumeDelay = " (number->string (bluetooth-configuration-resume-delay config))
+
+   "\n[AdvMon]"
+   "\nRSSISamplingPeriod = " (string-append
+                              "0x"
+                              (format #f "~2,'0x"
+                                      (bluetooth-configuration-rssi-sampling-period config)))))
+
+(define (bluetooth-directory config)
+  (computed-file "etc-bluetooth"
+                 #~(begin
+                     (mkdir #$output)
+                     (chdir #$output)
+                     (call-with-output-file "main.conf"
+                       (lambda (port)
+                         (display #$(bluetooth-configuration-file config)
+                                  port))))))
+
+(define (bluetooth-shepherd-service config)
+  "Return a shepherd service for @command{bluetoothd}."
+  (shepherd-service
+   (provision '(bluetooth))
+   (requirement '(user-processes dbus-system udev))
+   (documentation "Run the bluetoothd daemon.")
+   (start #~(make-forkexec-constructor
+             (list #$(file-append (bluetooth-configuration-bluez config)
+                                  "/libexec/bluetooth/bluetoothd"))))
+   (stop #~(make-kill-destructor))))
+
+(define bluetooth-service-type
+  (service-type
+   (name 'bluetooth)
+   (extensions
+    (list (service-extension dbus-root-service-type
+                             (compose list bluetooth-configuration-bluez))
+          (service-extension udev-service-type
+                             (compose list bluetooth-configuration-bluez))
+          (service-extension etc-service-type
+                             (lambda (config)
+                               `(("bluetooth"
+                                  ,(bluetooth-directory config)))))
+          (service-extension shepherd-root-service-type
+                             (compose list bluetooth-shepherd-service))))
+   (default-value (bluetooth-configuration))
+   (description "Run the @command{bluetoothd} daemon, which manages all the
+Bluetooth devices and provides a number of D-Bus interfaces.")))
+
+(define-deprecated (bluetooth-service #:key (bluez bluez) (auto-enable? #f))
+  bluetooth-service-type
+  "Return a service that runs the @command{bluetoothd} daemon, which manages
+all the Bluetooth devices and provides a number of D-Bus interfaces.  When
+AUTO-ENABLE? is true, the bluetooth controller is powered automatically at
+boot, which can be useful when using a bluetooth keyboard or mouse.
+"
+  (service bluetooth-service-type
+           (bluetooth-configuration
+            (bluez bluez)
+            (auto-enable? auto-enable?))))
+
+
+;;;
+;;; Colord D-Bus service.
+;;;
+
+(define %colord-activation
+  #~(begin
+      (use-modules (guix build utils))
+      (mkdir-p "/var/lib/colord")
+      (let ((user (getpwnam "colord")))
+        (chown "/var/lib/colord"
+               (passwd:uid user) (passwd:gid user)))))
+
+(define %colord-accounts
+  (list (user-group (name "colord") (system? #t))
+        (user-account
+         (name "colord")
+         (group "colord")
+         (system? #t)
+         (comment "colord daemon user")
+         (home-directory "/var/empty")
+         (shell (file-append shadow "/sbin/nologin")))))
+
+(define colord-service-type
+  (service-type (name 'colord)
+                (extensions
+                 (list (service-extension account-service-type
+                                          (const %colord-accounts))
+                       (service-extension activation-service-type
+                                          (const %colord-activation))
+
+                       ;; Colord is a D-Bus service that dbus-daemon can
+                       ;; activate.
+                       (service-extension dbus-root-service-type list)
+
+                       ;; Colord provides "color device" rules for udev.
+                       (service-extension udev-service-type list)
+
+                       ;; It provides polkit "actions".
+                       (service-extension polkit-service-type list)))
+                (default-value colord)
+                (description
+                 "Run @command{colord}, a system service with a D-Bus
+interface to manage the color profiles of input and output devices such as
+screens and scanners.")))
+
+
+;;;
+;;; KMonad.
+;;;
+
+(define-configuration/no-serialization kmonad-configuration
+  (kmonad
+   (package kmonad)
+   "The KMonad package to use.")
+  (keymaps
+   (list-of-file-likes '())
+   "A list of KMonad configurations (file-like objects).  See
+@uref{https://github.com/kmonad/kmonad/blob/master/keymap/tutorial.kbd, KMonad
+- Keymap Tutorial}"))
+
+;; Isolate write access to /dev/uinput to prevent privilege escalation for
+;; users/processes that only need read access to the 'input' group.
+(define %uinput-group
+  (user-group
+    (name "uinput")
+    (system? #t)))
+
+(define %kmonad-group
+  (user-group
+    (name "kmonad")
+    (system? #t)))
+
+;; OPTIONS+="static_node=uinput" triggers kmod to load the uinput module on
+;; boot.
+(define %kmonad-udev-rule
+  (udev-rule
+   "99-kmonad.rules"
+   "KERNEL==\"uinput\", MODE=\"0660\", GROUP=\"uinput\", OPTIONS+=\"static_node=uinput\"\n"))
+
+(define %kmonad-user
+  (user-account
+    (name "kmonad")
+    (group "kmonad")
+    (supplementary-groups '("input" "uinput"))
+    (system? #t)
+    (comment "KMonad daemon user")
+    (home-directory "/var/empty")
+    (create-home-directory? #f)
+    (shell (file-append shadow "/sbin/nologin"))))
+
+(define %kmonad-accounts
+  (list %uinput-group %kmonad-group %kmonad-user))
+
+(define (kmonad-shepherd-services config)
+  "Return a shepherd service for each @command{kmonad} configuration."
+  (let* ((kmonad (file-append (kmonad-configuration-kmonad config)
+                              "/bin/kmonad"))
+         (keymaps (kmonad-configuration-keymaps config)))
+    (map (lambda (index keymap)
+           (let ((name (string-append "kmonad-" (number->string index))))
+             (shepherd-service
+               (provision (list (string->symbol name)))
+               (requirement '(user-processes udev))
+               (documentation (string-append "Run kmonad process "
+                                             (number->string index) "."))
+               (start #~(make-forkexec-constructor
+                         (list #$kmonad "-l" "info" #$keymap)
+                         #:user "kmonad"
+                         #:group "kmonad"
+                         #:supplementary-groups '("input" "uinput")
+                         #:log-file #$(string-append "/var/log/" name ".log")))
+               (stop #~(make-kill-destructor)))))
+         (iota (length keymaps))
+         keymaps)))
+
+(define kmonad-service-type
+  (service-type
+    (name 'kmonad)
+    (extensions
+     (list (service-extension account-service-type
+                              (const %kmonad-accounts))
+           (service-extension shepherd-root-service-type
+                              kmonad-shepherd-services)
+           (service-extension udev-service-type
+                              (const (list %kmonad-udev-rule)))))
+    (description "Run the @command{kmonad} daemon, which allows customizing
+and extending the functionalities of different keyboards.")))
+
+
+;;;
+;;; Kanata.
+;;;
+
+(define-configuration/no-serialization kanata-configuration
+  (kanata
+   (package kanata)
+   "The @code{kanata} package to use.")
+  (keymaps
+   (list-of-file-likes '())
+   "List of @command{kanata} configuration files (file-like objects).  See
+@uref{https://jtroo.github.io/config.html#linux-only-linux-dev, Kanata's
+device specification documentation}."))
+
+(define %kanata-group
+  (user-group
+    (name "kanata")
+    (system? #t)))
+
+(define %kanata-user
+  (user-account
+    (name "kanata")
+    (group "kanata")
+    (supplementary-groups '("input" "uinput"))
+    (system? #t)
+    (comment "Kanata daemon user")
+    (home-directory "/var/empty")
+    (create-home-directory? #f)
+    (shell (file-append shadow "/sbin/nologin"))))
+
+(define %kanata-accounts
+  (list %uinput-group %kanata-group %kanata-user))
+
+;; OPTIONS+="static_node=uinput" triggers kmod to load the uinput module on
+;; boot.
+(define %kanata-udev-rule
+  (udev-rule
+   "99-kanata.rules"
+   "KERNEL==\"uinput\", MODE=\"0660\", GROUP=\"uinput\", OPTIONS+=\"static_node=uinput\"\n"))
+
+(define (kanata-shepherd-services config)
+  "Return a shepherd service for each @command{kanata} configuration."
+  (let* ((kanata  (file-append (kanata-configuration-kanata config)
+                               "/bin/kanata"))
+         (keymaps (kanata-configuration-keymaps config)))
+    (map (lambda (index keymap)
+           (let ((name (string-append "kanata-" (number->string index))))
+             (shepherd-service
+               (provision     (list (string->symbol name)))
+               (requirement   '(user-processes udev))
+               (documentation (string-append "Run kanata process "
+                                             (number->string index) "."))
+               (start         #~(make-forkexec-constructor
+                                 ;; '--no-wait' prevents pausing on exit so
+                                 ;; Shepherd can reliably restart the daemon.
+                                 (list #$kanata "-c" #$keymap "--no-wait")
+                                 #:user "kanata"
+                                 #:group "kanata"
+                                 #:supplementary-groups '("input" "uinput")
+                                 #:log-file #$(string-append "/var/log/" name ".log")))
+               (stop          #~(make-kill-destructor)))))
+         (iota (length keymaps))
+         keymaps)))
+
+(define kanata-service-type
+  (service-type
+    (name 'kanata)
+    (extensions
+     (list (service-extension account-service-type
+                              (const %kanata-accounts))
+           (service-extension shepherd-root-service-type
+                              kanata-shepherd-services)
+           (service-extension udev-service-type
+                              (const (list %kanata-udev-rule)))))
+    (description
+     "Run the @command{kanata} daemon, which allows customizing and extending
+the functionalities of different keyboards.")))
+
+
+;;;
+;;; GPU Screen Recorder.
+;;;
+
+(define-record-type* <gpu-screen-recorder-configuration>
+  gpu-screen-recorder-configuration
+  make-gpu-screen-recorder-configuration
+  gpu-screen-recorder-configuration?
+  (package
+    gpu-screen-recorder-configuration-package
+    (default gpu-screen-recorder)))
+
+(define (gpu-screen-recorder-privileged-programs config)
+  (list
+   (privileged-program
+     (program
+      (file-append
+       (gpu-screen-recorder-configuration-package config)
+       "/bin/gsr-kms-server"))
+     (capabilities "cap_sys_admin=ep"))))
+
+(define gpu-screen-recorder-service-type
+  (service-type
+    (name 'gpu-screen-recorder)
+    (extensions
+     (list
+      (service-extension
+       profile-service-type
+       (compose list gpu-screen-recorder-configuration-package))
+      (service-extension
+       privileged-program-service-type
+       gpu-screen-recorder-privileged-programs)))
+    (default-value (gpu-screen-recorder-configuration))
+    (description
+     "Install GPU Screen Recorder and grant its @command{gsr-kms-server}
+helper the @code{CAP_SYS_ADMIN} capability required for direct KMS
+capture.")))
+
+
+;;;
+;;; UDisks.
+;;;
+
+(define-record-type* <udisks-configuration>
+  udisks-configuration make-udisks-configuration
+  udisks-configuration?
+  (udisks   udisks-configuration-udisks
+            (default udisks)))
+
+(define %udisks-activation
+  (with-imported-modules '((guix build utils))
+    #~(begin
+        (use-modules (guix build utils))
+
+        (let ((run-dir "/var/run/udisks2"))
+          (mkdir-p run-dir)
+          (chmod run-dir #o700)))))
+
+(define udisks-service-type
+  (let ((udisks-package (lambda (config)
+                          (list (udisks-configuration-udisks config)))))
+    (service-type (name 'udisks)
+                  (extensions
+                   (list (service-extension polkit-service-type
+                                            udisks-package)
+                         (service-extension dbus-root-service-type
+                                            udisks-package)
+                         (service-extension udev-service-type
+                                            udisks-package)
+                         (service-extension activation-service-type
+                                            (const %udisks-activation))
+
+                         ;; Profile 'udisksctl' & co. in the system profile.
+                         (service-extension profile-service-type
+                                            udisks-package)))
+                  (description "Run UDisks, a @dfn{disk management} daemon
+that provides user interfaces with notifications and ways to mount/unmount
+disks.  Programs that talk to UDisks include the @command{udisksctl} command,
+part of UDisks, and GNOME Disks.")
+                  (default-value (udisks-configuration)))))
+
+(define-deprecated (udisks-service #:key (udisks udisks))
+  udisks-service-type
+  "Return a service for @uref{http://udisks.freedesktop.org/docs/latest/,
+UDisks}, a @dfn{disk management} daemon that provides user interfaces with
+notifications and ways to mount/unmount disks.  Programs that talk to UDisks
+include the @command{udisksctl} command, part of UDisks, and GNOME Disks."
+  (service udisks-service-type
+           (udisks-configuration (udisks udisks))))
+
+
+
+;;;
+;;; GVfs virtual file system.
+;;;
+
+(define-record-type* <gvfs-configuration>
+  gvfs-configuration make-gvfs-configuration
+  gvfs-configuration?
+  (gvfs gvfs-package (default gvfs)))
+
+(define gvfs-service-type
+  (service-type (name 'gvfs)
+                (extensions
+                 (list
+                  (service-extension profile-service-type
+                                     (compose list gvfs-package))
+                  ;; Required for gvfs-udisks2-volume-monitor.
+                  (service-extension udisks-service-type (const #t))))
+                (description
+                 "Make GVfs virtual file systems (Trash, SFTP, SMB, HTTP,
+and many other) available for GIO applications.")
+                (default-value (gvfs-configuration))))
+
+
+;;;
+;;; Elogind login and seat management service.
+;;;
+
+;;; Elogind configuration types.
+(define-maybe boolean
+  (prefix elogind-))
+
+(define (non-negative-integer? x)
+  (and (exact-integer? x)
+       (not (negative? x))))
+
+(define-maybe non-negative-integer
+  (prefix elogind-))
+
+(define (non-negative-integer-and-suffix? x)
+  (match-lambda
+    ((x . '%)
+     (and (non-negative-integer? x)
+          (<= x 100)))
+    (((? non-negative-integer?) . suffix)
+     (member suffix '(K M G T)))
+    (x (non-negative-integer? x))))
+
+(define-maybe non-negative-integer-and-suffix
+  (prefix elogind-))
+
+(define char-set:user-name
+  (string->char-set "abcdefghijklmnopqrstuvwxyz0123456789_-"))
+
+(define (user-name? x)
+  (string-every char-set:user-name x))
+
+(define list-of-user-names?
+  (list-of user-name?))
+
+(define-maybe list-of-user-names
+  (prefix elogind-))
+
+(define %elogind-actions
+  '( ignore poweroff reboot halt kexec suspend hibernate hybrid-sleep
+     suspend-then-hibernate lock factory-reset))
+
+(define (action? x)
+  (member x %elogind-actions))
+
+(define-maybe action
+  (prefix elogind-))
+
+(define %linux-suspend-states
+  ;; The possible suspend states supported by the Linux kernel.
+  ;; See (info "(linux) Basic sysfs Interfaces for System Suspend and Hibernation").
+  '(disk standby freeze mem))
+
+(define (string->symbol/maybe x)
+  (if (string? x)
+      (string->symbol x)
+      x))
+
+(define (suspend-state? x)
+  (member (string->symbol/maybe x) %linux-suspend-states))
+
+(define list-of-suspend-states?
+  (list-of suspend-state?))
+
+(define-maybe list-of-suspend-states
+  (prefix elogind-))
+
+(define %linux-suspend-modes
+  ;; The possible suspend state variants supported by the Linux kernel.
+  ;; See (info "(linux) Basic sysfs Interfaces for System Suspend and Hibernation").
+  '(s2idle shallow deep))
+
+(define (suspend-mode? x)
+  (member (string->symbol/maybe x) %linux-suspend-modes))
+
+(define list-of-suspend-modes?
+  (list-of suspend-mode?))
+
+(define-maybe list-of-suspend-modes
+  (prefix elogind-))
+
+(define %linux-hibernation-modes
+  ;; The possible hibernation operating modes supported by the Linux kernel.
+  ;; See (info "(linux) Basic sysfs Interfaces for System Suspend and Hibernation").
+  '(platform shutdown reboot suspend test_resume))
+
+(define (hibernation-mode? x)
+  (member (string->symbol/maybe x) %linux-hibernation-modes))
+
+(define list-of-hibernation-modes?
+  (list-of hibernation-mode?))
+
+(define-maybe list-of-hibernation-modes
+  (prefix elogind-))
+
+(define-maybe list-of-strings
+  (prefix elogind-))
+
+;;; Elogind serializers.
+(define elogind-name->string
+  (compose (lambda (name)
+             ;; Configuration file is case sensitive, so special case those
+             ;; few cases where pascal-case gets it wrong.
+             (cond ((equal? name "RemoveIpc")
+                    "RemoveIPC")
+                   (else
+                    name)))
+           pascal-case
+           (lambda (name)
+             (cond ((string-suffix? "?" name)
+                    (string-drop-right name 1))
+                   ((string-suffix? "seconds" name)
+                    (string-drop-right name 4))
+                   (else
+                    name)))
+           symbol->string))
+
+(define (elogind-serialize-boolean name value)
+  (format #f "~a=~:[no~;yes~]~%" (elogind-name->string name) value))
+
+(define (elogind-base-serializer name value)
+  (format #f "~a=~a~%" (elogind-name->string name) value))
+
+(define elogind-serialize-action elogind-base-serializer)
+(define elogind-serialize-non-negative-integer elogind-base-serializer)
+
+(define (elogind-serialize-non-negative-integer-and-suffix name value)
+  (let ((name (elogind-name->string name)))
+    (match value
+      ((first . second)
+       (format #f "~a=~a~a~%" name first second))
+      (_ (format #f "~a=~a~%" name value)))))
+
+(define (elogind-list-serializer name value)
+  (format #f "~a=~{~a~^ ~}~%" (elogind-name->string name) value))
+
+(define elogind-serialize-list-of-strings elogind-list-serializer)
+(define elogind-serialize-list-of-user-names elogind-list-serializer)
+(define elogind-serialize-list-of-suspend-states elogind-list-serializer)
+(define elogind-serialize-list-of-suspend-modes elogind-list-serializer)
+(define elogind-serialize-list-of-hibernation-modes elogind-list-serializer)
+
+;;; XXX: For backward-compatible/historical reasons, the configuration object
+;;; is flat, containing the fields of both the logind.conf and sleep.conf
+;;; files.  The list below contains the fields that should be serialized to
+;;; sleep.conf.
+(define %elogind-configuration-sleep-fields
+  '( suspend-state suspend-mode suspend-estimation-seconds
+     hibernate-mode hibernate-delay-seconds
+     allow-power-off-interrupts? allow-suspend-interrupts?
+     broadcast-power-off-interrupts? broadcast-suspend-interrupts?))
+
+(define-configuration elogind-configuration
+  (elogind
+   (file-like elogind)
+   "The elogind package to use."
+   (serializer empty-serializer))
+
+  (system-sleep-hook-files
+   (list-of-file-likes '())
+   "A list of executables (file-like objects) that will be installed into the
+@file{/etc/elogind/system-sleep} hook directory.  See `Hook directories' in
+the @samp{loginctl(1)} man page for more information."
+   (serializer empty-serializer))
+
+  (system-shutdown-hook-files
+   (list-of-file-likes '())
+   "A list of executables (file-like objects) that will be installed into the
+@file{/etc/elogind/system-shutdown/} hook directory."
+   (serializer empty-serializer))
+
+  (allow-power-off-interrupts?
+   (maybe-boolean #f)
+   "Whether the executables in elogind's hook directories (see above) can
+  cause a power-off action to be cancelled (interrupted) by printing an
+  appropriate error message to stdout.")
+
+  (allow-suspend-interrupts?
+   (maybe-boolean #f)
+   "Likewise as the @code{allow-power-off-interrupts?} option, but for the
+  suspend action.")
+
+  (broadcast-power-off-interrupts?
+   (maybe-boolean #f)
+   "Whether an interrupt of a power-off action is broadcasted.")
+
+  (broadcast-suspend-interrupts?
+   (maybe-boolean #f)
+   "Whether an interrupt of a suspend action is broadcasted.")
+
+  ;; logind.conf options.
+  (kill-user-processes?
+   (maybe-boolean #f)
+   "Whether the processes of a user should be killed when the user logs
+  out.")
+
+  (kill-only-users
+   maybe-list-of-user-names
+   "Usernames whose processes should be killed, regardless the value of
+  @code{kill-user-processes?}.")
+
+  (kill-exclude-users
+   (maybe-list-of-user-names (list "root"))
+   "Usernames whose processes should @emph{not} be killed, regardless the
+  value of @code{kill-user-processes?}.")
+
+  (inhibit-delay-max-seconds
+   (maybe-non-negative-integer 5)
+   "The maximum time a system shutdown or sleep request is delayed due to an
+  inhibitor lock of type delay being active before the inhibitor is ignored and
+  the operation executes anyway.")
+
+  (handle-power-key
+   (maybe-action 'poweroff)
+   "The action done when the power key is pressed.  The compiled default is
+  @code{'poweroff}.")
+
+  (handle-suspend-key
+   (maybe-action 'suspend)
+   "The action done when the suspend key is pressed.  The ")
+
+  (handle-hibernate-key
+   (maybe-action 'hibernate)
+   "The action done when the hibernate key is pressed.")
+
+  (handle-lid-switch
+   (maybe-action 'suspend)
+   "The action done when the lid is closed.")
+
+  (handle-lid-switch-docked
+   (maybe-action 'ignore)
+   "The action done when the lid is closed and the device docked.")
+
+  (handle-lid-switch-external-power
+   (maybe-action 'suspend)
+   "The action done when the lid is closed and the device is externally
+  powered.")
+
+  (power-key-ignore-inhibited?
+   (maybe-boolean #f)
+   "Whether to ignore high-level inhibitor locks (shutdown, reboot, sleep or
+  idle) when the power key is pressed.")
+
+  (suspend-key-ignore-inhibited?
+   (maybe-boolean #f)
+   "Whether to ignore high-level inhibitor locks (shutdown, reboot, sleep or
+  idle) when the suspend key is pressed.")
+
+  (hibernate-key-ignore-inhibited?
+   (maybe-boolean #f)
+   "Whether to ignore high-level inhibitor locks (shutdown, reboot, sleep or
+  idle) when the hibernate key is pressed.")
+
+  (lid-switch-ignore-inhibited?
+   (maybe-boolean #f)
+   "Whether to ignore high-level inhibitor locks (shutdown, reboot, sleep or
+  idle) when the lid is closed.")
+
+  (holdoff-timeout-seconds
+   (maybe-non-negative-integer 30)
+   "Specifies the number of seconds after system startup or system resume
+during which elogind will hold off on reacting to lid events.")
+
+  (idle-action
+   (maybe-action 'ignore)
+   "Action to take when the system is idle.")
+
+  (idle-action-seconds
+   maybe-non-negative-integer
+   "The delay after which the action configured in @code{idle-action} is
+taken after the system is idle.")
+
+  (runtime-directory-size
+   (maybe-non-negative-integer-and-suffix '(10 . %))
+   "Set the size limit on the @env{XDG_RUNTIME_DIR} runtime directory
+for each user who logs in.  The size in bytes can be given as an integer
+and paired with symbols: K, M, G, or T.  When paired with @code{'%}, the
+integer represents the limit as a percentage share of the total amount
+of physical @acronym{RAM, read access memory}.")
+
+  (remove-ipc?
+   (maybe-boolean #t)
+   "Whether @acronym{IPC, inter-process communication} objects belonging to
+the user shall be removed when the user fully logs out.")
+
+  ;; sleep.conf options.
+  ;; CAUTION: all sleep.conf option names must be registered in the above
+  ;; %ELOGIND-CONFIGURATION-SLEEP-FIELDS variable: otherwise they will be
+  ;; serialized to logind.conf instead of sleep.conf!
+  (suspend-state
+   (maybe-list-of-suspend-states '(mem standby freeze))
+   "The suspend state values to be write to @file{/sys/power/state} by elogind
+  when suspending the system.  They will be tried in turn, until one is written
+  without error.")
+
+  (suspend-mode
+   (maybe-list-of-suspend-modes)
+   "The suspend mode values to write to @file{/sys/power/mem_sleep} by elogind
+  when suspending the system.")
+
+  (suspend-estimation-seconds
+   (maybe-non-negative-integer (* 60 60)) ;1 hour
+   "Cause the RTC alarm to wake the system after the specified time span to
+  measure the system battery capacity level and estimate the battery discharging
+  rate, which is used for estimating the time span until the system battery
+  charge level goes down to 5%.  This option is only used by elogind when using
+  the @code{'suspend-then-hibernate} action.")
+
+  (hibernate-mode
+   (maybe-list-of-hibernation-modes '(platform shutdown))
+   "The hibernation mode values to write to @file{/sys/power/disk} by elogind
+  when hibernating the system.")
+
+  (hibernate-delay-seconds
+   maybe-non-negative-integer
+   "The amount of time the system spends in suspend mode before the system is
+  automatically put into hibernate mode.")
+
+  (prefix elogind-))
+
+(define (logind.conf config)
+  (let ((logind-fields (remove (lambda (field)
+                                 (memq (configuration-field-name field)
+                                       %elogind-configuration-sleep-fields))
+                               elogind-configuration-fields)))
+    (mixed-text-file
+     "logind.conf"
+     "[Login]\n"
+     (serialize-configuration config logind-fields))))
+
+(define (sleep.conf config)
+  (let ((sleep-fields (filter (lambda (field)
+                                (memq (configuration-field-name field)
+                                      %elogind-configuration-sleep-fields))
+                              elogind-configuration-fields)))
+    (mixed-text-file
+     "sleep.conf"
+     "[Sleep]\n"
+     (serialize-configuration config sleep-fields))))
+
+(define (elogind-etc-directory config)
+  "Return the /etc/elogind directory for CONFIG."
+  (with-imported-modules (source-module-closure '((guix build utils)))
+    (computed-file
+     "etc-elogind"
+
+     #~(begin
+         (use-modules (guix build utils))
+
+         (define sleep-directory (string-append #$output "/system-sleep/"))
+         (define shutdown-directory (string-append #$output "/system-shutdown/"))
+
+         (define (copy-script file directory)
+           "Copy FILE into DIRECTORY, giving rx (500) permissions."
+           (let ((dest (string-append directory "/" (basename file))))
+             (mkdir-p directory)
+             (copy-file file dest)
+             (chmod dest #o500)))
+
+         (mkdir-p #$output)            ;in case neither directory gets created
+
+         ;; Symlink the main configuration files.
+         (with-directory-excursion #$output
+           (mkdir-p "logind.conf.d")
+           (symlink #$(logind.conf config) "logind.conf.d/logind.conf")
+           (mkdir-p "sleep.conf.d")
+           (symlink #$(sleep.conf config) "sleep.conf.d/sleep.conf"))
+
+         (for-each (lambda (f)
+                     (copy-script f sleep-directory))
+                   '#$(elogind-configuration-system-sleep-hook-files config))
+         (for-each (lambda (f)
+                     (copy-script f shutdown-directory))
+                   '#$(elogind-configuration-system-shutdown-hook-files
+                       config))))))
+
+(define (pam-extension-procedure config)
+  "Return an extension for PAM-ROOT-SERVICE-TYPE that ensures that all the PAM
+services use 'pam_elogind.so', a module that allows elogind to keep track of
+logged-in users (run 'loginctl' to see elogind's world view of users and
+seats.)"
+  (define pam-elogind
+    (pam-entry
+     (control "required")
+     (module (file-append (elogind-configuration-elogind config)
+                          "/lib/security/pam_elogind.so"))))
+
+  (list (pam-extension
+         (transformer
+          (lambda (pam)
+            (pam-service
+             (inherit pam)
+             (session (cons pam-elogind (pam-service-session pam))))))
+         (shepherd-requirements '(elogind)))))
+
+(define* (shepherd-configuration-action* files)
+  "Return a 'configuration' action to display FILES, which should be the names
+of the service's configuration files."
+  (shepherd-action
+   (name 'configuration)
+   (documentation "Display the names of this service's configuration files.")
+   (procedure #~(lambda (_)
+                  (format #t "~{~a~%~}" '#$files)
+                  '#$files))))
+
+(define (elogind-shepherd-service config)
+  "Return a Shepherd service to start elogind according to @var{config}."
+  (list (shepherd-service
+         (requirement '(user-processes dbus-system))
+         (provision '(elogind))
+         (start #~(make-forkexec-constructor
+                   (list #$(file-append (elogind-configuration-elogind config)
+                                        "/libexec/elogind/elogind"))))
+         (stop #~(make-kill-destructor))
+         (actions (list (shepherd-configuration-action*
+                         (list (logind.conf config)
+                               (sleep.conf config))))))))
+
+(define elogind-service-type
+  (service-type
+   (name 'elogind)
+   (extensions
+    (list (service-extension dbus-root-service-type
+                             (compose list elogind-configuration-elogind))
+          (service-extension udev-service-type
+                             (compose list elogind-configuration-elogind))
+          (service-extension polkit-service-type
+                             (compose list elogind-configuration-elogind))
+
+          ;; Start elogind from the Shepherd rather than waiting
+          ;; for bus activation.  This ensures that it can handle
+          ;; events like lid close, etc.
+          (service-extension shepherd-root-service-type
+                             elogind-shepherd-service)
+
+          ;; Provide the 'loginctl' command.
+          (service-extension profile-service-type
+                             (compose list elogind-configuration-elogind))
+
+          ;; Extend PAM with pam_elogind.so.
+          (service-extension pam-root-service-type
+                             pam-extension-procedure)
+
+          ;; Install sleep/shutdown hook files.
+          (service-extension etc-service-type
+                             (lambda (config)
+                               `(("elogind"
+                                  ,(elogind-etc-directory config)))))
+
+          ;; We need /run/user, /run/systemd, etc.
+          (service-extension file-system-service-type
+                             (const %elogind-file-systems))))
+   (default-value (elogind-configuration))
+   (description "Run the @command{elogind} login and seat
+management service.  The @command{elogind} service integrates with PAM to
+allow other system components to know the set of logged-in users as well as
+their session types (graphical, console, remote, etc.).  It can also clean up
+after users when they log out.")))
+
+(define-deprecated (elogind-service #:key (config (elogind-configuration)))
+  elogind-service-type
+  "Return a service that runs the @command{elogind} login and seat management
+service.  The @command{elogind} service integrates with PAM to allow other
+system components to know the set of logged-in users as well as their session
+types (graphical, console, remote, etc.).  It can also clean up after users
+when they log out."
+  (service elogind-service-type config))
+
+
+;;;
+;;; Gardenhostd.
+;;;
+
+(define-configuration/no-serialization gardenhostd-configuration
+  (gardenhostd
+   (package gardenhostd)
+   "The gardenhostd package to use."))
+
+(define (gardenhostd-profile config)
+  (list (gardenhostd-configuration-gardenhostd config)))
+
+(define gardenhostd-service-type
+  (service-type
+   (name 'gardenhostd)
+   (extensions
+    (list
+     (service-extension dbus-root-service-type gardenhostd-profile)
+     (service-extension polkit-service-type gardenhostd-profile)))
+   (default-value (gardenhostd-configuration))
+   (description "This service provides gardenhostd, a partial
+implementation of the systemd-hostnamed daemon.  It provides the
+org.freedesktop.hostname1 D-Bus interface, which helps applications
+like gnome-control-center retrieve and modify the system’s hostname,
+as well as set a pretty hostname for display.")))
+
+
+;;;
+;;; Fontconfig and other desktop file-systems.
+;;;
+
+(define %fontconfig-file-system
+  (file-system
+    (device "none")
+    (mount-point "/var/cache/fontconfig")
+    (type "tmpfs")
+    (flags '(read-only))
+    (check? #f)))
+
+(define %gdm-file-system
+  (file-system
+    (device "none")
+    (mount-point "/var/lib/gdm")
+    (type "tmpfs")
+    (check? #f)))
+
+;; The global fontconfig cache directory can sometimes contain stale entries,
+;; possibly referencing fonts that have been GC'd, so mount it read-only.
+;; As mentioned https://debbugs.gnu.org/cgi/bugreport.cgi?bug=36924#8 and
+;; https://debbugs.gnu.org/cgi/bugreport.cgi?bug=38046#10 and elsewhere.
+(define fontconfig-file-system-service
+  (simple-service 'fontconfig-file-system
+                  file-system-service-type
+                  (list %fontconfig-file-system)))
+
+;; Avoid stale caches and stale user IDs being reused between system
+;; reconfigurations, which would crash GDM and render the system unusable.
+;; GDM doesn't require persisting anything valuable there anyway.
+(define gdm-file-system-service
+  (simple-service 'gdm-file-system
+                  file-system-service-type
+                  (list %gdm-file-system)))
+
+
+;;;
+;;; AccountsService service.
+;;;
+
+(define %accountsservice-activation
+  #~(begin
+      (use-modules (guix build utils))
+      (mkdir-p "/var/lib/AccountsService")))
+
+(define accountsservice-service-type
+  (service-type (name 'accountsservice)
+                (extensions
+                 (list (service-extension activation-service-type
+                                          (const %accountsservice-activation))
+                       (service-extension dbus-root-service-type list)
+                       (service-extension polkit-service-type list)))
+                (default-value accountsservice)
+                (description "Run AccountsService, a system service available
+over D-Bus that can list available accounts, change their passwords, and so
+on.  AccountsService integrates with PolicyKit to enable unprivileged users to
+acquire the capability to modify their system configuration.")))
+
+(define-deprecated
+  (accountsservice-service #:key (accountsservice accountsservice))
+  accountsservice-service-type
+  "Return a service that runs AccountsService, a system service that
+can list available accounts, change their passwords, and so on.
+AccountsService integrates with PolicyKit to enable unprivileged users to
+acquire the capability to modify their system configuration.
+@uref{https://www.freedesktop.org/wiki/Software/AccountsService/, the
+accountsservice web site} for more information."
+  (service accountsservice-service-type accountsservice))
+
+
+;;;
+;;; cups-pk-helper service.
+;;;
+
+(define cups-pk-helper-service-type
+  (service-type
+   (name 'cups-pk-helper)
+   (description
+    "PolicyKit helper to configure CUPS with fine-grained privileges.")
+   (extensions
+    (list (service-extension dbus-root-service-type list)
+          (service-extension polkit-service-type list)))
+   (default-value cups-pk-helper)))
+
+
+;;;
+;;; Scanner access via SANE.
+;;;
+
+(define %sane-accounts
+  ;; The '60-libsane.rules' udev rules refers to the "scanner" group.
+  (list (user-group (name "scanner") (system? #t))))
+
+(define (non-empty-list-of-packages? val)
+  (and (not (null? val)) (list-of-packages? val)))
+
+(define-configuration/no-serialization sane-configuration
+  (sane
+   (package sane)
+   "The package that provides the SANE library.")
+  (backends
+   (non-empty-list-of-packages (list sane-backends))
+   "A list of packages containing SANE backends."))
+
+(define (sane-search-paths config)
+  (match-record config <sane-configuration> (sane backends)
+    (let ((backend-union (directory-union "sane-backends" backends)))
+      (map (match-lambda
+             (($ <search-path-specification> variable (files))
+              (cons variable (file-append backend-union "/" files))))
+           (package-native-search-paths sane)))))
+
+(define* (lift-sane-configuration config #:key warn?)
+  (if (sane-configuration? config)
+      config
+      (begin
+        (when warn?
+          (warning (G_ "'sane' service now expects a 'sane-configuration' record~%"))
+
+          (when (eq? config sane-backends)
+            (warning (G_ "'sane-backends' does not include 'hplip' backend anymore. Add it
+explicitly when needed.~%"))))
+
+        (sane-configuration (backends (list config))))))
+
+(define sane-service-type
+  (service-type
+   (name 'sane)
+   (description
+    "This service provides access to scanners @i{via}
+@uref{http://www.sane-project.org, SANE} by installing the necessary udev
+rules.")
+   (default-value (sane-configuration))
+   (extensions
+    (list (service-extension udev-service-type
+                             (lambda (c)
+                               (sane-configuration-backends
+                                (lift-sane-configuration c #:warn? #t))))
+          (service-extension session-environment-service-type
+                             (lambda (c)
+                               (sane-search-paths (lift-sane-configuration c))))
+          (service-extension account-service-type
+                             (const %sane-accounts))))))
+
+
+;;;
+;;; gnome-keyring-service-type
+;;;
+
+(define-record-type* <gnome-keyring-configuration> gnome-keyring-configuration
+  make-gnome-keyring-configuration
+  gnome-keyring-configuration?
+  (keyring gnome-keyring-package (default gnome-keyring))
+  (pam-services gnome-keyring-pam-services (default '(("gdm-password" . login)
+                                                      ("passwd" . passwd)))))
+
+(define (pam-gnome-keyring config)
+  ;; CONFIG may be either a <gnome-desktop-configuration> or a
+  ;; <gnome-keyring-configuration>> record, when using the
+  ;; gnome-keyring-service-type on its own.
+  (let ((config (if (gnome-desktop-configuration? config)
+                    (gnome-desktop-configuration-keyring
+                     config)
+                    config)))
+    (match config
+      (#f '())                          ;explicitly disabled by user
+      (_
+       (define (%pam-keyring-entry . arguments)
+         (pam-entry
+          (control "optional")
+          (module (file-append (gnome-keyring-package config)
+                               "/lib/security/pam_gnome_keyring.so"))
+          (arguments arguments)))
+
+       (list
+        (pam-extension
+         (transformer
+          (lambda (service)
+            (case (assoc-ref (gnome-keyring-pam-services config)
+                             (pam-service-name service))
+              ((login)
+               (pam-service
+                (inherit service)
+                (auth (append (pam-service-auth service)
+                              (list (%pam-keyring-entry))))
+                (session (append (pam-service-session service)
+                                 (list (%pam-keyring-entry "auto_start"))))))
+              ((passwd)
+               (pam-service
+                (inherit service)
+                (password (append (pam-service-password service)
+                                  (list (%pam-keyring-entry))))))
+              (else service))))))))))
+
+(define gnome-keyring-service-type
+  (service-type
+   (name 'gnome-keyring)
+   (extensions (list
+                (service-extension pam-root-service-type pam-gnome-keyring)))
+   (default-value (gnome-keyring-configuration))
+   (description "Return a service, that extends PAM with entries using
+@code{pam_gnome_keyring.so}, unlocking a user's login keyring when they log in
+or setting its password with passwd.")))
+
+
+;;;
+;;; GNOME desktop service.
+;;;
+
+(define-maybe/no-serialization package)
+
+(define (gnome-keyring-configuration-or-#f? value)
+  (or (gnome-keyring-configuration? value)
+      (not value)))
+
+(define (extract-propagated-inputs package)
+  ;; Drop input labels.  Attempt to support outputs.
+  (map
+   (match-lambda
+     ((_ (? package? pkg)) pkg)
+     ((_ (? package? pkg) output) (list pkg output)))
+   (package-propagated-inputs package)))
+
+(define-configuration/no-serialization gnome-desktop-configuration
+  (core-services
+   (list-of-packages (extract-propagated-inputs gnome-meta-core-services))
+   "A list of packages that the GNOME Shell and applications may rely on.")
+  (shell
+   (list-of-packages (extract-propagated-inputs gnome-meta-core-shell))
+   "A list of packages that constitute the GNOME Shell, without applications.")
+  (utilities
+   (list-of-packages (extract-propagated-inputs gnome-meta-core-utilities))
+   "A list of packages that serve as applications to use on top of the \
+GNOME Shell.")
+  (gnome (maybe-package) "Deprecated.  Do not use.")
+  (extra-packages
+   (list-of-packages (extract-propagated-inputs gnome-essential-extras))
+   "A list of GNOME-adjacent packages to also include.  This field is intended
+for users to add their own packages to their GNOME experience.  Note, that it
+already includes some packages that are considered essential by some (most?)
+GNOME users.")
+  (udev-ignorelist
+   (list-of-strings '())
+   "A list of regular expressions denoting udev rules or hardware file names
+provided by any package that should not be installed.  By default, every udev
+rule and hardware file specified by any package referenced in the other fields
+are installed.")
+  (polkit-ignorelist
+   (list-of-strings '())
+   "A list of regular expressions denoting polkit rules provided by any package
+that should not be installed.  By default, every polkit rule added by any package
+referenced in the other fields are installed.")
+  (keyring
+   (gnome-keyring-configuration-or-#f (gnome-keyring-configuration))
+   "A <gnome-keyring-configuration> record used to better integrate the GNOME
+keyring with the system.  Refer to the documentation of the
+@code{gnome-keyring-service-type} for more information.  If you'd rather avoid
+integrating the GNOME keyring, you can set this to @code{#f}."))
+
+(define (gnome-package gnome name)
+  "Return the package NAME among the GNOME package inputs.  NAME can be a
+single name or a tree-like, e.g. @code{'(\"gnome-boxes\" \"spice-gtk\")} to
+denote the spice-gtk input of the gnome-boxes input of the GNOME meta-package."
+  ((package-direct-input-selector name) gnome))
+
+(define (gnome-packages gnome names)
+  "Return the package NAMES among the GNOME package inputs."
+  (map (cut gnome-package gnome <>) names))
+
+(define (gnome-udev-configuration-files config)
+  "Return the GNOME udev rules and hardware files as computed from its
+dependencies by filtering out the ignorelist."
+  (list
+   (computed-file
+    "gnome-udev-configurations"
+    (with-imported-modules
+        (source-module-closure '((guix build utils)
+                                 (guix build union)))
+      #~(begin
+          (use-modules (guix build utils)
+                       (guix build union))
+          ;; If rules.d or hwdb.d is not a proper directory but a symlink,
+          ;; then it will not be possible to delete individual files in this
+          ;; directory.
+          (union-build #$output
+                       (search-path-as-list
+                        (list "lib/udev" "libexec/udev")
+                        (list #$@(gnome-profile config #:transitive? #t)))
+                       #:create-all-directories? #t)
+          (for-each
+           (lambda (pattern)
+             (for-each
+              delete-file-recursively
+              (find-files #$output pattern)))
+           (list #$@(gnome-desktop-configuration-udev-ignorelist config))))))))
+
+(define (gnome-polkit-settings config)
+  "Return the list of GNOME dependencies that provide polkit actions and
+rules."
+  (list
+   (computed-file
+    "gnome-polkit-settings"
+    (with-imported-modules
+        (source-module-closure '((guix build utils)
+                                 (guix build union)))
+      #~(let ((output (string-append #$output "/share/polkit-1")))
+          (use-modules (guix build utils)
+                       (guix build union))
+          (mkdir-p (dirname output))
+          (union-build output
+                       (search-path-as-list
+                        (list "share/polkit-1")
+                        (list #$@(gnome-profile config #:transitive? #t)))
+                       #:create-all-directories? #t)
+          (for-each
+           (lambda (pattern)
+             (for-each
+              delete-file-recursively
+              (find-files output pattern)))
+           (list #$@(gnome-desktop-configuration-polkit-ignorelist config))))))))
+
+(define* (gnome-profile config #:key transitive?)
+  "Return the list of the packages specified in CONFIG.  When TRANSITIVE? is
+#t, also include their transitive propagated inputs.  If there are transitive
+inputs using non-default outputs, they are returned as gexp-input objects."
+  (define gnome-packages
+    (append
+     (gnome-desktop-configuration-core-services config)
+     (gnome-desktop-configuration-shell config)
+     (gnome-desktop-configuration-utilities config)
+     (let ((gnome-meta (gnome-desktop-configuration-gnome config)))
+       (if (maybe-value-set? gnome-meta)
+           (begin
+             (warning
+              (gnome-desktop-configuration-source-location config)
+              (G_ "Using a meta-package for gnome-desktop is discouraged.~%"))
+             (list gnome-meta))
+           (list)))
+     (gnome-desktop-configuration-extra-packages config)))
+  (if transitive?
+      (append gnome-packages
+              (append-map (compose (cut map (match-lambda ;discard labels
+                                              ((_ pkg) pkg)
+                                              ((_ pkg out)
+                                               (gexp-input pkg out)))
+                                        <>)
+                                   package-transitive-propagated-inputs)
+                          gnome-packages))
+      gnome-packages))
+
+(define (gnome-setuid-programs config)
+  "Return the list of setuid programs found within the packages specified in
+CONFIG, a <gnome-desktop-configuration> object."
+  ;; spice-gtk provides polkit actions for USB redirection in GNOME Boxes; set
+  ;; its usb-acl-helper script setuid automatically when the gnome-boxes or
+  ;; spice-gtk packages are added to one of the gnome-desktop-configuration
+  ;; fields.
+  (let* ((gnome-packages (gnome-profile config #:transitive? #t))
+         (spice-gtk (find (compose (cut string=? "spice-gtk" <>)
+                                   package-name
+                                   (match-lambda ;disregard potential output
+                                     ((? package? p) p)
+                                     ((? gexp-input? p)
+                                      (gexp-input-thing p))))
+                          gnome-packages))
+         (files `(,@(if spice-gtk
+                        (list (file-append
+                               spice-gtk
+                               "/libexec/spice-client-glib-usb-acl-helper"))
+                        '()))))
+    (map file-like->setuid-program files)))
+
+(define gnome-desktop-service-type
+  (service-type
+   (name 'gnome-desktop)
+   (extensions
+    (list (service-extension udev-service-type
+                             gnome-udev-configuration-files)
+          (service-extension pam-root-service-type
+                             pam-gnome-keyring)
+          (service-extension polkit-service-type
+                             gnome-polkit-settings)
+          (service-extension privileged-program-service-type
+                             gnome-setuid-programs)
+          (service-extension profile-service-type
+                             gnome-profile)))
+   (default-value (gnome-desktop-configuration))
+   (description "Run the GNOME desktop environment.")))
+
+
+;;;
+;;; MATE Desktop service.
+;;; TODO: Add mate-screensaver.
+
+(define-record-type* <mate-desktop-configuration> mate-desktop-configuration
+  make-mate-desktop-configuration
+  mate-desktop-configuration?
+  (mate-package mate-package (default mate)))
+
+(define (mate-polkit-extension config)
+  "Return the list of packages for CONFIG's MATE package that extend polkit."
+  (let ((mate (mate-package config)))
+    (map (lambda (input)
+           ((package-direct-input-selector input) mate))
+         '("mate-system-monitor"                  ;kill, renice processes
+           "mate-settings-daemon"                 ;date/time settings
+           "mate-power-manager"                   ;modify brightness
+           "mate-control-center"                  ;RandR, display properties FIXME
+           "mate-applets"))))                     ;CPU frequency scaling
+
+(define mate-desktop-service-type
+  (service-type
+   (name 'mate-desktop)
+   (extensions
+    (list (service-extension polkit-service-type
+                             mate-polkit-extension)
+          (service-extension profile-service-type
+                             (compose list
+                                      mate-package))))
+   (default-value (mate-desktop-configuration))
+   (description "Run the MATE desktop environment.")))
+
+
+;;;
+;;; XFCE desktop service.
+;;;
+
+(define-record-type* <xfce-desktop-configuration> xfce-desktop-configuration
+  make-xfce-desktop-configuration
+  xfce-desktop-configuration?
+  (xfce xfce-package (default xfce))
+  (allow-empty-passwords? xfce-allow-empty-passwords? (default #t)))
+
+(define (xfce-polkit-settings config)
+  "Return the list of XFCE dependencies that provide polkit actions and
+rules."
+  (let ((xfce (xfce-package config)))
+    (map (lambda (name)
+           ((package-direct-input-selector name) xfce))
+         '("thunar"
+           "xfce4-power-manager"))))
+
+(define (xfce-pam-services config)
+  (list (unix-pam-service "xfce4-screensaver"
+                          #:allow-empty-passwords?
+                          (xfce-allow-empty-passwords? config))))
+
+(define xfce-desktop-service-type
+  (service-type
+   (name 'xfce-desktop)
+   (extensions
+    (list (service-extension polkit-service-type
+                             xfce-polkit-settings)
+          (service-extension pam-root-service-type
+                             xfce-pam-services)
+          (service-extension profile-service-type
+                             (compose list xfce-package))))
+   (default-value (xfce-desktop-configuration))
+   (description "Run the Xfce desktop environment.")))
+
+
+;;;
+;;; Lxqt desktop service.
+;;;
+
+(define-record-type* <lxqt-desktop-configuration> lxqt-desktop-configuration
+  make-lxqt-desktop-configuration
+  lxqt-desktop-configuration?
+  (lxqt lxqt-package
+        (default lxqt)))
+
+(define (lxqt-polkit-settings config)
+  "Return the list of LXQt dependencies that provide polkit actions and
+rules."
+  (let ((lxqt (lxqt-package config)))
+    (map (lambda (name)
+           ((package-direct-input-selector name) lxqt))
+         '("lxqt-admin"))))
+
+(define lxqt-desktop-service-type
+  (service-type
+   (name 'lxqt-desktop)
+   (extensions
+    (list (service-extension polkit-service-type
+                             lxqt-polkit-settings)
+          (service-extension profile-service-type
+                             (compose list lxqt-package))))
+   (default-value (lxqt-desktop-configuration))
+   (description "Run LXQt desktop environment.")))
+
+
+;;;
+;;; Sugar desktop service.
+;;;
+
+(define-record-type* <sugar-desktop-configuration> sugar-desktop-configuration
+  make-sugar-desktop-configuration
+  sugar-desktop-configuration?
+  (sugar sugar-package (default sugar))
+  (gobject-introspection
+   sugar-gobject-introspection (default gobject-introspection))
+  (activities
+   sugar-activities (default (list sugar-help-activity))))
+
+(define (sugar-polkit-settings config)
+  "Return the list of packages that provide polkit actions and rules."
+  (list (sugar-package config)))
+
+(define sugar-desktop-service-type
+  (service-type
+   (name 'sugar-desktop)
+   (extensions
+    (list (service-extension polkit-service-type
+                             sugar-polkit-settings)
+          (service-extension profile-service-type
+                             (lambda (config)
+                               (cons* (sugar-package config)
+                                      (sugar-gobject-introspection config)
+                                      (sugar-activities config))))))
+   (default-value (sugar-desktop-configuration))
+   (description "Run the Sugar desktop environment.")))
+
+
+;;;
+;;; X11 socket directory service
+;;;
+
+(define x11-socket-directory-service-type
+  (let ((x11-socket-directory-shepherd-service
+         (shepherd-service
+          (documentation "Create @file{/tmp/.X11-unix} for XWayland.")
+          (requirement '(file-systems))
+          (provision '(x11-socket-directory))
+          (one-shot? #t)
+          (start #~(lambda _
+                     (let ((directory "/tmp/.X11-unix"))
+                       (mkdir-p directory)
+                       (chmod directory #o1777)))))))
+    (service-type
+     (name 'x11-socket-directory-service)
+     (extensions
+      (list
+       (service-extension shepherd-root-service-type
+                          (compose
+                           list
+                           (const x11-socket-directory-shepherd-service)))))
+     (default-value #f) ; no default value required
+     (description
+      "Create @file{/tmp/.X11-unix} for XWayland.  When using X11, libxcb
+takes care of creating that directory however, when using XWayland, we
+need to create it beforehand."))))
+
+(define-deprecated x11-socket-directory-service
+  x11-socket-directory-service-type
+  ;; Return a service that creates /tmp/.X11-unix.  When using X11, libxcb
+  ;; takes care of creating that directory.  However, when using XWayland, we
+  ;; need to create beforehand.  Thus, create it unconditionally here.
+  (service x11-socket-directory-service-type))
+
+
+;;;
+;;; Enlightenment desktop service.
+;;;
+
+(define-record-type* <enlightenment-desktop-configuration>
+  enlightenment-desktop-configuration make-enlightenment-desktop-configuration
+  enlightenment-desktop-configuration?
+  ;; <package>
+  (enlightenment        enlightenment-package
+                        (default enlightenment)))
+
+(define (enlightenment-privileged-programs enlightenment-desktop-configuration)
+  (match-record enlightenment-desktop-configuration
+      <enlightenment-desktop-configuration>
+    (enlightenment)
+    (map file-like->setuid-program
+         (list (file-append enlightenment
+                            "/lib/enlightenment/utils/enlightenment_sys")
+               (file-append enlightenment
+                            "/lib/enlightenment/utils/enlightenment_system")
+               (file-append enlightenment
+                            "/lib/enlightenment/utils/enlightenment_ckpasswd")))))
+
+(define enlightenment-desktop-service-type
+  (service-type
+   (name 'enlightenment-desktop)
+   (extensions
+    (list (service-extension dbus-root-service-type
+                             (compose list
+                                      (package-direct-input-selector
+                                       "efl")
+                                      enlightenment-package))
+          (service-extension udev-service-type
+                             (compose list
+                                      (package-direct-input-selector
+                                        "ddcutil")
+                                      enlightenment-package))
+          (service-extension privileged-program-service-type
+                             enlightenment-privileged-programs)
+          (service-extension profile-service-type
+                             (compose list
+                                      enlightenment-package))))
+   (default-value (enlightenment-desktop-configuration))
+   (description
+    "Return a service that adds the @code{enlightenment} package to the system
+profile, and extends dbus with the ability for @code{efl} to generate
+thumbnails and privileges the programs which enlightenment needs to function
+as expected.")))
+
+
+;;;
+;;; kwallet-service-type.
+;;;
+
+(define-record-type* <kwallet-configuration> kwallet-configuration
+  make-kwallet-configuration
+  kwallet-configuration?
+  (wallet kwallet-package (default kwallet-pam))
+  (pam-services kwallet-pam-services (default '(("sddm" . login)
+                                                ("passwd" . passwd)))))
+
+(define (pam-kwallet config)
+  "Return a PAM extension for KWallet."
+  (match config
+    (#f '())                          ;explicitly disabled by user
+    (_
+     (define (%pam-keyring-entry . arguments)
+       (pam-entry
+        (control "optional")
+        (module (file-append (kwallet-package config)
+                             "/lib/security/pam_kwallet5.so"))
+        (arguments arguments)))
+
+     (list
+      (pam-extension
+       (transformer
+        (lambda (service)
+          (case (assoc-ref (kwallet-pam-services config)
+                           (pam-service-name service))
+            ((login)
+             (pam-service
+              (inherit service)
+              (auth (append (pam-service-auth service)
+                            (list (%pam-keyring-entry))))
+              (session (append (pam-service-session service)
+                               (list (%pam-keyring-entry "auto_start"))))))
+            ((passwd)
+             (pam-service
+              (inherit service)
+              (password (append (pam-service-password service)
+                                (list (%pam-keyring-entry))))))
+            (else service)))))))))
+
+;; TODO: consider integrating service in `<plasma-desktop-configuration>' as
+;; done in `<gnome-desktop-configuration>'. This requires rewritting the
+;; `<plasma-desktop-service-type>' as done for `<gnome-desktop-service-type>'.
+(define kwallet-service-type
+  (service-type
+   (name 'kwallet)
+   (extensions (list
+                (service-extension pam-root-service-type pam-kwallet)))
+   (default-value (kwallet-configuration))
+   (description "Return a service that extends PAM with entries using
+@code{pam_kwallet5.so}, unlocking the user's login keyring when they log in or
+setting its password with @command{passwd}.")))
+
+
+;;;
+;;; KDE Plasma desktop service.
+;;;
+
+(define-record-type* <plasma-desktop-configuration> plasma-desktop-configuration
+  make-plasma-desktop-configuration
+  plasma-desktop-configuration?
+  (plasma-package plasma-package (default plasma)))
+
+(define (plasma-polkit-settings config)
+  "Return the list of KDE Plasma dependencies that provide polkit actions and
+rules."
+  (let ((plasma-plasma (plasma-package config)))
+    (map (lambda (name)
+           ((package-direct-input-selector name) plasma-plasma))
+         '("bolt"                ;for plasma-thunderbolt
+           "fwupd"               ;for kinfocenter and discover
+           "kde-inotify-survey"
+           "kdeplasma-addons"
+           "kinfocenter"
+           "kpmcore"
+           "ktexteditor"
+           "kwalletmanager"
+           "libksysguard"
+           "packagekit"          ;for discover
+           "plasma-desktop"
+           "plasma-disks"
+           "plasma-firewall"
+           "plasma-workspace"
+           "powerdevil"))))
+
+(define (plasma-dbus-service config)
+  "Return the list of KDE Plasma dependencies that provide D-Bus services."
+  (let ((plasma-plasma (plasma-package config)))
+    (map (lambda (name)
+           ((package-direct-input-selector name) plasma-plasma))
+         '("bolt"                ;for plasma-thunderbolt
+           "fwupd"               ;for kinfocenter and discover
+           "kde-inotify-survey"
+           "kdeplasma-addons"
+           "kinfocenter"
+           "kpmcore"
+           "ktexteditor"
+           "kwalletmanager"
+           "libksysguard"
+           "packagekit"          ;for discover
+           "plasma-desktop"
+           "plasma-disks"
+           "plasma-firewall"
+           "plasma-workspace"
+           "powerdevil"))))
+
+(define (plasma-udev-configurations config)
+  "Return the list of KDE Plasma dependencies that provide udev rules and
+hardware files."
+  (let ((plasma-plasma (plasma-package config)))
+    (map (lambda (name)
+           ((package-direct-input-selector name) plasma-plasma))
+         '("bolt"      ;for plasma-thunderbolt
+           "fwupd")))) ;for kinfocenter and discover
+
+;; see https://bugs.kde.org/show_bug.cgi?id=456210
+;; if `kde' no exits, fallback to `other', and then unlock lockscreen not work,
+;; so add it.
+(define (plasma-pam-services config)
+  (list (unix-pam-service "kde")))
+
+(define plasma-desktop-service-type
+  (service-type
+   (name 'plasma-desktop)
+   (description "Run the KDE Plasma desktop environment.")
+   (default-value (plasma-desktop-configuration))
+   (extensions
+    (list (service-extension polkit-service-type
+                             plasma-polkit-settings)
+          (service-extension dbus-root-service-type
+                             plasma-dbus-service)
+          (service-extension pam-root-service-type
+                             plasma-pam-services)
+          (service-extension udev-service-type
+                             plasma-udev-configurations)
+          (service-extension profile-service-type
+                             (compose list
+                                      plasma-package))))))
+
+
+;;;
+;;; inputattach-service-type
+;;;
+
+(define-record-type* <inputattach-configuration>
+  inputattach-configuration
+  make-inputattach-configuration
+  inputattach-configuration?
+  (device-type inputattach-configuration-device-type
+               (default "wacom"))
+  (device inputattach-configuration-device
+          (default "/dev/ttyS0"))
+  (baud-rate inputattach-configuration-baud-rate
+             (default #f))
+  (log-file inputattach-configuration-log-file
+            (default #f)))
+
+(define inputattach-shepherd-service
+  (match-lambda
+    (($ <inputattach-configuration> type device baud-rate log-file)
+     (let ((args (append (if baud-rate
+                             (list "--baud" (number->string baud-rate))
+                             '())
+                         (list (string-append "--" type)
+                               device))))
+       (list (shepherd-service
+              (provision '(inputattach))
+              (requirement '(user-processes udev))
+              (documentation "inputattach daemon")
+              (start #~(make-forkexec-constructor
+                        (cons (string-append #$inputattach
+                                             "/bin/inputattach")
+                              (quote #$args))
+                        #:log-file #$log-file))
+              (stop #~(make-kill-destructor))))))))
+
+(define inputattach-service-type
+  (service-type
+   (name 'inputattach)
+   (extensions
+    (list (service-extension shepherd-root-service-type
+                             inputattach-shepherd-service)))
+   (default-value (inputattach-configuration))
+   (description "Return a service that runs inputattach on a device and
+dispatches events from it.")))
+
+
+;;;
+;;; polkit-wheel-service -- Allow wheel group to perform admin actions
+;;;
+
+(define polkit-wheel
+  (file-union
+   "polkit-wheel"
+   `(("share/polkit-1/rules.d/wheel.rules"
+      ,(plain-file
+        "wheel.rules"
+        "polkit.addAdminRule(function(action, subject) {
+    return [\"unix-group:wheel\"];
+});
+")))))
+
+(define polkit-wheel-service
+  (simple-service 'polkit-wheel polkit-service-type (list polkit-wheel)))
+
+
+;;;
+;;; seatd-service-type -- minimal seat management daemon
+;;;
+
+(define (seatd-group-sanitizer group-or-name)
+  (match group-or-name
+    ((? user-group? group) group)
+    ((? string? group-name) (user-group (name group-name) (system? #t)))
+    (_ (leave (G_ "seatd: '~a' is not a valid group~%") group-or-name))))
+
+(define-record-type* <seatd-configuration> seatd-configuration
+  make-seatd-configuration
+  seatd-configuration?
+  (seatd seatd-package (default seatd))
+  (group seatd-group                    ; string | <user-group>
+         (default "seat")
+         (sanitize seatd-group-sanitizer))
+  (socket seatd-socket (default "/run/seatd.sock"))
+  (logfile seatd-logfile (default "/var/log/seatd.log"))
+  (loglevel seatd-loglevel (default "info")))
+
+(define (seatd-shepherd-service config)
+  (list (shepherd-service
+         (documentation "Minimal seat management daemon")
+         (requirement '(user-processes))
+         ;; TODO: once cgroups is separate dependency
+         ;; here we should depend on it rather than elogind
+         (provision '(seatd elogind))
+         (start #~(make-forkexec-constructor
+                   (list #$(file-append (seatd-package config) "/bin/seatd")
+                         "-g" #$(user-group-name (seatd-group config)))
+                   #:environment-variables
+                   (list (string-append "SEATD_LOGLEVEL="
+                                        #$(seatd-loglevel config))
+                         (string-append "SEATD_DEFAULTPATH="
+                                        #$(seatd-socket config)))
+                   #:log-file #$(seatd-logfile config)))
+         (stop #~(make-kill-destructor)))))
+
+(define seatd-accounts
+  (match-lambda (($ <seatd-configuration> _ group) (list group))))
+
+(define seatd-environment
+  (match-lambda
+    (($ <seatd-configuration> _ _ socket)
+     `(("SEATD_SOCK" . ,socket)))))
+
+(define seatd-service-type
+  (service-type
+   (name 'seatd)
+   (description "Seat management takes care of mediating access
+to shared devices (graphics, input), without requiring the
+applications needing access to be root.")
+   (extensions
+    (list
+     (service-extension account-service-type seatd-accounts)
+     (service-extension session-environment-service-type seatd-environment)
+     ;; TODO: once cgroups is separate dependency we should not mount it here
+     ;; for now it is mounted here, because elogind mounts it
+     (service-extension file-system-service-type (const %control-groups))
+     (service-extension shepherd-root-service-type seatd-shepherd-service)))
+   (default-value (seatd-configuration))))
+
+
+;;;
+;;; The default set of desktop services.
+;;;
+
+(define* (desktop-services-for-system #:optional
+                                      (system (or (%current-target-system)
+                                                  (%current-system))))
+  ;; List of services typically useful for a "desktop" use case.
+
+  ;; FIXME: Since GDM depends on more dependencies that do not build on i686,
+  ;; keep SDDM on it for the time being.
+  ;; XXX: When changing login manager, also change set-xorg-configuration
+  (cons* (if (target-64bit? system)
+             (service gdm-service-type)
+             (service sddm-service-type))
+
+         ;; Screen lockers are a pretty useful thing and these are small.
+         (service screen-locker-service-type
+                  (screen-locker-configuration
+                   (name "slock")
+                   (program (file-append slock "/bin/slock"))))
+         (service screen-locker-service-type
+                  (screen-locker-configuration
+                   (name "xlock")
+                   (program (file-append xlockmore "/bin/xlock"))))
+
+         ;; Add udev rules for MTP devices so that non-root users can access
+         ;; them.
+         (simple-service 'mtp udev-service-type (list libmtp))
+         ;; Add udev rules and default backends for scanners.
+         (service sane-service-type)
+         ;; Add polkit rules, so that non-root users in the wheel group can
+         ;; perform administrative tasks (similar to "sudo").
+         polkit-wheel-service
+
+         ;; Allow desktop users to also mount NTFS and NFS file systems
+         ;; without root.
+         (simple-service 'mount-setuid-helpers privileged-program-service-type
+                         (map file-like->setuid-program
+                              (list (file-append nfs-utils "/sbin/mount.nfs")
+                               (file-append ntfs-3g "/sbin/mount.ntfs-3g"))))
+
+         ;; Add some of the artwork niceties for the desktop.
+         (simple-service 'guix-artwork
+                         profile-service-type
+                         %base-packages-artwork)
+
+         ;; This is a volatile read-write file system mounted at /var/lib/gdm,
+         ;; to avoid GDM stale cache and permission issues.
+         gdm-file-system-service
+
+         ;; Provides a nicer experience for VTE-using terminal emulators such
+         ;; as GNOME Console, Xfce Terminal, etc.
+         (service vte-integration-service-type)
+
+         ;; The global fontconfig cache directory can sometimes contain
+         ;; stale entries, possibly referencing fonts that have been GC'd,
+         ;; so mount it read-only.
+         fontconfig-file-system-service
+
+         ;; NetworkManager and its applet.
+         (service network-manager-service-type)
+         (service wpa-supplicant-service-type)    ;needed by NetworkManager
+         (simple-service 'network-manager-applet
+                         profile-service-type
+                         (list network-manager-applet))
+         (service modem-manager-service-type)
+         (service usb-modeswitch-service-type)
+
+         ;; The D-Bus clique.
+         (service avahi-service-type)
+         (service udisks-service-type)
+         (service upower-service-type)
+         (service accountsservice-service-type)
+         (service cups-pk-helper-service-type)
+         (service colord-service-type)
+         (service geoclue-service-type)
+         (service polkit-service-type)
+         (service elogind-service-type)
+         (service dbus-root-service-type)
+
+         (service ntp-service-type)
+
+         (service x11-socket-directory-service-type)
+
+         (service pulseaudio-service-type)
+         (service alsa-service-type)
+
+         %base-services))
+
+(define-syntax %desktop-services
+  (identifier-syntax (desktop-services-for-system)))
+
+;;; desktop.scm ends here

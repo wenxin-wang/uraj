@@ -1,0 +1,94 @@
+;; -*-scheme-*-
+
+;; This is an operating system configuration template for a "bare bones
+;; development" setup, with no X11 display server.
+
+;; To build a disk image for a virtual machine, do something like:
+;;
+;;   ./pre-inst-env guix system image --image-type=hurd-qcow2 --image-size=6G \
+;;      --no-offload gnu/system/examples/devel-hurd.tmpl
+;;
+;; You may run it like so
+;;
+;;     cp /gnu/store/.../disk-image devel-hurd.img
+;;     guix shell qemu -- qemu-system-i386 -m 4096                \
+;;       --enable-kvm                                             \
+;;       --device e1000,netdev=net0                               \
+;;       --netdev user,id=net0,hostfwd=tcp:127.0.0.1:10022-:2222  \
+;;       --hda devel-hurd.img
+;;
+;;     ssh -p 10022 root@localhost
+;;     guix build -e '(@@ (gnu packages commencement) gnu-make-boot0)'
+;;
+;; or even:
+;;
+;;     guix build hello
+;;
+;; For Guix hacking, do something like:
+;;
+;;     guix shell --boostrap -D guix
+;;     mkdir -p ~/src/guix
+;;     cd src/guix
+;;     git clone https://git.guix.gnu.org/guix.git master
+;;     cd master
+;;     ./bootstrap
+;;     ./configure
+;;     make
+
+(include "bare-hurd.tmpl")
+
+(use-modules (srfi srfi-1)
+             (ice-9 match)
+             (gnu system hurd)
+             (guix packages)
+             (guix store))
+
+(use-package-modules base compression file gawk gdb hurd less m4
+                     package-management ssh version-control)
+
+(define (input->package input)
+  "Return the INPUT as package, or #f."
+  (match input
+    ((label (and (? package?) package))
+     package)
+    ((label (and (? package?) package . output))
+     (cons package output))
+    (_ #f)))
+
+(define guix-packages
+  (filter-map input->package
+              (fold alist-delete (package-direct-inputs guix)
+                    ;; These are not essential and do not build yet,
+                    '("graphviz" "graphviz-minimal" "guile-avahi" "po4a"
+                      ;; or are linux-only.
+                      "slirp4netns"))))
+
+(define hurd-packages
+  (filter-map input->package
+              (fold alist-delete (package-direct-inputs hurd)
+                    ;; These are not essential, rumpkernel is very big.
+                    '("dde-sources" "parted" "rumpkernel" "util-linux"
+                      "texinfo"))))
+
+(define %hurd-devel-os
+  (operating-system
+    (inherit %hurd-os)
+    (bootloader (bootloader-configuration
+                 (bootloader grub-minimal-bootloader)
+                 (targets '("/dev/sdX"))
+                 (timeout 0)))
+    (timezone "Europe/Berlin")
+    (swap-devices (list (swap-space
+                          (target "/swapfile"))))
+    (packages (cons*
+               gdb-minimal
+               git-minimal
+               gnu-make
+               m4
+               openssh-sans-x
+               (append
+                guix-packages
+                hurd-packages
+                %base-packages/hurd)))))
+
+%hurd-devel-os

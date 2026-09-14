@@ -1,0 +1,507 @@
+# SOME DESCRIPTIVE TITLE
+# Copyright (C) YEAR the authors of Guix (msgids) and the following authors (msgstr)
+# This file is distributed under the same license as the guix manual package.
+# Anton Ryzhkin <torm84@gmail.com>, 2021.
+# Helge Kim <helge@keemail.me>, 2021.
+# Alex Matkovsky <matkovsky88@protonmail.ch>, 2023.
+# Aleksei Chepugov <a.chepugov@gmail.com>, 2024.
+# Weblate Translation Memory <noreply-mt-weblate-translation-memory@weblate.org>, 2024, 2025.
+# Florian Pelz <pelzflorian@pelzflorian.de>, 2024, 2025.
+# Aleksej Chepugov <a.chepugov@gmail.com>, 2025.
+msgid ""
+msgstr ""
+"Project-Id-Version: guix manual checkout\n"
+"Report-Msgid-Bugs-To: bug-guix@gnu.org\n"
+"POT-Creation-Date: 2026-07-04 03:18+0000\n"
+"PO-Revision-Date: 2026-06-30 15:37+0000\n"
+"Last-Translator: pelzflorian <pelzflorian@noreply.codeberg.org>\n"
+"Language-Team: Russian <https://translate.codeberg.org/projects/guix/documentation-cookbook/ru/>\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2;\n"
+"X-Generator: Weblate 2026.6.1\n"
+
+msgid "@documentencoding UTF-8"
+msgstr "@documentencoding UTF-8"
+
+msgid "GNU Guix Cookbook"
+msgstr "Поваренная книга GNU Guix"
+
+msgid "Permission is granted to copy, distribute and/or modify this document under the terms of the GNU Free Documentation License, Version 1.3 or any later version published by the Free Software Foundation; with no Invariant Sections, no Front-Cover Texts, and no Back-Cover Texts.  A copy of the license is included in the section entitled ``GNU Free Documentation License''."
+msgstr "Разрешается копировать, распространять и/или изменять этот документ в соответствии с условиями Лицензии GNU для свободной документации версии 1.3 или любой более поздней версии, опубликованной Фондом свободного программного обеспечения; без Неизменяемых разделов, текстов на передней и задней обложках.  Копия лицензии включена в раздел, озаглавленный ``GNU Free Documentation License''."
+
+msgid "System administration"
+msgstr "Администрирование системы"
+
+msgid "Guix cookbook: (guix-cookbook)"
+msgstr "Поваренная книга Guix: (guix-cookbook.ru)"
+
+msgid "Tutorials and examples for GNU Guix."
+msgstr "Учебники и примеры по GNU Guix."
+
+msgid "This manual is also available in Simplified Chinese (@pxref{Top,,, guix-cookbook.zh_CN, GNU Guix 烹饪书}), French (@pxref{Top,,, guix-cookbook.fr, Livre de recettes de GNU Guix}), German (@pxref{Top,,, guix-cookbook.de, GNU-Guix-Kochbuch}), Korean (@pxref{Top,,, guix-cookbook.ko, GNU Guix 쿡북}), Spanish (@pxref{Top,,, guix-cookbook.es, Libro de recetas de GNU Guix}), Italian (@pxref{Top,,, guix-cookbook.it, Ricettario di GNU Guix}), Brazilian Portuguese (@pxref{Top,,, guix-cookbook.pt_BR, Livro de receitas do GNU Guix}), Russian (@pxref{Top,,, guix-cookbook.ru, GNU Guix Рецепты}), Slovak (@pxref{Top,,, guix-cookbook.sk, Receptár GNU Guix}), and Swedish (@pxref{Top,,, guix-cookbook.sv, Kokbok för GNU Guix}).  If you would like to translate this document in your native language, consider joining @uref{https://translate.codeberg.org/projects/guix/documentation-cookbook, Weblate} (@pxref{Translating Guix,,, guix, GNU Guix Reference Manual})."
+msgstr "Это руководство также доступно на английском (@pxref{Top,,, guix-cookbook, GNU Guix Cookbook}), (упрощённом) китайском языке (@pxref{Top,,, guix-cookbook.zh_CN, GNU Guix 烹饪书}), французском (@pxref{Top,,, guix-cookbook.fr, Livre de recettes de GNU Guix}), немецком (@pxref{Top,,, guix-cookbook.de, GNU-Guix-Kochbuch}), корейском (@pxref{Top,,, guix-cookbook.ko, GNU Guix 쿡북}), испанском (@pxref{Top,,, guix-cookbook.es, Libro de recetas de GNU Guix}), итальянском (@pxref{Top,,, guix-cookbook.it, Ricettario di GNU Guix}), бразильском португальском (@pxref{Top,,, guix-cookbook.pt_BR, Livro de receitas do GNU Guix}), словацком (@pxref{Top,,, guix-cookbook.sk, Receptár GNU Guix}), шведском (@pxref{Top,,, guix-cookbook.sv, Kokbok för GNU Guix}) и тамильском (@pxref{Top,,, guix-cookbook.ta, GNU Guix கையேடு}).  Если вы хотите перевести этот документ на свой родной язык, присоединяйтесь @uref{https://translate.codeberg.org/projects/guix/documentation-cookbook, Weblate} (@pxref{Перевод Guix,,, guix.ru, Руководство по GNU Guix})."
+
+msgid "Meet your new favorite language!"
+msgstr "Встречайте свой новый любимый язык!"
+
+msgid "Packaging"
+msgstr "Пакетирование"
+
+msgid "Packaging tutorials"
+msgstr "Руководство по пакетированию"
+
+msgid "System Configuration"
+msgstr "Настройка системы"
+
+msgid "Customizing the GNU System"
+msgstr "Настройка системы GNU"
+
+msgid "Containers"
+msgstr "Контейнеры"
+
+msgid "Virtual Machines"
+msgstr "Виртуальные машины"
+
+msgid "Reproducible Research"
+msgstr "Воспроизводимое исследование"
+
+msgid "Installing Guix on a Cluster"
+msgstr "Установка Guix на кластер"
+
+msgid "High-performance computing."
+msgstr "Высокопроизводительные вычисления."
+
+msgid "Guix System Management"
+msgstr "Управление системой Guix"
+
+msgid "System Management specifics."
+msgstr "Особенности управления системой."
+
+msgid "Acknowledgments"
+msgstr "Благодарности"
+
+msgid "Thanks!"
+msgstr "Спасибо!"
+
+msgid "The license of this document."
+msgstr "Лицензия этого документа."
+
+msgid "A Scheme Crash Course"
+msgstr "Ускоренный курс по Scheme"
+
+msgid "A ``Hello World'' package"
+msgstr "Пакет ``Hello World''"
+
+msgid "Setup"
+msgstr "Настройка"
+
+msgid "Extended example"
+msgstr "Расширенный пример"
+
+msgid "Other build systems"
+msgstr "Другие системы сборки"
+
+msgid "Programmable and automated package definition"
+msgstr "Программируемое и автоматизированное определение пакетов"
+
+msgid "Getting help"
+msgstr "Получить помощь"
+
+msgid "Conclusion"
+msgstr "Заключение"
+
+msgid "References"
+msgstr "Ссылки"
+
+msgid "Local file"
+msgstr "Локальный файл"
+
+msgid "Channels"
+msgstr "Каналы"
+
+msgid "Direct checkout hacking"
+msgstr "Работа с копией репозитория напрямую"
+
+msgid "Recursive importers"
+msgstr "Рекурсивные импортеры"
+
+msgid "Automatic update"
+msgstr "Автоматическое обновление"
+
+msgid "Inheritance"
+msgstr "Наследование"
+
+msgid "Using Rust Libraries in Other Build Systems"
+msgstr "Использование библиотек Rust в других сборочных системах"
+
+msgid "Auto-Login to a Specific TTY"
+msgstr "Автоматический вход на заданный TTY"
+
+msgid "Automatically Login a User to a Specific TTY"
+msgstr "Автоматический вход пользователя на заданный TTY"
+
+msgid "Customizing the Kernel"
+msgstr "Настройка ядра"
+
+msgid "Creating and using a custom Linux kernel on Guix System."
+msgstr "Создание и использование собственного ядра Linux в системе Guix."
+
+msgid "Guix System Image API"
+msgstr "API образа Guix системы"
+
+msgid "Customizing images to target specific platforms."
+msgstr "Настройка образов для конкретных платформ."
+
+msgid "Using security keys"
+msgstr "Использование ключей безопасности"
+
+msgid "How to use security keys with Guix System."
+msgstr "Как использовать ключи безопасности с системой Guix."
+
+msgid "Job to update the IP address behind a DuckDNS host name."
+msgstr "Задача на обновление IP-адреса, находящегося по имени хоста DuckDNS."
+
+msgid "Connecting to Wireguard VPN"
+msgstr "Подключение к Wireguard VPN"
+
+msgid "Connecting to a Wireguard VPN."
+msgstr "Подключение к Wireguard VPN."
+
+msgid "Customizing a Window Manager"
+msgstr "Настройка оконного менеджера"
+
+msgid "Handle customization of a Window manager on Guix System."
+msgstr "Управление настройкой оконного менеджера в системе Guix."
+
+msgid "Running Guix on a Linode Server"
+msgstr "Запуск Guix на сервере Linode"
+
+msgid "Running Guix on a Linode Server."
+msgstr "Запуск Guix на сервере Linode."
+
+msgid "Running Guix on a Kimsufi Server"
+msgstr "Запуск Guix на сервере Kimsufi"
+
+msgid "Running Guix on a Kimsufi Server."
+msgstr "Запуск Guix на сервере Kimsufi."
+
+msgid "Setting up a bind mount"
+msgstr "Настройка привязки"
+
+msgid "Setting up a bind mount in the file-systems definition."
+msgstr "Настройка привязки при определении файловых систем."
+
+msgid "Getting substitutes from Tor"
+msgstr "Получение субститут из Tor"
+
+msgid "Configuring Guix daemon to get substitutes through Tor."
+msgstr "Настройка демона Guix для получения субститутов через Tor."
+
+msgid "Setting up NGINX with Lua"
+msgstr "Настройка NGINX с Lua"
+
+msgid "Configuring NGINX web-server to load Lua modules."
+msgstr "Настройка веб-сервера NGINX для загрузки модулей Lua."
+
+msgid "Music Server with Bluetooth Audio"
+msgstr "Музыкальный сервер с Bluetooth-аудио"
+
+msgid "StumpWM"
+msgstr "StumpWM"
+
+msgid "Session lock"
+msgstr "Блокировка сессии"
+
+msgid "Xorg"
+msgstr "Xorg"
+
+msgid "Guix Containers"
+msgstr "Guix Контейнеры"
+
+msgid "Perfectly isolated environments"
+msgstr "Идеально изолированные окружения"
+
+msgid "Guix System Containers"
+msgstr "Guix System контейнеры"
+
+msgid "A system inside your system"
+msgstr "Система внутри вашей системы"
+
+msgid "A Database Container"
+msgstr "Контейнер базы данных"
+
+msgid "Container Networking"
+msgstr "Работа с сетями контейнеров"
+
+msgid "Network bridge for QEMU"
+msgstr "Сетевой мост для QEMU"
+
+msgid "Routed network for libvirt"
+msgstr "Маршрутизируемая сеть для libvirt"
+
+msgid "Custom NAT-based network for libvirt"
+msgstr "Пользовательская сеть NAT для libvirt"
+
+msgid "Further reading on virtual machines."
+msgstr "Дополнительная информация по виртуальным машинам."
+
+msgid "Guix Profiles in Practice"
+msgstr "Guix профили на практике"
+
+msgid "Strategies for multiple profiles and manifests."
+msgstr "Стратегии для множества профилей и манифестов."
+
+msgid "Basic setup with manifests"
+msgstr "Базовая настройка с манифестами"
+
+msgid "Required packages"
+msgstr "Требуемые пакеты"
+
+msgid "Default profile"
+msgstr "Профиль по-умолчанию"
+
+msgid "The benefits of manifests"
+msgstr "Преимущества манифестов"
+
+msgid "Reproducible profiles"
+msgstr "Воспроизводимые профили"
+
+msgid "Getting Started"
+msgstr "Начало работы"
+
+msgid "Step 0: using `guix shell'."
+msgstr "Шаг 0: используем `guix shell'."
+
+msgid "Building with Guix"
+msgstr "Сборка с Guix"
+
+msgid "Step 1: building your code."
+msgstr "Шаг 1: собираем ваш код."
+
+msgid "The Repository as a Channel"
+msgstr "Репозиторий как канал"
+
+msgid "Step 2: turning the repo in a channel."
+msgstr "Шаг 2: преобразуем репозиторий в канал."
+
+msgid "Package Variants"
+msgstr "Варианты пакета"
+
+msgid "Bonus: Defining variants."
+msgstr "Бонус: Определение вариантов."
+
+msgid "Setting Up Continuous Integration"
+msgstr "Настраиваем непрерывную интеграцию"
+
+msgid "Step 3: continuous integration."
+msgstr "Шаг 3: непрерывная интеграция."
+
+msgid "Build Manifest"
+msgstr "Манифест сборки"
+
+msgid "Bonus: Manifest."
+msgstr "Бонус: Манифест."
+
+msgid "Wrapping Up"
+msgstr "Подводя итоги"
+
+msgid "Recap."
+msgstr "Резюме."
+
+msgid "Guix environment via direnv"
+msgstr "Окружение Guix через direnv"
+
+msgid "Setup Guix environment with direnv"
+msgstr "Установка среды Guix с direnv"
+
+msgid "Setting Up a Head Node"
+msgstr "Настройка головного узла"
+
+msgid "The node that runs the daemon."
+msgstr "Узел, запускающий демон."
+
+msgid "Setting Up Compute Nodes"
+msgstr "Настройка вычислительных узлов"
+
+msgid "Client nodes."
+msgstr "Клиентские узлы."
+
+msgid "Dealing with network access restrictions."
+msgstr "Решение проблем с ограничениями доступа к сети."
+
+msgid "Cluster Disk Usage"
+msgstr "Использование кластерного диска"
+
+msgid "Keeping the cluster secure."
+msgstr "Защита кластера от угроз."
+
+msgid "Let's get started!"
+msgstr "Начнём же!"
+
+msgid "Scheme, crash course"
+msgstr "Scheme, курс для начинающих"
+
+msgid "Guix uses the Guile implementation of Scheme.  To start playing with the language, install it with @code{guix install guile} and start a @dfn{REPL}---short for @uref{https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop, @dfn{read-eval-print loop}}---by running @code{guile} from the command line."
+msgstr "Guix использует Guile имплементацию Scheme. Чтобы опробовать язык, установите его с помощью @code{guix install guile} и запустите @dfn{REPL}---сокращение от @uref{https://ru.wikipedia.org/wiki/REPL, @dfn{read-eval-print loop}}---запустив @code{guile} в командной строке."
+
+msgid "Examples of valid expressions:"
+msgstr "Примеры допустимых выражений:"
+
+msgid ""
+"\"Hello World!\"\n"
+"@result{} \"Hello World!\"\n"
+"\n"
+msgstr ""
+"\"Привет Мир!\"\n"
+"@result{} \"Привет Мир!\"\n"
+"\n"
+
+msgid ""
+"17\n"
+"@result{} 17\n"
+"\n"
+msgstr ""
+"17\n"
+"@result{} 17\n"
+"\n"
+
+msgid ""
+"(display (string-append \"Hello \" \"Guix\" \"\\n\"))\n"
+"@print{} Hello Guix\n"
+"@result{} #<unspecified>\n"
+msgstr ""
+"(display (string-append \"Привет \" \"Guix\" \"\\n\"))\n"
+"@print{} Привет Guix\n"
+"@result{} #<unspecified>\n"
+
+msgid "Anonymous functions---@dfn{procedures} in Scheme parlance---are declared with the @code{lambda} term:"
+msgstr "Анонимные функции --@dfn{procedures} на жаргоне Scheme ---определены с помощью @code{lambda}:"
+
+msgid ""
+"(lambda (x) (* x x))\n"
+"@result{} #<procedure 120e348 at <unknown port>:24:0 (x)>\n"
+msgstr ""
+"(lambda (x) (* x x))\n"
+"@result{} #<procedure 120e348 at <unknown port>:24:0 (x)>\n"
+
+msgid "packaging"
+msgstr "пакетирование"
+
+msgid "channel"
+msgstr "канал"
+
+msgid "$ git clone https://git.guix.gnu.org/guix.git\n"
+msgstr "$ git clone https://git.guix.gnu.org/guix.git\n"
+
+msgid "Note"
+msgstr "Примечание"
+
+msgid "substitute*"
+msgstr "substitute*"
+
+msgid "Guix is, at its core, a source based distribution with substitutes (@pxref{Substitutes,,, guix, GNU Guix Reference Manual}), and as such building packages from their source code is an expected part of regular package installations and upgrades.  Given this starting point, it makes sense that efforts are made to reduce the amount of time spent compiling packages, and recent changes and upgrades to the building and distribution of substitutes continues to be a topic of discussion within Guix."
+msgstr "Guix это по своей сути дистрибутив на основе исходного кода, имеющий источники заранее собранных программ - субституты (@pxref{Субституты,,, guix, GNU Guix Reference Manual}). Как таковая сборка пакетов из их исходного кода - ожидаемая часть повседневных обновлений и установок пакетов. Учитывая это, становится ясно, почему предметами продолжающихся дискуссий внутри Guix-сообщества являются сокращение времени компиляции пакетов и недавние изменения и улучшения в системе сборки и предоставления substitutes."
+
+msgid "If your @acronym{ISP, Internet Service Provider} only provides dynamic IP addresses, it can be useful to setup a dynamic @acronym{DNS, Domain Name System} (also known as @acronym{DDNS, Dynamic DNS}) service to associate a static host name to a public but dynamic (often changing) IP address.  There are multiple existing services that can be used for this; in the following mcron job, @url{https://duckdns.org, DuckDNS} is used.  It should also work with other dynamic DNS services that offer a similar interface to update the IP address, such as @url{https://freedns.afraid.org/}, with minor adjustments."
+msgstr "Если ваш @acronym{ISP, Internet Service Provider} предоставляет только динамические IP-адреса, может быть полезным настроить динамический @acronym{DNS, Domain Name System}(также известный как @acronym{DDNS, Dynamic DNS}), чтобы придать статическое имя хоста публичному, но динамическому IP-адресу. Существует несколько сервисов для такого придания. В грядущем примере работы mcron задействован @url{https://duckdns.org, DuckDNS}. Другие DNS-сервисы тоже подойдут и предоставят схожий интерфейс для обновления адреса, как это делает @url{https://freedns.afraid.org/}, с незначительными корректировками."
+
+msgid ""
+"sudo apt-get install gpg\n"
+"wget https://codeberg.org/efraim.gpg -qO - | gpg --import -\n"
+"wget https://guix.gnu.org/guix-install.sh\n"
+"chmod +x guix-install.sh\n"
+"./guix-install.sh\n"
+"guix pull\n"
+msgstr ""
+"sudo apt-get install gpg\n"
+"wget https://codeberg.org/efraim.gpg -qO - | gpg --import -\n"
+"wget https://guix.gnu.org/guix-install.sh\n"
+"chmod +x guix-install.sh\n"
+"./guix-install.sh\n"
+"guix pull\n"
+
+msgid "Warning"
+msgstr "Предупреждение"
+
+msgid ""
+"(service postgresql-service-type\n"
+"         (postgresql-configuration\n"
+"          (postgresql postgresql-14)))\n"
+msgstr ""
+"(service postgresql-service-type\n"
+"         (postgresql-configuration\n"
+"          (postgresql postgresql-10)))\n"
+
+msgid "Important"
+msgstr "Важно"
+
+msgid "Interface"
+msgstr "Интерфейс"
+
+msgid "Target"
+msgstr "Цель"
+
+msgid "IPv4-Netmask"
+msgstr "Маска IPv4"
+
+msgid "IPv4-Gateway"
+msgstr "Шлюз IPv4"
+
+msgid "Games."
+msgstr "Игры."
+
+msgid "guix shell\n"
+msgstr "guix shell\n"
+
+msgid "Example"
+msgstr "Пример"
+
+msgid "cluster installation"
+msgstr "кластерная установка"
+
+msgid ""
+"ExecStart=/var/guix/profiles/per-user/root/current-guix/bin/guix-daemon \\\n"
+"    --listen=/var/guix/daemon-socket/socket --listen=0.0.0.0\n"
+msgstr ""
+"ExecStart=/var/guix/profiles/per-user/root/current-guix/bin/guix-daemon \\\n"
+"    --listen=/var/guix/daemon-socket/socket --listen=0.0.0.0\n"
+
+msgid "ExecStart=/var/guix/profiles/per-user/root/current-guix/bin/guix-daemon --listen=/var/guix/daemon-socket/socket --listen=0.0.0.0\n"
+msgstr "ExecStart=/var/guix/profiles/per-user/root/current-guix/bin/guix-daemon --listen=/var/guix/daemon-socket/socket --listen=0.0.0.0\n"
+
+msgid "For these changes to take effect, the service needs to be restarted:"
+msgstr "Чтобы изменения вступили в силу, сервис должен быть перезапущен:"
+
+msgid ""
+"systemctl daemon-reload\n"
+"systemctl restart guix-daemon\n"
+msgstr ""
+"systemctl daemon-reload\n"
+"systemctl restart guix-daemon\n"
+
+msgid "guix install hello\n"
+msgstr "guix install hello\n"
+
+msgid "Network Access"
+msgstr "Сетевой доступ"
+
+msgid "Disk Usage"
+msgstr "Использование диска"
+
+msgid "system management"
+msgstr "управление системой"
+
+msgid ""
+"(service postgresql-service-type\n"
+"         (postgresql-configuration\n"
+"          (postgresql (@@ (gnu packages databases) postgresql-15))))\n"
+msgstr ""
+"(service postgresql-service-type\n"
+"         (postgresql-configuration\n"
+"          (postgresql (@@ (gnu packages databases) postgresql-15))))\n"
+
+msgid "fdl-1.3.texi"
+msgstr "fdl-1.3.texi"

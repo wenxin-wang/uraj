@@ -1,0 +1,301 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2021 the authors of Guix (msgids) and the following authors (msgstr)
+# This file is distributed under the same license as the GNU guix package.
+# Muha Aliss <muhaaliss@gmail.com>, 2021.
+# Ferhat Gecdogan <ferhatgectao@gmail.com>, 2022.
+# MY NAME <wonasal634@iconzap.com>, 2022, 2023.
+#: gnu/packages/firmware.scm:1665 gnu/packages/firmware.scm:1932
+#: gnu/packages/linux.scm:1260
+msgid ""
+msgstr ""
+"Project-Id-Version: GNU guix\n"
+"Report-Msgid-Bugs-To: bug-guix@gnu.org\n"
+"POT-Creation-Date: 2025-10-20 03:18+0000\n"
+"PO-Revision-Date: 2023-07-26 15:21+0000\n"
+"Last-Translator: MY NAME <wonasal634@iconzap.com>\n"
+"Language-Team: Turkish <https://translate.fedoraproject.org/projects/guix/packages/tr/>\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: Weblate 4.18.2\n"
+
+msgid "Word processing program"
+msgstr "Word processing program"
+
+msgid ""
+"AbiWord is a word processing program.  It is rapidly\n"
+"becoming a state of the art word processor, with lots of features useful for\n"
+"your daily work, personal needs, or for just some good old typing fun."
+msgstr ""
+"AbiWord bir sözcük işleme uygulamasıdır.  O; günlük işleriniz, \n"
+"kişisel ihtiyaçlarınız veya sadece eski güzel yazma eğlenceniz \n"
+"için yararlı birçok özelliği ile hızla son teknoloji bir kelime işlemcisi haline geliyor."
+
+msgid "Spell checker"
+msgstr "Yazım denetleyicisi"
+
+msgid ""
+"Aspell is a spell-checker which can be used either as a library or as\n"
+"a standalone program.  Notable features of Aspell include its full support of\n"
+"documents written in the UTF-8 encoding and its ability to use multiple\n"
+"dictionaries, including personal ones."
+msgstr ""
+"Aspell hem kütüphane hem de uygulama olarak kullanılabilen\n"
+" bir yazım kontrolcüsüdür. UTF-8 kodlaması ve çoklu kütüphane desteği\n"
+"önemli özellikleri arasındadır, \n"
+"özel olanlar da dahil."
+
+msgid "This package provides a dictionary for the GNU Aspell spell checker."
+msgstr "Bu paket, GNU Aspell yazım kontrolcüsü için bir sözlük sağlar."
+
+msgid ""
+"Ispell is an interactive spell-checking tool supporting many\n"
+"European languages."
+msgstr ""
+"Ispell, Avrupa dillerini de destekleyen interaktif bir\n"
+"yazım kontrolcüsüdür."
+
+msgid "Embedded Audio Acceleration"
+msgstr "Gömülü Ses Hızlandırma"
+
+msgid "Software Synthesizer"
+msgstr "Yazılım Sentezleyici"
+
+msgid "WebRTC's Audio Processing Library"
+msgstr "WebRTC'nin Ses İşleme Kitaplığı"
+
+msgid ""
+"WebRTC-Audio-Processing library based on Google's\n"
+"implementation of WebRTC."
+msgstr ""
+"Google'ın temel aldığı WebRTC-Ses İşleme kitaplığı\n"
+"WebRTC'nin uygulanması."
+
+msgid "VisualOn AAC Encoder"
+msgstr "VisualOn AAC Kodlayıcı"
+
+msgid ""
+"VO-AACENC is the VisualOn implementation of Advanced Audio\n"
+"Coding (AAC) encoder."
+msgstr ""
+"VO-AACENC, Advanced Audio'nun VisualOn uygulamasıdır\n"
+"Kodlama (AAC) kodlayıcı."
+
+msgid "ALSA interfacing library"
+msgstr "ALSA arabirim kitaplığı"
+
+msgid ""
+"TinyALSA is a small library to interface with ALSA in the\n"
+"Linux kernel."
+msgstr ""
+"TinyALSA, ALSA ile arabirim oluşturmak için küçük bir kitaplıktır.\n"
+"Linux çekirdeği."
+
+msgid "Video game music file playback library"
+msgstr "Video oyunu müzik dosyası oynatma kitaplığı"
+
+msgid "Audio tracking library"
+msgstr "Ses takip kütüphanesi"
+
+msgid "Open Fingerprint Architecture"
+msgstr "Açık Parmak İzi Mimarisi"
+
+msgid "MIDI to WAVE converter library"
+msgstr "MIDI'den WAVE'ye dönüştürücü kütüphanesi"
+
+msgid ""
+"LibTiMidity is a MIDI to WAVE converter library that uses\n"
+"Gravis Ultrasound-compatible patch files to generate digital audio data from\n"
+"General MIDI files."
+msgstr ""
+"LibTiMidity, MIDI'den WAVE'e dönüştürücü kitaplığıdır.\n"
+"General MIDI dosyalarından dijital ses verileri üretmek için Gravis Ultrason uyumlu yama dosyalarıdır."
+
+msgid "Adaptive Multi Rate Codec"
+msgstr "Uyarlanabilir Çoklu Hız Codec'i"
+
+msgid ""
+"VO-AMR is a library of VisualOn implementation of\n"
+"Adaptive Multi Rate Narrowband and Wideband (AMR-NB and AMR-WB) speech codec."
+msgstr ""
+"VO-AMR, VisualOn uygulamasının bir kütüphanesidir.\n"
+"Uyarlanabilir Çok Hızlı Dar Bant ve Geniş Bant (AMR-NB ve AMR-WB) konuşma codeci."
+
+msgid ""
+"OpenCore-AMR is a library of OpenCORE Framework\n"
+"implementation of Adaptive Multi Rate Narrowband and Wideband\n"
+"(AMR-NB and AMR-WB) speech codec."
+msgstr ""
+"OpenCore-AMR, OpenCORE Framework'ün bir kütüphanesidir.\n"
+"Uyarlanabilir Çok Hızlı Dar Bant ve Geniş Bant uygulaması\n"
+"(AMR-NB ve AMR-WB) konuşma codeci."
+
+msgid "Realtime modular synthesizer and effect processor"
+msgstr "Gerçek zamanlı modüler sentezleyici ve efekt işlemcisi"
+
+msgid ""
+"AlsaModularSynth is a digital implementation of a classical analog\n"
+"modular synthesizer system.  It uses virtual control voltages to control the\n"
+"parameters of the modules.  The control voltages which control the frequency\n"
+"e.g. of the VCO (Voltage Controlled Oscillator) and VCF (Voltage Controlled\n"
+"Filter) modules follow the convention of 1V / Octave."
+msgstr ""
+"AlsaModularSynth, klasik bir analogun dijital uygulamasıdır.\n"
+"modüler sentezleyici sistemi. kontrol etmek için sanal kontrol voltajlarını kullanır.\n"
+"modüllerin parametreleri. Frekansı kontrol eden kontrol voltajları\n"
+"Örneğin. VCO (Voltaj Kontrollü Osilatör) ve VCF (Voltaj Kontrollü Osilatör)\n"
+"Filtre) modülleri 1V / Octave konvansiyonunu takip eder."
+
+msgid "Library for audio labelling"
+msgstr "Ses etiketleme için kitaplık"
+
+msgid ""
+"aubio is a tool designed for the extraction of annotations from audio\n"
+"signals.  Its features include segmenting a sound file before each of its\n"
+"attacks, performing pitch detection, tapping the beat and producing MIDI\n"
+"streams from live audio."
+msgstr ""
+"aubio, sesten ek açıklamaların çıkarılması için tasarlanmış bir araçtır\n"
+"sinyaller. Özellikleri, bir ses dosyasını her bir dosyadan önce bölümlere ayırmayı içerir.\n"
+"saldırılar, perde algılama gerçekleştirme, vuruşa dokunma ve canlı sesten MIDI akışları üretme."
+
+msgid "Audio processing program with an interactive mode"
+msgstr "İnteraktif moda sahip ses işleme programı"
+
+msgid "dsp is an audio processing program with an interactive mode."
+msgstr "dsp, interaktif moda sahip bir ses işleme programıdır."
+
+msgid "C++ library of functions for DSP and Music Informatics purposes"
+msgstr "DSP ve Müzik Bilişimi amaçlarına yönelik C++ işlev kitaplığı"
+
+msgid "Digital audio workstation"
+msgstr "Dijital ses iş istasyonu"
+
+msgid ""
+"Ardour is a multi-channel digital audio workstation, allowing users to\n"
+"record, edit, mix and master audio and MIDI projects.  It is targeted at audio\n"
+"engineers, musicians, soundtrack editors and composers."
+msgstr ""
+"Ardor, çok kanallı bir dijital ses iş istasyonudur.kullanıcıların\n"
+"ses ve MIDI projelerini kaydetmesine, düzenlemesine, mikslemesine ve master yapmasına olanak verir.\n"
+"Ses mühendislerine, müzisyenlere, film müziği editörlerine ve bestecilere yöneliktir."
+
+msgid "Software for recording and editing sounds"
+msgstr "Sesleri kaydetmek ve düzenlemek için yazılım"
+
+msgid "Library to handle various audio file formats"
+msgstr "Çeşitli ses dosyası formatlarını işlemek için kütüphane"
+
+msgid "Pitch-correction LADSPA audio plugin"
+msgstr "Ses perdesi düzeltme LADSPA ses eklentisi"
+
+msgid "Tonewheel organ synthesizer"
+msgstr "Tonewheel organ sentezleyici"
+
+msgid "Audio plug-in pack for LV2 and JACK environments"
+msgstr "LV2 ve JACK ortamları için ses eklenti paketi"
+
+msgid "LV2 port of the CAPS audio plugin collection"
+msgstr "CAPS ses eklenti koleksiyonunun LV2 bağlantı noktası"
+
+msgid "Real-time C++ @acronym{IIR, infinite impulse response} filter library"
+msgstr "Gerçek zamanlı C++ @acronym{IIR, sonsuz dürtü yanıtı} filtre kütüphanesi"
+
+msgid "LV2 plugins for live use"
+msgstr "Canlı kullanım için LV2 eklentileri"
+
+msgid "Synchronous multiroom audio player"
+msgstr "Eşzamanlı çok odalı müzik çalar"
+
+msgid "This package provides Steve Harris's LADSPA plugins."
+msgstr "Bu paket Steve Harris'in LADSPA eklentilerini sağlar."
+
+msgid "SWH plugins in LV2 format"
+msgstr "LV2 formatında SWH eklentileri"
+
+msgid ""
+"Swh-plugins-lv2 is a collection of audio plugins in LV2 format.  Plugin\n"
+"classes include: dynamics (compressor, limiter), time (delay, chorus,\n"
+"flanger), ringmodulator, distortion, filters, pitchshift, oscillators,\n"
+"emulation (valve, tape), bit fiddling (decimator, pointer-cast), etc."
+msgstr ""
+"Swh-plugins-lv2 Lv2 formatında ses eklentilerinin koleksiyonudur.Eklenti\n"
+"sınıfları şunları içerir: dinamikler (kompresör, sınırlayıcı), zaman (gecikme, koro,\n"
+"Flanger), halka modülatör, distorsiyon, filtreler, pitchshift, osilatörler,\n"
+"emulasyon(valf, bant), bit oynama (desimator, pointer-cast), vb."
+
+msgid "C++ library for access to DJ record libraries"
+msgstr "DJ kayıt kütüphanelerine erişim için C++ kütüphanesi"
+
+msgid ""
+"@code{libdjinterop} is a C++ library that allows access to database\n"
+"formats used to store information about DJ record libraries."
+msgstr ""
+"@code{libdjinterop} veritabanına erişime izin veren bir C++ kütüphanesidir.\n"
+"DJ kayıt kitaplıkları hakkında bilgi depolamak için kullanılan formatlar."
+
+msgid "Sound Synthesis with Physical Models"
+msgstr "Fiziksel Modellerle Ses Sentezi"
+
+msgid "Sound synthesis with physical models"
+msgstr "Fiziksel modellerle ses sentezi"
+
+msgid "Sound and music computing system"
+msgstr "Ses ve müzik hesaplama sistemi"
+
+msgid ""
+"Csound is a user-programmable and user-extensible sound processing\n"
+"language and software synthesizer."
+msgstr ""
+"Csound kullanıcı tarafından programlanabilir ve geliştirebilir ses işleme \n"
+"dili ve yazılım sentezliyicisidir."
+
+msgid "C++ wrapper around the ALSA API"
+msgstr "ALSA API'si etrafında C++ sarıcı"
+
+msgid ""
+"clalsadrv is a C++ wrapper around the ALSA API simplifying access to\n"
+"ALSA PCM devices."
+msgstr ""
+"clalsadrv, ALSA API'si etrafında erişimi basitleştiren bir C++ wrapperdır.\n"
+"ALSA PCM cihazları."
+
+msgid "LADSPA ambisonics plugins"
+msgstr "LADSPA ambisonics eklentileri"
+
+msgid ""
+"The AMB plugins are a set of LADSPA ambisonics plugins, mainly to be\n"
+"used within Ardour.  Features include: mono and stereo to B-format panning,\n"
+"horizontal rotator, square, hexagon and cube decoders."
+msgstr ""
+"AMB eklentileri, bir dizi LADSPA ambisonics eklentisidir;\n"
+"Ardour'da kullanılır. Özellikler şunları içerir: mono ve stereodan B-formatına kaydırma,\n"
+"yatay döndürücü, kare, altıgen ve küp kod çözücüler."
+
+msgid "LADSPA reverb plugin"
+msgstr "LADSPA yankı eklentisi"
+
+msgid ""
+"This package provides a stereo reverb LADSPA plugin based on the\n"
+"well-known greverb."
+msgstr ""
+"Bu paket, bir stereo reverb LADSPA eklentisi sağlar.\n"
+"ünlü greverb."
+
+msgid "LADSPA four-band parametric equalizer plugin"
+msgstr "LADSPA dört bantlı parametrik ekolayzır eklentisi"
+
+msgid "LADSPA stereo width plugin"
+msgstr "LADSPA stereo genişlik eklentisi"
+
+msgid ""
+"This package provides a LADSPA plugin to manipulate the stereo width of\n"
+"audio signals."
+msgstr ""
+"Bu paket, ses sinyallerinin stereo genişliğini değiştirmek için bir \n"
+"LADSPA eklentisi sağlar."
+
+msgid "This package provides a LADSPA plugin for a stereo reverb effect."
+msgstr "Bu paket, stereo yankı efekti için bir LADSPA eklentisi sağlar."

@@ -1,0 +1,553 @@
+Remove CMake code for downloading and builing bundled dependencies:
+They are packaged separately as rapidjson, avalon-toolkit, freesasa,
+ringdecomposerlib and yaehmop.
+
+diff --git a/Code/GraphMol/MolInterchange/CMakeLists.txt b/Code/GraphMol/MolInterchange/CMakeLists.txt
+index 0c1e9a0de..c3504e6f1 100644
+--- a/Code/GraphMol/MolInterchange/CMakeLists.txt
++++ b/Code/GraphMol/MolInterchange/CMakeLists.txt
+@@ -1,26 +1,3 @@
+-
+-if(NOT EXISTS "${CMAKE_SOURCE_DIR}/External/rapidjson-1.1.0")
+-    downloadAndCheckMD5("https://github.com/Tencent/rapidjson/archive/v1.1.0.tar.gz"
+-          "${CMAKE_SOURCE_DIR}/External/rapidjson-1.1.0.tar.gz"
+-          "badd12c511e081fec6c89c43a7027bce")
+-    execute_process(COMMAND ${CMAKE_COMMAND} -E tar zxf
+-      ${CMAKE_SOURCE_DIR}/External/rapidjson-1.1.0.tar.gz
+-      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/External)
+-    # comment out a line which causes a compilation error on some platforms
+-    # (based on the change which has already been applied to the RapidJSON master branch, see
+-    # https://github.com/Tencent/rapidjson/blob/ab1842a2dae061284c0a62dca1cc6d5e7e37e346/include/rapidjson/document.h#L414)
+-    file(READ ${CMAKE_SOURCE_DIR}/External/rapidjson-1.1.0/include/rapidjson/document.h RAPIDJSON_DOCUMENT_H)
+-    string(REGEX REPLACE
+-           "( *)(GenericStringRef& operator=\\(const GenericStringRef& rhs\\) { s = rhs\\.s. length = rhs\\.length. })" "\\1//\\2"
+-           RAPIDJSON_DOCUMENT_H "${RAPIDJSON_DOCUMENT_H}")
+-    file(WRITE ${CMAKE_SOURCE_DIR}/External/rapidjson-1.1.0/include/rapidjson/document.h "${RAPIDJSON_DOCUMENT_H}")
+-else()
+-    message("-- Found RapidJSON source in ${CMAKE_SOURCE_DIR}/External")
+-endif()
+-
+-include_directories(${CMAKE_SOURCE_DIR}/External/rapidjson-1.1.0/include)
+-
+-
+ rdkit_library(MolInterchange
+               Parser.cpp Writer.cpp
+               LINK_LIBRARIES GraphMol)
+diff --git a/External/AvalonTools/AvalonTools.cpp b/External/AvalonTools/AvalonTools.cpp
+index f4b37ba5c..e1b25aed1 100644
+--- a/External/AvalonTools/AvalonTools.cpp
++++ b/External/AvalonTools/AvalonTools.cpp
+@@ -24,15 +24,15 @@
+ #include "AvalonTools.h"
+ 
+ extern "C" {
+-#include "local.h"
+-#include "reaccs.h"
+-#include "reaccsio.h"
+-#include "utilities.h"
+-#include "ssmatch.h"
+-#include "smi2mol.h"
+-#include "canonizer.h"
+-#include "layout.h"
+-#include "struchk.h"
++#include <avalontoolkit/local.h>
++#include <avalontoolkit/reaccs.h>
++#include <avalontoolkit/reaccsio.h>
++#include <avalontoolkit/utilities.h>
++#include <avalontoolkit/ssmatch.h>
++#include <avalontoolkit/smi2mol.h>
++#include <avalontoolkit/canonizer.h>
++#include <avalontoolkit/layout.h>
++#include <avalontoolkit/struchk.h>
+ 
+ extern int RunStruchk(struct reaccs_molecule_t **mpp,
+                       struct data_line_t *data_list);
+diff --git a/External/AvalonTools/CMakeLists.txt b/External/AvalonTools/CMakeLists.txt
+index 30203ecdf..4e2661d7e 100644
+--- a/External/AvalonTools/CMakeLists.txt
++++ b/External/AvalonTools/CMakeLists.txt
+@@ -2,90 +2,8 @@ if(NOT RDK_BUILD_AVALON_SUPPORT)
+   return()
+ endif(NOT RDK_BUILD_AVALON_SUPPORT)
+ 
+-set(AVALON_VERSION "2.0.5-pre.3")
+-if(NOT DEFINED AVALONTOOLS_DIR)
+-  set(AVALONTOOLS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ava-formake-AvalonToolkit_${AVALON_VERSION}")
+-  set(fileToCheck "${AVALONTOOLS_DIR}/src/main/C/common/reaccsio.c")
+-  set(needDownload "TRUE")
+-  if(EXISTS "${fileToCheck}")
+-    set(needDownload "FALSE")
+-  endif()
+-else()
+-  string(REGEX REPLACE "\\\\" "/" AVALONTOOLS_DIR ${AVALONTOOLS_DIR})
+-  set(needDownload "FALSE")
+-endif()
+-
+-set(AVALON_SRC_PATH "${AVALONTOOLS_DIR}/src/main/C")
+-set(AVALON_COMMON_PATH "${AVALON_SRC_PATH}/common")
+-set(AVALON_INCLUDE_PATH "${AVALON_SRC_PATH}/include")
+-set(AVALON_PROGRAMS_PATH "${AVALON_SRC_PATH}/programs")
+-
+-if(needDownload)
+-  if(NOT DEFINED AVALONTOOLS_URL)
+-    set(AVALONTOOLS_URL "https://github.com/rdkit/ava-formake/archive/refs/tags/AvalonToolkit_${AVALON_VERSION}.tar.gz")
+-  endif()
+-  if(NOT DEFINED AVALONTOOLS_MD5SUM)
+-    set(AVALONTOOLS_MD5SUM "7a20c25a7e79f3344e0f9f49afa03351")
+-  endif()
+-  if(NOT DEFINED AVALONTOOLS_BASE)
+-    string(REGEX REPLACE "^.*/" "" AVALONTOOLS_BASE "${AVALONTOOLS_URL}")
+-  endif()
+-  downloadAndCheckMD5(${AVALONTOOLS_URL} "${CMAKE_CURRENT_SOURCE_DIR}/${AVALONTOOLS_BASE}" ${AVALONTOOLS_MD5SUM})
+-  execute_process(COMMAND ${CMAKE_COMMAND} -E tar xzf
+-    ${CMAKE_CURRENT_SOURCE_DIR}/AvalonToolkit_${AVALON_VERSION}.tar.gz
+-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+-endif()
+-
+-if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+-  add_compile_options(-Wno-format-security -Wformat=0 -Wstringop-overflow=0 -Wformat-overflow=0 -Wno-unused-result )
+-endif()
+-if(CMAKE_C_COMPILER_ID STREQUAL "Clang")
+-  add_compile_options(-Wno-absolute-value -Wno-return-type -Wno-tautological-overlap-compare)
+-endif()
+-if (MSVC)
+-  add_definitions("/D_CRT_SECURE_NO_WARNINGS")
+-  add_compile_options(/wd4018 /wd4101 /wd4146 /wd4334 /wd4477 /wd4715 /wd4716 /wd4996 /nologo)
+-endif(MSVC)
+-
+-set(avalon_clib_srcs ${AVALON_COMMON_PATH}/layout.c
+-	${AVALON_COMMON_PATH}/symboltable.c
+-	${AVALON_COMMON_PATH}/patclean.c
+-	${AVALON_COMMON_PATH}/utilities.c
+-	${AVALON_COMMON_PATH}/symbol_lists.c
+-	${AVALON_COMMON_PATH}/stereo.c
+-	${AVALON_COMMON_PATH}/set.c
+-	${AVALON_COMMON_PATH}/perceive.c
+-	${AVALON_COMMON_PATH}/local.c
+-	${AVALON_COMMON_PATH}/graph.c
+-	${AVALON_COMMON_PATH}/geometry.c
+-	${AVALON_COMMON_PATH}/forio.c
+-	${AVALON_COMMON_PATH}/depictutil.c
+-	${AVALON_COMMON_PATH}/denormal.c
+-	${AVALON_COMMON_PATH}/casutils.c
+-	${AVALON_COMMON_PATH}/ssmatch.c
+-	${AVALON_COMMON_PATH}/rtutils.c
+-	${AVALON_COMMON_PATH}/smi2mol.c
+-	${AVALON_COMMON_PATH}/didepict.c
+-	${AVALON_COMMON_PATH}/pattern.c
+-	${AVALON_COMMON_PATH}/canonizer.c
+-	${AVALON_COMMON_PATH}/aacheck.c
+-	${AVALON_COMMON_PATH}/fixcharges.c
+-	${AVALON_PROGRAMS_PATH}/struchk.c
+-	${AVALON_COMMON_PATH}/reaccsio.c
+-	${AVALON_COMMON_PATH}/hashcode.c
+-  )
+-
+-rdkit_library(avalon_clib ${avalon_clib_srcs})
+-target_compile_definitions(avalon_clib PRIVATE RDKIT_AVALONLIB_BUILD)
+-if((MSVC AND RDK_INSTALL_DLLS_MSVC) OR ((NOT MSVC) AND WIN32))
+-  set_target_properties(avalon_clib PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
+-endif()
+-
+-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+-include_directories(${AVALON_INCLUDE_PATH})
+-
+ rdkit_library(AvalonLib AvalonTools.cpp SHARED 
+-     LINK_LIBRARIES avalon_clib SubstructMatch FileParsers SmilesParse GraphMol DataStructs  )
++     LINK_LIBRARIES -lavalon4rdkit SubstructMatch FileParsers SmilesParse GraphMol DataStructs  )
+ target_compile_definitions(AvalonLib PRIVATE RDKIT_AVALONLIB_BUILD)
+ rdkit_headers(AvalonTools.h DEST GraphMol)
+ rdkit_test(testAvalonLib1 test1.cpp
+diff --git a/External/AvalonTools/Wrap/pyAvalonTools.cpp b/External/AvalonTools/Wrap/pyAvalonTools.cpp
+index 72c7a5ee2..e7ac609ae 100644
+--- a/External/AvalonTools/Wrap/pyAvalonTools.cpp
++++ b/External/AvalonTools/Wrap/pyAvalonTools.cpp
+@@ -12,7 +12,7 @@
+ #include <boost/cstdint.hpp>
+ 
+ extern "C" {
+-#include "struchk.h"
++#include <avalontoolkit/struchk.h>
+ }
+ 
+ namespace python = boost::python;
+diff --git a/External/FreeSASA/CMakeLists.txt b/External/FreeSASA/CMakeLists.txt
+index 8baadb618..81165a143 100644
+--- a/External/FreeSASA/CMakeLists.txt
++++ b/External/FreeSASA/CMakeLists.txt
+@@ -2,174 +2,8 @@ if(NOT RDK_BUILD_FREESASA_SUPPORT)
+   return()
+ endif(NOT RDK_BUILD_FREESASA_SUPPORT)
+ 
+-if(NOT DEFINED FREESASA_DIR)
+-  set(FREESASA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/freesasa")
+-  set(needDownload "TRUE")
+-  if(EXISTS "${FREESASA_DIR}/src/freesasa.h")
+-    set(needDownload "FALSE")
+-  endif()
+-endif()
+-
+-if(needDownload)
+-  # don't actually use the md5 here
+-  set(FREESASA_VERSION "2.0.3")
+-  set(FREESASA_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/freesasa-${FREESASA_VERSION}")
+-  if(NOT EXISTS "${FREESASA_SRC_DIR}/src")
+-    downloadAndCheckMD5("https://github.com/mittinatten/freesasa/releases/download/${FREESASA_VERSION}/freesasa-${FREESASA_VERSION}.tar.gz"
+-          "${CMAKE_CURRENT_SOURCE_DIR}/master.tar.gz"
+-          "")
+-    execute_process(COMMAND ${CMAKE_COMMAND} -E tar zxf
+-      ${CMAKE_CURRENT_SOURCE_DIR}/master.tar.gz
+-      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+-    message("Copying freesasa2.c to ${FREESASA_SRC_DIR}/src/freesasa2.c")
+-    file(COPY freesasa2.c DESTINATION ${FREESASA_SRC_DIR}/src/)
+-  else()
+-    message("FreeSASA found in ${FREESASA_SRC_DIR}, no download required")
+-  endif()
+-endif()
+-
+-set(CMAKE_C_STANDARD 99)
+-
+-set (freesasa_clib_srcs
+-    ${FREESASA_SRC_DIR}/src/classifier.c
+-    ${FREESASA_SRC_DIR}/src/classifier_naccess.c
+-    ${FREESASA_SRC_DIR}/src/classifier_oons.c
+-    ${FREESASA_SRC_DIR}/src/classifier_protor.c
+-    ${FREESASA_SRC_DIR}/src/coord.c
+-    ${FREESASA_SRC_DIR}/src/freesasa2.c
+-    ${FREESASA_SRC_DIR}/src/lexer.c
+-    ${FREESASA_SRC_DIR}/src/log.c
+-    ${FREESASA_SRC_DIR}/src/nb.c
+-    ${FREESASA_SRC_DIR}/src/node.c
+-    ${FREESASA_SRC_DIR}/src/parser.c
+-    ${FREESASA_SRC_DIR}/src/pdb.c
+-    ${FREESASA_SRC_DIR}/src/rsa.c
+-    ${FREESASA_SRC_DIR}/src/sasa_lr.c
+-    ${FREESASA_SRC_DIR}/src/sasa_sr.c
+-    ${FREESASA_SRC_DIR}/src/selection.c
+-    ${FREESASA_SRC_DIR}/src/structure.c
+-    ${FREESASA_SRC_DIR}/src/util.c
+-    )
+-if((MSVC AND RDK_INSTALL_DLLS_MSVC) OR ((NOT MSVC) AND WIN32))
+-  set(freesasa_additional_exports ${CMAKE_CURRENT_SOURCE_DIR}/additional_exports.def)
+-  file(WRITE ${freesasa_additional_exports}
+-    "EXPORTS\n"
+-    "freesasa_calc_structure\n"
+-    "freesasa_calc_coord\n"
+-    "freesasa_calc_tree\n"
+-    "freesasa_result_classes\n"
+-    "freesasa_result_free\n"
+-    "freesasa_classifier_from_file\n"
+-    "freesasa_classifier_free\n"
+-    "freesasa_classifier_radius\n"
+-    "freesasa_classifier_class\n"
+-    "freesasa_classifier_class2str\n"
+-    "freesasa_classifier_name\n"
+-    "freesasa_selection_new\n"
+-    "freesasa_selection_free\n"
+-    "freesasa_selection_name\n"
+-    "freesasa_selection_command\n"
+-    "freesasa_selection_area\n"
+-    "freesasa_set_verbosity\n"
+-    "freesasa_get_verbosity\n"
+-    "freesasa_set_err_out\n"
+-    "freesasa_get_err_out\n"
+-    "freesasa_structure_new\n"
+-    "freesasa_structure_free\n"
+-    "freesasa_structure_from_pdb\n"
+-    "freesasa_structure_array\n"
+-    "freesasa_structure_add_atom\n"
+-    "freesasa_structure_add_atom_wopt\n"
+-    "freesasa_structure_get_chains\n"
+-    "freesasa_structure_chain_labels\n"
+-    "freesasa_structure_n\n"
+-    "freesasa_structure_n_residues\n"
+-    "freesasa_structure_n_chains\n"
+-    "freesasa_structure_radius\n"
+-    "freesasa_structure_set_radius\n"
+-    "freesasa_structure_atom_name\n"
+-    "freesasa_structure_atom_res_name\n"
+-    "freesasa_structure_atom_res_number\n"
+-    "freesasa_structure_atom_chain\n"
+-    "freesasa_structure_atom_symbol\n"
+-    "freesasa_structure_atom_radius\n"
+-    "freesasa_structure_atom_set_radius\n"
+-    "freesasa_structure_residue_name\n"
+-    "freesasa_structure_residue_number\n"
+-    "freesasa_structure_residue_chain\n"
+-    "freesasa_structure_model\n"
+-    "freesasa_structure_coord_array\n"
+-    "freesasa_structure_residue_atoms\n"
+-    "freesasa_structure_chain_atoms\n"
+-    "freesasa_structure_chain_residues\n"
+-    "freesasa_structure_classifier_name\n"
+-    "freesasa_tree_new\n"
+-    "freesasa_tree_init\n"
+-    "freesasa_tree_add_result\n"
+-    "freesasa_tree_join\n"
+-    "freesasa_tree_export\n"
+-    "freesasa_node_free\n"
+-    "freesasa_node_area\n"
+-    "freesasa_node_children\n"
+-    "freesasa_node_next\n"
+-    "freesasa_node_parent\n"
+-    "freesasa_node_type\n"
+-    "freesasa_node_name\n"
+-    "freesasa_node_classified_by\n"
+-    "freesasa_node_atom_is_polar\n"
+-    "freesasa_node_atom_is_mainchain\n"
+-    "freesasa_node_atom_radius\n"
+-    "freesasa_node_atom_pdb_line\n"
+-    "freesasa_node_residue_number\n"
+-    "freesasa_node_residue_n_atoms\n"
+-    "freesasa_node_residue_reference\n"
+-    "freesasa_node_chain_n_residues\n"
+-    "freesasa_node_structure_n_chains\n"
+-    "freesasa_node_structure_n_atoms\n"
+-    "freesasa_node_structure_chain_labels\n"
+-    "freesasa_node_structure_model\n"
+-    "freesasa_node_structure_result\n"
+-    "freesasa_node_structure_selections\n"
+-    "freesasa_node_structure_add_selection\n"
+-    "freesasa_node_result_parameters\n"
+-    "freesasa_select_area\n"
+-    "freesasa_default_parameters DATA\n"
+-    "freesasa_protor_classifier DATA\n"
+-    "freesasa_naccess_classifier DATA\n"
+-    "freesasa_oons_classifier DATA\n"
+-  )
+-  set (freesasa_clib_srcs
+-    ${freesasa_clib_srcs}
+-    ${freesasa_additional_exports}
+-  )
+-endif()
+-
+-set (freesasa_h ${FREESASA_SRC_DIR}/src/freesasa.h)
+-file(READ ${freesasa_h} freesasa_h_data)
+-if (NOT freesasa_h_data MATCHES "RDGeneral/export")
+-  string(REGEX REPLACE "(#include <stdio.h>)" "\\1\n#include <RDGeneral/export.h>" freesasa_h_data "${freesasa_h_data}")
+-endif()
+-if (MSVC)
+-  set (RDKIT_FREESASA_CLIB_EXPORT "RDKIT_FREESASA_CLIB_EXPORT ")
+-else()
+-  set (RDKIT_FREESASA_CLIB_EXPORT "")
+-endif()
+-string(REGEX REPLACE "(RDKIT_FREESASA_CLIB_EXPORT )?(extern const)" "${RDKIT_FREESASA_CLIB_EXPORT}\\2" freesasa_h_data "${freesasa_h_data}")
+-file(WRITE ${freesasa_h} "${freesasa_h_data}")
+-
+-add_definitions(-DUSE_THREADS=0)
+-add_definitions(-DUSE_JSON=0)
+-add_definitions(-DUSE_XML=0)
+-rdkit_library(freesasa_clib ${freesasa_clib_srcs})
+-target_compile_definitions(freesasa_clib PRIVATE RDKIT_FREESASALIB_BUILD)
+-
+-if((MSVC AND RDK_INSTALL_DLLS_MSVC) OR ((NOT MSVC) AND WIN32))
+-  set_target_properties(freesasa_clib PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
+-endif()
+-include_directories("${FREESASA_SRC_DIR}/src")
+-
+ rdkit_library(FreeSASALib RDFreeSASA.cpp SHARED 
+-    LINK_LIBRARIES freesasa_clib GraphMol )
++    LINK_LIBRARIES -lfreesasa GraphMol )
+ target_compile_definitions(FreeSASALib PRIVATE RDKIT_FREESASALIB_BUILD)
+ 
+ rdkit_headers(RDFreeSASA.h DEST GraphMol)
+diff --git a/External/RingFamilies/CMakeLists.txt b/External/RingFamilies/CMakeLists.txt
+index 08dd1fe04..068435506 100644
+--- a/External/RingFamilies/CMakeLists.txt
++++ b/External/RingFamilies/CMakeLists.txt
+@@ -1,47 +1,7 @@
+-add_custom_target(ringdecomposerlib_support ALL)
+-
+ if(NOT RDK_USE_URF)
+   return()
+ endif(NOT RDK_USE_URF)
+ 
+-if(NOT DEFINED URFLIB_DIR)
+-    set(URFLIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/RingDecomposerLib/src/RingDecomposerLib")
+-endif()
+-
+-if(NOT EXISTS "${URFLIB_DIR}/RingDecomposerLib.h")
+-    set(RELEASE_NO "1.1.3_rdkit")
+-    set(MD5 "e9a0bcdda8b921a35e812b9888a9a874")
+-    downloadAndCheckMD5("https://github.com/rareylab/RingDecomposerLib/archive/v${RELEASE_NO}.tar.gz"
+-            "${CMAKE_CURRENT_SOURCE_DIR}/RingDecomposerLib-v${RELEASE_NO}.tar.gz" ${MD5})
+-    execute_process(COMMAND ${CMAKE_COMMAND} -E tar zxf
+-        ${CMAKE_CURRENT_SOURCE_DIR}/RingDecomposerLib-v${RELEASE_NO}.tar.gz
+-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+-    file(RENAME "RingDecomposerLib-${RELEASE_NO}" "RingDecomposerLib")
+-else()
+-    message("-- Found RingDecomposerLib source in ${URFLIB_DIR}")
+-endif()
+-
+-set(urflib_INCLUDE_DIRS ${URFLIB_DIR}
+-    CACHE STRING "RingDecomposerLib Include Dir" FORCE)
+-file(GLOB URFSOURCES "${URFLIB_DIR}/*.c")
+-
+-#if((MSVC AND RDK_INSTALL_DLLS_MSVC) OR ((NOT MSVC) AND WIN32 AND (NOT RDK_INSTALL_STATIC_LIBS)))
+-if(WIN32)
+-    set (ringdecomposerlib_h ${URFLIB_DIR}/RingDecomposerLib.h)
+-    file(READ ${ringdecomposerlib_h} ringdecomposerlib_h_data)
+-    if (NOT "${ringdecomposerlib_h_data}" MATCHES "RDKIT_URFLIB_BUILD")
+-        string(REGEX REPLACE "(#if[ ]+\\([ ]*defined[ ]*\\([ ]*_WIN32[ ]*\\)[ ]*&&[ ]*)(defined\\([ ]*_MSC_VER[ ]*\\))" "\\1!defined( RDL_WIN_STATIC )" ringdecomposerlib_h_data "${ringdecomposerlib_h_data}")
+-        string(REGEX REPLACE "([ ]*)(#define[ ]+RDL_API[ ]+__declspec)(\\([ ]*dllexport[ ]*\\))" "\\1#ifdef RDKIT_URFLIB_BUILD\n\\1\\1\\2\\3\n\\1#else\n\\1\\1\\2(dllimport)\n\\1#endif" ringdecomposerlib_h_data "${ringdecomposerlib_h_data}")
+-        file(WRITE ${ringdecomposerlib_h} "${ringdecomposerlib_h_data}")
+-    endif()
+-endif()
+-rdkit_library(RingDecomposerLib ${URFSOURCES} SHARED)
+-if((MSVC AND RDK_INSTALL_DLLS_MSVC) OR ((NOT MSVC) AND WIN32 AND (NOT RDK_INSTALL_STATIC_LIBS)))
+-    target_compile_definitions(RingDecomposerLib PRIVATE RDKIT_URFLIB_BUILD)
+-endif()
+-install(TARGETS RingDecomposerLib DESTINATION ${RDKit_LibDir})
+-rdkit_headers(${URFLIB_DIR}/RingDecomposerLib.h DEST "")
+-
+-
++rdkit_library(RingDecomposerLib dummy.cpp SHARED LINK_LIBRARIES -lRingDecomposerLib)
+ set(RDK_URF_LIBS RingDecomposerLib
+     CACHE STRING "the libraries for the URF calculation" FORCE)
+diff --git a/External/RingFamilies/dummy.cpp b/External/RingFamilies/dummy.cpp
+new file mode 100644
+index 000000000..e69de29bb
+diff --git a/External/YAeHMOP/CMakeLists.txt b/External/YAeHMOP/CMakeLists.txt
+index c8daef9a5..01eaddac6 100644
+--- a/External/YAeHMOP/CMakeLists.txt
++++ b/External/YAeHMOP/CMakeLists.txt
+@@ -4,52 +4,7 @@ endif(NOT RDK_BUILD_YAEHMOP_SUPPORT)
+ 
+ add_definitions(-DRDK_BUILD_YAEHMOP_SUPPORT)
+ 
+-if(NOT DEFINED YAEHMOP_DIR)
+-  set(YAEHMOP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/yaehmop")
+-endif()
+-
+-if(NOT EXISTS "${YAEHMOP_DIR}/tightbind/bind.h")
+-    set(RELEASE_NO "2024.03.1")
+-    set(MD5 "ebbddca4f79ab71544cb1fef9a7eca8a")
+-    downloadAndCheckMD5("https://github.com/greglandrum/yaehmop/archive/refs/tags/v${RELEASE_NO}.tar.gz"
+-          "${CMAKE_CURRENT_SOURCE_DIR}/yaehmop-${RELEASE_NO}.tar.gz" ${MD5})
+-    execute_process(COMMAND ${CMAKE_COMMAND} -E tar zxf
+-      ${CMAKE_CURRENT_SOURCE_DIR}/yaehmop-${RELEASE_NO}.tar.gz
+-      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+-
+-    file(RENAME "yaehmop-${RELEASE_NO}" "${YAEHMOP_DIR}")
+-else()
+-  message("-- Found YAeHMOP source in ${YAEHMOP_DIR}")
+-endif()
+-
+-set(yaehmop_INCLUDE_DIRS ${YAEHMOP_DIR}/..
+-     CACHE STRING "yaehmop Include File" FORCE)
+-include_directories(${yaehmop_INCLUDE_DIRS})
+-
+-if(CMAKE_COMPILER_IS_GNUCXX AND NOT CYGWIN)
+-    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+-endif()
+-if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+-    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+-endif()
+-
+-# bring in the eHT code, but skip the targets (we'll get yaehmop_eht anyway because it's a dependency)
+-add_subdirectory(yaehmop/tightbind EXCLUDE_FROM_ALL True)
+-
+-# set install dir for the yaehmop library:
+-INSTALL(TARGETS yaehmop_eht EXPORT rdkit-targets
+-        DESTINATION ${RDKit_LibDir}/${RDKLIB_DEST}
+-        COMPONENT runtime )
+-
+-
+-
+-
+-set(EHT_PARAM_FILE ${CMAKE_CURRENT_SOURCE_DIR}/yaehmop/tightbind/eht_parms.dat )
+-install(FILES ${EHT_PARAM_FILE}
+-        DESTINATION ${RDKit_ShareDir}/Data
+-        COMPONENT data)
+-
+-rdkit_library(EHTLib EHTTools.cpp SHARED LINK_LIBRARIES yaehmop_eht GraphMol )
++rdkit_library(EHTLib EHTTools.cpp SHARED LINK_LIBRARIES -lyaehmop_eht GraphMol )
+ target_compile_definitions(EHTLib PRIVATE RDKIT_EHTLIB_BUILD)
+ rdkit_headers(EHTTools.h DEST GraphMol)
+ rdkit_catch_test(testEHTLib1 test1.cpp
+diff --git a/External/YAeHMOP/EHTTools.cpp b/External/YAeHMOP/EHTTools.cpp
+index 021c548f1..43afdca57 100644
+--- a/External/YAeHMOP/EHTTools.cpp
++++ b/External/YAeHMOP/EHTTools.cpp
+@@ -13,7 +13,7 @@
+ #include <filesystem>
+ 
+ extern "C" {
+-#include <yaehmop/tightbind/bind.h>
++#include <yaehmop/bind.h>
+ }
+ 
+ namespace RDKit {
+@@ -211,4 +211,4 @@ bool runMol(const ROMol &mol, EHTResults &results, int confId,
+ }
+ 
+ }  // end of namespace EHTTools
+-}  // end of namespace RDKit
+\ No newline at end of file
++}  // end of namespace RDKit
+diff --git a/External/YAeHMOP/Wrap/CMakeLists.txt b/External/YAeHMOP/Wrap/CMakeLists.txt
+index 759a9f360..114d24532 100644
+--- a/External/YAeHMOP/Wrap/CMakeLists.txt
++++ b/External/YAeHMOP/Wrap/CMakeLists.txt
+@@ -4,6 +4,8 @@ rdkit_python_extension(rdEHTTools
+                        DEST Chem
+                        LINK_LIBRARIES
+                        EHTLib )
++
++target_include_directories(rdEHTTools PRIVATE ${RDKit_ExternalDir}/YAeHMOP)
+                        
+ add_pytest(pyEHTTools
+          ${CMAKE_CURRENT_SOURCE_DIR}/testEHTTools.py)
+diff --git a/External/pubchem_shape/CMakeLists.txt b/External/pubchem_shape/CMakeLists.txt
+index a0f16eadb..463a9e31e 100644
+--- a/External/pubchem_shape/CMakeLists.txt
++++ b/External/pubchem_shape/CMakeLists.txt
+@@ -2,47 +2,8 @@ if(NOT RDK_BUILD_PUBCHEMSHAPE_SUPPORT)
+   return()
+ endif()
+ 
+-if(NOT DEFINED PUBCHEMSHAPE_DIR)
+-  set(PUBCHEMSHAPE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/pubchem-align3d")
+-  set(fileToCheck "${PUBCHEMSHAPE_DIR}/shape_functions1.cpp")
+-  set(needDownload "TRUE")
+-  if(EXISTS "${fileToCheck}")
+-    set(needDownload "FALSE")
+-  endif()
+-else()
+-  set(needDownload "FALSE")
+-endif()
+-
+-if(needDownload)
+-  set(PUBCHEM_COMMIT_SHA daefab3)
+-  if(NOT DEFINED PUBCHEMSHAPE_URL)
+-    set(PUBCHEMSHAPE_URL "https://github.com/ncbi/pubchem-align3d/archive/${PUBCHEM_COMMIT_SHA}.tar.gz")
+-  endif()
+-  if(NOT DEFINED PUBCHEMSHAPE_MD5SUM)
+-    set(PUBCHEMSHAPE_MD5SUM "a78a6273851709083ac3803d62cb5ae6")
+-  endif()
+-  if(NOT DEFINED PUBCHEMSHAPE_BASE)
+-    string(REGEX REPLACE "^.*/" "" PUBCHEMSHAPE_BASE "${PUBCHEMSHAPE_URL}")
+-  endif()
+-  downloadAndCheckMD5(${PUBCHEMSHAPE_URL} "${CMAKE_CURRENT_SOURCE_DIR}/${PUBCHEMSHAPE_BASE}" ${PUBCHEMSHAPE_MD5SUM})
+-  execute_process(COMMAND ${CMAKE_COMMAND} -E tar xzf
+-    ${CMAKE_CURRENT_SOURCE_DIR}/${PUBCHEM_COMMIT_SHA}.tar.gz
+-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+-
+-  file(GLOB tar_dirname ${CMAKE_CURRENT_SOURCE_DIR}/pubchem-align3d-${PUBCHEM_COMMIT_SHA}*)
+-  execute_process(COMMAND ${CMAKE_COMMAND} -E rename ${tar_dirname}
+-       ${PUBCHEMSHAPE_DIR}
+-       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+-endif()
+-
+-rdkit_library(pubchem_align3d ./pubchem-align3d/shape_functions1.cpp
+-            ./pubchem-align3d/shape_functions2.cpp ./pubchem-align3d/shape_neighbor.cpp SHARED)
+-if((MSVC AND RDK_INSTALL_DLLS_MSVC) OR ((NOT MSVC) AND WIN32))
+-  set_target_properties(pubchem_align3d PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
+-endif()
+-
+ rdkit_library(PubChemShape PubChemShape.cpp SHARED
+- LINK_LIBRARIES pubchem_align3d SmilesParse SubstructMatch)
++ LINK_LIBRARIES -lpubchem-align3d SmilesParse SubstructMatch)
+ target_compile_definitions(PubChemShape PRIVATE RDKIT_PUBCHEMSHAPE_BUILD)
+ 
+ rdkit_headers(PubChemShape.hpp DEST GraphMol)

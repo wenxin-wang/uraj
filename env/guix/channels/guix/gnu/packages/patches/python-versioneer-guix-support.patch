@@ -1,0 +1,23 @@
+Versioneer does not work in the Guix build container because:
+
+* VCS information is unavailable
+* the build directory does not have the supported "$name-$version" format
+* as of 0.21, versioneer has no way to override the discovered values
+
+This patch adds support for extracting version from the
+GUIX_VERSIONEER_VERSION environment variable set by the set-version
+phase of the pyproject build system.
+
+--- a/src/get_versions.py
++++ b/src/get_versions.py
+@@ -19,6 +19,10 @@
+         # see the discussion in cmdclass.py:get_cmdclass()
+         del sys.modules["versioneer"]
+ 
++    ver = {"version": os.getenv("GUIX_VERSIONEER_VERSION")}
++    if ver["version"] is not None:
++        return ver
++
+     root = get_root()
+     cfg = get_config_from_root(root)
+ 

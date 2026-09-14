@@ -1,0 +1,36 @@
+Upstream-status: https://bugzilla.mozilla.org/show_bug.cgi?id=1986219
+
+diff --git a/toolkit/xre/nsXREDirProvider.cpp b/toolkit/xre/nsXREDirProvider.cpp
+index 9c94cb8808aa..dfee051b302f 100644
+--- a/toolkit/xre/nsXREDirProvider.cpp
++++ b/toolkit/xre/nsXREDirProvider.cpp
+@@ -276,11 +276,27 @@ nsresult nsXREDirProvider::GetBackgroundTasksProfilesRootDir(
+  *
+  * On OSX this is /Library/Application Support/Mozilla
+  * On Linux this is /usr/{lib,lib64}/mozilla
+- *   (for 32- and 64-bit systems respsectively)
++ *   (for 32- and 64-bit systems respectively)
++ *
++ * The MOZILLA_SYSTEM_DIR environment variable can be used to override
++ * the system directory used.
+  */
+ static nsresult GetSystemParentDirectory(nsIFile** aFile) {
+-  nsresult rv;
++  nsresult rv = NS_ERROR_FAILURE;
+   nsCOMPtr<nsIFile> localDir;
++
++  // Honor a the MOZILLA_SYSTEM_DIR environment variable first...
++  const char* systemParentDir = getenv("MOZILLA_SYSTEM_DIR");
++  if (systemParentDir) {
++    rv = NS_NewNativeLocalFile(nsDependentCString(systemParentDir),
++                               getter_AddRefs(localDir));
++  }
++  if (NS_SUCCEEDED(rv)) {
++    localDir.forget(aFile);
++    return rv;
++  }
++
++  // ... falling back to the conventional fixed location otherwise.
+ #  if defined(XP_MACOSX)
+   rv = GetOSXFolderType(kOnSystemDisk, kApplicationSupportFolderType,
+                         getter_AddRefs(localDir));

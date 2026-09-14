@@ -1,0 +1,659 @@
+# SOME DESCRIPTIVE TITLE
+# Copyright (C) YEAR the authors of Guix (msgids) and the following authors (msgstr)
+# This file is distributed under the same license as the guix manual package.
+# Rey Lopezch <taodeking@tutanota.com>, 2024, 2025.
+# Florian Pelz <pelzflorian@pelzflorian.de>, 2024, 2025.
+msgid ""
+msgstr ""
+"Project-Id-Version: guix manual checkout\n"
+"Report-Msgid-Bugs-To: bug-guix@gnu.org\n"
+"POT-Creation-Date: 2026-07-04 03:18+0000\n"
+"PO-Revision-Date: 2026-05-31 06:46+0000\n"
+"Last-Translator: pelzflorian <pelzflorian@noreply.codeberg.org>\n"
+"Language-Team: Swedish <https://translate.codeberg.org/projects/guix/documentation-cookbook/sv/>\n"
+"Language: sv\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: Weblate 2026.5\n"
+
+msgid "GNU Guix Cookbook"
+msgstr "Kokbok för GNU Guix"
+
+msgid "System administration"
+msgstr "Systemadministration"
+
+msgid "Guix cookbook: (guix-cookbook)"
+msgstr "Kokbok för Guix: (guix-cookbook.sv)"
+
+msgid "Tutorials and examples for GNU Guix."
+msgstr "Handledningar och exempel för GNU Guix."
+
+msgid "The GNU Guix Developers"
+msgstr "GNU Guix-utvecklarna"
+
+msgid "Top"
+msgstr "Top"
+
+msgid "This document presents tutorials and detailed examples for GNU@tie{}Guix, a functional package management tool written for the GNU system.  Please @pxref{Top,,, guix, GNU Guix reference manual} for details about the system, its API, and related concepts."
+msgstr "Det här dokumentet presenterar handledningar och detaljerade exempel för GNU@tie{}Guix, ett funktionellt pakethanteringsverktyg skrivet för GNU-systemet.    Var god se @pxref{Top,,, guix, GNU Guix reference manual} för fler detaljer om systemet, dess API samt relaterade begrepp."
+
+msgid "This manual is also available in Simplified Chinese (@pxref{Top,,, guix-cookbook.zh_CN, GNU Guix 烹饪书}), French (@pxref{Top,,, guix-cookbook.fr, Livre de recettes de GNU Guix}), German (@pxref{Top,,, guix-cookbook.de, GNU-Guix-Kochbuch}), Korean (@pxref{Top,,, guix-cookbook.ko, GNU Guix 쿡북}), Spanish (@pxref{Top,,, guix-cookbook.es, Libro de recetas de GNU Guix}), Italian (@pxref{Top,,, guix-cookbook.it, Ricettario di GNU Guix}), Brazilian Portuguese (@pxref{Top,,, guix-cookbook.pt_BR, Livro de receitas do GNU Guix}), Russian (@pxref{Top,,, guix-cookbook.ru, GNU Guix Рецепты}), Slovak (@pxref{Top,,, guix-cookbook.sk, Receptár GNU Guix}), and Swedish (@pxref{Top,,, guix-cookbook.sv, Kokbok för GNU Guix}).  If you would like to translate this document in your native language, consider joining @uref{https://translate.codeberg.org/projects/guix/documentation-cookbook, Weblate} (@pxref{Translating Guix,,, guix, GNU Guix Reference Manual})."
+msgstr "Den här manualen är också tillgänglig på engelska (@pxref{Top,,, guix-cookbook, GNU Guix Cookbook}), förenklade kinesiska (@pxref{Top,,, guix-cookbook.zh_CN, GNU Guix 烹饪书}), franska (@pxref{Top,,, guix-cookbook.fr, Livre de recettes de GNU Guix}), tysa (@pxref{Top,,, guix-cookbook.de, GNU-Guix-Kochbuch}), koreanska (@pxref{Top,,, guix-cookbook.ko, GNU Guix 쿡북}), spanska (@pxref{Top,,, guix-cookbook.es, Libro de recetas de GNU Guix}), italienska (@pxref{Top,,, guix-cookbook.it, Ricettario di GNU Guix}), brasiliansk portugisiska (@pxref{Top,,, guix-cookbook.pt_BR, Livro de receitas do GNU Guix}), ryska (@pxref{Top,,, guix-cookbook.ru, GNU Guix Рецепты}), slovakiska (@pxref{Top,,, guix-cookbook.sk, Receptár GNU Guix}) och tamilska (@pxref{Top,,, guix-cookbook.ta, GNU Guix கையேடு}).    Överväg att gå med @uref{https://translate.codeberg.org/projects/guix/documentation-cookbook, Weblate} (@pxref{Translating Guix,,, guix, GNU Guix reference manual}) om du vill översätta det här dokumentet till ditt modersmål."
+
+msgid "Scheme tutorials"
+msgstr "Handledningar för Scheme"
+
+msgid "Meet your new favorite language!"
+msgstr "Träffa ditt nya favoritspråk!"
+
+msgid "Packaging"
+msgstr "Paketering"
+
+msgid "Packaging tutorials"
+msgstr "Paketeringshandledningar"
+
+msgid "System Configuration"
+msgstr "Systemkonfiguration"
+
+msgid "Customizing the GNU System"
+msgstr "Att anpassa GNU System"
+
+msgid "Containers"
+msgstr "Behållare"
+
+msgid "Isolated environments and nested systems"
+msgstr "Isolerade miljöer och nästlade system"
+
+msgid "Virtual Machines"
+msgstr "Virtuella maskiner"
+
+msgid "Virtual machines usage and configuration"
+msgstr "Virtuell maskinanvändning och konfiguration"
+
+msgid "Advanced package management"
+msgstr "Avancerad pakethantering"
+
+msgid "Power to the users!"
+msgstr "Makt till användarna!"
+
+msgid "Software Development"
+msgstr "Programutveckling"
+
+msgid "Environments, continuous integration, etc."
+msgstr "Miljöer, kontinuerlig integration etcetera."
+
+msgid "Environment management"
+msgstr "Miljöhantering"
+
+msgid "Control environment"
+msgstr "Kontrollmiljö"
+
+msgid "High-performance computing."
+msgstr "Högpresterande databehandling."
+
+msgid "Acknowledgments"
+msgstr "Erkännande"
+
+msgid "Thanks!"
+msgstr "Tack!"
+
+msgid "GNU Free Documentation License"
+msgstr "GNU's licens för fria dokumentation"
+
+msgid "The license of this document."
+msgstr "Licensen för det här dokumentet."
+
+msgid "Concept Index"
+msgstr "Begreppslista"
+
+msgid "Concepts."
+msgstr "Koncepter."
+
+msgid "A Scheme Crash Course"
+msgstr "En snabbkurs i Scheme"
+
+msgid "Packaging Tutorial"
+msgstr "Pakteringshandledning"
+
+msgid "A tutorial on how to add packages to Guix."
+msgstr "En handledning i hur man lägger till paket till Guix."
+
+msgid "A ``Hello World'' package"
+msgstr "Ett ``Hello World'' -paket"
+
+msgid "Setup"
+msgstr "Inställning"
+
+msgid "Extended example"
+msgstr "Utökat exempel"
+
+msgid "Other build systems"
+msgstr "Andra byggsystem"
+
+msgid "Programmable and automated package definition"
+msgstr "Programmeringsbar och automatiserad paketdefinition"
+
+msgid "Getting help"
+msgstr "Få hjälp"
+
+msgid "Conclusion"
+msgstr "Slutsats"
+
+msgid "References"
+msgstr "Referenser"
+
+msgid "Local file"
+msgstr "Lokal fil"
+
+msgid "Channels"
+msgstr "Kanaler"
+
+msgid "Automatic update"
+msgstr "Automatisk uppdatering"
+
+msgid "Inheritance"
+msgstr "Arv"
+
+msgid "Customizing the Kernel"
+msgstr "Att anpassa kärnan"
+
+msgid "Creating and using a custom Linux kernel on Guix System."
+msgstr "Att skapa och använda en anpassad Linux-kärna på Guix System."
+
+msgid "Using security keys"
+msgstr "Att använda säkerhetsnycklar"
+
+msgid "How to use security keys with Guix System."
+msgstr "Hur man använder säkerhetsnycklar med Guix System."
+
+msgid "Connecting to Wireguard VPN"
+msgstr "Att ansluta till Wireguard VPN"
+
+msgid "Connecting to a Wireguard VPN."
+msgstr "Att ansluta till en Wireguard VPN."
+
+msgid "Customizing a Window Manager"
+msgstr "Att anpassa en fönsterhanterare"
+
+msgid "Running Guix on a Linode Server"
+msgstr "Att köra Guix på en Linode-server"
+
+msgid "Running Guix on a Linode Server."
+msgstr "Att köra Guix på en Linode-server."
+
+msgid "Running Guix on a Kimsufi Server"
+msgstr "Att köra Guix på en Kimsufi-server"
+
+msgid "Running Guix on a Kimsufi Server."
+msgstr "Att köra Guix på en Kimsufi-server."
+
+msgid "Getting substitutes from Tor"
+msgstr "Att få ersättningar från Tor"
+
+msgid "Configuring Guix daemon to get substitutes through Tor."
+msgstr "Konfigurerar Guix-demon för att få ersättningar genom Tor."
+
+msgid "Setting up NGINX with Lua"
+msgstr "Ställa in NGINX med Lua"
+
+msgid "Configuring NGINX web-server to load Lua modules."
+msgstr "Att konfigurera webbserver för NGINX till att läsa in Lua-moduler."
+
+msgid "Music Server with Bluetooth Audio"
+msgstr "Musikserver med Bluetooth-ljud"
+
+msgid "StumpWM"
+msgstr "StumpWM"
+
+msgid "Session lock"
+msgstr "Sessionslås"
+
+msgid "Xorg"
+msgstr "Xorg"
+
+msgid "Guix Containers"
+msgstr "Guix-behållare"
+
+msgid "Perfectly isolated environments"
+msgstr "Perfekt isolerade miljöer"
+
+msgid "Guix System Containers"
+msgstr "Guix System-behållare"
+
+msgid "A system inside your system"
+msgstr "Ett system inuti ditt system"
+
+msgid "A Database Container"
+msgstr "En databasbehållare"
+
+msgid "Network bridge for QEMU"
+msgstr "Nätverksbrygga för QEMU"
+
+msgid "Guix Profiles in Practice"
+msgstr "Guix-profiler i praktiken"
+
+msgid "Strategies for multiple profiles and manifests."
+msgstr "Strategier för multipla profiler och manifest."
+
+msgid "Basic setup with manifests"
+msgstr "Grundläggande inställning med manifest"
+
+msgid "Required packages"
+msgstr "Nödvändiga paket"
+
+msgid "Default profile"
+msgstr "Standardprofil"
+
+msgid "The benefits of manifests"
+msgstr "Manifestens fördelar"
+
+msgid "Reproducible profiles"
+msgstr "Reproducerbara profiler"
+
+msgid "Getting Started"
+msgstr "Att komma igång"
+
+msgid "Step 0: using `guix shell'."
+msgstr "Steg 0: att använda `guix shell'."
+
+msgid "Building with Guix"
+msgstr "Att bygga med Guix"
+
+msgid "Step 1: building your code."
+msgstr "Steg 1: att bygga din kod."
+
+msgid "The Repository as a Channel"
+msgstr "Förrådet som en kanal"
+
+msgid "Package Variants"
+msgstr "Paketvarianter"
+
+msgid "Setting Up Continuous Integration"
+msgstr "Att ställa in kontinuerlig integration"
+
+msgid "Step 3: continuous integration."
+msgstr "Steg 3: kontinuerlig integration."
+
+msgid "Build Manifest"
+msgstr "Byggmanifest"
+
+msgid "Bonus: Manifest."
+msgstr "Bonus: manifest."
+
+msgid "Recap."
+msgstr "Sammanfattning."
+
+msgid "Guix environment via direnv"
+msgstr "Guix-miljö via direnv"
+
+msgid "Setup Guix environment with direnv"
+msgstr "Ställa in Guix-miljö med direnv"
+
+msgid "The node that runs the daemon."
+msgstr "Noden som kör demonen."
+
+msgid "Client nodes."
+msgstr "Klientnoder."
+
+msgid "GNU@tie{}Guix is written in the general purpose programming language Scheme, and many of its features can be accessed and manipulated programmatically.  You can use Scheme to generate package definitions, to modify them, to build them, to deploy whole operating systems, etc."
+msgstr "GNU@tie{}Guix är skrivet i universalspråket Scheme och många av dess funktioner kan nås och manipuleras programmatiskt.    Du kan använda Scheme för att generera paketdefinitioner, ändra dem, bygga dem, utveckla ett helt operativsystem med mera."
+
+msgid "Knowing the basics of how to program in Scheme will unlock many of the advanced features Guix provides --- and you don't even need to be an experienced programmer to use them!"
+msgstr "Att känna till grunderna i hur man programmerar i Scheme kommer att ge dig många av de avancerade funktionerna som Guix tilhandahåller --- och du behöver inte vara en erfaren programmerare för att använda dem!"
+
+msgid "Let's get started!"
+msgstr "Låt oss börja!"
+
+msgid "Scheme, crash course"
+msgstr "Scheme, snabbkurs"
+
+msgid "Guix uses the Guile implementation of Scheme.  To start playing with the language, install it with @code{guix install guile} and start a @dfn{REPL}---short for @uref{https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop, @dfn{read-eval-print loop}}---by running @code{guile} from the command line."
+msgstr "Guix använder Guile-implementationen av Scheme.    För att börja leka med språket kan du installera det med @code{guix install guile} och starta en @dfn{REPL}---en förkortning av @uref{https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop, @dfn{read-eval-print loop}}---genom att köra  @code{guile} från kommandoraden."
+
+msgid "Alternatively you can also run @code{guix shell guile -- guile} if you'd rather not have Guile installed in your user profile."
+msgstr "Alternativt kan du också köra @code{guix shell guile -- guile} om du hellre vill undvika att Guile installeras i din användarprofil."
+
+msgid ""
+"\"Hello World!\"\n"
+"@result{} \"Hello World!\"\n"
+"\n"
+msgstr ""
+"\"Hello World!\"\n"
+"@result{} \"Hello World!\"\n"
+"\n"
+
+msgid ""
+"17\n"
+"@result{} 17\n"
+"\n"
+msgstr ""
+"17\n"
+"@result{} 17\n"
+"\n"
+
+msgid "S-expression"
+msgstr "S-uttryck"
+
+msgid "#~"
+msgstr "#~"
+
+msgid "#$"
+msgstr "#$"
+
+msgid "gexp"
+msgstr "gexp"
+
+msgid "ungexp"
+msgstr "ungexp"
+
+msgid "packaging"
+msgstr "paketering"
+
+msgid "name"
+msgstr "name"
+
+msgid "source"
+msgstr "source"
+
+msgid "This field contains a description of the source code origin.  The @code{origin} record contains these fields:"
+msgstr "Det här fältet innehåller en beskrivning av ursprunget till källkoden.    The @code{origin} record contains these fields:"
+
+msgid "build-system"
+msgstr "build-system"
+
+msgid "synopsis"
+msgstr "synopsis"
+
+msgid "It should be a concise summary of what the package does.  For many packages a tagline from the project's home page can be used as the synopsis."
+msgstr "Det bör vara en koncis summering av vad paketet gör.    För många paket kan en tagg från projektets webbsida användas som en summering."
+
+msgid "description"
+msgstr "description"
+
+msgid "home-page"
+msgstr "home-page"
+
+msgid "Use HTTPS if available."
+msgstr "Använd HTTPS om det går."
+
+msgid "license"
+msgstr "license"
+
+msgid "See @code{guix/licenses.scm} in the project source for a full list of available licenses."
+msgstr "Se filen @code{guix/licenses.scm} i projektkällan för en fullständig lista över tillgängliga licenser."
+
+msgid "Save the following to a file @file{my-hello.scm}."
+msgstr "Spara det följande till en fil @file{my-hello.scm}."
+
+msgid "We will explain the extra code in a moment."
+msgstr "Vi kommer att förklara extrakoden om ett ögonblick."
+
+msgid "Thankfully, Guix can automate this task for us; all we need is to provide the URI:"
+msgstr "Tacksamt nog kan Guix automatisera den här uppgiften för oss; allt vi behöver är att tillhandahålla URI-strängen:"
+
+msgid ""
+"  -f, --install-from-file=FILE\n"
+"                         install the package that the code within FILE\n"
+"                         evaluates to\n"
+msgstr ""
+"  -f, --install-from-file=FIL\n"
+"                         installera paketet som koden inuti FIL\n"
+"                         utvärderas till\n"
+
+msgid "channel"
+msgstr "kanal"
+
+msgid "mkdir ~/my-channel\n"
+msgstr "mkdir ~/my-channel\n"
+
+msgid "Inputs"
+msgstr "Inmatningar"
+
+msgid "native-inputs"
+msgstr "native-inputs"
+
+msgid "inputs"
+msgstr "inputs"
+
+msgid "propagated-inputs"
+msgstr "propagated-inputs"
+
+msgid "Note"
+msgstr "Anteckning"
+
+msgid "Outputs"
+msgstr "Utdata"
+
+msgid "Just like how a package can have multiple inputs, it can also produce multiple outputs."
+msgstr "Precis som ett paket kan ha flera indata kan det också producera flera utdata."
+
+msgid "translate into:"
+msgstr "översätt till:"
+
+msgid "find-files"
+msgstr "find-files"
+
+msgid "mkdir-p"
+msgstr "mkdir-p"
+
+msgid "install-file"
+msgstr "install-file"
+
+msgid "copy-recursively"
+msgstr "copy-recursively"
+
+msgid "delete-file-recursively"
+msgstr "delete-file-recursively"
+
+msgid "invoke"
+msgstr "invoke"
+
+msgid "substitute*"
+msgstr "substitute*"
+
+msgid "Guix offers a flexible language for declaratively configuring your Guix System.  This flexibility can at times be overwhelming.  The purpose of this chapter is to demonstrate some advanced configuration concepts."
+msgstr "Guix erbjuder ett flexibelt språk för att deklarativt konfigurera ditt Guix Syste.    Den här flexibiliteten kan ibland vara överväldigande.    Syftet med det här kapitlet är att demonstrera några avancerade konfigurationsbegrepp."
+
+msgid "run:"
+msgstr "kör:"
+
+msgid "or,"
+msgstr "eller,"
+
+msgid "wm"
+msgstr "wm"
+
+msgid "stumpwm"
+msgstr "stumpwm"
+
+msgid "sessionlock"
+msgstr "sessionslås"
+
+msgid "ssh-keygen\n"
+msgstr "ssh-keygen\n"
+
+msgid "Don't forget to substitute the @var{server-ip-address}, @var{server-gateway}, @var{ssh-key-name} and @var{ssh-public-key-content} variables with your own values."
+msgstr "Kom ihåg att ersätta variablerna @var{server-ip-address}, @var{server-gateway}, @var{ssh-key-name} och @var{ssh-public-key-content} med dina egna värden."
+
+msgid "                ))\n"
+msgstr "                ))\n"
+
+msgid "Guix daemon can use a HTTP proxy to get substitutes, here we are configuring it to get them via Tor."
+msgstr "Guix-demon kan använda en HTTP-proxy för att få ersättningar, här konfigurerar vi den för få dem via Tor."
+
+msgid "Warning"
+msgstr "Varning"
+
+msgid "Guix's substitute server is available as a Onion service, if you want to use it to get your substitutes through Tor configure your system as follow:"
+msgstr "Guix ersättningsserver är tillgänglig som en Onion-tjänst, om du vill använda den för att få dina ersättningar genom Tor konfigurerar du ditt system enligt följande:"
+
+msgid ""
+"sudo herd set-http-proxy guix-daemon http://localhost:9250\n"
+"guix build \\\n"
+"  --substitute-urls=@value{SUBSTITUTE-TOR-URL} @dots{}\n"
+msgstr ""
+"sudo herd set-http-proxy guix-daemon http://localhost:9250\n"
+"guix build \\\n"
+"  --substitute-urls=@value{SUBSTITUTE-TOR-URL} @dots{}\n"
+
+msgid "ngx.say(stdout)\n"
+msgstr "ngx.say(stdout)\n"
+
+msgid "mpd"
+msgstr "mpd"
+
+msgid "Reconfigure your system with at least the following services and packages:"
+msgstr "Omkonfigurera ditt system med åtminstone följande tjänster och paket:"
+
+msgid "Important"
+msgstr "Viktigt"
+
+msgid "Interface"
+msgstr "Gränssnitt"
+
+msgid "Target"
+msgstr "Mål"
+
+msgid "192.168.2.0"
+msgstr "192.168.2.0"
+
+msgid "IPv4-Netmask"
+msgstr "IPv4-nätmask"
+
+msgid "255.255.255.0"
+msgstr "255.255.255.0"
+
+msgid "IPv4-Gateway"
+msgstr "IPv4-gateway"
+
+msgid "unicast"
+msgstr "unicast"
+
+msgid ""
+"@}\n"
+"\n"
+msgstr ""
+"@}\n"
+"\n"
+
+msgid "Guix is a functional package manager that offers many features beyond what more traditional package managers can do.  To the uninitiated, those features might not have obvious use cases at first.  The purpose of this chapter is to demonstrate some advanced package management concepts."
+msgstr "Guix är en funktionell pakethanterare som erbjuder många fler funktioner än vad traditionella pakethanterare gör.   För den oinvigde kan dessa funktioner vid en första anblick tyckas sakna uppenbart användningsområde.    Syftet med det här kapitlet är att demonstrera några avancerade pakethanteringsbegrepp."
+
+msgid "Games."
+msgstr "Spel."
+
+msgid "@emph{Security warning:} While keeping old profiles around can be convenient, keep in mind that outdated packages may not have received the latest security fixes."
+msgstr "@emph{Säkerhetsvarning:} Kom ihåg att medan gamla profiler kan vara bekvämt att behålla kan det vara så att föråldrade paket inte har fått de senaste säkerhetsfixarna."
+
+msgid ""
+"mkdir -p \"$GUIX_EXTRA\"/my-project\n"
+"guix pull --channels=channel-specs.scm --profile=\"$GUIX_EXTRA/my-project/guix\"\n"
+"\n"
+msgstr ""
+"mkdir -p \"$GUIX_EXTRA\"/my-project\n"
+"guix pull --channels=channel-specs.scm --profile=\"$GUIX_EXTRA/my-project/guix\"\n"
+"\n"
+
+msgid "development, with Guix"
+msgstr "utveckling, med Guix"
+
+msgid "software development, with Guix"
+msgstr "programutveckling, med Guix"
+
+msgid "Handy!"
+msgstr "Användningsbar!"
+
+msgid "@uref{https://git.savannah.gnu.org/cgit/guile.git/tree/.guix-channel?id=cd57379b3df636198d8cd8e76c1bfbc523762e79,@code{.guix-channel}};"
+msgstr "@uref{https://git.savannah.gnu.org/cgit/guile.git/tree/.guix-channel?id=cd57379b3df636198d8cd8e76c1bfbc523762e79,@code{.guix-channel}};"
+
+msgid "@uref{https://git.savannah.gnu.org/cgit/guile.git/tree/.guix/manifest.scm?id=cd57379b3df636198d8cd8e76c1bfbc523762e79,@code{.guix/manifest.scm}}."
+msgstr "@uref{https://git.savannah.gnu.org/cgit/guile.git/tree/.guix/manifest.scm?id=cd57379b3df636198d8cd8e76c1bfbc523762e79,@code{.guix/manifest.scm}}."
+
+msgid "With a couple of files, we get support for:"
+msgstr "Med några filer får vi stöd för:"
+
+msgid "development environments (@command{guix shell});"
+msgstr "utvecklingsmiljöer (@command{guix shell});"
+
+msgid "Voilà!"
+msgstr "Voilà!"
+
+msgid "Network Access"
+msgstr "Nätverksåtkomst"
+
+msgid "Guix requires network access to download source code and pre-built binaries.  The good news is that only the head node needs that since compute nodes simply delegate to it."
+msgstr "Guix kräver en nätverksåtkomst för att hämta källkod och förbyggda binärfiler.    The good news is that only the head node needs that since compute nodes simply delegate to it."
+
+msgid ""
+"@dots{}\n"
+"\n"
+msgstr ""
+"@dots{}\n"
+"\n"
+
+msgid "(In case you're wondering, that's more than 320@ MiB of @emph{compressed} source code.)"
+msgstr "(Ifall du undrar är det där mer än 320 MiB av @emph{komprimerad} källkod.)"
+
+msgid "$ guix archive --import < openmpi-source-code.nar\n"
+msgstr "$ guix archive --import < openmpi-source-code.nar\n"
+
+msgid "Disk Usage"
+msgstr "Diskanvändning"
+
+msgid "The solution to this is for users to regularly remove old generations of their profile. For instance, the following command removes generations that are more than two-month old:"
+msgstr "Lösningen till det här är för användarna att regelbundet ta bort gamla generationer av sina profiler. Exempelvis kommer följande kommando att ta bort generationer som är mer än två månader gamla:"
+
+msgid "guix package --delete-generations=2m\n"
+msgstr "guix package --delete-generations=2m\n"
+
+msgid "Likewise, it's a good idea to invite users to regularly upgrade their profile, which can reduce the number of variants of a given piece of software stored in @file{/gnu/store}:"
+msgstr "Dessutom är det en god idé att uppmuntra användare till att regelbundet uppgradera sina profiler, vilket kan reducera antalet varianter av en given programvara som lagras i @file{/gnu/store}:"
+
+msgid ""
+"guix pull\n"
+"guix upgrade\n"
+msgstr ""
+"guix pull\n"
+"guix upgrade\n"
+
+msgid "As a last resort, it is always possible for sysadmins to do some of this on behalf of their users. Nevertheless, one of the strengths of Guix is the freedom and control users get on their software environment, so we strongly recommend leaving users in control."
+msgstr "Som en sista utväg är det alltid möjligt för systemadministratörer att göra en del av det här på deras användares vägnar. Trots allt är en av Guix styrkor den frihet och kontroll över sin programmiljö som Guix skänker sina användare, därför rekommenderar vi starkt att lämna över kontrollen till användarna."
+
+msgid "The Guix project has a good track record delivering security updates in a timely fashion (@pxref{Security Updates,,, guix, GNU Guix Reference Manual}).  To get security updates, users have to run @code{guix pull && guix upgrade}."
+msgstr "Guix-projektet har en god vana av att tillhandahålla säkerhetsuppdateringar i rättan tid (@pxref{Security Updates,,, guix, GNU Guix Reference Manual}).    För att få säkerhetsuppdateringar behöver användare köra @code{guix pull && guix upgrade}."
+
+msgid "guix gc --referrers /gnu/store/…-glibc-2.25\n"
+msgstr "guix gc --referrers /gnu/store/…-glibc-2.25\n"
+
+msgid "This will report whether profiles exist that refer to this specific glibc variant."
+msgstr "Det här kommer att rapportera om profiler som refererar till den här specifika glibc-varianten existerar."
+
+msgid "sysadmin"
+msgstr "systemadministratör"
+
+msgid "Enable and start the service."
+msgstr "Aktivera och starta tjänsten."
+
+msgid ""
+"sudo herd enable cuirass\n"
+"sudo herd start cuirass\n"
+msgstr ""
+"sudo herd enable cuirass\n"
+"sudo herd start cuirass\n"
+
+msgid "The Nix-based software distributions, Nixpkgs and NixOS, have also been an inspiration for Guix."
+msgstr "De Nix-baserade programdistributionerna Nixpkgs och NixOS har också varit en inspiration för Guix."
+
+msgid "GNU@tie{}Guix itself is a collective work with contributions from a number of people.  See the @file{AUTHORS} file in Guix for more information on these fine people.  The @file{THANKS} file lists people who have helped by reporting bugs, taking care of the infrastructure, providing artwork and themes, making suggestions, and more---thank you!"
+msgstr "GNU@tie{}Guix självt är ett kollektivt arbete med bidrag från åtskilliga människor.    Se filen @file{AUTHORS} i Guix för mer information om dessa förtjusande människor.    Filen @file{THANKS} listar alla personer som har hjälpt till med att rapportera fel, sköta om infrastrukturen, tillhandahålla konstverk och teman, komma med förslag med mera---tack ska ni ha!"
+
+msgid "This document includes adapted sections from articles that have previously been published on the Guix blog at @uref{https://guix.gnu.org/blog} and on the Guix-HPC blog at @uref{https://hpc.guix.info/blog}."
+msgstr "Det här dokumentet innehåller anpassade delar från artiklar som tidigare har publicerats på Guix-bloggen på @uref{https://guix.gnu.org/blog} och på bloggen Guix-HPC på @uref{https://hpc.guix.info/blog}."
+
+msgid "license, GNU Free Documentation License"
+msgstr "licens, GNU Free Documentation License"
+
+msgid "fdl-1.3.texi"
+msgstr "fdl-1.3.texi"

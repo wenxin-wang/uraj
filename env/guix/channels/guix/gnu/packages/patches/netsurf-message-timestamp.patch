@@ -1,0 +1,11 @@
+--- netsurf-3.11/tools/split-messages.pl.orig
++++ netsurf-3.11/tools/split-messages.pl
+@@ -238,7 +238,7 @@
+ 
+     if( $opt{gzip} )
+     {
+-        $ofh = new IO::Compress::Gzip( $ofh, AutoClose => 1, -Level => 9 );
++        $ofh = new IO::Compress::Gzip( $ofh, AutoClose => 1, -Level => 9, Time => 0 );
+     }
+ 
+     return $ofh;

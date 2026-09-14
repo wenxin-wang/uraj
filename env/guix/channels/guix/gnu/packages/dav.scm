@@ -1,0 +1,269 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2015, 2016, 2017 Leo Famulari <leo@famulari.name>
+;;; Copyright © 2018, 2019, 2022-2024 Efraim Flashner <efraim@flashner.co.il>
+;;; Copyright © 2020 Tobias Geerinckx-Rice <me@tobias.gr>
+;;; Copyright © 2020 Vinicius Monego <monego@posteo.net>
+;;; Copyright © 2021 Tanguy Le Carrour <tanguy@bioneland.org>
+;;; Copyright © 2022, 2024, 2026 Jonathan Brielmaier <jonathan.brielmaier@web.de>
+;;; Copyright © 2024 Nicolas Graves <ngraves@ngraves.fr>
+;;; Copyright © 2025 Junker <dk@junkeria.club>
+;;; Copyright © 2026 Ricardo Wurmus <rekado@elephly.net>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (gnu packages dav)
+  #:use-module (guix build-system cargo)
+  #:use-module (guix build-system gnu)
+  #:use-module (guix build-system pyproject)
+  #:use-module (guix download)
+  #:use-module (guix gexp)
+  #:use-module ((guix licenses) #:prefix license:)
+  #:use-module (guix packages)
+  #:use-module (guix git-download)
+  #:use-module (gnu packages)
+  #:use-module (gnu packages check)
+  #:use-module (gnu packages nss)
+  #:use-module (gnu packages pkg-config)
+  #:use-module (gnu packages python)
+  #:use-module (gnu packages python-build)
+  #:use-module (gnu packages python-check)
+  #:use-module (gnu packages python-crypto)
+  #:use-module (gnu packages python-web)
+  #:use-module (gnu packages python-xyz)
+  #:use-module (gnu packages sphinx)
+  #:use-module (gnu packages sqlite)
+  #:use-module (gnu packages time)
+  #:use-module (gnu packages tls)
+  #:use-module (gnu packages version-control)
+  #:use-module (gnu packages xml))
+
+(define-public cadaver
+  (package
+    (name "cadaver")
+    (version "0.26")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "https://notroj.github.io/cadaver/cadaver-"
+                           version ".tar.gz"))
+       (sha256
+        (base32 "0mbv6mkdhxqhdq5kgn821if10h184m1xlpqq0vpxj19mvwyf8dlj"))))
+    (build-system gnu-build-system)
+    (inputs (list neon
+                  openssl
+                  libxml2))
+    (native-inputs (list pkg-config))
+    (arguments '(#:configure-flags (list "--with-ssl=openssl")
+                 #:tests? #f)) ; no check target
+    (home-page "https://notroj.github.io/cadaver/")
+    (synopsis "Command-line WebDAV client")
+    (description
+     "Cadaver is a command-line client for WebDAV server operations.  It
+supports a variety of WebDAV features and provides an interactive
+command-line environment with support for file manipulation on remote WebDAV
+servers.")
+    (license license:gpl2+)))
+
+(define-public pimsync
+  (package
+    (name "pimsync")
+    (version "0.5.11")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://git.sr.ht/~whynothugo/pimsync")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "070301a0z3a9b9jc7ifkmgg4gj2p0srf67lyzf2mifd04jll3iw8"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'use-guix-vendored-dependencies
+            (lambda _
+              (substitute* "Cargo.toml"
+                (("^\\[patch.crates-io\\]")
+                 "")
+                (("^digest_auth.*$")
+                 "digest_auth = { features = [\"http\"], version = \"*\" }
+"))))
+          (add-after 'unpack 'setup-environment
+            (lambda _
+              (setenv "PIMSYNC_VERSION"
+                      #$version)))
+          (add-after 'install 'install-man-pages
+            (lambda _
+              (let ((man (string-append #$output "/share/man/man")))
+                (install-file "pimsync.1"
+                              (string-append man "1"))
+                (install-file "pimsync.conf.5"
+                              (string-append man "5"))
+                (install-file "pimsync-migration.7"
+                              (string-append man "7"))))))))
+    (native-inputs (list nss-certs-for-test ;needed to start pimsync in 'check.
+                         xandikos)) ;needed for 'check.
+    (inputs (cons* sqlite
+                   (cargo-inputs 'pimsync)))
+    (synopsis
+     "Synchronize calendars and contacts using CalDAV, CardDAV and others")
+    (description
+     "Pimsync synchronizes your calendars and contacts between two
+storage locations.  The most popular purpose is to synchronize a CalDAV or
+CardDAV server with a local folder or file.")
+    (home-page "https://pimsync.whynothugo.nl/")
+    (license license:eupl1.2)))
+
+(define-public radicale
+  (package
+    (name "radicale")
+    (version "3.7.8")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/Kozea/Radicale")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0k0qssq74md7lc48jwk4hff1gpbmw369flzidziph3gmf3cl40y8"))))
+    (build-system pyproject-build-system)
+    (native-inputs
+     (list python-pytest
+           python-setuptools
+           python-waitress))
+    (propagated-inputs
+     (list python-defusedxml
+           python-libpass
+           python-pika
+           python-requests
+           python-vobject))
+    (synopsis "Basic CalDAV and CardDAV server")
+    (description "Radicale is a CalDAV and CardDAV server for UNIX-like
+platforms.  Calendars and address books are available for both local and remote
+access, possibly limited through authentication policies.  They can be viewed
+and edited by calendar and contact clients on mobile phones or computers.
+
+Radicale intentionally does not fully comply with the CalDAV and CardDAV RFCs.
+Instead, it supports the CalDAV and CardDAV implementations of popular
+clients.")
+    (home-page "https://radicale.org/")
+    (license license:gpl3+)))
+
+(define-public xandikos
+  (package
+    (name "xandikos")
+    (version "0.4.5")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/jelmer/xandikos")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0hl932havrrw93sz5s8z95ksxaxzwc8gwi506drff05aq1cj9syh"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-before 'check 'check-setup
+            (lambda _
+              (setenv "XANDIKOSPATH" (mkdtemp "/tmp/xandikospath-XXXXXX")))))))
+    (native-inputs
+     (list python-pytest
+           python-setuptools))
+    (propagated-inputs
+     (list python-aiohttp
+           python-defusedxml
+           python-dulwich
+           python-icalendar
+           python-jinja2
+           python-multidict
+           python-vobject))
+    (home-page "https://www.xandikos.org/")
+    (synopsis "Lightweight CalDAV/CardDAV server")
+    (description
+     "Xandikos is a lightweight yet complete CardDAV/CalDAV server that backs
+onto a Git repository.
+
+Features:
+
+@itemize
+@item Easy to set up
+@item Share calendars (events, todo items, journal entries) via CalDAV and
+contacts (vCard) via CardDAV
+@item Automatically keep history and back up changes in Git
+@item Supports synchronization extensions for CalDAV/CardDAV for quick and
+efficient syncing
+@item Automatically keep history and back up
+@item Works with all tested CalDAV and CardDAV clients
+@end itemize")
+    (license license:gpl3+)))
+
+(define-public vdirsyncer
+  (package
+    (name "vdirsyncer")
+    (version "0.20.0")
+    (source (origin
+             (method url-fetch)
+             (uri (pypi-uri name version))
+             (sha256
+              (base32
+               "0bdi83ycnkx0ddyc10ixan992dgyaq83lwsms57w358aa0rsbcgy"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:test-flags '(list "-k" "not test_request_ssl")
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'patch-version-call
+            (lambda _
+              (substitute* "docs/conf.py"
+                (("^release.*")
+                 (string-append "release = '" #$version "'\n")))))
+          (add-before 'check 'pre-check
+            (lambda _
+              (setenv "DETERMINISTIC_TESTS" "true"))))))
+    (native-inputs
+     (list python-aioresponses
+           python-pytest
+           python-pytest-asyncio
+           python-pytest-httpserver
+           python-setuptools
+           python-setuptools-scm
+           python-trustme))
+    (inputs
+     (list python-aiohttp
+           python-aiohttp-oauthlib
+           python-aiostream
+           python-atomicwrites
+           python-click
+           python-click-log
+           python-requests
+           python-requests-toolbelt))
+    (synopsis "Synchronize calendars and contacts")
+    (description "Vdirsyncer synchronizes your calendars and addressbooks
+between two storage locations.  The most popular purpose is to
+synchronize a CalDAV or CardDAV server with a local folder or file.  The
+local data can then be accessed via a variety of programs, none of which
+have to know or worry about syncing to a server.")
+    (home-page "https://github.com/pimutils/vdirsyncer")
+    (license license:bsd-3)))

@@ -1,0 +1,921 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR the authors of Guix (msgids) and the following authors (msgstr)
+# This file is distributed under the same license as the GNU guix package.
+# Rey Lopezch <taodeking@tutanota.com>, 2024, 2025.
+# Florian Pelz <pelzflorian@pelzflorian.de>, 2025.
+#: gnu/packages/firmware.scm:1665 gnu/packages/firmware.scm:1932
+#: gnu/packages/linux.scm:1260
+msgid ""
+msgstr ""
+"Project-Id-Version: GNU guix\n"
+"Report-Msgid-Bugs-To: bug-guix@gnu.org\n"
+"POT-Creation-Date: 2025-10-20 03:18+0000\n"
+"PO-Revision-Date: 2026-05-28 14:20+0000\n"
+"Last-Translator: Umeaman <umeaman@noreply.codeberg.org>\n"
+"Language-Team: Swedish <https://translate.codeberg.org/projects/guix/packages/sv/>\n"
+"Language: sv\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: Weblate 2026.5\n"
+
+msgid "Word processing program"
+msgstr "Ordbehandlingsprogram"
+
+msgid "This package provides a tiny system info utility."
+msgstr "Det här paketet tillhandahåller ett pyttelitet verktyg för systeminformation."
+
+msgid ""
+"This package provides a simple, configurable system\n"
+"information tool."
+msgstr "Det här paketet tillhandahåller ett enkelt och konfigurerbart systeminformationsverktyg."
+
+msgid "This package provides @code{udev} bindings for Python."
+msgstr "Det här paketet tillhandahåller @code{udev}-bindningar till Python."
+
+msgid ""
+"This package provides Python bindings for the Littlewood-Richardson\n"
+"Calculator."
+msgstr ""
+"Det här paketet tillhandahåller Python-bindningar för Littlewood-Richardson\n"
+"-kalkylatorn."
+
+msgid ""
+"This package provides an implementation of APL in Java, extended from\n"
+"Dyalog APL."
+msgstr ""
+"Det här paketet tillhandahåller en implementering av APL i Java, förlängt från\n"
+"Dyalog APL."
+
+msgid "Spell checker"
+msgstr "Stavningskontroll"
+
+msgid "This package provides a dictionary for the GNU Aspell spell checker."
+msgstr "Det här paketet tillhandahåller en ordbok för stavningskontrollprogrammet GNU Aspell."
+
+msgid "Interactive spell-checking tool for Unix"
+msgstr "Interaktivt stavningskontrollverktyg för Unix"
+
+msgid ""
+"Ispell is an interactive spell-checking tool supporting many\n"
+"European languages."
+msgstr ""
+"Ispell är ett interaktivt stavningskontrollverktyg som stödjer många\n"
+" europeiska språk."
+
+msgid "This package provides ASDF schemas for validating FITS tags."
+msgstr "Det här paketet tillhandahåller ASDF-scheman för bekräftelse av FITS-taggar."
+
+msgid "This package provides HEALPix to the Astropy project."
+msgstr "Det här paketet tillhandahåller HEALPix till Astropy-projektet."
+
+msgid "Python read-only implementation of the @code{EventIO} file format."
+msgstr "Python-implementation endast med läsrättigheter av filformatet @code{EventIO}."
+
+msgid ""
+"This package provides a cython-optimized implementations of empirical dust\n"
+"exitinction laws found in the literature."
+msgstr ""
+"Detta paket tillhandahåller cython-optimerade implementationer av empiriska damm \n"
+"utrotningslagar som hittas i litteraturen."
+
+msgid "This package implements a functionality to match sky on image mosaic."
+msgstr "Detta paket implementerar en funktion för att matcha himlen på en bildmosaik."
+
+msgid ""
+"This package provides a tooling for solar X-ray spectroscopy based on\n"
+"SunPy."
+msgstr ""
+"Detta paket tillhandahåller verktyg för solröntgenspektroskopi baserat på \n"
+"SunPy."
+
+msgid "Embedded Audio Acceleration"
+msgstr "Inbäddad ljudacceleration"
+
+msgid "Software Synthesizer"
+msgstr "Programvarusyntesizer"
+
+msgid "WebRTC's Audio Processing Library"
+msgstr "WebRTC:s ljudbehandlingsbibliotek"
+
+msgid "VisualOn AAC Encoder"
+msgstr "VisualOn AAC-kodare"
+
+msgid "dsp is an audio processing program with an interactive mode."
+msgstr "dsp är ett ljudbehandlingsprogram med ett interaktivt läge."
+
+msgid "Software for recording and editing sounds"
+msgstr "Programvara för att spela in och redigera ljud"
+
+msgid ""
+"Audacity is a multi-track audio editor designed for recording, playing\n"
+"and editing digital audio.  It features digital effects and spectrum analysis\n"
+"tools."
+msgstr ""
+"Audacity är en redigerare för multiljudspår och är utformad för att spela in, spela upp\n"
+"och redigera digitalt ljud.  Det tillhandahåller digitala effekter och verktyg för \n"
+"spektrumanalysering."
+
+msgid ""
+"Tenacity is a multi-track audio editor designed for recording, playing\n"
+"and editing digital audio.  It features digital effects and spectrum analysis\n"
+"tools."
+msgstr ""
+"Tenacity är en redigerare för multiljudspår och är utformad för att spela in, spela upp\n"
+"och redigera digitalt ljud.  Det tillhandahåller digitala effekter och verktyg för\n"
+"spektrumanalysering."
+
+msgid "Library to handle various audio file formats"
+msgstr "Bibliotek för att hantera olika ljudfilsformat"
+
+msgid "SoundFont synthesizer"
+msgstr "Syntesizern SoundFont"
+
+msgid "Virtual guitar amplifier"
+msgstr "Virtuell gitarrförstärkare"
+
+msgid "Implementation of the Open Sound Control protocol"
+msgstr "Implementation av protokollet Open Sound Control"
+
+msgid ""
+"liblo is a lightweight library that provides an easy to use\n"
+"implementation of the Open Sound Control (@dfn{OSC}) protocol."
+msgstr ""
+"liblo är ett resurssnålt bibliotek som tillhandahåller en lättanvänd\n"
+"implementation av protokollet Open Sound Control (@dfn{OSC})."
+
+msgid "Python bindings for liblo"
+msgstr "Python-bindningar för liblo"
+
+msgid "Python bindings for libsndfile"
+msgstr "Python-bindningar för libsndfile"
+
+msgid ""
+"This package provides a python API to read and write MIDI\n"
+"files."
+msgstr ""
+"Det här paketet tillhandahåller en python-API för att läsa och\n"
+"skriva MIDI-filer."
+
+msgid "Convert audio to multichannel MIDI"
+msgstr "Konvertera ljud till multikanal-MIDI"
+
+msgid "Free implementation of OpenAL's ALUT standard"
+msgstr "Fri implementation av OpenAL:s ALUT-standard"
+
+msgid "Portable C audio library"
+msgstr "Ljudbibliotek för Portable C"
+
+msgid "Sound editor"
+msgstr "Ljudredigerare"
+
+msgid "This package provides a command-line AAC-encoder."
+msgstr "Det här paketet tillhandahåller en AAC-kodare för kommandoraden."
+
+msgid "XAudio reimplementation"
+msgstr "Återimplementering av XAudio"
+
+msgid "Speech codec"
+msgstr "Tal-kodek"
+
+msgid "Record audio streams to your hard drive"
+msgstr "Spela in ljudströmmar till din hårddisk"
+
+msgid "Tar-compatible archiver"
+msgstr "Tar-kompatibel arkiverare"
+
+msgid "Stream editor"
+msgstr "Strömredigerare"
+
+msgid "hgu95av2cdf"
+msgstr "hgu95av2cdf"
+
+msgid "RnBeads"
+msgstr "RnBeads"
+
+msgid "This package provides a Python package for reading raw fcs files"
+msgstr "Det här paketet tillhandahåller ett Python-paket för läsning av råa fcs-filer"
+
+msgid "DNAmCrosshyb"
+msgstr "DNAmCrosshyb"
+
+msgid "PLSDA-batch"
+msgstr "PLSDA-batch"
+
+msgid "Implementation of the Smith-Waterman algorithm."
+msgstr "Implementation av Smith-Waterman-algoritmen."
+
+msgid "BitTorrent client"
+msgstr "BitTorrent-klient"
+
+msgid ""
+"This package provides a pytest plugin for generating NUnit3 test result\n"
+"XML output"
+msgstr ""
+"Det här paketet tillhandahåller ett pytest-insticksprogram för att generera testresultat \n"
+"av XML-utmatningen för NUnit3"
+
+msgid "Tools for writing macros."
+msgstr "Verktyg för att skriva makros."
+
+msgid "Compression library"
+msgstr "Kompressionsbibliotek"
+
+msgid "Fast compressor/decompressor"
+msgstr "Snabb kompressor/dekompressor"
+
+msgid "URL parser"
+msgstr "URL-tolkare"
+
+msgid "Aster Models"
+msgstr "Aster-modeller"
+
+msgid "R package providing subset of Boost headers"
+msgstr "R-paket som tillhandahåller en delmängd av Boost-rubriker"
+
+msgid "Miscellaneous functions for probability theory"
+msgstr "Diverse funktioner för sannolikhetsteori"
+
+msgid "Signal processing"
+msgstr "Signalbehandling"
+
+msgid "Climate tools"
+msgstr "Klimatverktyg"
+
+msgid "Survival analysis"
+msgstr "Överlevnadsanalys"
+
+msgid "Miscellaneous functions for SciViews"
+msgstr "Diverse funktioner för SciViews"
+
+msgid "Clustering"
+msgstr "Klusterbildning"
+
+msgid "Key-value database"
+msgstr "Databasens nyckelvärde"
+
+msgid "Trivial database"
+msgstr "Ordinär databas"
+
+msgid "Memory scanner"
+msgstr "Minneskannare"
+
+msgid "Faker is a pure Elixir library for generating fake data."
+msgstr "Faker är ett rent Elixir-bibliotek för att generera falsk data."
+
+msgid ""
+"This package provides an Emacs interface to the online service\n"
+"@uref{https://inspirehep.net/, Inspirehep}"
+msgstr ""
+"Det här paketet tillhandahåller ett Emacs-gränssnitt till onlinetjänsten \n"
+"@uref{https://inspirehep.net/, Inspirehep}"
+
+msgid "emacs-doctest"
+msgstr "emacs-doctest"
+
+msgid "Find callers of elisp functions or macros"
+msgstr "Hitta anropare av elisp-funktioner eller makron"
+
+msgid "This package provides an Emacs major-mode for easy buffer-navigation"
+msgstr "Detta paket tillhandahåller ett Emacs major mode för enkel navigering mellan buffrar"
+
+msgid ""
+"This package provides a lobsters client for Emacs to browse stories\n"
+"and comments"
+msgstr ""
+"Det här paketet tillhandahåller en lobsters-klient till Emacs för att bläddra i historier \n"
+"och i kommentarer"
+
+msgid "emacs-treemacs-nerd-icons"
+msgstr "emacs-treemacs-nerd-icons"
+
+msgid "Library to read and write MED files"
+msgstr "Bibliotek för att läsa och skriva MED-filer"
+
+msgid "Python bindings for orocos-kinematics-dynamics."
+msgstr "Python-bindningar för orocos-kinematics-dynamics."
+
+msgid ""
+"Abe's Amazing Adventure is a scrolling,\n"
+"platform-jumping, key-collecting, ancient pyramid exploring game, vaguely in\n"
+"the style of similar games for the Commodore+4."
+msgstr ""
+"Abe's Amazing Adventure är ett sidorullande\n"
+"plattformsspel där man samlar nycklar samt utforskar antika pyramider\n"
+"och det liknar vagt spelen till Commodore+4."
+
+msgid "Action game in four spatial dimensions"
+msgstr "Actionspel i fyra rumsliga dimensioner"
+
+msgid "Control your system with a gamepad"
+msgstr "Kontrollera ditt system med en spelkontroll"
+
+msgid "Terminal-based multiplayer Tetris clone"
+msgstr "Terminalbaserad Tetris-klon med flerspelarläge"
+
+msgid ""
+"Tetrinet is a multiplayer Tetris-like game with powerups and\n"
+"attacks you can use on opponents."
+msgstr "Tetrinet är ett Tetris-liknande spel i flerspelarläge med powerup-funktioner och attacker du kan använda på motståndare."
+
+msgid "Game data for Vdrift"
+msgstr "Speldata för Vdrift"
+
+msgid "Racing simulator"
+msgstr "Sportspelssimulator"
+
+msgid "Terminal-based Tetris clone"
+msgstr "Terminalbaserad Tetris-klon"
+
+msgid ""
+"Vitetris is a classic multiplayer Tetris clone for the\n"
+"terminal."
+msgstr ""
+"Vitetris är en klassisk Tetris-klon i flerspelarläge för\n"
+"terminalen."
+
+msgid "Platform action game featuring a blob with a lot of weapons"
+msgstr "Plattform- och actionspel med en plump och massa vapen i huvudrollen"
+
+msgid "Collection of the old text-based games and amusements"
+msgstr "Samling av de gamla textbaserade spelen och förströelserna"
+
+msgid "Simon Tatham's portable puzzle collection"
+msgstr "Simon Tathams portabla pusselsamling"
+
+msgid "Survival horror roguelike video game"
+msgstr "Rogueliknande skräck- och överlevnadspel"
+
+msgid "Implementation of the @i{Theme Hospital} game engine"
+msgstr "Implementation av @i{Theme Hospital}-spelmotorn"
+
+msgid "Fallout 2 game engine"
+msgstr "Fallout 2-spelmotor"
+
+msgid ""
+"This package provides the Fallout 2 game engine.  Game data\n"
+"should be placed in @file{~/.local/share/falltergeist}."
+msgstr ""
+"Det här paketet tillhandahåller Fallout 2-spelmotorn.  Speldata\n"
+"bör placeras i @file{~/.local/share/falltergeist}."
+
+msgid "3D billiard game"
+msgstr "Tredimensionellt biljardspel"
+
+msgid "Free content game based on the Doom engine"
+msgstr "Spel med fritt innehåll baserat på Doom-motorn"
+
+msgid "Isometric role-playing game against killer robots"
+msgstr "Isometriskt datorrollspel mot mördarrobotar"
+
+msgid "Puzzle/platform game"
+msgstr "Pussel/plattformsspel"
+
+msgid "Chess board for GNOME"
+msgstr "Schackbräde för GNOME"
+
+msgid ""
+"GNOME Chess provides a 2D board for playing chess games\n"
+"against human or computer players.  It supports loading and saving games in\n"
+"Portable Game Notation.  To play against a computer, install a chess engine\n"
+"such as chess or stockfish."
+msgstr ""
+"GNOME Chess tillhandahåller ett tvådimensionellt schackbräde\n"
+"för att spela mot mänskliga eller datordrivna motståndare.    Det kan läsa in\n"
+"och spara partier via filformatet Portable Game Notation (PNG).    Installera en\n"
+"schackmotor så som chess eller stockfish för att spela mot datorn."
+
+msgid "Backgammon game"
+msgstr "Backgammon-spel"
+
+msgid "3d Rubik's cube game"
+msgstr "Tredimensionellt Rubikskubspel"
+
+msgid ""
+"GNU Shogi is a program that plays the game Shogi (Japanese Chess).\n"
+"It is similar to standard chess but this variant is far more complicated."
+msgstr ""
+"GNU Shogi är ett program som spelar spelet Shogi (japanskt schack)\n"
+"Det liknar vanlig schack men denna variant är betydligt mer komplicerad."
+
+msgid "Tetris clone based on the SDL library"
+msgstr "Tetrisklon baserad på SDL-biblioteket"
+
+msgid "Action platformer game"
+msgstr "Action- och plattformsspel"
+
+msgid ""
+"ReTux is an action platformer loosely inspired by the Mario games,\n"
+"utilizing the art assets from the @code{SuperTux} project."
+msgstr ""
+"ReTux är ett action- och plattformsspel löst inspirerat av Mario-spelen\n"
+"och nyttjar grafik med mera från @code{SuperTux}-projektet."
+
+msgid "Lightweight game engine for Action-RPGs"
+msgstr "Resurssnål spelmotor för action-rpg:er"
+
+msgid ""
+"Solarus is a 2D game engine written in C++, that can run games\n"
+"scripted in Lua.  It has been designed with 16-bit classic Action-RPGs\n"
+"in mind."
+msgstr ""
+"Solarus är en tvådimensionell spelmotor skriven i C++ och som\n"
+"kan köra spel skriptade i Lua.    Den har formgivits med klassiska 16-bitars\n"
+"action-rpg:er i åtanke."
+
+msgid "UFO: AI data files"
+msgstr "Datafiler för UFO: AI"
+
+msgid "Lemmings clone"
+msgstr "Lemmings-klon"
+
+msgid "Full chess implementation"
+msgstr "Fullständig schackimplementation"
+
+msgid ""
+"GNU Chess is a chess engine.  It allows you to compete\n"
+"against the computer in a game of chess, either through the default terminal\n"
+"interface or via an external visual interface such as GNU XBoard."
+msgstr ""
+"GNU Chess är en schackmotor.   Den gör att du kan tävla mot datorn\n"
+"i ett parti schack, antingen via gränssnittet för standardterminalen eller \n"
+"genom ett externt visuellt gränssnitt så som GNU XBoard."
+
+msgid "Game data for GNU Freedink"
+msgstr "Speldata för GNU Freedink"
+
+msgid "Graphical user interface for chess programs"
+msgstr "Grafiskt användargränssnitt för schackprogram"
+
+msgid ""
+"GNU XBoard is a graphical board for all varieties of chess,\n"
+"including international chess, xiangqi (Chinese chess), shogi (Japanese chess)\n"
+"and Makruk.  Several lesser-known variants are also supported.  It presents a\n"
+"fully interactive graphical interface and it can load and save games in the\n"
+"Portable Game Notation."
+msgstr ""
+"GNU XBoard är ett grafiskt bräde för alla schackvarianter,\n"
+"så som internationellt schack, xiangqi (kinesiskt schack), shogi (japanskt schack)\n"
+"och Makruk.    Flera mindre kända varianter stöds också.    Det tillhandahåller ett\n"
+"fullständigt interaktivt grafiskt gränssnitt och det kan läsa in och spara partier i\n"
+"filformatet Portable Game Notation (PGN)."
+
+msgid ""
+"SuperTuxKart is a 3D kart racing game, with a focus on\n"
+"having fun over realism.  You can play with up to 4 friends on one PC, racing\n"
+"against each other or just trying to beat the computer; single-player mode is\n"
+"also available."
+msgstr ""
+"SuperTuxKart är ett tredimensionellt rallyspel med fokus på\n"
+"spelglädje snarare än realism.    Du kan spela med upp till fyra vänner på en dator,\n"
+"tävla mot varandra eller bara försöka slå datorn; det finns också enspelarläge."
+
+msgid "Monster-fighting RPG"
+msgstr "RPG där man bekämpar monster"
+
+msgid ""
+"SuperTux is a classic 2D jump'n run sidescroller game in\n"
+"a style similar to the original Super Mario games."
+msgstr ""
+"SuperTux är ett klassiskt tvådimensionellt sidorullande spel\n"
+"som liknar de ursprungliga Super Mario-spelen."
+
+msgid "MUD client"
+msgstr "MUD-klient"
+
+msgid "Programming game"
+msgstr "Programmeringsspel"
+
+msgid "GameStream client"
+msgstr "GameStream-klient"
+
+msgid "Puzzle game"
+msgstr "Pusselspel"
+
+msgid "4D Tetris"
+msgstr "Tetris i 4D"
+
+msgid "Flight simulator"
+msgstr "Flygsimulator"
+
+msgid "Graphical user interface to play chess"
+msgstr "Grafiskt användargränssnitt för att spela schack"
+
+msgid ""
+"Eboard is a chess board interface for ICS (Internet Chess Servers)\n"
+"and chess engines."
+msgstr ""
+"Eboard är ett schackbrädesgränssnitt för ICS (Internet Chess Servers)\n"
+"och schackmotorer."
+
+msgid "Chess game database"
+msgstr "Databas för schackpartier"
+
+msgid ""
+"ChessX is a chess database.  With ChessX you can operate on your\n"
+"collection of chess games in many ways: browse, edit, add, organize, analyze,\n"
+"etc.  You can also play games on FICS or against an engine."
+msgstr ""
+"ChessX är en schackdatabas.    Med ChessX kan du hantera din samling\n"
+"av schackpartier på flera sätt: bläddra, redigera, lägga till, organisera, analysera\n"
+"med mera.    Du kan även spela partier på FICS eller mot en motor."
+
+msgid "Strong chess engine"
+msgstr "Stark schackmotor"
+
+msgid ""
+"Stockfish is a very strong chess engine.  It is much stronger than the\n"
+"best human chess grandmasters.  It can be used with UCI-compatible GUIs like\n"
+"ChessX."
+msgstr ""
+"Stockfish är en oerhört stark schackmotor.     Den är avsevärt starkare än\n"
+"de bästa mänskliga schackstormästarna.    Den kan användas med UCI-kompatibla \n"
+"grafiska användargränssnitt som ChessX."
+
+msgid "Karaoke game"
+msgstr "Karaokespel"
+
+msgid "Color profile manager for the GNOME desktop"
+msgstr "Färgprofilhanterare för skrivbordsmiljön GNOME"
+
+msgid "GNOME Fonts"
+msgstr "Typsnitt för GNOME"
+
+msgid "Spreadsheet application"
+msgstr "Applikation för kalkylblad"
+
+msgid "Minesweeper game"
+msgstr "Spelet Minröj"
+
+msgid "Terminal emulator"
+msgstr "Terminal-emulator"
+
+msgid "Geolocation service"
+msgstr "Geolokaliseringstjänst"
+
+msgid "Music player for GNOME"
+msgstr "Musikspelare för GNOME"
+
+msgid "GNOME image viewer"
+msgstr "En bildvisare för GNOME"
+
+msgid ""
+"Eye of GNOME is the GNOME image viewer.  It\n"
+"supports image conversion, rotation, and slideshows."
+msgstr ""
+"Eye of GNOME är en bildvisare för GNOME. Den\n"
+"stödjer bildkonvertering, rotation och bildspel."
+
+msgid "D-Bus debugger"
+msgstr "Avlusare för D-Bus"
+
+msgid "Photo manager for GNOME 3"
+msgstr "Fotohanterare för GNOME 3"
+
+msgid ""
+"Shotwell is a digital photo manager designed for the GNOME desktop\n"
+"environment.  It allows you to import photos from disk or camera, organize\n"
+"them by keywords and events, view them in full-window or fullscreen mode, and\n"
+"share them with others via social networking and more."
+msgstr ""
+"Shotwell är en digital fotohanterare utformad för skrivbordsmiljön\n"
+"GNOME. Den tillåter dig att importera foton från skiva eller kamera, organisera\n"
+"dem via nyckelord eller händelser, visa dem i helfönster- eller helskärmsläge och\n"
+"dela dem med andra på sociala medier med mera."
+
+msgid "Graphical archive manager for GNOME"
+msgstr "Grafisk arkivhanterare för GNOME"
+
+msgid ""
+"File Roller is an archive manager for the GNOME desktop\n"
+"environment that allows users to view, unpack, and create compressed archives\n"
+"such as gzip tarballs."
+msgstr ""
+"File Roller är en arkivhanterare för skrivbordsmiljön GNOME\n"
+"som ger användare möjligheten att se, packa upp och skapa komprimerade arkiv\n"
+"så som gzip-filer."
+
+msgid "Session manager for GNOME"
+msgstr "Sessionshanterare för GNOME"
+
+msgid "Utilities to configure the GNOME desktop"
+msgstr "Verktyg för att konfigurera skrivbordsmiljön GNOME"
+
+msgid "File manager for GNOME"
+msgstr "Filhanterare för GNOME"
+
+msgid ""
+"Nautilus (Files) is a file manager designed to fit the GNOME desktop\n"
+"design and behaviour, giving the user a simple way to navigate and manage its\n"
+"files."
+msgstr ""
+"Nautilus (Files) är en filhanterare utformad för att passa skrivbordsmiljön GNOME:s\n"
+"utformning och beteende genom att ge användaren ett enkelt sätt att navigera\n"
+"och hantera filer på."
+
+msgid "Disk usage analyzer for GNOME"
+msgstr "Diskanvändningsanalysator för GNOME"
+
+msgid "GoVirt Library"
+msgstr "GoVirt-bibliotek"
+
+msgid "GNOME's clock application"
+msgstr "GNOME:s klockprogram"
+
+msgid "GNOME's calendar application"
+msgstr "GNOME:s kalenderprogram"
+
+msgid "Look up words in dictionary sources"
+msgstr "Sök efter ord i ordbokskällor"
+
+msgid "Desktop calculator"
+msgstr "Miniräknare för skrivbordet"
+
+msgid "File manager"
+msgstr "Filhanterare"
+
+msgid "Multihash implementation in Go."
+msgstr "Multihash-implementering i Go."
+
+msgid "sha1cd"
+msgstr "sha1cd"
+
+msgid "Implementation of an R-Way Trie data structure."
+msgstr "Implementering av en R-Way Trie-datastruktur."
+
+msgid "Package for building command line apps in Golang"
+msgstr "Paket för att bygga Golang-appar till kommandoraden"
+
+msgid "gopdf is a Go library for generating PDF documents."
+msgstr "gopdf är ett Go-bibliotek för att generera PDF-dokument."
+
+msgid ""
+"Package kyaml contains libraries for reading and writing Kubernetes Resource\n"
+"configuration as YAML."
+msgstr ""
+"Paketet kyaml innehåller bibliotek för att läsa och att skriva resurs- \n"
+"konfiguration som YAML till Kubernetes."
+
+msgid "An implementation of the git-lfs protocol."
+msgstr "En implementering av git-lfs-protokollet."
+
+msgid "Theme scheduling for the KDE Plasma Desktop"
+msgstr "Schemaläggning av tema för KDE Plasma-skrivbordet"
+
+msgid ""
+"This package provides support components for porting from\n"
+"KF5/Qt5 to KF6/Qt6"
+msgstr ""
+"Det här paketet tillhandahåller stöd-komponenter för portering \n"
+"från KF5/Qt5 till KF6/Qt6"
+
+msgid "Hyphenation library"
+msgstr "Orddelningsbibliotek"
+
+msgid "Thesaurus"
+msgstr "Synonymordbok"
+
+msgid "Office suite"
+msgstr "Kontorsprogram"
+
+msgid "Container platform"
+msgstr "Container-plattform"
+
+msgid "Simple API to read and write INI-style files"
+msgstr "Enkelt API för att läsa och skriva filer i INI-stil"
+
+msgid ""
+"This package provides a distributed monitoring\n"
+"solution (server-side)"
+msgstr ""
+"Det här paketet tillhandahåller en distribuerad lösning \n"
+"för övervakning (på server-sidan)"
+
+msgid "Numeric comparisons"
+msgstr "Numeriska jämförelser"
+
+msgid "Anonymous packages"
+msgstr "Anonyma paket"
+
+msgid "Parameterizable packages"
+msgstr "Parametriserbara paket"
+
+msgid "Infinite sets"
+msgstr "Oändliga uppsättningar"
+
+msgid "Align text"
+msgstr "Justera text"
+
+msgid "UNIVERSAL::can() reimplementation"
+msgstr "omimplementering av UNIVERSAL::can()"
+
+msgid "UNIVERSAL::isa() reimplementation"
+msgstr "omimplementering av UNIVERSAL::isa()"
+
+msgid "This package provides tooling to build Prometheus exporters"
+msgstr "Det här paketet tillhandahåller hjälpmedel för att bygga Prometheus-exportörer"
+
+msgid "Pure-Python implementation of the blurhash algorithm."
+msgstr "Ren Python-implementering av blurbash-algoritmen."
+
+msgid ""
+"This package provides a class to deal with collections of unordered,\n"
+"unique values"
+msgstr ""
+"Det här paketet tillhandahåller en klass för att hantera samlingar av o-sorterade \n"
+"unika värden"
+
+msgid ""
+"This package provides a tool for writing manuals for Prawn and Prawn\n"
+"accessories"
+msgstr ""
+"Det här paketet tillhandahåller ett verktyg för att skriva manualer till Prawn och Prawn \n"
+"-tillbehör"
+
+msgid "Python package and project manager written in Rust"
+msgstr "Python-paket och projekthanterare skriven i Rust"
+
+msgid "Session management in a clean and simple way"
+msgstr "Sessionshantering på ett rent och enkelt sätt"
+
+msgid "ConTeXt scheme"
+msgstr "ConTeXt-schema"
+
+msgid "Extended TeX"
+msgstr "Förlängd TeX"
+
+msgid "Calligraphic font"
+msgstr "Kaligrafiskt typsnitt"
+
+msgid "Intelligent cross-referencing"
+msgstr "Intelligent korsreferens"
+
+msgid "Color separation"
+msgstr "Färgseparation"
+
+msgid "Writing ``configurations''"
+msgstr "Skriver ``konfigurationer''"
+
+msgid "Vector arrows"
+msgstr "Vektor-pilar"
+
+msgid "Linguistic tools"
+msgstr "Lingvistiska verktyg"
+
+msgid "@code{hfbright} fonts"
+msgstr "@code{hfbright} typsnitt"
+
+msgid "Intelligent brackets"
+msgstr "Intelligenta parenteser"
+
+msgid "Documentation support"
+msgstr "Dokumentationsstöd"
+
+msgid "Straightforward pseudocode"
+msgstr "Rakt på sak pseudo-kod"
+
+msgid "Ridgeway's fonts"
+msgstr "Ridgeway's typsnitt"
+
+msgid "Letter spacing"
+msgstr "Bokstavsavstånd"
+
+msgid "Mongolian LaTeX"
+msgstr "Mongolisk LaTeX"
+
+msgid "Documentation macros"
+msgstr "Dokumentationsmakron"
+
+msgid "Generate timetables"
+msgstr "Generera tidtabeller"
+
+msgid "Tree macros"
+msgstr "Trädmakron"
+
+msgid "Draw trees"
+msgstr "Rita träd"
+
+msgid "LaTeX laboratory"
+msgstr "LaTeX-laboratorium"
+
+msgid "Sanskrit support"
+msgstr "Stöd för Sanskrit"
+
+msgid "Multilingual bibliographies"
+msgstr "Flerspråkiga bibliografier"
+
+msgid "3D animations"
+msgstr "3D-animationer"
+
+msgid "LaTeX editor"
+msgstr "LaTeX-redigerare"
+
+msgid "Personal organiser"
+msgstr "Personlig arrangör"
+
+msgid "Geographical projections"
+msgstr "Geografiska projektioner"
+
+msgid "Additional fonts"
+msgstr "Ytterligare typsnitt"
+
+msgid "Recommended fonts"
+msgstr "Rekommenderade typsnitt"
+
+msgid "LuaTeX packages"
+msgstr "LuaTeX-paket"
+
+msgid "Music packages"
+msgstr "Musik-paket"
+
+msgid "Concert programmes"
+msgstr "Konsertprogram"
+
+msgid "Generate invoices"
+msgstr "Generera fakturor"
+
+msgid "Avoid widows"
+msgstr "Undvik änkor"
+
+msgid "Microraptor GUI"
+msgstr "Grafiskt gränssnitt för Microraptor"
+
+msgid "gotest.tools"
+msgstr "gotest.tools"
+
+msgid "Introduction"
+msgstr "Introduktion"
+
+msgid "JPEG-2000 library"
+msgstr "JPEG-2000-bibliotek"
+
+msgid "Color picker"
+msgstr "Färgväljare"
+
+msgid "SILC ToolKit"
+msgstr "Verktygskit för SILC"
+
+msgid "Message broker"
+msgstr "Meddelandeförmedlare"
+
+msgid "Bandwidth monitor"
+msgstr "Bandbreddsövervakare"
+
+msgid "CAN utilities"
+msgstr "Verktyg för CAN"
+
+msgid "Denial-of-service countermeasure"
+msgstr "Åtgärd mot överbelastningsattack"
+
+msgid "Linter"
+msgstr "Kodgranskare"
+
+msgid ""
+"This package provides a Python library to send files to the\n"
+"user's @file{~/Trash} directory."
+msgstr ""
+"Det här paketet tillhandahåller ett Python-bibliotek för att skicka filer till\n"
+"användarens @file{~/Trash}-mapp"
+
+msgid "Faster locate"
+msgstr "Snabbare locate"
+
+msgid "Python-ish shell"
+msgstr "Pytonaktigt skal"
+
+msgid "Validate HTML"
+msgstr "Validera HTML"
+
+msgid "Bookmark manager"
+msgstr "Bokmärkeshanterare"
+
+msgid "Ogg vorbis tools"
+msgstr "Ogg vorbis-verktyg"
+
+msgid ""
+"Ogg vorbis is a non-proprietary, patent-and-royalty-free,\n"
+"general-purpose compressed audio format.\n"
+"\n"
+"The package vorbis-tools contains\n"
+"ogg123,  an ogg vorbis command line audio player;\n"
+"oggenc,  the ogg vorbis encoder;\n"
+"oggdec,  a simple, portable command line decoder (to wav and raw);\n"
+"ogginfo, to obtain information (tags, bitrate, length, etc.) about\n"
+"         an ogg vorbis file."
+msgstr ""
+"Ogg vorbis är ett komprimerat icke-proprietärt, patent- och royalty-fritt \n"
+"samt universalt ljudfilsformat.\n"
+"\n"
+"Paketet vorbis-verktyg innehåller\n"
+"ogg123,  en terminalbaserad ogg vorbis-ljudspelare;\n"
+"oggenc,  ogg vorbis-kodaren;\n"
+"oggdec,  en simpel, portabel terminalbaserad avkodare (från wav till rå);\n"
+"ogginfo, för att skaffa information (taggar, bitfrekvens, längd etc.) om\n"
+"         en ogg vorbis-fil."
+
+msgid "Streaming media server"
+msgstr "Strömmande mediaserver"
+
+msgid "Hypervisor"
+msgstr "Hypervisor"

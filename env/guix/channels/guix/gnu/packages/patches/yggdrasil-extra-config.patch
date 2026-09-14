@@ -1,0 +1,62 @@
+From 5aeabc1a8a8c5ecea3f5d0b7bcfa0aa0767ac92d Mon Sep 17 00:00:00 2001
+Message-ID: <5aeabc1a8a8c5ecea3f5d0b7bcfa0aa0767ac92d.1699726745.git.avityazev@posteo.org>
+From: Aleksandr Vityazev <avityazev@posteo.org>
+Date: Sat, 11 Nov 2023 19:50:46 +0300
+Subject: [PATCH] add extra config file option to yggdrasil command
+
+This is useful in Guix and Nix, because one config file can come
+from the world-readable store and another can be placed directly
+into /etc with much stricter permissions.
+---
+ cmd/yggdrasil/main.go | 12 ++++++++++++
+ src/config/config.go  |  2 +-
+ 2 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/cmd/yggdrasil/main.go b/cmd/yggdrasil/main.go
+index a225755..3f53dda 100644
+--- a/cmd/yggdrasil/main.go
++++ b/cmd/yggdrasil/main.go
+@@ -42,6 +42,7 @@ func main() {
+ 	genconf := flag.Bool("genconf", false, "print a new config to stdout")
+ 	useconf := flag.Bool("useconf", false, "read HJSON/JSON config from stdin")
+ 	useconffile := flag.String("useconffile", "", "read HJSON/JSON config from specified file path")
++	extraconffile := flag.String("extraconffile", "", "extra (usually private) HJSON/JSON config from specified file path")
+ 	normaliseconf := flag.Bool("normaliseconf", false, "use in combination with either -useconf or -useconffile, outputs your configuration normalised")
+ 	exportkey := flag.Bool("exportkey", false, "use in combination with either -useconf or -useconffile, outputs your private key in PEM format")
+ 	confjson := flag.Bool("json", false, "print configuration from -genconf or -normaliseconf as JSON instead of HJSON")
+@@ -137,6 +138,17 @@ func main() {
+ 		return
+ 	}
+ 
++	if *extraconffile !="" {
++		f, err := os.Open(*extraconffile)
++		if err != nil {
++			panic(err)
++		}
++		if _, err := cfg.ReadFrom(f); err != nil {
++			panic(err)
++		}
++		_ = f.Close()
++	}
++
+ 	privateKey := ed25519.PrivateKey(cfg.PrivateKey)
+ 	publicKey := privateKey.Public().(ed25519.PublicKey)
+ 
+diff --git a/src/config/config.go b/src/config/config.go
+index e899a35..76b9ec8 100644
+--- a/src/config/config.go
++++ b/src/config/config.go
+@@ -112,7 +112,7 @@ func (cfg *NodeConfig) ReadFrom(r io.Reader) (int64, error) {
+ 	// then parse the configuration we loaded above on top of it. The effect
+ 	// of this is that any configuration item that is missing from the provided
+ 	// configuration will use a sane default.
+-	*cfg = *GenerateConfig()
++	// *cfg = *GenerateConfig()
+ 	if err := cfg.UnmarshalHJSON(conf); err != nil {
+ 		return n, err
+ 	}
+
+base-commit: b759683b76985665b5218346abab35f08d9f4d38
+-- 
+2.41.0
+

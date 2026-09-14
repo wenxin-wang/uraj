@@ -1,0 +1,83 @@
+From: Tobias Geerinckx-Rice <me@tobias.gr>
+Date: Sun, 15 Sep 2024 00:00:00 +0000
+Subject: [PATCH]: Split installation of drill and examples.
+
+---
+Allow installing drill and examples into separate directory hierarchies.
+Based on the original by Raghav Gururajan <raghavgururajan@disroot.org>
+
+ Makefile.in | 38 +++++++++++++++++++++-----------------
+ 1 file changed, 21 insertions(+), 17 deletions(-)
+
+diff -Naur a/Makefile.in b/Makefile.in
+--- a/Makefile.in	2024-07-20 05:07:42.000000000 +0000
++++ b/Makefile.in	2024-09-15 00:00:00.000000000 +0000
+@@ -14,6 +14,10 @@
+ includedir	= @includedir@
+ sysconfdir      = @sysconfdir@
+ doxygen		= @doxygen@
++drillbindir	= @drillbindir@
++drillmandir	= @drillmandir@
++examplesbindir	= @examplesbindir@
++examplesmandir	= @examplesmandir@
+ pywrapdir       = $(srcdir)/contrib/python
+ pyldnsxwrapdir  = $(srcdir)/contrib/ldnsx
+ p5_dns_ldns_dir = $(srcdir)/contrib/DNS-LDNS
+@@ -177,16 +181,16 @@
+ 	$(edit) $(srcdir)/drill/drill.1.in > drill/drill.1
+ 
+ install-drill: drill/drill drill/drill.1
+-	$(INSTALL) -m 755 -d $(DESTDIR)$(bindir)
+-	$(INSTALL) -m 755 -d $(DESTDIR)$(mandir)
+-	$(INSTALL) -m 755 -d $(DESTDIR)$(mandir)/man1
+-	$(LIBTOOL) --mode=install cp drill/drill$(EXEEXT) $(DESTDIR)$(bindir)
+-	$(INSTALL) -m 644 drill/drill.1 $(DESTDIR)$(mandir)/man1/drill.1
++	$(INSTALL) -m 755 -d $(DESTDIR)$(drillbindir)
++	$(INSTALL) -m 755 -d $(DESTDIR)$(drillmandir)
++	$(INSTALL) -m 755 -d $(DESTDIR)$(drillmandir)/man1
++	$(LIBTOOL) --mode=install cp drill/drill$(EXEEXT) $(DESTDIR)$(drillbindir)
++	$(INSTALL) -m 644 drill/drill.1 $(DESTDIR)$(drillmandir)/man1/drill.1
+ 
+ uninstall-drill:
+-	rm -f $(DESTDIR)$(bindir)/drill$(EXEEXT) $(DESTDIR)$(mandir)/man1/drill.1
+-	test ! -d $(DESTDIR)$(mandir) || rmdir -p $(DESTDIR)$(mandir)/man1 || :;
+-	test ! -d $(DESTDIR)$(bindir) || rmdir -p $(DESTDIR)$(bindir) || : ;
++	rm -f $(DESTDIR)$(drillbindir)/drill$(EXEEXT) $(DESTDIR)$(drillmandir)/man1/drill.1
++	test ! -d $(DESTDIR)$(drillmandir) || rmdir -p $(DESTDIR)$(drillmandir)/man1 || :;
++	test ! -d $(DESTDIR)$(drillbindir) || rmdir -p $(DESTDIR)$(drillbindir) || : ;
+ 
+ clean-drill:
+ 	$(LIBTOOL) --mode clean rm -f $(DRILL_LOBJS) drill/drill$(EXEEXT) drill/drill.1
+@@ -228,23 +232,23 @@
+ 	$(edit) $(srcdir)/examples/ldns-verify-zone.1.in > examples/ldns-verify-zone.1
+ 
+ install-examples: $(EXAMPLE_PROGS) $(TESTNS) $(LDNS_DPA) $(LDNS_DANE) $(EX_SSL_PROGS) examples/ldns-dane.1 examples/ldns-verify-zone.1
+-	$(INSTALL) -m 755 -d $(DESTDIR)$(bindir)
+-	$(INSTALL) -m 755 -d $(DESTDIR)$(mandir)
+-	$(INSTALL) -m 755 -d $(DESTDIR)$(mandir)/man1
++	$(INSTALL) -m 755 -d $(DESTDIR)$(examplesbindir)
++	$(INSTALL) -m 755 -d $(DESTDIR)$(examplesmandir)
++	$(INSTALL) -m 755 -d $(DESTDIR)$(examplesmandir)/man1
+ 	for p in $(EXAMPLE_PROGS) $(TESTNS) $(LDNS_DPA) $(LDNS_DANE) $(EX_SSL_PROGS) ; do \
+-		$(LIBTOOL) --mode=install cp $$p$(EXEEXT) $(DESTDIR)$(bindir) ; \
++		$(LIBTOOL) --mode=install cp $$p$(EXEEXT) $(DESTDIR)$(examplesbindir) ; \
+ 		if test -f $$p.1 ; \
+-		then $(INSTALL) -m 644 $$p.1 $(DESTDIR)$(mandir)/man1 ; \
+-		else $(INSTALL) -m 644 $(srcdir)/$$p.1 $(DESTDIR)$(mandir)/man1 ; \
++		then $(INSTALL) -m 644 $$p.1 $(DESTDIR)$(examplesmandir)/man1 ; \
++		else $(INSTALL) -m 644 $(srcdir)/$$p.1 $(DESTDIR)$(examplesmandir)/man1 ; \
+ 		fi ; \
+ 	done
+ 
+ uninstall-examples:
+ 	for p in $(EX_PROGS_BASENM) ; do \
+-		rm -f $(DESTDIR)$(bindir)/$$p$(EXEEXT) $(DESTDIR)$(mandir)/man1/$$p.1 ;\
++		rm -f $(DESTDIR)$(examplesbindir)/$$p$(EXEEXT) $(DESTDIR)$(examplesmandir)/man1/$$p.1 ;\
+ 	done
+-	test ! -d $(DESTDIR)$(mandir) || rmdir -p $(DESTDIR)$(mandir)/man1 || :;
+-	test ! -d $(DESTDIR)$(bindir) || rmdir -p $(DESTDIR)$(bindir) || : ;
++	test ! -d $(DESTDIR)$(examplesmandir) || rmdir -p $(DESTDIR)$(examplesmandir)/man1 || :;
++	test ! -d $(DESTDIR)$(examplesbindir) || rmdir -p $(DESTDIR)$(examplesbindir) || : ;
+ 
+ clean-examples:
+ 	for p in $(EX_PROGS_BASENM) ; do \

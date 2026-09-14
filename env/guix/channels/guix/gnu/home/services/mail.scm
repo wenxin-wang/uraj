@@ -1,0 +1,528 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2023 Tanguy Le Carrour <tanguy@bioneland.org>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (gnu home services mail)
+  #:use-module (guix records)
+  #:use-module (guix gexp)
+  #:use-module (gnu services)
+  #:use-module (gnu services configuration)
+  #:use-module (gnu home services)
+  #:use-module (gnu home services utils)
+  #:use-module (gnu home services shepherd)
+  #:use-module (gnu packages mail)
+  #:use-module (ice-9 match)
+  #:use-module (ice-9 string-fun)
+  #:use-module (srfi srfi-1)
+  #:use-module (srfi srfi-26)
+  #:export (home-msmtp-configuration
+            home-msmtp-configuration?
+            home-msmtp-configuration-defaults
+            home-msmtp-configuration-accounts
+            home-msmtp-configuration-default-account
+            home-msmtp-configuration-extra-content
+            home-msmtp-service-type
+            msmtp-configuration
+            msmtp-configuration-auth?
+            msmtp-configuration-tls?
+            msmtp-configuration-tls-starttls?
+            msmtp-configuration-tls-trust-file
+            msmtp-configuration-log-file
+            msmtp-configuration-host
+            msmtp-configuration-port
+            msmtp-configuration-user
+            msmtp-configuration-from
+            msmtp-configuration-password-eval
+            msmtp-configuration-extra-content
+            msmtp-account
+            msmtp-account-name
+            msmtp-account-configuration
+
+            goimapnotify-tls-options-configuration
+            goimapnotify-tls-options-configuration?
+            goimapnotify-tls-options-configuration-reject-unauthorized?
+            goimapnotify-tls-options-configuration-starttls?
+            goimapnotify-box-configuration
+            goimapnotify-box-configuration?
+            goimapnotify-box-configuration-mailbox
+            goimapnotify-box-configuration-on-new-mail
+            goimapnotify-box-configuration-on-new-mail-post
+            goimapnotify-box-configuration-on-changed-mail
+            goimapnotify-box-configuration-on-changed-mail-post
+            goimapnotify-box-configuration-on-deleted-mail
+            goimapnotify-box-configuration-on-deleted-mail-post
+            goimapnotify-configuration
+            goimapnotify-configuration?
+            goimapnotify-configuration-host
+            goimapnotify-configuration-host-command
+            goimapnotify-configuration-port
+            goimapnotify-configuration-tls?
+            goimapnotify-configuration-tls-options
+            goimapnotify-configuration-idle-logout-timeout
+            goimapnotify-configuration-user-name
+            goimapnotify-configuration-user-name-command
+            goimapnotify-configuration-alias
+            goimapnotify-configuration-password
+            goimapnotify-configuration-password-command
+            goimapnotify-configuration-xo-auth2?
+            goimapnotify-configuration-wait
+            goimapnotify-configuration-boxes
+            home-goimapnotify-configuration
+            home-goimapnotify-configuration?
+            home-goimapnotify-configuration-goimapnotify
+            home-goimapnotify-configuration-configurations
+            home-goimapnotify-service-type))
+
+(define (string-or-gexp? obj)
+  (or (string? obj)
+      (gexp? obj)))
+
+(define-maybe string (prefix msmtp-configuration-))
+(define-maybe boolean (prefix msmtp-configuration-))
+(define-maybe integer (prefix msmtp-configuration-))
+(define-maybe string-or-gexp (prefix msmtp-configuration-))
+
+;; Serialization of 'msmtp'.
+(define (uglify-symbol field-name)
+  (let* ((name (symbol->string field-name))
+         (ugly-name (string-replace-substring name "-" "_")))
+    (if (string-suffix? "?" ugly-name)
+      (string-drop-right ugly-name 1)
+      ugly-name)))
+
+(define (msmtp-configuration-serialize-boolean field-name value)
+  #~(string-append #$(uglify-symbol field-name) " "
+                   (if #$value "on" "off") "\n"))
+
+(define (msmtp-configuration-serialize-string field-name value)
+  #~(string-append #$(uglify-symbol field-name) " " #$value "\n"))
+
+(define msmtp-configuration-serialize-string-or-gexp
+  msmtp-configuration-serialize-string)
+
+(define (msmtp-configuration-serialize-maybe-string-no-underscore field-name value)
+  #~(if #$(maybe-value-set? value)
+      (string-append
+        #$(string-replace-substring (uglify-symbol field-name) "_" "") " " #$value "\n")
+      ""))
+
+(define (msmtp-configuration-serialize-integer field-name value)
+  #~(string-append #$(uglify-symbol field-name) " "
+                   (number->string #$value) "\n"))
+
+(define (msmtp-configuration-serialize-extra-content field-name value)
+  #~(if (string=? #$value "") "" (string-append #$value "\n")))
+
+(define (msmtp-account-serialize-name field-name value)
+  #~(string-append "\naccount " #$value "\n"))
+
+(define (msmtp-account-serialize-msmtp-configuration field-name value)
+  #~(string-append #$(serialize-configuration value msmtp-configuration-fields)))
+
+(define (home-msmtp-configuration-serialize-list-of-msmtp-accounts field-name value)
+  #~(string-append #$@(map (cut serialize-configuration <> msmtp-account-fields)
+                           value)))
+
+(define (home-msmtp-configuration-serialize-msmtp-configuration field-name value)
+  #~(string-append "defaults\n"
+                   #$(serialize-configuration value msmtp-configuration-fields)))
+
+(define (home-msmtp-configuration-serialize-default-account field-name value)
+  #~(if #$(maybe-value-set? value)
+      (string-append "\naccount default : " #$value "\n")
+      ""))
+
+(define (home-msmtp-configuration-serialize-extra-content field-name value)
+  #~(if (string=? #$value "") "" (string-append #$value "\n")))
+
+;; Configuration of 'msmtp'.
+;; Source <https://marlam.de/msmtp/msmtp.html#Configuration-files>.
+(define-configuration msmtp-configuration
+  (auth?
+   maybe-boolean
+   "Enable or disable authentication.")
+
+  (tls?
+   maybe-boolean
+   "Enable or disable TLS (also known as SSL) for secured connections.")
+
+  (tls-starttls?
+   maybe-boolean
+   "Choose the TLS variant: start TLS from within the session (‘on’, default),
+or tunnel the session through TLS (‘off’).")
+
+  (tls-trust-file
+   maybe-string
+   "Activate server certificate verification using a list of
+trusted Certification Authorities (CAs).")
+
+  (log-file
+   maybe-string
+   "Enable logging to the specified file. An empty argument disables logging.
+The file name ‘-’ directs the log information to standard output."
+   (serializer msmtp-configuration-serialize-maybe-string-no-underscore))
+
+  (host
+    maybe-string
+    "The SMTP server to send the mail to.")
+
+  (port
+    maybe-integer
+    "The port that the SMTP server listens on. The default is 25 (\"smtp\"),
+unless TLS without STARTTLS is used, in which case it is 465 (\"smtps\").")
+
+  (user
+    maybe-string
+    "Set the user name for authentication.")
+
+  (from
+    maybe-string
+    "Set the envelope-from address.")
+
+  (password-eval
+    maybe-string-or-gexp
+    "Set the password for authentication to the output (stdout) of the command cmd."
+    (serializer msmtp-configuration-serialize-maybe-string-no-underscore))
+
+  (extra-content
+   (string "")
+   "Extra content appended as-is to the configuration block.  Run
+@command{man msmtp} for more information about the configuration file
+format."
+   (serializer msmtp-configuration-serialize-extra-content))
+
+  (prefix msmtp-configuration-))
+
+(define-configuration msmtp-account
+  (name
+   (string)
+   "The unique name of the account."
+   (serializer msmtp-account-serialize-name))
+
+  (configuration
+   (msmtp-configuration)
+   "The configuration for this given account.")
+
+  (prefix msmtp-account-))
+
+(define (list-of-msmtp-accounts? lst)
+  (every msmtp-account? lst))
+
+(define-configuration home-msmtp-configuration
+  (defaults
+   (msmtp-configuration (msmtp-configuration))
+   "The configuration that will be set as default for all accounts.")
+
+  (accounts
+   (list-of-msmtp-accounts '())
+   "A list of @code{msmtp-account} records which contain
+information about all your accounts.")
+
+  (default-account
+   maybe-string
+   "Set the default account."
+   (serializer home-msmtp-configuration-serialize-default-account))
+
+  (extra-content
+   (string "")
+   "Extra content appended as-is to the configuration file.  Run
+@command{man msmtp} for more information about the configuration file
+format."
+   (serializer home-msmtp-configuration-serialize-extra-content))
+
+  (prefix home-msmtp-configuration-))
+
+(define (home-msmtp-files config)
+  (list
+   `(".config/msmtp/config"
+     ,(mixed-text-file "msmtp-config"
+                       (serialize-configuration config home-msmtp-configuration-fields)))))
+
+(define (home-msmtp-profile-entries config)
+  (list msmtp))
+
+(define home-msmtp-service-type
+  (service-type (name 'home-msmtp)
+                (extensions
+                 (list (service-extension home-profile-service-type
+                                          home-msmtp-profile-entries)
+                       (service-extension home-files-service-type
+                                          home-msmtp-files)))
+                (default-value (home-msmtp-configuration))
+                (description "Configure msmtp, a simple
+@acronym{SMTP, Simple Mail Transfer Protocol} client that can relay email
+to SMTP servers.")))
+
+
+;;; Goimapnotify.
+
+(define (camelize-field-name field-name)
+  (let ((str (object->camel-case-string field-name)))
+    (if (string-suffix? "?" str)
+        (string-drop-right str 1)
+        str)))
+
+(define (goimapnotify-serialize-field field-name val)
+  "The mapping is used to serialize certain FIELD-NAMES specially."
+  (let* ((field-name-mapping '((host-command . hostCmd)
+                               (user-name . username)
+                               (user-name-command . usernameCmd)
+                               (password-command . passwordCmd)))
+         (field-name* (or (assq-ref field-name-mapping field-name)
+                          field-name)))
+    #~(format #f "~a: ~s~%"
+              #$(camelize-field-name field-name*)
+              #$val)))
+
+(define (goimapnotify-serialize-boolean field-name val)
+  (goimapnotify-serialize-field field-name (if val ''true ''false)))
+
+(define-configuration goimapnotify-tls-options-configuration
+  (reject-unauthorized?
+   (boolean #f)
+   "Whether to reject unauthorized TLS certificates.")
+
+  (starttls?
+   (boolean #f)
+   "Whether to use STARTTLS.")
+
+  (prefix goimapnotify-))
+
+;; XXX: The 'define-maybe' macros of the MSMTP configuration already define
+;; the maybe types, so we just need to define the extra serializers.
+
+(define (goimapnotify-serialize-string field-name val)
+  (goimapnotify-serialize-field field-name val))
+
+(define (goimapnotify-serialize-maybe-string field-name val)
+  (if (maybe-value-set? val)
+      (goimapnotify-serialize-string field-name val)
+      ""))
+
+(define goimapnotify-serialize-string-or-gexp
+  goimapnotify-serialize-string)
+
+(define (goimapnotify-serialize-maybe-string-or-gexp field-name val)
+  (if (and (maybe-value-set? val)
+           (string-or-gexp? val))
+      (goimapnotify-serialize-string-or-gexp field-name val)
+      ""))
+
+(define-configuration goimapnotify-box-configuration
+  (mailbox
+   string
+   "The mailbox to monitor.")
+
+  (on-new-mail
+   maybe-string-or-gexp
+   "The command to execute when new mail arrives.")
+
+  (on-new-mail-post
+   maybe-string-or-gexp
+   "The command to execute after the new-mail command.")
+
+  (on-changed-mail
+   maybe-string-or-gexp
+   "The command to execute when mail is changed.")
+
+  (on-changed-mail-post
+   maybe-string-or-gexp
+   "The command to execute after the changed-mail command.")
+
+  (on-deleted-mail
+   maybe-string-or-gexp
+   "The command to execute when mail is deleted.")
+
+  (on-deleted-mail-post
+   maybe-string-or-gexp
+   "The command to execute after the deleted-mail command.")
+
+  (prefix goimapnotify-))
+
+(define (goimapnotify-serialize-integer field-name val)
+  (goimapnotify-serialize-field field-name val))
+
+(define (goimapnotify-serialize-maybe-integer field-name val)
+  (if (maybe-value-set? val)
+      (goimapnotify-serialize-integer field-name val)
+      ""))
+
+(define (serialize-goimapnotify-tls-options-configuration field-name val)
+  (let ((serialization (serialize-configuration val goimapnotify-tls-options-configuration-fields)))
+    #~(begin
+        (use-modules (ice-9 format) (ice-9 string-fun))
+        (format #f "~a:
+  ~a~%"
+                '#$(camelize-field-name field-name)
+                (string-replace-substring #$serialization "\n" "\n  ")))))
+
+(define-maybe goimapnotify-tls-options-configuration)
+
+(define (list-of-goimapnotify-boxes-configurations? lst)
+  (and (not (null? lst))
+       (every goimapnotify-box-configuration? lst)))
+
+(define (serialize-list-of-goimapnotify-boxes-configurations field-name value)
+  (let ((serializations (cons 'list
+                              (map (cut serialize-configuration <>
+                                        goimapnotify-box-configuration-fields)
+                                   value))))
+    #~(begin
+        (use-modules (ice-9 format) (ice-9 string-fun))
+        (format #f "~a:
+~{  - ~a~%~}"
+                '#$(camelize-field-name field-name)
+                (map (lambda (s)
+                       (string-replace-substring s "\n" "\n    "))
+                     #$serializations)))))
+
+(define-configuration goimapnotify-configuration
+  (host
+   string
+   "The IMAP server hostname.")
+
+  (host-command
+   maybe-string-or-gexp
+   "The command to retrieve the IMAP server hostname.")
+
+  (port
+   (integer 993)
+   "The port that the IMAP server listens on.")
+
+  (tls?
+   (boolean #f)
+   "Enable or disable TLS.")
+
+  (tls-options
+   maybe-goimapnotify-tls-options-configuration
+   "TLS options for the IMAP connection."
+   (serializer serialize-maybe-goimapnotify-tls-options-configuration))
+
+  (idle-logout-timeout
+   maybe-integer
+   "The idle logout timeout in minutes.")
+
+  (user-name
+   maybe-string
+   "The user-name for authentication.")
+
+  (user-name-command
+   maybe-string-or-gexp
+   "The command to retrieve the user-name.")
+
+  (alias
+   maybe-string
+   "An alias for the account.")
+
+  (password
+   maybe-string
+   "The password for authentication.")
+
+  (password-command
+   maybe-string-or-gexp
+   "The command to retrieve the password.")
+
+  (xo-auth2?
+   (boolean #f)
+   "Enable or disable XOAUTH2 authentication.")
+
+  (wait
+   maybe-integer
+   "The delay in seconds before the mail syncing is triggered.")
+
+  (boxes
+   list-of-goimapnotify-boxes-configurations
+   "The mailboxes to monitor."
+   (serializer serialize-list-of-goimapnotify-boxes-configurations))
+
+  (prefix goimapnotify-))
+
+;; Serialize virtualhosts and components last.
+(define (serialize-goimapnotify-configuration config)
+  (define (boxes? field)
+    (eq? (configuration-field-name field) 'boxes))
+  (let ((rest (filter boxes? goimapnotify-configuration-fields)))
+    #~(string-append #$(serialize-configuration config rest)
+                     #$(serialize-list-of-goimapnotify-boxes-configurations
+                          'boxes
+                          (goimapnotify-configuration-boxes config)))))
+
+(define (list-of-goimapnotify-configurations? lst)
+  (every goimapnotify-configuration? lst))
+
+(define (serialize-list-of-goimapnotify-configurations field-name value)
+  (let ((serializations (cons 'list
+                              (map (cut serialize-configuration <>
+                                        goimapnotify-configuration-fields)
+                                   value))))
+    #~(begin
+        (use-modules (ice-9 format) (ice-9 string-fun))
+        (format #f "~a:
+~{  - ~a~%~}"
+                '#$(camelize-field-name field-name)
+                (map (lambda (s)
+                       (string-replace-substring s "\n" "\n    "))
+                     #$serializations)))))
+
+(define-configuration home-goimapnotify-configuration
+  (goimapnotify
+   (file-like goimapnotify)
+   "The @code{goimapnotify} package to use."
+   empty-serializer)
+  (configurations
+   (list-of-goimapnotify-configurations)
+   "A list of @code{goimapnotify-configuration} records which contain
+information about all your accounts configurations.")
+  (shepherd-requirement
+   (list-of-symbols '())
+   "A list of services that should be started before this service.  For
+example, to make the service start after the gpg-agent service
+(@pxref{GNU Privacy Guard}), one could write the following:
+
+@lisp
+(shepherd-requirement '(gpg-agent))
+@end lisp
+"
+   empty-serializer))
+
+(define (home-goimapnotify-shepherd-service config)
+  (define contents
+    (serialize-configuration config home-goimapnotify-configuration-fields))
+
+  (match-record config <home-goimapnotify-configuration>
+                (goimapnotify configurations shepherd-requirement)
+    (list
+     (shepherd-service
+       (provision '(goimapnotify))
+       (requirement shepherd-requirement)
+       (modules '((shepherd support)))   ;for '%user-log-dir'
+       (documentation "Run a goimapnotify process")
+       (start #~(make-forkexec-constructor
+                 (list
+                  #$(file-append goimapnotify "/bin/goimapnotify")
+                  "-conf" #$(mixed-text-file "goimapnotify.yaml" contents))
+                 #:log-file
+                 (string-append %user-log-dir "/goimapnotify.log")))
+       (stop #~(make-kill-destructor))))))
+
+(define home-goimapnotify-service-type
+  (service-type
+    (name 'home-goimapnotify)
+    (extensions
+     (list (service-extension home-shepherd-service-type
+                              home-goimapnotify-shepherd-service)))
+    (description "Configures the @code{goimapnotify} IMAP mailbox notifier.")))

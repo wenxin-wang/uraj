@@ -1,0 +1,1521 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2013 Cyril Roelandt <tipecaml@gmail.com>
+;;; Copyright © 2015 Amirouche Boubekki <amirouche@hypermove.net>
+;;; Copyright © 2016 Al McElrath <hello@yrns.org>
+;;; Copyright © 2016, 2017 Nikita <nikita@n0.is>
+;;; Copyright © 2015 Dmitry Bogatov <KAction@gnu.org>
+;;; Copyright © 2015, 2023 Leo Famulari <leo@famulari.name>
+;;; Copyright © 2016 Eric Bavier <bavier@member.fsf.org>
+;;; Copyright © 2017 Alex Griffin <a@ajgrf.com>
+;;; Copyright © 2018–2021 Tobias Geerinckx-Rice <me@tobias.gr>
+;;; Copyright © 2021 Raghav Gururajan <rg@raghavgururajan.name>
+;;; Copyright © 2021 Alexandru-Sergiu Marton <brown121407@posteo.ro>
+;;; Copyright © 2021 Nikolay Korotkiy <sikmir@disroot.org>
+;;; Copyright © 2022 Jai Vetrivelan <jaivetrivelan@gmail.com>
+;;; Copyright © 2022 jgart <jgart@dismail.de>
+;;; Copyright © 2022 Antero Mejr <antero@mailbox.org>
+;;; Copyright © 2022 Ivan Vilata i Balaguer <ivan@selidor.net>
+;;; Copyright © 2024 Clément Lassieur <clement@lassieur.org>
+;;; Copyright © 2024 Zheng Junjie <873216071@qq.com>
+;;; Copyright © 2024 cage <cage-dev@twistfold.it>
+;;; Copyright © 2025, 2026 Artyom V. Poptsov <poptsov.artyom@gmail.com>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (gnu packages suckless)
+  #:use-module (gnu packages)
+  #:use-module (gnu packages base)
+  #:use-module (gnu packages bash)
+  #:use-module (gnu packages crypto)
+  #:use-module (gnu packages compression)
+  #:use-module (gnu packages cups)
+  #:use-module (gnu packages fonts)
+  #:use-module (gnu packages fontutils)
+  #:use-module (gnu packages freedesktop)
+  #:use-module (gnu packages gawk)
+  #:use-module (gnu packages gcc)
+  #:use-module (gnu packages glib)
+  #:use-module (gnu packages gnome)
+  #:use-module (gnu packages gtk)
+  #:use-module (gnu packages image)
+  #:use-module (gnu packages imagemagick)
+  #:use-module (gnu packages libbsd)
+  #:use-module (gnu packages linux)
+  #:use-module (gnu packages mpd)
+  #:use-module (gnu packages ncurses)
+  #:use-module (gnu packages pkg-config)
+  #:use-module (gnu packages shells)
+  #:use-module (gnu packages webkit)
+  #:use-module (gnu packages xorg)
+  #:use-module (gnu packages xdisorg)
+  #:use-module (guix build-system cargo)
+  #:use-module (guix build-system glib-or-gtk)
+  #:use-module (guix build-system gnu)
+  #:use-module (guix build-system meson)
+  #:use-module (guix download)
+  #:use-module (guix gexp)
+  #:use-module (guix git-download)
+  #:use-module ((guix licenses) #:prefix license:)
+  #:use-module (guix scripts)
+  #:use-module (guix utils)
+  #:use-module (guix packages))
+
+(define-public slscroll
+  (package
+    (name "slscroll")
+    (version "0.1")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "https://dl.suckless.org/tools/scroll-"
+                           version ".tar.gz"))
+       (sha256
+        (base32 "1mpfrvn122lnaqid1pi99ckpxd6x679b0w91pl003xmdwsfdbcly"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? #f                      ; no check target
+      #:make-flags
+      #~(list
+         (string-append "CC=" #$(cc-for-target))
+         (string-append "PREFIX=" #$output))
+      #:phases
+      #~(modify-phases %standard-phases
+          (delete 'configure))))         ; no configure script
+    (home-page "https://tools.suckless.org/scroll/")
+    (synopsis "Scroll-back buffer program for st")
+    (description "Scroll is a program that provides a scroll back buffer for
+terminal like @code{st}.")
+    (license license:isc)))
+
+(define-public tabbed
+  (package
+    (name "tabbed")
+    (version "0.9")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "https://dl.suckless.org/tools/tabbed-"
+                           version ".tar.gz"))
+       (sha256
+        (base32 "1a0842lw666cnx5mx2xqqrad4ipvbz4wxad3pxpyc6blgd2qgkqa"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? #f                      ; no check target
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'patch
+            (lambda* (#:key inputs outputs #:allow-other-keys)
+              (substitute* "Makefile"
+                (("/usr/local") #$output)
+                (("/usr/X11R6") #$(this-package-input "libx11"))
+                (("/usr/include/freetype2")
+                 (string-append #$(this-package-input "freetype")
+                                "/include/freetype2"))
+                (("\\$\\{CC\\}")
+                 (string-append #$(cc-for-target))))))
+          (delete 'configure))))         ; no configure script
+    (inputs
+     (list fontconfig
+           freetype
+           libx11
+           libxft))
+    (home-page "https://tools.suckless.org/tabbed/")
+    (synopsis "Tab interface for application supporting Xembed")
+    (description "Tabbed is a generic tabbed frontend to xembed-aware
+applications.  It was originally designed for surf but also usable with many
+other applications, i.e., st, uzbl, urxvt and xterm.")
+    (license
+     ;; Dual-licensed.
+     (list
+      license:expat
+      license:x11))))
+
+(define-public slstatus
+  (package
+    (name "slstatus")
+    (version "1.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri
+        (git-reference
+          (url "git://git.suckless.org/slstatus")
+          (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1bxmhvagmlqjyi9ws8i71r0k7fd6fg8286zv2b5zkcjhkayyh41i"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? #f                    ;no test suite
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'patch
+            (lambda* (#:key inputs outputs #:allow-other-keys)
+              (substitute* "config.mk"
+                (("/usr/local") #$output)
+                (("/usr/X11R6") #$(this-package-input "libx11"))
+                (("CC = cc")
+                 (string-append "CC = " #$(cc-for-target))))))
+          (delete 'configure))))       ;no configure script
+    (inputs (list libx11))
+    (home-page "https://tools.suckless.org/slstatus/")
+    (synopsis "Status monitor for window managers")
+    (description "SlStatus is a suckless status monitor for window managers
+that use WM_NAME or stdin to fill the status bar.
+It provides the following features:
+@itemize
+@item Battery percentage/state/time left
+@item CPU usage
+@item CPU frequency
+@item Custom shell commands
+@item Date and time
+@item Disk status (free storage, percentage, total storage and used storage)
+@item Available entropy
+@item Username/GID/UID
+@item Hostname
+@item IP address (IPv4 and IPv6)
+@item Kernel version
+@item Keyboard indicators
+@item Keymap
+@item Load average
+@item Network speeds (RX and TX)
+@item Number of files in a directory (hint: Maildir)
+@item Memory status (free memory, percentage, total memory and used memory)
+@item Swap status (free swap, percentage, total swap and used swap)
+@item Temperature
+@item Uptime
+@item Volume percentage
+@item WiFi signal percentage and ESSID
+@end itemize")
+    (license license:isc)))
+
+(define-public blind
+  (package
+    (name "blind")
+    (version "1.1")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "https://dl.suckless.org/tools/blind-"
+                                  version ".tar.gz"))
+              (sha256
+               (base32
+                "0nncvzyipvkkd7zlgzwbjygp82frzs2hvbnk71gxf671np607y94"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? #f                      ; no check target
+      #:make-flags
+      #~(list (string-append "CC=" #$(cc-for-target))
+              (string-append "PREFIX=" #$output))
+      #:phases
+      #~(modify-phases %standard-phases
+          (delete 'configure))))         ; no configure script
+    (synopsis "Command line video editing utilities")
+    (home-page "https://tools.suckless.org/blind/")
+    (description
+     "Blind is a collection of command line video editing utilities.  It uses
+a custom raw video format with a simple container.")
+    (license license:isc)))
+
+(define-public dwm
+  (package
+    (name "dwm")
+    (version "6.8")
+    (synopsis "Dynamic Window Manager")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://git.suckless.org/dwm")
+                     (commit version)))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32 "1jim52kp34dbkzna1m2l0dhz9fjgzv3mpaiifj9m2dbxlnd0ahws"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? #f
+      #:make-flags
+      #~(list
+         (string-append "CC=" #$(cc-for-target))
+         "PREFIX="
+         (string-append "DESTDIR=" #$output)
+         (string-append "FREETYPEINC="
+                        #$(this-package-input "freetype")
+                        "/include/freetype2"))
+      #:phases
+      #~(modify-phases %standard-phases
+          (delete 'configure)
+          (add-after 'build 'install-xsession
+            (lambda _
+              ;; Add a .desktop file to xsessions.
+              (let ((apps (string-append #$output "/share/xsessions")))
+                (mkdir-p apps)
+                (make-desktop-entry-file
+                 (string-append apps "/dwm.desktop")
+                 #:name "dwm"
+                 #:generic-name #$synopsis
+                 #:exec (string-append #$output "/bin/dwm")
+                 #:comment
+                 `(("en" ,#$synopsis)
+                   (#f ,#$synopsis)))))))))
+    (inputs
+     (list freetype libx11 libxft libxinerama))
+    (home-page "https://dwm.suckless.org/")
+    (description
+     "dwm is a dynamic window manager for X.  It manages windows in tiled,
+monocle and floating layouts.  All of the layouts can be applied dynamically,
+optimising the environment for the application in use and the task performed.")
+    (license license:x11)))
+
+(define-public dmenu
+  (package
+    (name "dmenu")
+    (version "5.4")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "https://dl.suckless.org/tools/dmenu-"
+                                  version ".tar.gz"))
+              (sha256
+               (base32
+                "0lyldkxshbgh7alz7a50l167pk1d4lcb2rhhhvz81aj710mcxflg"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? #f                      ; no tests
+      #:make-flags
+      #~(list
+         (string-append "CC=" #$(cc-for-target))
+         (string-append "PREFIX=" #$output)
+         (string-append "FREETYPEINC="
+                        #$(this-package-input "freetype")
+                        "/include/freetype2"))
+      #:phases
+      #~(modify-phases %standard-phases (delete 'configure))))
+    (inputs
+     (list freetype libxft libx11 libxinerama))
+    (home-page "https://tools.suckless.org/dmenu/")
+    (synopsis "Dynamic menu")
+    (description
+     "A dynamic menu for X, originally designed for dwm.  It manages large
+numbers of user-defined menu items efficiently.")
+    (license license:x11)))
+
+(define-public dmenu-wayland
+  ;; No fresh release since 20219.
+  (let ((commit "a380201dff5bfac2dace553d7eaedb6cea6855f9")
+        (revision "0"))
+    (package
+      (name "dmenu-wayland")
+      (version (git-version "0.1" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+                (url "https://github.com/nyyManni/dmenu-wayland")
+                (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32 "1d920lzgchqgp9j72hg61qnwr5cbf3knwrn1kwxlqq4id59nz8bn"))))
+      (build-system meson-build-system)
+      (arguments
+       (list
+        #:configure-flags
+        ;; Fix GCC 14 build
+        #~(list "-Dc_args=-Wno-format")
+        #:phases
+        #~(modify-phases %standard-phases
+            (add-after 'unpack 'fix-hardcoded-paths
+              (lambda* _
+                (substitute* "dmenu-wl_run"
+                  (("dmenu-wl_path")
+                   (string-append #$output "/bin/dmenu-wl_path"))
+                  (("dmenu-wl ")
+                   (string-append #$output "/bin/dmenu-wl "))))))))
+      (native-inputs
+       (list pkg-config))
+      (inputs
+       (list bash-minimal
+             cairo
+             pango
+             glib
+             libxkbcommon
+             wayland
+             wayland-protocols))
+      (home-page "https://github.com/nyyManni/dmenu-wayland")
+      (synopsis "Dynamic menu for wayland")
+      (description
+       "This package implements a functionality to display newline-separated
+input stdin as a menubar for Wayland and @code{wlroots}.")
+      (license license:expat))))
+
+(define-public spoon
+  (package
+    (name "spoon")
+    (version "0.6")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "https://dl.2f30.org/releases/"
+                           "spoon-" version ".tar.gz"))
+       (sha256
+        (base32
+         "1jpmg9k9f4f3lpz0k3cphqjswlyf8lz2sm8ccifiip93kd4rrdj0"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:tests? #f                      ; no tests
+       #:make-flags
+       (list (string-append "CC=" ,(cc-for-target))
+             (string-append "PREFIX=" %output))))
+    (inputs
+     (list libx11 libxkbfile alsa-lib ; tinyalsa (unpackaged) would suffice
+           libmpdclient))
+    (home-page "https://git.2f30.org/spoon/")
+    (synopsis "Set dwm status")
+    (description
+     "Spoon can be used to set the dwm status.")
+    (license license:isc)))
+
+(define-public slock
+  (package
+    (name "slock")
+    (version "1.7")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "git://git.suckless.org/slock/")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "0y52kmdayypqpx69ns9lyjgmjr553xs36qa32vnp2lq873j3knfy"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list #:tests? #f                      ; no tests
+           #:make-flags #~(list (string-append "CC=" #$(cc-for-target))
+                                (string-append "PREFIX=" #$output))
+           #:phases #~(modify-phases %standard-phases
+                        (delete 'configure))))
+    (inputs
+     (list libx11 libxcrypt libxext libxinerama libxrandr))
+    (home-page "https://tools.suckless.org/slock/")
+    (synopsis "Simple X session lock")
+    (description
+     "Simple X session lock with trivial feedback on password entry.")
+    (license license:x11)))
+
+(define-public st
+  (package
+    (name "st")
+    (version "0.9.3")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "https://dl.suckless.org/st/st-"
+                           version ".tar.gz"))
+       (sha256
+        (base32 "16v4dsjrsh5jwah38ygg8808zc536szwxj1qxm6kswgdrnmzxncy"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? #f                      ;no tests
+      #:make-flags
+      #~(list
+         (string-append "CC=" #$(cc-for-target))
+         (string-append "PKG_CONFIG=" #$(pkg-config-for-target))
+         (string-append "TERMINFO=" #$output "/share/terminfo")
+         (string-append "PREFIX=" #$output))
+      #:phases
+      #~(modify-phases %standard-phases
+          (delete 'configure))))
+    (inputs
+     (list libx11
+           libxft
+           fontconfig
+           freetype))
+    (native-inputs
+     (list ncurses ;provides tic program
+           pkg-config))
+    (home-page "https://st.suckless.org/")
+    (synopsis "Simple terminal emulator")
+    (description
+     "St implements a simple and lightweight terminal emulator.  It
+implements 256 colors, most VT10X escape sequences, utf8, X11 copy/paste,
+antialiased fonts (using fontconfig), fallback fonts, resizing, and line
+drawing.")
+    (license (list license:x11
+                   license:expat))))
+
+(define-public xst
+  (package
+    (inherit st)
+    (name "xst")
+    (version "0.10.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/gnotclub/xst")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "186kqvrn0rksmvz0yhllsrxqsvsxwwcdr417jxs1fk5d9psx35fs"))))
+    (home-page "https://github.com/gnotclub/xst")
+    (synopsis "Fork of st that uses Xresources")
+    (description
+     "@command{xst} uses Xresources and applies the following patches to
+@command{st}:
+@itemize
+@item @uref{https://st.suckless.org/patches/alpha/, alpha}
+@item @uref{https://st.suckless.org/patches/boxdraw/, boxdraw}
+@item @uref{https://st.suckless.org/patches/clipboard/, clipboard}
+@item @uref{https://st.suckless.org/patches/disable_bold_italic_fonts/, disable_bold_italic_fonts}
+@item @uref{https://st.suckless.org/patches/externalpipe/, externalpipe}
+@item @uref{https://st.suckless.org/patches/scrollback/, scrollback}
+@item @uref{https://st.suckless.org/patches/spoiler/, spoiler}
+@item @uref{https://st.suckless.org/patches/vertcenter/, vertcenter}
+@end itemize")
+    (license (list license:x11
+                   license:expat))))
+
+(define-public lukesmithxyz-st
+  (let ((commit "62ebf677d3ad79e0596ff610127df5db034cd234")
+        (revision "1"))
+    (package
+      (inherit st)
+      (name "lukesmithxyz-st")
+      (version (git-version "0.8.4" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+               (url "https://github.com/LukeSmithxyz/st")
+               (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32 "1cqnl8zlxccqg0901gx21h06j9wk3ja6lr8wp4k85ni4msf4m09g"))))
+      (arguments
+       (substitute-keyword-arguments arguments
+         ((#:phases phases)
+          #~(modify-phases #$phases
+              (add-after 'unpack 'remove-calls-to-git
+                (lambda _
+                  (substitute* "Makefile"
+                    (("git submodule init") "")
+                    (("git submodule update") ""))))))))
+      (inputs (modify-inputs inputs
+                (prepend libxext harfbuzz)))
+      (home-page "https://github.com/LukeSmithxyz/st")
+      (synopsis "Luke Smith's fork of st")
+      (description
+       "This package is Luke's fork of the suckless simple terminal (st) with
+Vim bindings and Xresource compatibility.")
+      (license license:expat))))
+
+(define-public sxmo-st
+  (package
+    (inherit st)
+    (name "sxmo-st")
+    (version "0.8.4.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri
+        (git-reference
+         (url "https://git.sr.ht/~mil/sxmo-st")
+         (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1nl40q1pxf46hpbibz9m9d0giiy1p3lrhr9agw0fkyba2vzbbafa"))))
+    (home-page "https://git.sr.ht/~mil/sxmo-st")
+    (synopsis "St terminal emulator for the Simple X Mobile PinePhone environment")
+    (license license:expat)))
+
+(define-public surf
+  (package
+    (name "surf")
+    (version "2.1")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "https://dl.suckless.org/surf/surf-"
+                           version ".tar.gz"))
+       (sha256
+        (base32 "0mrj0kp01bwrgrn4v298g81h6zyq64ijsg790di68nm21f985rbj"))))
+    (build-system glib-or-gtk-build-system)
+    (arguments
+     (list
+      #:tests? #f                      ; no tests
+      #:make-flags
+      #~(list (string-append "CC=" #$(cc-for-target))
+              (string-append "PREFIX=" #$output))
+      #:phases
+      #~(modify-phases %standard-phases
+          (delete 'configure)
+          ;; Use the right file name for dmenu and xprop.
+          (add-before 'build 'set-dmenu-and-xprop-file-name
+            (lambda* (#:key inputs #:allow-other-keys)
+              (substitute* "config.def.h"
+                (("dmenu") (search-input-file inputs "/bin/dmenu"))
+                (("xprop") (search-input-file inputs "/bin/xprop"))))))))
+    (inputs
+     (list dmenu
+           gcr-3
+           glib-networking
+           gsettings-desktop-schemas
+           webkitgtk-with-libsoup2
+           xprop))
+    (native-inputs
+     (list pkg-config))
+    (home-page "https://surf.suckless.org/")
+    (synopsis "Simple web browser")
+    (description
+     "Surf is a simple web browser based on WebKit/GTK+.  It is able to
+display websites and follow links.  It supports the XEmbed protocol which
+makes it possible to embed it in another application.  Furthermore, one can
+point surf to another URI by setting its XProperties.")
+    (license (list license:expat
+                   license:x11))))
+
+(define-public sent
+  (package
+    (name "sent")
+    (version "1")
+    (source (origin
+              (method url-fetch/tarbomb)
+              (uri (string-append "https://dl.suckless.org/tools/sent-"
+                                  version ".tar.gz"))
+              (sha256
+               (base32
+                "0cxysz5lp25mgww73jl0mgip68x7iyvialyzdbriyaff269xxwvv"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:phases
+      #~(modify-phases %standard-phases
+          (delete 'configure) ;no configuration
+          (add-before 'build 'patch-farbfeld
+            (lambda* (#:key inputs #:allow-other-keys)
+              (substitute* "config.def.h"
+                (("2ff") (search-input-file inputs "/bin/2ff")))))
+          (add-after 'install 'install-doc
+            (lambda _
+              (install-file "README.md"
+                            (string-append
+                             #$output "/share/doc/"
+                             #$name
+                             "-"
+                             #$(package-version this-package))))))
+      #:tests? #f                                ;no test suite
+      #:make-flags
+      #~(let ((pkg-config (lambda (flag)
+                            (string-append "$(shell pkg-config " flag " "
+                                           "xft fontconfig x11 libpng)"))))
+          (list (string-append "CC=" #$(cc-for-target))
+                (string-append "PREFIX=" #$output)
+                (string-append "INCS=-I. " (pkg-config "--cflags"))
+                (string-append "LIBS=" (pkg-config "--libs") " -lm")))))
+    (native-inputs (list pkg-config))
+    (inputs (list farbfeld libpng libx11 libxft fontconfig))
+    (synopsis "Plain-text presentation tool")
+    (description
+     "Sent uses plain-text files and PNG images to create slideshow
+presentations.  Each paragraph represents a slide in the presentation.
+Especially for presentations using the Takahashi method this is very nice and
+allows you to write down the presentation for a quick lightning talk within a
+few minutes.")
+    (home-page "https://tools.suckless.org/sent/")
+    (license license:isc)))
+
+(define-public wmname
+  (package
+    (name "wmname")
+    (version "0.1")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "https://dl.suckless.org/tools/wmname-"
+                           version ".tar.gz"))
+       (sha256
+        (base32 "1i82ilhbk36hspc2j0fbpg27wjj7xnvzpv1ppgf6fccina4d36jm"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:tests? #f ; no tests
+       #:make-flags
+       (list (string-append "CC=" ,(cc-for-target))
+             (string-append "PREFIX=" %output))
+       #:phases                         ; no tests
+       (modify-phases %standard-phases
+         (delete 'configure))))         ; no configure script
+    (inputs
+     (list libx11))
+    (home-page "https://tools.suckless.org/x/wmname/")
+    (synopsis "Print or set the window manager name")
+    (description "@command{wmname} prints/sets the window manager name
+property of the root window similar to how @command{hostname} behaves.  It is
+useful for fixing problems with JDK versions and other broken programs
+assuming a reparenting window manager for instance.")
+    (license (list license:x11
+                   license:expat))))
+
+(define-public xbattmon
+  (package
+    (name "xbattmon")
+    (version "1.1")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "https://dl.2f30.org/releases/"
+                           "xbattmon-" version ".tar.gz"))
+       (sha256
+        (base32
+         "1zr6y8lml9xkx0a3dbbsds2qz1bjxvskp7wsckkf8mlsqrbb3xsg"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:tests? #f                      ; no tests
+       #:make-flags
+       (list (string-append "CC=" ,(cc-for-target))
+             (string-append "PREFIX=" %output))))
+    (inputs
+     (list libx11))
+    (home-page "https://git.2f30.org/xbattmon/")
+    (synopsis "Simple battery monitor for X")
+    (description
+     "Xbattmon is a simple battery monitor for X.")
+    (license license:isc)))
+
+(define-public wificurse
+  (package
+    (name "wificurse")
+    (version "0.3.9")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "https://dl.2f30.org/releases/"
+                           "wificurse-" version ".tar.gz"))
+       (sha256
+        (base32
+         "067ghr1xly5ca41kc83xila1p5hpq0bxfcmc8jvxi2ggm6wrhavn"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:tests? #f ; No tests
+       #:make-flags (list
+                     (string-append "PREFIX=" %output)
+                     "CFLAGS=-Wno-error=implicit-function-declaration")
+       #:phases
+       (modify-phases %standard-phases
+         (delete 'configure)))) ; No configure script
+    (home-page "https://git.2f30.org/wificurse/")
+    (synopsis "Wifi DoS attack tool")
+    (description
+     "Wificurses listens for beacons sent from wireless access points
+in the range of your wireless station.  Once received the program
+extracts the BSSID of the AP and transmits deauthentication packets
+using the broadcast MAC address.  This results to the disconnection
+of all clients connected to the AP at the time of the attack.  This
+is essentially a WiFi DoS attack tool created for educational
+purposes only.  It works only in Linux and requires wireless card
+drivers capable of injecting packets in wireless networks.")
+    (license license:gpl3+)))
+
+(define-public skroll
+  (package
+    (name "skroll")
+    (version "0.6")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "https://dl.2f30.org/releases/"
+                           "skroll-" version ".tar.gz"))
+       (sha256
+        (base32
+         "0km6bjfz4ssb1z0xwld6iiixnn7d255ax8yjs3zkdm42z8q9yl0f"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:tests? #f                      ; no tests
+       #:make-flags
+       (list (string-append "CC=" ,(cc-for-target))
+             (string-append "PREFIX=" %output))
+       #:phases
+       (modify-phases %standard-phases
+         (delete 'configure))))         ; no configure script
+    (home-page "https://2f30.org/")
+    (synopsis "Commandline utility which scrolls text")
+    (description
+     "Skroll is a small utility that you can use to make a text scroll.
+Pipe text to it, and it will scroll a given number of letters from right to
+left.")
+    (license license:wtfpl2)))
+
+(define-public sbm
+  (package
+    (name "sbm")
+    (version "0.9")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "https://dl.2f30.org/releases/"
+                           "sbm-" version ".tar.gz"))
+       (sha256
+        (base32
+         "1nks5mkh5wn30kyjzlkjlgi31bv1wq52kbp0r6nzbyfnvfdlywik"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:tests? #f                      ; no tests
+       #:make-flags
+       (list (string-append "CC=" ,(cc-for-target))
+             (string-append "PREFIX=" %output))
+       #:phases
+       (modify-phases %standard-phases
+         (delete 'configure))))         ; no configure script
+    (home-page "https://git.2f30.org/sbm/")
+    (synopsis "Simple bandwidth monitor")
+    (description
+     "Sbm is a simple bandwidth monitor.")
+    (license license:isc)))
+
+(define-public prout
+  (package
+    (name "prout")
+    (version "0.2")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "https://dl.2f30.org/releases/"
+                           "prout-" version ".tar.gz"))
+       (sha256
+        (base32
+         "1s6c3ygg1h1fyxkh8gd7nzjk6qhnwsb4535d2k780kxnwns5fzas"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:tests? #f                      ; no tests
+       #:make-flags
+       (list (string-append "CC=" ,(cc-for-target))
+             (string-append "PREFIX=" %output))
+       #:phases
+       (modify-phases %standard-phases
+         (delete 'configure))))         ; no configure script
+    (inputs
+     (list cups-minimal zlib))
+    (home-page "https://git.2f30.org/prout/")
+    (synopsis "Smaller lp command")
+    (description
+     "Prout (PRint OUT) is a small utility one can use to send
+documents to a printer.
+It has no feature, and does nothing else.  Just set your default
+printer in client.conf(5) and start printing.  No need for a local
+cups server to be installed.")
+    (license license:wtfpl2)))
+
+(define-public noice
+  (package
+    (name "noice")
+    (version "0.8")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "https://dl.2f30.org/releases/"
+                           "noice-" version ".tar.gz"))
+       (sha256
+        (base32 "0g01iwzscdv27c1idv93gd74kjzy3n9kazgm6qz08rygp96qx4xw"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:tests? #f                      ; no tests
+       #:make-flags
+       (list (string-append "CC=" ,(cc-for-target))
+             (string-append "PREFIX=" %output))
+       #:phases
+       (modify-phases %standard-phases
+         (delete 'configure)            ; no configure script
+         (add-before 'build 'curses
+           (lambda _
+             (substitute* "Makefile"
+               (("lcurses") "lncurses")))))))
+    (inputs
+     (list ncurses))
+    (home-page "https://git.2f30.org/noice/")
+    (synopsis "Small file browser")
+    (description
+     "Noice is a small curses-based file browser.")
+    (license license:bsd-2)))
+
+(define-public human
+  (package
+    (name "human")
+    (version "0.3")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "git://git.2f30.org/human.git")
+             (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "0y0bsmvpwfwb2lwspi6a799y34h1faxc6yfanyw6hygxc8661mga"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:tests? #f                      ; no tests
+       #:make-flags
+       (list (string-append "CC=" ,(cc-for-target))
+             (string-append "PREFIX=" %output))
+       #:phases
+       (modify-phases %standard-phases
+         (delete 'configure))))         ; no configure script
+    (home-page "https://git.2f30.org/human/")
+    (synopsis "Convert bytes to human readable formats")
+    (description
+     "Human is a small program which translate numbers into a
+human readable format.  By default, it tries to detect the best
+factorisation, but you can force its output.
+You can adjust the number of decimals with the @code{SCALE}
+environment variable.")
+    (license license:wtfpl2)))
+
+(define-public fortify-headers
+  (package
+    (name "fortify-headers")
+    (version "3.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "git://git.2f30.org/fortify-headers/")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1jyqcxang020r55l7wnlm9s1kl5z3hqb83cryd3gnl34748gs06k"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? #f                      ; no tests
+      #:make-flags
+      #~(list (string-append "CC=" #$(cc-for-target))
+              (string-append "PREFIX=" #$output))
+      #:phases
+      #~(modify-phases %standard-phases
+          (delete 'configure))))         ; no configure script
+    (home-page "https://git.2f30.org/fortify-headers/")
+    (synopsis "Standalone fortify-source implementation")
+    (description
+     "This is a standalone implementation of fortify source.  It provides
+compile time buffer checks.  It is libc-agnostic and simply overlays the
+system headers by using the @code{#include_next} extension found in GCC.  It
+was initially intended to be used on musl-based Linux distributions.
+
+@itemize
+@item It is portable, works on *BSD, Linux, Solaris and possibly others.
+@item It will only trap non-conformant programs.  This means that fortify
+  level 2 is treated in the same way as level 1.
+@item Avoids making function calls when undefined behaviour has already been
+  invoked.  This is handled by using @code{__builtin_trap()}.
+@item Support for out-of-bounds read interfaces, such as @code{send()},
+  @code{write()}, @code{fwrite()}, etc.
+@item No ABI is enforced.  All of the fortify check functions are inlined
+  into the resulting binary.
+@end itemize\n")
+    (license license:isc)))
+
+(define-public colors
+  (package
+    (name "colors")
+    (version "0.3")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "https://dl.2f30.org/releases/"
+                           "colors-" version ".tar.gz"))
+       (sha256
+        (base32
+         "1lckmqpgj89841splng0sszbls2ag71ggkgr1wsv9y3v6y87589z"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:tests? #f                      ; no tests
+       #:make-flags
+       (list (string-append "CC=" ,(cc-for-target))
+             (string-append "PREFIX=" %output))
+       #:phases
+       (modify-phases %standard-phases
+         (delete 'configure))))         ; no configure script
+    (inputs
+     (list libpng))
+    (home-page "https://git.2f30.org/colors/")
+    (synopsis "Extract colors from pictures")
+    (description
+     "Extract colors from PNG files.  It is similar to
+strings(1) but for pictures.  For a given input file it outputs a
+colormap to stdout.")
+    (license license:isc)))
+
+(define-public libgrapheme
+  (package
+    (name "libgrapheme")
+    (version "3.0.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://git.suckless.org/libgrapheme")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "13aa73dd3znnrcfx7qq8x97mr84cywyiglwyi0hhfg2zaizlsqk8"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list #:tests? #f                  ;only 18420/19338 conformance tests passed
+           #:test-target "test"
+           #:phases #~(modify-phases %standard-phases
+                        (add-after 'configure 'post-configure
+                          (lambda _
+                            ;; Remove ldconfing invocation in Makefile, which
+                            ;; is not needed in Guix.
+                            (substitute* "config.mk"
+                              (("ldconfig") "")))))
+           #:make-flags
+           #~(list (string-append "CC=" #$(cc-for-target))
+                   (string-append "PREFIX=" #$output))))
+    (home-page "https://libs.suckless.org/libgrapheme/")
+    (synopsis "C99 library for Unicode strings")
+    (description "Libgrapheme is a simple freestanding C99 library providing
+utilities to handle strings according to the Unicode standard.")
+    (license license:isc)))
+
+;; No new releases were made at github, this repository is more active than
+;; the one at http://git.suckless.org/libutf/ and it is
+;; done by the same developer.
+(define-public libutf
+  (let ((revision "1")
+        (commit "ee5074db68f498a5c802dc9f1645f396c219938a"))
+    (package
+      (name "libutf")
+      (version (git-version "0.1" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+               (url "https://github.com/cls/libutf")
+               (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32
+           "1112azq05xhssqny4a2kqwiw8zdqhdgf18xwfs6z5p4cq2csh256"))))
+      (build-system gnu-build-system)
+      (arguments
+       (list
+        #:tests? #f                    ; no tests
+        #:make-flags
+        #~(list (string-append "CC=" #$(cc-for-target))
+                (string-append "PREFIX=" #$output))
+        #:phases
+        #~(modify-phases %standard-phases
+            (delete 'configure))))       ; no configure script
+      (inputs
+       (list gawk))
+      (home-page "https://github.com/cls/libutf")
+      (synopsis "Plan 9 compatible UTF-8 library")
+      (description
+       "This is a C89 UTF-8 library, with an API compatible with that of
+Plan 9's libutf, but with a number of improvements:
+
+@itemize
+@item Support for runes beyond the Basic Multilingual Plane.
+@item utflen and utfnlen cannot overflow on 32- or 64-bit machines.
+@item chartorune treats all invalid codepoints as though Runeerror.
+@item fullrune, utfecpy, and utfnlen do not overestimate the length
+of malformed runes.
+@item An extra function, charntorune(p,s,n), equivalent to
+fullrune(s,n) ? chartorune(p,s): 0.
+@item Runeerror may be set to an alternative replacement value, such
+as -1, to be used instead of U+FFFD.
+@end itemize\n")
+      (license license:expat))))
+
+(define-public lchat
+  (package
+    (name "lchat")
+    (version "1.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "git://git.suckless.org/lchat/")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0829dqa8vgq0rdcjb04hzaxnbc3mqgn5mzmcibrggzrgw110gv5k"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:test-target "test"
+      #:make-flags #~(list (string-append "CC=" #$(cc-for-target))
+                           (string-append "PREFIX=" #$output))
+      #:phases #~(modify-phases %standard-phases
+                   (delete 'configure)          ; no configure script
+                   (replace 'install
+                     (lambda _
+                       (let ((bin (string-append #$output "/bin"))
+                             (man (string-append #$output "/share/man/man1")))
+                         (install-file "lchat" bin)
+                         (install-file "lchat.1" man)))))))
+    (inputs
+     (list grep libbsd libgrapheme libutf ncurses))
+    (home-page "https://tools.suckless.org/lchat/")
+    (synopsis "Line chat is a frontend for the irc client ii from suckless")
+    (description
+     "Lchat (line chat) is the little and small brother of cii.
+It is a front end for ii-like chat programs.  It uses @code{tail -f} to get
+the chat output in the background.")
+    (license license:isc)))
+
+(define-public snooze
+  (package
+    (name "snooze")
+    (version "0.6")
+    (source
+     (origin
+       (method git-fetch)
+       (uri
+        (git-reference
+         (url "https://github.com/leahneukirchen/snooze")
+         (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0w782i9fjd82i6p7254iqvwfyw2hgw4r2adar1lf4xpvzmdpbwlw"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:tests? #f ; There are no tests.
+       #:make-flags
+       (list (string-append "CC=" ,(cc-for-target))
+             ;; Set prefix path to root of package path in store instead
+             ;; of /usr/local.
+             (string-append "PREFIX=" %output))
+       #:phases
+       (modify-phases %standard-phases
+         (delete 'configure))))
+    (home-page "https://github.com/leahneukirchen/snooze")
+    (synopsis "Run a command at a particular time")
+    (description
+"@command{snooze} is a tool for waiting until a particular time and then
+running a command.")
+    (license license:cc0)))
+
+(define-public sbase
+  (package
+    (name "sbase")
+    (version "0.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri
+        (git-reference
+          (url "https://git.suckless.org/sbase/")
+          (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1sbn258s06rl9prflkpif3hfgllxszf0nq7zdkxr5dj3248zgvmz"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? #f                     ;no test suite
+      #:make-flags #~(list (string-append "CC=" #$(cc-for-target))
+                           (string-append "PREFIX=" #$output))
+      #:phases
+      #~(modify-phases %standard-phases
+          (delete 'configure))))
+    (home-page "https://core.suckless.org/sbase/")
+    (synopsis "Collection of UNIX tools")
+    (description "@command{sbase} is a collection of UNIX tools similar to those of GNU
+Coreutils, containing utilities commands such as @command{grep}, @command{cp},
+@command{rm}, etc.")
+    (license license:expat)))
+
+(define-public scron
+  (package
+    (name "scron")
+    (version "0.4")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "https://dl.2f30.org/releases/"
+                           "scron-" version ".tar.gz"))
+       (sha256
+        (base32
+         "066fwa55kqcgfrsqgxh94sqbkxfsr691360xg4ljxr4i75d25s2a"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:tests? #f                      ; no tests
+       #:make-flags
+       (list (string-append "CC=" ,(cc-for-target))
+             (string-append "PREFIX=" %output))
+       #:phases
+       (modify-phases %standard-phases
+         (delete 'configure))))         ; no configure script
+    (home-page "https://git.2f30.org/scron/")
+    (synopsis "Simple cron daemon")
+    (description
+     "Schedule commands to be run at specified dates and times.
+Single daemon and configuration file.  Log to stdout or syslog.  No mail
+support.")
+    (license license:expat)))
+
+(define-public sfm
+  ;; Latest release is from 2021.
+  (let ((commit "f1f1197142421d3f727dc109a5910129d0bcb0b0")
+        (revision "0"))
+    (package
+      (name "sfm")
+      (version (git-version "0.4" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri
+          (git-reference
+            (url "https://github.com/afify/sfm")
+            (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32 "0c4fll79dd4flp3rdr20vh2w2vsy5h6qrkic806r5mn9i4xl85zn"))))
+      (build-system gnu-build-system)
+      (arguments
+       (list
+        #:tests? #f                      ;no check target
+        #:make-flags
+        #~(list (string-append "CC=" #$(cc-for-target))
+                (string-append "PREFIX=" #$output))
+        #:phases
+        #~(modify-phases %standard-phases
+            (delete 'configure))))         ;no configure script
+      (home-page "https://github.com/afify/sfm")
+      (synopsis "Simple file manager")
+      (description "sfm is a simple file manager.")
+      (license license:isc))))
+
+(define-public sfeed
+  (package
+    (name "sfeed")
+    (version "2.4")
+    (source
+     (origin
+       (method git-fetch)
+       (uri
+        (git-reference
+         (url "git://git.codemadness.org/sfeed")
+         (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0n7nfv9rz5mqnv7pn8428w3bzn80ah4aq12m78zmg66qf5kl12z0"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? #f                       ;no check target
+      #:make-flags
+      #~(list (string-append "CC=" #$(cc-for-target))
+              (string-append "PREFIX=" #$output))
+      #:phases
+      '(modify-phases %standard-phases
+         (add-after 'unpack 'fix-ncurses
+           (lambda _
+             (substitute* "Makefile"
+               (("-lcurses") "-lncurses"))))
+         (delete 'configure))))         ;no configure script
+    (inputs
+     (list ncurses))
+    (home-page "https://git.codemadness.org/sfeed")
+    (synopsis "RSS and Atom parser")
+    (description
+     "@code{sfeed} converts RSS or Atom feeds from XML to a TAB-separated file.
+There are formatting programs included to convert this TAB-separated format to
+various other formats.  There are also some programs and scripts included to
+import and export OPML and to fetch, filter, merge and order feed items.")
+    (license license:isc)))
+
+(define-public farbfeld
+  (let ((commit "ab5e3dfc9cdb476218538c6687df9f44826d8f11") (revision "0"))
+    (package
+      (name "farbfeld")
+      (version (git-version "4" revision commit))
+      (source (origin
+                (method git-fetch)
+                (uri (git-reference
+                      (url "git://git.suckless.org/farbfeld")
+                      (commit commit)))
+                (file-name (git-file-name name version))
+                (sha256
+                 (base32
+                  "0pkmkvv5ggpzqwqdchd19442x8gh152xy5z1z13ipfznhspsf870"))))
+      (build-system gnu-build-system)
+      (inputs (list libpng libjpeg-turbo imagemagick))
+      (arguments
+       (list #:tests?
+             #f ;no check target
+             #:make-flags
+             #~(list (string-append "PREFIX="
+                                    #$output)
+                     (string-append "CC="
+                                    #$(cc-for-target)))
+             #:phases
+             #~(modify-phases %standard-phases
+                 (add-before 'configure 'patch-2ff
+                   (lambda* (#:key inputs outputs #:allow-other-keys)
+                     (substitute* "2ff"
+                       (("png2ff") (string-append #$output "/bin/png2ff"))
+                       (("jpg2ff") (string-append #$output "/bin/jpg2ff"))
+                       (("convert") (search-input-file inputs "/bin/convert")))))
+                 (delete 'configure))))
+      (synopsis "Image format and conversion tools")
+      (description
+       "farbfeld is a lossless image format which is easy to parse,
+pipe and compress.")
+      (home-page "https://git.suckless.org/farbfeld/")
+      (license license:isc))))
+
+(define-public snafu
+  (let ((commit "e436fb4f61ca93a4ec85122506b2c2d4fec30eb6")
+        (revision "0"))
+    (package
+      (name "snafu")
+      (version (git-version "0.0.0" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+                (url "https://github.com/jsbmg/snafu")
+                (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32 "1c6ahxw0qz0703my28k2z0kgi0am5bp5d02l4rgyphgvjk1jfv8h"))))
+      (arguments
+       `(#:install-source? #f
+         #:tests? #f)) ; There are no tests.
+      (build-system cargo-build-system)
+      (inputs (cargo-inputs 'snafu))
+      (home-page "https://github.com/jsbmg/snafu")
+      (synopsis "Status text for DWM window manager")
+      (description "@code{snafu} provides status text for DWM's builtin bar.  It
+shows battery status, battery capacity, current WiFi connection, and the time in
+a nice format.")
+      (license license:isc))))
+
+(define-public svkbd
+  (package
+    (name "svkbd")
+    (version "0.4.2")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "git://git.suckless.org/svkbd/")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "186q9k6b5fhwnq65ch22fxqs64zyxz0vb7rwdyanx3qpcmb48byf"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? #f
+      #:make-flags
+      #~(list (string-append "CC=" #$(cc-for-target))
+              (string-append "PREFIX=" #$output))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'patch
+            (lambda* (#:key inputs outputs #:allow-other-keys)
+              (substitute* "config.mk"
+                (("/usr/local") #$output)
+                (("/usr/X11R6") #$libx11)
+                (("/usr/include/freetype2")
+                 (string-append #$freetype "/include/freetype2")))))
+          (delete 'configure)))) ;no configure script
+    (native-inputs (list pkg-config))
+    (inputs (list freetype libx11 libxft libxtst libxinerama))
+    (propagated-inputs (list (libc-utf8-locales-for-target)))
+    (home-page "https://tools.suckless.org/x/svkbd/")
+    (synopsis "Virtual on-screen keyboard")
+    (description "svkbd is a simple virtual keyboard, intended to be used in
+environments, where no keyboard is available.")
+    (license license:expat)))
+
+(define-public lib9
+  ;; no release since 2010
+  (let ((commit "63916da7bd6d73d9a405ce83fc4ca34845667cce")
+        (revision "0"))
+    (package
+      (name "lib9")
+      (version (git-version "7" revision commit))
+      (source (origin
+                (method git-fetch)
+                (uri (git-reference
+                      (url "https://git.suckless.org/9base/")
+                      (commit commit)))
+                (file-name (git-file-name name version))
+                (sha256
+                 (base32
+                  "04j8js4s3jmlzi3m46q81bq76rn41an58ffhkbj9p5wwr5hvplh8"))))
+      (build-system gnu-build-system)
+      (arguments
+       (list #:tests? #f ;no tests
+             #:phases #~(modify-phases %standard-phases
+                          (add-after 'unpack 'patch
+                            (lambda _
+                              (substitute* "config.mk"
+                                (("^PREFIX.*=.*$")
+                                 (string-append "PREFIX=\"" #$output "\"\n"))
+                                (("^OBJTYPE.*=.*$")
+                                 #$@(cond
+                                     ((target-x86-64?)
+                                      #~(string-append "OBJTYPE=x86_64\n"))
+                                     ((target-x86?)
+                                      #~(string-append "OBJTYPE=386\n"))
+                                     ((target-powerpc?)
+                                      #~(string-append "OBJTYPE=power\n"))
+                                     ((target-arm32?)
+                                      #~(string-append "OBJTYPE=arm\n"))))
+                                (("^CFLAGS.*+=.*$")
+                                 (string-append
+                                  "CFLAGS+=-O2 -g -I. -fPIC -c -DPLAN9PORT "
+                                  "-DPREFIX=\\\"" #$output "\\\"\n"))
+                                (("^LDFLAGS.*+=.*$")
+                                 "LDFLAGS+=\n")
+                                (("^CC.*=.*$")
+                                 (string-append "CC=" #$(cc-for-target) "\n")))
+                              (substitute* "lib9/libc.h"
+                                (("#define main.*p9main")
+                                 ""))
+                              (substitute* "lib9/main.c"
+                                (("p9main\\(argc, argv\\);")
+                                 "")
+                                (("extern void p9main\\(int, char\\*\\*\\);")
+                                 ""))
+                              (substitute* "lib9/Makefile"
+                                (("lib9.a")
+                                 "lib9.so")
+                                (("LIB9OFILES=\\\\")
+                                 "LIB9OFILES=convM2D.o \\")
+                                (("@\\$\\{AR\\} \\$\\{LIB\\} \\$\\{OFILES\\}")
+                                 "gcc -shared  ${OFILES} -o lib9.so"))))
+                          (add-after 'patch 'chdir
+                            (lambda _
+                              (chdir "lib9")))
+                          (delete 'configure)))) ;no configure script
+      (home-page "https://tools.suckless.org/9base/")
+      (supported-systems '("x86_64-linux" "i686-linux" "armhf-linux"
+                           "powerpc-linux"))
+      (synopsis "Unix port of Plan 9's formatted I/O C library")
+      (description
+       "This package provides a ported version of the Plan 9 lib9 C library.
+It also contains the Plan 9 libbio, libregexp, libfmt and libutf libraries.")
+      (license (list license:expat ;modifications
+                     license:lpl1.02))))) ;original plan9 code
+
+(define-public xssstate
+  (package
+    (name "xssstate")
+    (version "1.1")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "https://dl.suckless.org/tools/xssstate-"
+                                  version ".tar.gz"))
+              (sha256
+               (base32
+                "04b03jz38pn5qhddg8a9hh01qqzrrdjvsq09qrxj9sx8lq2gbdn4"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? #f  ; no tests
+      #:make-flags #~(list (string-append "CC="
+                                          #$(cc-for-target))
+                           (string-append "PREFIX=" #$output))
+      #:phases #~(modify-phases %standard-phases
+                   (delete 'configure))))
+    (inputs (list libxscrnsaver))
+    (home-page "https://tools.suckless.org/x/xssstate/")
+    (synopsis "Simple tool to retrieve the X screensaver state")
+    (description
+     "A utility to retrieve the state of the X screensaver.  These
+states include the idle time, the screensaver state and the length of time
+until the screensaver should be activated.")
+    (license license:x11)))
+
+(define-public 9yacc
+  (package
+    (inherit lib9)
+    (name "9yacc")
+    (arguments
+     (substitute-keyword-arguments arguments
+       ((#:phases phases)
+        #~(modify-phases #$phases
+            (add-after 'patch 'patch-for-9yacc
+              (lambda _
+                (substitute* "yacc/yacc.c"
+                  (("#9/yacc")
+                   (string-append #$output "/lib")))
+                (substitute* "config.mk"
+                  (("^CFLAGS.*+=.*$")
+                   (string-append "CFLAGS+=-O2 -g -c -DPLAN9PORT "
+                                  "-DPREFIX=\\\"" #$output "\\\"\n")))))
+            (replace 'chdir
+              (lambda _
+                (chdir "yacc")))
+            (delete 'install-include)
+            (add-after 'install 'install-yaccpar
+              (lambda _
+                (install-file "yaccpar" (string-append #$output "/lib"))
+                (install-file "yaccpars" (string-append #$output "/lib"))))))))
+    (inputs (list lib9))
+    (synopsis "Port of Plan 9's yacc parser generator for Unix")
+    (description
+     "This package provides a ported version of the Plan 9 yacc parser
+generator.")))
+
+(define-public 9base
+  (package
+    (inherit 9yacc)
+    (name "9base")
+    (arguments
+     (substitute-keyword-arguments arguments
+       ((#:phases phases)
+        #~(modify-phases #$phases
+            (add-after 'patch-for-9yacc 'patch-for-9base
+              (lambda _
+                (substitute* "Makefile"
+                  (("SUBDIRS  = lib9\\\\")
+                   "SUBDIRS = \\")
+                  (("@chmod 755 yacc/9yacc")
+                   ""))
+                (for-each (lambda (x)
+                            (substitute* "Makefile"
+                              (((string-append x "\\\\")) "\\")))
+                          '("yacc" "diff" "hoc" "rc"))
+                (substitute* "sam/Makefile"
+                  (("\\$\\{CFLAGS\\}")
+                   "${CFLAGS} -I."))
+                (substitute* "config.mk"
+                  (("^YACC.*=.*$")
+                   (string-append "YACC=" #$(this-package-native-input "9yacc")
+                                  "/bin/yacc\n")))))
+            (delete 'chdir)
+            (delete 'install-yaccpar)))))
+    (native-inputs (list 9yacc gcc-13))
+    (inputs (list lib9))
+    (propagated-inputs (list rc))
+    (synopsis "Port of various Plan 9 tools for Unix")
+    (description
+     "This package provides ported versions of various Plan 9 userland tools
+for Unix.")))

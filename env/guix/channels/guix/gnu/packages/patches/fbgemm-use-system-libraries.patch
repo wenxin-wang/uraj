@@ -1,0 +1,60 @@
+Use the asmjit and cpuinfo packages.
+
+diff --git i/CMakeLists.txt w/CMakeLists.txt
+index e645fc81..9fc95a17 100644
+--- i/CMakeLists.txt
++++ w/CMakeLists.txt
+@@ -53,7 +53,7 @@ endfunction()
+ project(
+   fbgemm
+   VERSION 1.4.0
+-  LANGUAGES CXX)
++  LANGUAGES C CXX)
+ 
+ # Add C++ compiler flag detection
+ include(CheckCXXCompilerFlag)
+@@ -447,7 +447,22 @@ install(
+ # Asmjit Target
+ ################################################################################
+
++find_package(asmjit REQUIRED)
++find_package(PkgConfig REQUIRED)
++pkg_check_modules(libcpuinfo REQUIRED IMPORTED_TARGET libcpuinfo)
++
++# Keep the upstream target names expected by DEPS throughout this file,
++# while wiring them to system-installed packages.
+ if(NOT TARGET asmjit)
++  add_library(asmjit INTERFACE IMPORTED)
++  target_link_libraries(asmjit INTERFACE asmjit::asmjit)
++endif()
++if(NOT TARGET cpuinfo)
++  add_library(cpuinfo INTERFACE IMPORTED)
++  target_link_libraries(cpuinfo INTERFACE PkgConfig::libcpuinfo)
++endif()
++
++if(FALSE)
+   # Download asmjit from github if ASMJIT_SRC_DIR is not specified.
+   if(NOT DEFINED ASMJIT_SRC_DIR)
+     set(ASMJIT_SRC_DIR "${FBGEMM_SOURCE_DIR}/external/asmjit"
+@@ -469,7 +484,7 @@ endif()
+ # Cpuinfo Target
+ ################################################################################
+ 
+-if(NOT TARGET cpuinfo)
++if(FALSE)
+   #Download cpuinfo from github if CPUINFO_SOURCE_DIR is not specified.
+   if(NOT DEFINED CPUINFO_SOURCE_DIR)
+     set(CPUINFO_SOURCE_DIR "${FBGEMM_SOURCE_DIR}/external/cpuinfo"
+diff --git i/test/CMakeLists.txt w/test/CMakeLists.txt
+index d687e8dc..546540dd 100644
+--- i/test/CMakeLists.txt
++++ w/test/CMakeLists.txt
+@@ -10,7 +10,7 @@
+ 
+ find_package(GTest)
+ 
+-if(NOT GTest_FOUND)
++if(FALSE)
+   # Download Googletest framework from github if
+   # GOOGLETEST_SOURCE_DIR is not specified.
+   set(INSTALL_GTEST OFF)

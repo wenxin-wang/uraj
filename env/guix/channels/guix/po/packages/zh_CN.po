@@ -1,0 +1,50 @@
+# Simplified Chinese translation for guix-packages.
+# Copyright (C) 2018 the authors of Guix (msgids) and the following authors (msgstr)
+# This file is distributed under the same license as the guix package.
+# Boyuan Yang <073plan@gmail.com>, 2018.
+# Liu Tao <lyuutau@outlook.com>, 2021.
+# Whired Planck <fungdaat31@outlook.com>, 2021.
+# Went He <1437061699@qq.com>, 2021.
+# a x <meruarasu@email1.io>, 2023, 2025.
+#: gnu/packages/firmware.scm:1665 gnu/packages/firmware.scm:1932
+#: gnu/packages/linux.scm:1260
+msgid ""
+msgstr ""
+"Project-Id-Version: guix-packages 0.14.0\n"
+"Report-Msgid-Bugs-To: bug-guix@gnu.org\n"
+"POT-Creation-Date: 2025-10-20 03:18+0000\n"
+"PO-Revision-Date: 2025-10-24 16:31+0000\n"
+"Last-Translator: pelzflorian <pelzflorian@noreply.codeberg.org>\n"
+"Language-Team: Chinese (Simplified Han script) <https://translate.codeberg.org/projects/guix/packages/zh_Hans/>\n"
+"Language: zh_CN\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Generator: Weblate 5.13.3\n"
+"X-Bugs: Report translation errors to the Language-Team address.\n"
+
+msgid "POSIX.1e @acronym{ACLs, access control lists} for Python"
+msgstr "Python 的 POSIX.1e @abbr{ACLs, 访问控制列表}"
+
+msgid ""
+"fmsynth is an LV2 plugin which implements an @dfn{FM} (Frequency\n"
+"Modulation) synthesizer.  Unlike most FM synth implementations in software,\n"
+"this FM synthesizer does not aim to emulate or replicate a particular\n"
+"synth (like DX7) or FM chip."
+msgstr "fmsynth 是一款实现 @dfn{频率调制}（FM）合成器功能的 LV2 插件。与多数软件 FM 合成器实现方案不同，该合成器不旨在仿效或复制特定合成器（如 DX7）或 FM 芯片。"
+
+msgid ""
+"OpenRCT2 is a free software re-implementation of\n"
+"RollerCoaster Tycoon 2 (RCT2).  The gameplay revolves around building and\n"
+"maintaining an amusement park containing attractions, shops and facilities.\n"
+"\n"
+"Note that this package does @emph{not} provide the game assets (sounds,\n"
+"images, etc.)"
+msgstr ""
+"OpenRCT2 是《过山车大亨 2》（RollerCoaster Tycoon 2，简称 RCT2）的一款自由软件重制版。其游戏玩法围绕建造和维护一个包含游乐设施、商店及各类设施的游乐园展开。\n"
+"\n"
+"请注意，此软件包不提供游戏资源（音效、图像等）。也就是说，需要原游戏副本。"
+
+msgid "Session management in a clean and simple way"
+msgstr "以简洁明了的方式管理会话"

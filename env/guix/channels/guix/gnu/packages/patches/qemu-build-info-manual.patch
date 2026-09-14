@@ -1,0 +1,45 @@
+From 2793f47c066ed396b38893c10533202fceb1a05f Mon Sep 17 00:00:00 2001
+From: Maxim Cournoyer <maxim.cournoyer@gmail.com>
+Date: Thu, 17 Sep 2020 13:28:19 -0400
+Subject: [PATCH] build: Build and install a Texinfo version of the manual.
+
+Take advantage of the Sphinx texinfo backend to generate a QEMU info
+manual.  The Texinfo format allows for more structure and info readers
+provide more advanced navigation capabilities compared to manpages
+readers.
+
+* docs/meson.build (texi, info): New targets.
+
+Signed-off-by: Maxim Cournoyer <maxim.cournoyer@gmail.com>
+
+diff --git a/docs/meson.build b/docs/meson.build
+index 9040f860ae..2ae7886fcb 100644
+--- a/docs/meson.build
++++ b/docs/meson.build
+@@ -98,4 +98,26 @@ if build_docs
+   alias_target('sphinxdocs', sphinxdocs)
+   alias_target('html', sphinxdocs)
+   alias_target('man', sphinxmans)
++
++  # Add a target to build and install a Texinfo version of the QEMU
++  # manual, if 'makeinfo' is available.
++  makeinfo = find_program(['texi2any', 'makeinfo'])
++  if makeinfo.found()
++    sphinxtexi = custom_target(
++      'qemu.texi',
++      output: ['qemu.texi', 'sphinxtexi.stamp'],
++      depfile: 'sphinxtexi.d',
++      command: [SPHINX_ARGS, '-Ddepfile=@DEPFILE@',
++               '-Ddepfile_stamp=@OUTPUT1@', '-b', 'texinfo',
++               '-d', private_dir, input_dir, meson.current_build_dir()])
++    sphinxinfo = custom_target(
++      'qemu.info',
++      input: sphinxtexi,
++      output: 'qemu.info',
++      install: true,
++      install_dir: get_option('infodir'),
++      command: [makeinfo, '--no-split', '--output=@OUTPUT@', '@INPUT0@'])
++    alias_target('texi', sphinxtexi)
++    alias_target('info', sphinxinfo)
++  endif
+ endif

@@ -1,0 +1,77 @@
+# Vietnamese translation for guix.
+# Copyright © 2013 the authors of Guix (msgids) and the following authors (msgstr)
+# This file is distributed under the same license as the guix package.
+# Trần Ngọc Quân <vnwildman@gmail.com>, 2013.
+# Florian Pelz <pelzflorian@pelzflorian.de>, 2025.
+#: gnu/packages/firmware.scm:1665 gnu/packages/firmware.scm:1932
+#: gnu/packages/linux.scm:1260
+msgid ""
+msgstr ""
+"Project-Id-Version: guix 0.5-pre2\n"
+"Report-Msgid-Bugs-To: bug-guix@gnu.org\n"
+"POT-Creation-Date: 2025-10-20 03:18+0000\n"
+"PO-Revision-Date: 2025-07-19 14:08+0000\n"
+"Last-Translator: VnPower <vnpower@noreply.codeberg.org>\n"
+"Language-Team: Vietnamese <https://translate.codeberg.org/projects/guix/packages/vi/>\n"
+"Language: vi\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Generator: Weblate 5.12.2\n"
+"X-Bugs: Report translation errors to the Language-Team address.\n"
+"X-Poedit-SourceCharset: UTF-8\n"
+
+msgid "Word processing program"
+msgstr "Phần mềm xử lý văn bản"
+
+msgid "Spell checker"
+msgstr "Bộ kiểm tra chính tả"
+
+msgid "Example GNU package"
+msgstr "Gói GNU ví dụ"
+
+msgid "Print lines matching a pattern"
+msgstr "In ra những dòng khớp với một mẫu"
+
+msgid "Stream editor"
+msgstr "Trình soạn thảo luồng dữ liệu"
+
+msgid "Managing tar archives"
+msgstr "Quản lý kho lưu tar"
+
+msgid "Apply differences to originals, with optional backups"
+msgstr "Áp dụng những khác biệt này vào bản gốc, với các sao lưu tùy chọn"
+
+msgid "Comparing and merging files"
+msgstr "So sánh và hòa trộn các tập tin"
+
+msgid "Operating on files matching given criteria"
+msgstr "Thực hiện trên những tập tin khớp với điều kiện đã cho"
+
+msgid "Core GNU utilities (file, text, shell)"
+msgstr "Tiện ích lõi GNU (file, text, shell)"
+
+msgid "Remake files automatically"
+msgstr "Tạo lại các tập tin một cách tự động"
+
+msgid "Binary utilities: bfd gas gprof ld"
+msgstr "Tiện ích nhị phân: bfd gas gprof ld"
+
+msgid "The linker wrapper"
+msgstr "Bộ bao liên kết"
+
+msgid "The GNU C Library"
+msgstr "Thư viện C từ GNU"
+
+msgid "Database of current and historical time zones"
+msgstr "Cơ sở dữ liệu của hiện tại và múi giờ lịch sử"
+
+msgid "Manipulate plain text files as databases"
+msgstr "Thao tác các tập tin văn bản thường như là cơ sở dữ liệu"
+
+msgid "Run jobs at scheduled times"
+msgstr "Chạy các công việc theo lịch biểu"
+
+msgid "Scheme implementation intended especially for extensions"
+msgstr "Lược đồ thực thi có dụng ý đặc biệt cho phần mở rộng"

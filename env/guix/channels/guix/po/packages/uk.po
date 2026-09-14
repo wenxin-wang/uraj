@@ -1,0 +1,56 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR the authors of Guix (msgids) and the following authors (msgstr)
+# This file is distributed under the same license as the GNU guix package.
+# Andrij Mizyk <andmizyk@gmail.com>, 2022.
+# Illia Demianchuk <illialoo99@gmail.com>, 2022.
+#: gnu/packages/firmware.scm:1665 gnu/packages/firmware.scm:1932
+#: gnu/packages/linux.scm:1260
+msgid ""
+msgstr ""
+"Project-Id-Version: GNU guix\n"
+"Report-Msgid-Bugs-To: bug-guix@gnu.org\n"
+"POT-Creation-Date: 2025-10-20 03:18+0000\n"
+"PO-Revision-Date: 2022-12-24 17:58+0000\n"
+"Last-Translator: Illia Demianchuk <illialoo99@gmail.com>\n"
+"Language-Team: Ukrainian <https://translate.fedoraproject.org/projects/guix/packages/uk/>\n"
+"Language: uk\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2;\n"
+"X-Generator: Weblate 4.15\n"
+
+msgid "Word processing program"
+msgstr "Програма для обробки тексту"
+
+msgid ""
+"AbiWord is a word processing program.  It is rapidly\n"
+"becoming a state of the art word processor, with lots of features useful for\n"
+"your daily work, personal needs, or for just some good old typing fun."
+msgstr ""
+"AbiWord — це програма для обробки тексту.  Він швидко стає\n"
+"рекомендованим текстовим процесором з безліччю функцію, корисних\n"
+"для вашої повсякденної роботи, особистих потреб або просто для задоволення від письма."
+
+msgid "Spell checker"
+msgstr "Перевірка орфографії"
+
+msgid ""
+"Aspell is a spell-checker which can be used either as a library or as\n"
+"a standalone program.  Notable features of Aspell include its full support of\n"
+"documents written in the UTF-8 encoding and its ability to use multiple\n"
+"dictionaries, including personal ones."
+msgstr ""
+"Aspell це програма для перевірки орфографії, яка може бути використана як\n"
+"бібліотека або як окрема програма.\tПомітні особливості Aspell включають повну\n"
+"підтримку документів, написаних в кодуванні UTF-8, і можливість використання\n"
+"декількох словників, включаючи персональні."
+
+msgid "This package provides a dictionary for the GNU Aspell spell checker."
+msgstr "Цей пакет надає словник для перевірки орфографії GNU Aspell."
+
+msgid "Hunspell dictionary for English"
+msgstr "Словник Hunspell для англійської"
+
+msgid "Hunspell dictionary for Australian English"
+msgstr "Словник Hunspell для австралійської англійської"

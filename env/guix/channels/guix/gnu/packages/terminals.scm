@@ -1,0 +1,2007 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2015-2021, 2023-2026 Efraim Flashner <efraim@flashner.co.il>
+;;; Copyright © 2016 Mckinley Olsen <mck.olsen@gmail.com>
+;;; Copyright © 2016, 2017, 2019 Alex Griffin <a@ajgrf.com>
+;;; Copyright © 2016 David Craven <david@craven.ch>
+;;; Copyright © 2016-2017, 2019-2020, 2025 Ludovic Courtès <ludo@gnu.org>
+;;; Copyright © 2016, 2017 José Miguel Sánchez García <jmi2k@openmailbox.org>
+;;; Copyright © 2017–2022 Tobias Geerinckx-Rice <me@tobias.gr>
+;;; Copyright © 2017 Kei Kebreau <kkebreau@posteo.net>
+;;; Copyright © 2017, 2018, 2019 Ricardo Wurmus <rekado@elephly.net>
+;;; Copyright © 2017 Petter <petter@mykolab.ch>
+;;; Copyright © 2018 Hartmut Goebel <h.goebel@crazy-compilers.com>
+;;; Copyright © 2018 Arun Isaac <arunisaac@systemreboot.net>
+;;; Copyright © 2018 Gabriel Hondet <gabrielhondet@gmail.com>
+;;; Copyright © 2019 Rutger Helling <rhelling@mykolab.com>
+;;; Copyright © 2018, 2019, 2021 Eric Bavier <bavier@posteo.net>
+;;; Copyright © 2019 Julien Lepiller <julien@lepiller.eu>
+;;; Copyright © 2019, 2021 Pierre Langlois <pierre.langlois@gmx.com>
+;;; Copyright © 2019, 2020 Brett Gilio <brettg@gnu.org>
+;;; Copyright © 2020 Jakub Kądziołka <kuba@kadziolka.net>
+;;; Copyright © 2020 Valentin Ignatev <valentignatev@gmail.com>
+;;; Copyright © 2020 Michael Rohleder <mike@rohleder.de>
+;;; Copyright © 2020, 2021 Marius Bakke <marius@gnu.org>
+;;; Copyright © 2020, 2021 Nicolas Goaziou <mail@nicolasgoaziou.fr>
+;;; Copyright © 2020 Leo Famulari <leo@famulari.name>
+;;; Copyright © 2020 luhux <luhux@outlook.com>
+;;; Copyright © 2021 Ekaitz Zarraga <ekaitz@elenq.tech>
+;;; Copyright © 2021, 2022, 2024 Raphaël Mélotte <raphael.melotte@mind.be>
+;;; Copyright © 2021 ikasero <ahmed@ikasero.com>
+;;; Copyright © 2021 Brice Waegeneire <brice@waegenei.re>
+;;; Copyright © 2021 Solene Rapenne <solene@perso.pw>
+;;; Copyright © 2021 Petr Hodina <phodina@protonmail.com>
+;;; Copyright © 2022 Felipe Balbi <balbi@kernel.org>
+;;; Copyright © 2022 ( <paren@disroot.org>
+;;; Copyright © 2022, 2023 jgart <jgart@dismail.de>
+;;; Copyright © 2023 Aaron Covrig <aaron.covrig.us@ieee.org>
+;;; Copyright © 2023 Foundation Devices, Inc. <hello@foundationdevices.com>
+;;; Copyright © 2023, 2024 Zheng Junjie <873216071@qq.com>
+;;; Copyright © 2023 Jaeme Sifat <jaeme@runbox.com>
+;;; Copyright © 2024 Suhail <suhail@bayesians.ca>
+;;; Copyright © 2024 Clément Lassieur <clement@lassieur.org>
+;;; Copyright © 2024-2026 Ashish SHUKLA <ashish.is@lostca.se>
+;;; Copyright © 2024 Ashvith Shetty <ashvithshetty10@gmail.com>
+;;; Copyright © 2024, 2025-2026 Artyom V. Poptsov <poptsov.artyom@gmail.com>
+;;; Copyright © 2025 Roman Scherer <roman@burningswell.com>
+;;; Copyright © 2025 Liam Hupfer <liam@hpfr.net>
+;;; Copyright © 2026 Janneke Nieuwenhuizen <janneke@gnu.org>
+;;; Copyright © 2026 Nemin <bergengocia@protonmail.com>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (gnu packages terminals)
+  #:use-module ((guix licenses) #:prefix license:)
+  #:use-module (guix build-system cargo)
+  #:use-module (guix build-system cmake)
+  #:use-module (guix build-system copy)
+  #:use-module (guix build-system gnu)
+  #:use-module (guix build-system glib-or-gtk)
+  #:use-module (guix build-system go)
+  #:use-module (guix build-system meson)
+  #:use-module (guix build-system pyproject)
+  #:use-module (guix download)
+  #:use-module (guix git-download)
+  #:use-module (guix gexp)
+  #:use-module (guix packages)
+  #:use-module (guix utils)
+  #:use-module (gnu packages)
+  #:use-module (gnu packages assembly)
+  #:use-module (gnu packages autotools)
+  #:use-module (gnu packages base)
+  #:use-module (gnu packages bash)
+  #:use-module (gnu packages check)
+  #:use-module (gnu packages compression)
+  #:use-module (gnu packages crypto)
+  #:use-module (gnu packages curl)
+  #:use-module (gnu packages dlang)
+  #:use-module (gnu packages digest)
+  #:use-module (gnu packages docbook)
+  #:use-module (gnu packages elf)
+  #:use-module (gnu packages fcitx5)
+  #:use-module (gnu packages fonts)
+  #:use-module (gnu packages fontutils)
+  #:use-module (gnu packages freedesktop)
+  #:use-module (gnu packages fribidi)
+  #:use-module (gnu packages gettext)
+  #:use-module (gnu packages ghostscript)
+  #:use-module (gnu packages gl)
+  #:use-module (gnu packages glib)
+  #:use-module (gnu packages gnome)
+  #:use-module (gnu packages golang)
+  #:use-module (gnu packages golang-build)
+  #:use-module (gnu packages golang-crypto)
+  #:use-module (gnu packages golang-compression)
+  #:use-module (gnu packages golang-maths)
+  #:use-module (gnu packages golang-xyz)
+  #:use-module (gnu packages golang-check)
+  #:use-module (gnu packages gtk)
+  #:use-module (gnu packages imagemagick)
+  #:use-module (gnu packages image)
+  #:use-module (gnu packages libcanberra)
+  #:use-module (gnu packages libevent)
+  #:use-module (gnu packages libunwind)
+  #:use-module (gnu packages linux)
+  #:use-module (gnu packages lua)
+  #:use-module (gnu packages man)
+  #:use-module (gnu packages ncurses)
+  #:use-module (gnu packages pcre)
+  #:use-module (gnu packages perl)
+  #:use-module (gnu packages perl-check)
+  #:use-module (gnu packages pkg-config)
+  #:use-module (gnu packages popt)
+  #:use-module (gnu packages protobuf)
+  #:use-module (gnu packages python)
+  #:use-module (gnu packages python-build)
+  #:use-module (gnu packages python-check)
+  #:use-module (gnu packages python-xyz)
+  #:use-module (gnu packages qt)
+  #:use-module (gnu packages rsync)
+  #:use-module (gnu packages serialization)
+  #:use-module (gnu packages sphinx)
+  #:use-module (gnu packages sqlite)
+  #:use-module (gnu packages shells)
+  #:use-module (gnu packages ssh)
+  #:use-module (gnu packages textutils)
+  #:use-module (gnu packages tls)
+  #:use-module (gnu packages version-control)
+  #:use-module (gnu packages vulkan)
+  #:use-module (gnu packages xdisorg)
+  #:use-module (gnu packages xml)
+  #:use-module (gnu packages xorg)
+  #:use-module (srfi srfi-26))
+
+(define-public libptytty
+  (package
+    (name "libptytty")
+    (version "2.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/yusiwen/libptytty")
+             (commit "b9694ea18e0dbd78213f55233a430325c13ad63e")))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1g8by1m6ya4r47p137mw4ddml40js0zh6mdb9n6ib49ayngv8ak3"))))
+    (build-system cmake-build-system)
+    (arguments
+     `(#:tests? #f))                    ; no test suite
+    (home-page "https://github.com/yusiwen/libptytty")
+    (synopsis
+     "Portable, secure PTY/TTY and @file{utmp}/@file{wtmp}/@file{lastlog} handling")
+    (description
+     "Libptytty is a small C/C++ library to manage pseudo-ttys in a uniform way,
+created out of frustration over the many differences of PTY/TTY handling in
+different operating systems.
+
+In addition to mere PTY/TTY management, it supports updating the session
+database at @file{utmp}, and @file{wtmp}/@file{lastlog} for login shells.
+
+It also supports @code{fork}ing after start-up and dropping privileges in the
+calling process.  This reduces the potential attack surface: if the calling
+process were to be compromised by the user starting the program, there would be
+less to gain, as only the helper process is running with privileges (e.g.,
+@code{setuid}/@code{setgid}).")
+    (license license:gpl2+)))
+
+(define-public tilda
+  (package
+    (name "tilda")
+    (version "2.0.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/lanoxx/tilda")
+             (commit (string-append "tilda-" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1ad5jlyg9izm2rid115dv70af6j5i96p91i685c0h9vlrn5sviqs"))))
+    (build-system glib-or-gtk-build-system)
+    (arguments
+     `(#:phases (modify-phases %standard-phases
+                  (add-after 'unpack 'make-po-writable
+                    (lambda _
+                      (for-each make-file-writable
+                                (find-files "po" ".")) #t)))))
+    (native-inputs (list autoconf-2.71 automake gettext-minimal pkg-config))
+    (inputs (list libconfuse vte/gtk+-3))
+    (synopsis "GTK+-based drop-down terminal")
+    (description
+     "Tilda is a terminal emulator similar to normal terminals like
+gnome-terminal (GNOME) or Konsole (KDE), with the difference that it drops down
+from the edge of a screen when a certain configurable hotkey is pressed.  This
+is similar to the built-in consoles in some applications.  Tilda is highly
+configurable through a graphical wizard.")
+    (home-page "https://github.com/lanoxx/tilda")
+    (license license:gpl2+)))
+
+(define-public termite
+  (package
+    (name "termite")
+    (version "16.9")
+    (source
+      (origin
+        (method url-fetch)
+        ;; XXX: The release includes a modified version of VTE.
+        (uri (string-append
+              "https://github.com/aperezdc/termite/releases/download/v"
+              version "/termite-" version ".tar.xz"))
+        (sha256
+         (base32
+          "1mlb8pl1wknhajz06x8qz2zc2497bg4sy9isra6sdjnz601nlj4m"))))
+    (build-system meson-build-system)
+    (arguments
+     (list #:configure-flags
+           #~(list "-Dvte:_systemd=false")
+           #:phases
+           #~(modify-phases %standard-phases
+               (add-after 'unpack 'patch-xdg-open
+                 (lambda _
+                   (substitute* "termite.cc"
+                     (("xdg-open") (which "xdg-open")))))
+               (replace 'install
+                 (lambda _
+                   (invoke "meson" "install" "--skip-subprojects" "vte"))))))
+    (inputs
+     (list gnutls gtk+ lz4 pcre2 xdg-utils))
+    (native-inputs
+     (list (list glib "bin") pkg-config))
+    (home-page "https://github.com/aperezdc/termite/")
+    (synopsis "Keyboard-centric, VTE-based terminal")
+    (description "Termite is a minimal terminal emulator, with a slightly
+modified version of VTE exposing the necessary functions for keyboard text
+selection and URL hints.  It was designed for use with tiling window
+managers.")
+    (license license:lgpl2.0+)))
+
+(define-public asciinema
+  (package
+    (name "asciinema")
+    (version "3.2.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "asciinema" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "1p99rnhp62n50jmlmxlvs8w56si0lvcy505fb1mgxhn1a66i5rqw"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+       #:imported-modules (append %copy-build-system-modules
+                                  %cargo-build-system-modules)
+       #:modules '((guix build cargo-build-system)
+                   ((guix build copy-build-system) #:prefix copy:)
+                   (guix build utils))
+       #:install-source? #f
+       #:phases
+       #~(modify-phases %standard-phases
+           (add-after 'unpack 'set-asset-out-dir
+             (lambda _
+               (setenv "ASCIINEMA_GEN_DIR" "target/assets")))
+           (add-after 'install 'install-more
+             (lambda args
+               (apply (assoc-ref copy:%standard-phases 'install)
+                      #:install-plan
+                      '(("target/assets/man" "share/man/man1"
+                         #:include-regexp ("\\.1$"))
+                        ("target/assets/completion/asciinema.bash"
+                         "share/bash-completion/completions/asciinema")
+                        ("target/assets/completion/asciinema.elv"
+                         "share/elvish/lib/asciinema")
+                        ("target/assets/completion/asciinema.fish"
+                         "share/fish/vendor_completions.d/")
+                        ("target/assets/completion/_asciinema"
+                         "share/zsh/site-functions/"))
+                      args))))))
+    (native-inputs (list python-minimal)) ;needed for tests
+    (inputs (cargo-inputs 'asciinema))
+    (home-page "https://asciinema.org")
+    (synopsis "Terminal session recorder")
+    (description
+     "Use asciinema to record and share your terminal sessions, the right way.
+Forget screen recording apps and blurry video.  Enjoy a lightweight, purely
+text-based approach to terminal recording.")
+    (license license:gpl3)))
+
+(define-public asciinema-agg
+  (package
+   (name "asciinema-agg")
+   (home-page "https://github.com/asciinema/agg")
+   (version "1.7.0")
+   (source
+    (origin
+     (method git-fetch)
+     (uri (git-reference
+           (url home-page)
+           (commit (string-append "v" version))))
+     (file-name (git-file-name name version))
+     (sha256
+      (base32 "04vbj7mmn8cdgrh1563ghadfanpw4ga1jbm2i7jnp6m69qyafiz9"))))
+   (build-system cargo-build-system)
+   (arguments (list #:install-source? #f))
+   (inputs (cargo-inputs 'asciinema-agg))
+   (synopsis "Asciinema gif generator")
+   (description
+    "Agg is a command-line tool for generating animated GIF files from
+asciinema-created terminal session recordings.")
+   (license license:gpl3)))
+
+(define-public libtsm
+  (package
+    (name "libtsm")
+    (version "4.6.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/kmscon/libtsm")
+              (commit (string-append "v" version))))
+       (sha256
+        (base32
+         "0lrmdaqlaq97slwi4n99m4lr3b71vzq0xck8i3kbnzdw92v69ph8"))
+       (file-name (git-file-name name version))
+       (modules '((guix build utils)))
+       (snippet
+        #~(delete-file-recursively "external/xkbcommon"))))
+    (build-system meson-build-system)
+    (native-inputs
+     (list check
+           libxkbcommon
+           pkg-config))
+    (home-page "https://github.com/kmscon/libtsm")
+    (synopsis "Terminal Emulator State Machine library")
+    (description
+     "TSM is a state machine for @acronym{DEC, Digital Equipment Corporation}
+VT100-VT520 compatible terminal emulators.  It tries to support all common
+standards while keeping compatibility to existing emulators like xterm,
+gnome-terminal, konsole, among others.")
+    ;; Hash table implementation is lgpl2.1+ licensed.
+    ;; The wcwidth implementation in external/wcwidth.{h,c} uses a MIT-style
+    ;; license.
+    ;; UCS-4 to UTF-8 encoding is copied from "terminology" which is released
+    ;; under the bsd 2 license.
+    (license
+     (list license:bsd-2
+           license:expat
+           license:lgpl2.1+))))
+
+(define-public kmscon
+  (package
+    (name "kmscon")
+    (version "10.0.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/kmscon/kmscon")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "162nxqrlsvsdf6pypqdd3s54ac3c6vfnchfk8dmmy4nzlj5acm5y"))))
+    (build-system meson-build-system)
+    (native-inputs
+     (list check
+           pkg-config
+           libxslt
+           docbook-xsl))
+    (inputs
+     (list elogind
+           eudev
+           libdrm
+           libtsm
+           libxkbcommon
+           ;; MESA is useful for accelerated video output via OpenGLESv2, but,
+           ;; being a big dependency, we would rather avoid it in the
+           ;; installation image.
+           ;; mesa
+           pango))
+    (home-page "https://www.freedesktop.org/wiki/Software/kmscon")
+    (synopsis "Linux KMS-based terminal emulator")
+    (description
+     "Kmscon is a terminal emulator based on Linux's @acronym{KMS, kernel mode
+setting}.  It can replace the in-kernel @acronym{VT, virtual terminal}
+implementation with a user-space console.  Compared to the Linux console,
+kmscon provides enhanced features including XKB-compatible internationalized
+keyboard support, UTF-8 input/font support, hardware-accelerated rendering,
+multi-seat support, a replacement for @command{mingetty}, and more.")
+    ;; Hash table implementation is lgpl2.1+ licensed.
+    ;; The wcwidth implementation in external/wcwidth.{h,c} uses a license
+    ;; derived from ISC.
+    ;; UCS-4 to UTF-8 encoding is copied from "terminology" which is released
+    ;; under the bsd 2 license.
+    ;; Unifont-Font is from http://unifoundry.com/unifont.html and licensed
+    ;; under the terms of the GNU GPL.
+    (license (list license:expat
+                   license:lgpl2.1+
+                   license:bsd-2
+                   license:gpl2+))
+    (supported-systems (filter (cut string-suffix? "-linux" <>)
+                               %supported-systems))))
+
+;;; INFO: kmscon-8 is a dependency of Guix System installer. When upgrading,
+;;; remember to test it; you can fire a VM by following the procedure below:
+;;;
+;;; 1. Manually change `(gnu system install)' module so that in procedure
+;;;    `%installation-services' the key `guix-for-system' refers to `guix'
+;;;    instead of `(current-guix)'.
+;;;    With this temporary change, you will need neither to rebuild guix
+;;;    nor to have commit rights.
+;;;
+;;; 2. Execute `./pre-inst-env guix system vm gnu/system/install.scm' in the
+;;;    development environment.
+;;;
+(define-public kmscon-8
+  (let ((commit "db868619fbb785f184f38c729cd4842012ef4478")
+        (revision "2"))
+    (package
+      (inherit kmscon)
+      (name "kmscon")
+      (version (git-version "8" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+                (url "https://github.com/kmscon/kmscon")
+                (commit commit)))
+         (sha256
+          (base32
+           "0rj3icrfm584pq3916div0chd9h3gxwd1qgw7inf5x508yvgrgxl"))
+         (file-name (git-file-name name version))
+         (patches
+          ;; INFO: This Guix-specific patch is useful for making keyboard
+          ;; selection in Guix System installer work as intended.
+          ;; TODO: port it to 9.x series.
+          (search-patches "kmscon-8-runtime-keymap-switch.patch"))))
+      (build-system gnu-build-system)
+      (arguments
+       (list
+        #:phases
+        #~(modify-phases %standard-phases
+            (add-before 'configure 'remove-systemd
+              ;; Use elogind instead of systemd.
+              (lambda _
+                (substitute* "configure"
+                  (("libsystemd-daemon libsystemd-login")
+                   "libelogind"))
+                (substitute* "src/uterm_systemd.c"
+                  (("#include <systemd/sd-login.h>")
+                   "#include <elogind/sd-login.h>")
+                  ;; We don't have this header.
+                  (("#include <systemd/sd-daemon\\.h>")
+                   "")
+                  ;; Replace the call to 'sd_booted' by the truth value.
+                  (("sd_booted\\(\\)")
+                   "1")))))))
+      (native-inputs
+       (list autoconf
+             automake
+             libtool
+             pkg-config
+             ;; to generate the man page
+             docbook-xsl
+             libxslt)))))
+
+(define-public libtermkey
+  (package
+    (name "libtermkey")
+    (version "0.22")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "http://www.leonerd.org.uk/code/libtermkey/"
+                                  "libtermkey-" version ".tar.gz"))
+              (sha256
+               (base32 "002606rrxh5f6l6jrikl0dyxsknscdamq10av21xm0xa98ybsib9"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:make-flags (list
+                     (string-append "CC=" ,(cc-for-target))
+                     (string-append "PREFIX=" (assoc-ref %outputs "out")))
+       #:phases
+       (modify-phases %standard-phases
+         (delete 'configure)            ; no configure script
+         (add-before 'check 'patch-failing-test
+           ;; XXX This undoes an upstream change in version 0.22 which ‘ensures
+           ;; that the hooked function can invent TI strings for new terminal
+           ;; types’.  That fails in the build environment.  Why?
+           (lambda _
+             (substitute* "t/40ti-override.c"
+               (("vt750") "vt100")))))
+       #:test-target "test"))
+    (inputs (list ncurses))
+    (native-inputs (list libtool perl-test-harness pkg-config))
+    (synopsis "Keyboard entry processing library for terminal-based programs")
+    (description
+     "Libtermkey handles all the necessary logic to recognise special keys, UTF-8
+combining, and so on, with a simple interface.")
+    (home-page "https://www.leonerd.org.uk/code/libtermkey")
+    (license license:expat)))
+
+(define-public mlterm
+  (package
+    (name "mlterm")
+    (version "3.9.4")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "mirror://sourceforge/mlterm/01release/mlterm-"
+                           version "/mlterm-" version ".tar.gz"))
+       (sha256
+        (base32 "0plvbplcz9603ckcxcrssg6zz0p0l35ga7f53hhw2fs4yg2f878p"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:tests? #f                      ; no tests
+       #:configure-flags
+       (list "--disable-static"
+             "--enable-optimize-redrawing"
+             "--with-imagelib=gdk-pixbuf")))
+    (native-inputs (list gettext-minimal pkg-config))
+    (inputs
+     (list cairo
+           fontconfig
+           freetype
+           fribidi
+           gdk-pixbuf
+           gtk+
+           libx11
+           libxext
+           libxft))
+    (home-page "https://mlterm.sourceforge.net/")
+    (synopsis "Multi-Lingual TERMinal emulator")
+    (description
+     "mlterm is a multi-lingual terminal emulator.  It supports various complex
+character sets and encodings from around the world.  It can display double-width
+(e.g.  East Asian) glyphs, combining characters used for, e.g., Thai and
+Vietnamese, and bi-directional scripts like Arabic and Hebrew.")
+    (license license:bsd-3)))
+
+(define-public mtm
+  (package
+    (name "mtm")
+    (version "1.2.1")
+    (source
+     (origin
+       (uri (git-reference
+             (url "https://github.com/deadpixi/mtm")
+             (commit version)))
+       (method git-fetch)
+       (sha256
+        (base32 "0gibrvah059z37jvn1qs4b6kvd4ivk2mfihmcpgx1vz6yg70zghv"))
+       (file-name (git-file-name name version))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:tests? #f                      ; no tests
+       #:make-flags
+       (list (string-append "CC=" ,(cc-for-target))
+             (string-append "DESTDIR=" (assoc-ref %outputs "out")))
+       #:phases
+       (modify-phases %standard-phases
+         (delete 'configure)            ;no configure script
+         (add-before 'build 'fix-headers
+           (lambda _
+             (substitute* "config.def.h"
+               (("ncursesw/curses.h") "curses.h"))))
+         (replace 'install
+           (lambda* (#:key inputs outputs #:allow-other-keys)
+             (let* ((out (assoc-ref outputs "out")))
+               ;; install binary
+               (mkdir-p (string-append out "bin/"))
+               (install-file "mtm" (string-append out "/bin"))
+               ;; install manpage
+               (mkdir-p (string-append out "share/man/man1"))
+               (install-file "mtm.1" (string-append out "/share/man/man1"))
+               ;; install terminfo
+               (mkdir-p (string-append out "share/terminfo"))
+               (invoke (string-append (assoc-ref inputs "ncurses") "/bin/tic")
+                       "-x" "-s" "-o"
+                       (string-append
+                        out "/share/terminfo")
+                       "mtm.ti")))))))
+    (inputs
+     (list ncurses))
+    ;; FIXME: This should only be located in 'ncurses'.  Nonetheless it is
+    ;; provided for usability reasons.  See <https://bugs.gnu.org/22138>.
+    (native-search-paths
+     (list (search-path-specification
+            (variable "TERMINFO_DIRS")
+            (files '("share/terminfo")))))
+    (home-page "https://github.com/deadpixi/mtm")
+    (synopsis "Micro Terminal Multiplexer")
+    (description
+     "This package provides multiplexer for the terminal focused on simplicity,
+compatibility, size and stability.")
+    (license (list license:gpl3+
+                   license:bsd-3))))    ;vtparser.c
+
+(define-public picocom
+  (package
+    (name "picocom")
+    (version "3.1")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/npat-efault/picocom")
+                    (commit version)))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "1vvjydqf0ax47nvdyyl67jafw5b3sfsav00xid6qpgia1gs2r72n"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:make-flags (list (string-append "CC=" ,(cc-for-target)))
+       #:tests? #f                      ; no tests
+       #:phases
+       (modify-phases %standard-phases
+         (delete 'configure)            ; no configure script
+         (replace 'install
+           ;; The Makefile lacks an ‘install’ target.
+           (lambda* (#:key outputs #:allow-other-keys)
+             (let* ((out (assoc-ref outputs "out"))
+                    (bin (string-append out "/bin"))
+                    (man (string-append out "/share/man/man1")))
+               (install-file "picocom" bin)
+               (install-file "picocom.1" man)))))))
+    (home-page "https://github.com/npat-efault/picocom")
+    (synopsis "Minimal dumb-terminal emulator")
+    (description
+     "Picocom is a minimal dumb-terminal emulation program.  It was designed to
+serve as a simple and manual modem configuration, testing, and debugging tool.
+It also serves well as a low-tech serial communications program to allow access
+to all types of devices that provide serial consoles.")
+    (license license:gpl2+)))
+
+(define-public beep
+  (let ((commit "1cba97210748ac9f478c0f93334a1eb31eb002d7")
+        (revision "0"))
+    (package
+      (name "beep")
+      (version (git-version "1.4.12" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+                ;; The original beep 1.3 at <http://www.johnath.com/beep> has been
+                ;; unmaintained for some time, and vulnerable to at least two CVEs:
+                ;; https://github.com/johnath/beep/issues/11#issuecomment-454056858
+                ;; Use this maintained fork instead.
+                (url "https://github.com/spkr-beep/beep")
+                (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32 "1di7j1n7svn6hyvs3fac0n1wnc3wiyxk47jyafwla0zifnwf0xwy"))))
+      (build-system gnu-build-system)
+      (arguments
+       (list
+        #:make-flags
+        #~(list (string-append "CC=" #$(cc-for-target))
+                (string-append "prefix=" #$output))
+        #:phases
+        #~(modify-phases %standard-phases
+            (delete 'configure) ;no configure script
+            (add-before 'check 'patch-tests
+              (lambda* (#:key inputs #:allow-other-keys)
+                (substitute* "GNUmakefile"
+                  (("/bin/bash")
+                   (search-input-file inputs "bin/bash"))
+                  ;; XXX In the build environment, $(PWD) is the *parent* directory
+                  ;; /tmp/guix-build-beep-x.y.drv-0!  A pure guix shell works fine.
+                  (("\\$\\(PWD\\)" pwd)
+                   (string-append pwd "/source")))
+                (substitute* (find-files "tests" "\\.expected")
+                  ;; The build environment lacks /dev/{console,tty*}.
+                  ;; In fact, even nckx's regular Guix System lacks ttyS1…
+                  ((": Permission denied")
+                   ": No such file or directory"))))
+            (add-before 'install 'install-rules
+              (lambda _
+                (let ((rules.d (string-append #$output "/etc/udev/rules.d")))
+                  (mkdir-p rules.d)
+                  (with-output-to-file
+                      (string-append rules.d "/70-pcspkr-beep.rules")
+                    (lambda _
+                      (display
+                       (string-join (list "ACTION==\"add\""
+                                          "SUBSYSTEM==\"input\""
+                                          "ATTRS{name}==\"PC Speaker\""
+                                          "ENV{DEVNAME}!=\"\""
+                                          "TAG+=\"uaccess\"")
+                                    ", "))))))))))
+      (synopsis "Linux command-line utility to control the PC speaker")
+      (description
+       "beep allows the user to control the PC speaker with precision,
+allowing different sounds to indicate different events.  While it can be run
+quite happily on the command line, its intended place of residence is within
+scripts, notifying the user when something interesting occurs.  Of course, it
+has no notion of what's interesting, but it's very good at that notifying
+part.")
+      (home-page "https://github.com/spkr-beep/beep")
+      (license license:gpl2+))))
+
+(define-public unibilium
+  (package
+    (name "unibilium")
+    (version "2.0.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/mauke/unibilium")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "1wa9a32wzqnxqh1jh554afj13dzjr6mw2wzqzw8d08nza9pg2ra2"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:make-flags
+       (list "CC=gcc"
+             (string-append "PREFIX=" (assoc-ref %outputs "out")))
+       #:test-target "test"
+       ;; FIXME: tests require "prove"
+       #:tests? #f
+       #:phases
+       (modify-phases %standard-phases
+         (delete 'configure))))
+    (native-inputs
+     (list libtool perl))
+    (home-page "https://github.com/mauke/unibilium")
+    (synopsis "Terminfo parsing library")
+    (description "Unibilium is a basic C terminfo library.  It doesn't depend
+on curses or any other library.  It also doesn't use global variables, so it
+should be thread-safe.")
+    (license license:lgpl3+)))
+
+(define-public libvterm
+  (package
+    (name "libvterm")
+    (version "0.3.3")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append
+             "https://launchpad.net/libvterm/trunk/v"
+             (version-major+minor version)
+             "/+download/libvterm-" version ".tar.gz"))
+       (sha256
+        (base32 "1q16fbznm54p24hqvw8c9v3347apk86ybsxyghsbsa11vm1ny589"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list #:make-flags
+           #~(list
+              ;; FIXME: cross build fails.
+              ;; ld: src/.libs/encoding.o: error adding symbols: file in wrong format
+              ;; collect2: error: ld returned 1 exit status
+              (string-append "CC=" #$(cc-for-target))
+              (string-append "PREFIX=" #$output))
+           #:test-target "test"
+           #:phases
+           #~(modify-phases %standard-phases
+               (delete 'configure))))
+    (native-inputs
+     (list libtool perl))
+    (home-page "https://www.leonerd.org.uk/code/libvterm/")
+    (synopsis "VT220/xterm/ECMA-48 terminal emulator library")
+    (description "Libvterm is an abstract C99 library which implements a VT220
+or xterm-like terminal emulator.  It doesn't use any particular graphics
+toolkit or output system, instead it invokes callback function pointers that
+its embedding program should provide it to draw on its behalf.  It avoids
+calling @code{malloc} during normal running state, allowing it to be used in
+embedded kernel situations.")
+    (license license:expat)))
+
+(define-public cool-retro-term
+    (package
+      (name "cool-retro-term")
+      (version "1.2.0")
+      (source (origin
+                (method git-fetch)
+                (file-name (string-append name "-" version "-checkout"))
+                (uri (git-reference
+                      (url (string-append "https://github.com/Swordfish90/" name))
+                      (commit version)
+                      (recursive? #t)))
+                (sha256
+                 (base32 "02mj70gcpx9fvrhsy6iqwp399dya9iyakx940b6ws952d23xn337"))
+                (modules '((guix build utils)
+                           (srfi srfi-1)
+                           (srfi srfi-26)
+                           (ice-9 rdelim)
+                           (ice-9 regex)))
+                (patches (search-patches "cool-retro-term-wctype.patch"))
+                (snippet
+                 '(let* ((fonts '(;"1971-ibm-3278"     ; BSD 3-clause
+                                  "1977-apple2"        ; Non-Free
+                                  "1977-commodore-pet" ; Non-Free
+                                  "1979-atari-400-800" ; Non-Free
+                                  ;"1981-ibm-pc        ; CC-SA 4.0
+                                  "1982-commodore64")) ; Non-Free
+                                  ;"1985-ibm-pc-vga"   ; CC-SA 4.0
+                                  ;"modern-fixedsys-excelsior" ; Redistributable
+                                  ;"modern-hermit"     ; SIL
+                                  ;"modern-inconsolata"; SIL
+                                  ;"modern-pro-font-win-tweaked" ; X11
+                                  ;"modern-proggy-tiny"; X11
+                                  ;"modern-terminus"   ; SIL
+                         (name-rx (make-regexp " *name: *\"([^\"]*)\""))
+                         (source-rx (make-regexp " *source: \"fonts/([^/]*)[^\"]*\""))
+                         (fontname-rx (make-regexp "\"fontName\":\"([^\"]*).*"))
+                         (names
+                          ;; Gather font names from all Fonts*.qml files.
+                          ;; These will be used to remove items from the
+                          ;; default profiles.
+                          (fold
+                           (lambda (font-file names)
+                             (call-with-input-file font-file
+                               (lambda (port)
+                                 (let loop ((name #f) (names names))
+                                   (let ((line (read-line port)))
+                                     (cond
+                                      ((eof-object? line) (pk 'names names))
+                                      ((regexp-exec name-rx line)
+                                       => (lambda (m)
+                                            (loop (match:substring m 1) names)))
+                                      ((regexp-exec source-rx line)
+                                       => (lambda (m)
+                                            (let ((font (match:substring m 1)))
+                                              (if (member font fonts)
+                                                  (loop #f (lset-adjoin string=?
+                                                                        names name))
+                                                  (loop #f names)))))
+                                      (else (loop name names))))))))
+                           '() (find-files "app/qml" "Font.*\\.qml"))))
+                    ;; Remove the font files themselves
+                    (for-each (lambda (font)
+                                (delete-file-recursively
+                                 (string-append "app/qml/fonts/" font)))
+                              fonts)
+                    ;; Remove mention of those fonts in the source
+                    (substitute* "app/qml/resources.qrc"
+                      (((string-append " *<file>fonts/("
+                                       (string-join fonts "|")
+                                       ").*"))
+                       ""))
+                    (for-each
+                     (lambda (file)
+                       (let ((start-rx (make-regexp " *ListElement *\\{"))
+                             (end-rx   (make-regexp " *\\}")))
+                        (with-atomic-file-replacement file
+                          (lambda (in out)
+                            (let loop ((line-buffer '())
+                                       (hold? #f)
+                                       (discard? #f))
+                              (let ((line (read-line in 'concat)))
+                                (cond
+                                 ((eof-object? line) #t) ;done
+                                 ((regexp-exec start-rx line)
+                                  (loop (cons line line-buffer) #t #f))
+                                 ((or (regexp-exec source-rx line)
+                                      (regexp-exec fontname-rx line))
+                                  => (lambda (m)
+                                       (let ((font-or-name (match:substring m 1)))
+                                         (if (or (member font-or-name fonts)
+                                                 (member font-or-name names))
+                                             (loop '() #f #t)
+                                             (loop (cons line line-buffer)
+                                                   hold? #f)))))
+                                 ((regexp-exec end-rx line)
+                                  (unless discard?
+                                          (for-each (cut display <> out)
+                                                    (reverse line-buffer))
+                                          (display line out))
+                                  (loop '() #f #f))
+                                 (hold? (loop (cons line line-buffer)
+                                              hold? discard?))
+                                 (discard? (loop line-buffer #f #t))
+                                 (else (display line out)
+                                       (loop '() #f #f)))))))))
+                     '("app/qml/FontPixels.qml"
+                       "app/qml/FontScanlines.qml"
+                       "app/qml/Fonts.qml"
+                       "app/qml/ApplicationSettings.qml"))
+                    ;; Final substitution for default scanline and pixel fonts
+                    (substitute* "app/qml/ApplicationSettings.qml"
+                      (("COMMODORE_PET") "PROGGY_TINY"))))))
+      (build-system gnu-build-system)
+      (inputs
+       (list qtbase-5 qtdeclarative-5 qtgraphicaleffects
+             qtquickcontrols-5 qtquickcontrols2-5 bash-minimal))
+      (arguments
+       `(#:phases
+         (modify-phases %standard-phases
+           (replace 'configure
+             (lambda* (#:key outputs #:allow-other-keys)
+               (let ((out (assoc-ref outputs "out")))
+                 (substitute* '("qmltermwidget/qmltermwidget.pro")
+                   (("INSTALL_DIR = \\$\\$\\[QT_INSTALL_QML\\]")
+                    (string-append "INSTALL_DIR = " out "/lib/qt5/qml")))
+                 (substitute* '("cool-retro-term.pro" "app/app.pro")
+                   (("/usr") out))
+                 (invoke "qmake"))))
+           (add-after 'install 'wrap-executable
+             (lambda* (#:key inputs outputs #:allow-other-keys)
+               (let ((out (assoc-ref outputs "out"))
+                     (qml "/lib/qt5/qml"))
+                 (wrap-program (string-append out "/bin/cool-retro-term")
+                   `("QML2_IMPORT_PATH" ":" prefix
+                     (,(string-append out qml)
+                      ,@(map (lambda (i)
+                               (string-append (assoc-ref inputs i) qml))
+                             '("qtdeclarative"
+                               "qtgraphicaleffects"
+                               "qtquickcontrols"
+                               "qtquickcontrols2"))))))))
+           (add-after 'install 'add-alternate-name
+             (lambda* (#:key outputs #:allow-other-keys)
+               (let ((bin (string-append (assoc-ref outputs "out") "/bin")))
+                 (symlink (string-append bin "/cool-retro-term")
+                          (string-append bin "/crt")))))
+           (add-after 'install 'install-man
+             (lambda* (#:key outputs #:allow-other-keys)
+               (let ((mandir (string-append (assoc-ref outputs "out")
+                                            "/share/man/man1")))
+                 (install-file "packaging/debian/cool-retro-term.1" mandir)))))))
+      (synopsis "Terminal emulator")
+      (description
+       "Cool-retro-term (crt) is a terminal emulator which mimics the look and
+feel of the old cathode ray tube (CRT) screens.  It has been designed to be
+eye-candy, customizable, and reasonably lightweight.")
+      (home-page "https://github.com/Swordfish90/cool-retro-term")
+      (license (list
+                license:gpl2+           ; qmltermwidget
+                license:gpl3+           ; cool-retro-term
+                ;; Fonts
+                license:silofl1.1
+                license:x11
+                license:bsd-3))))
+
+(define-public foot
+  (package
+    (name "foot")
+    (version "1.28.0")
+    (home-page "https://codeberg.org/dnkl/foot")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url home-page)
+             (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0vwqg07jvhqxd3f5zrnabs8p5c38qf9r92vbflzwz33rxd15p689"))))
+    (build-system meson-build-system)
+    (arguments
+     (list
+      ;; Using a "release" build is recommended both for performance, and
+      ;; also to address a GCC 10 issue when doing PGO builds.
+      #:build-type "release"
+      ;; Enable LTO as recommended by INSTALL.md.
+      ;; when cross-compilation, enable lto will fail.
+      #:configure-flags (if (%current-target-system)
+                            #~'()
+                            #~'("-Db_lto=true"))))
+    (native-inputs (append
+                    (if (%current-target-system)
+                        (list wayland pkg-config-for-build)
+                        '())
+                    (list ncurses ;for 'tic'
+                          pkg-config scdoc wayland-protocols)))
+    (native-search-paths
+     ;; FIXME: This should only be located in 'ncurses'.  Nonetheless it is
+     ;; provided for usability reasons.  See <https://bugs.gnu.org/22138>.
+     (list (search-path-specification
+            (variable "TERMINFO_DIRS")
+            (files '("share/terminfo")))))
+    (inputs (list fcft libxkbcommon wayland wayland-protocols))
+    (synopsis "Wayland-native terminal emulator")
+    (description
+     "@command{foot} is a terminal emulator for systems using the Wayland
+display server.  It is designed to be fast, lightweight, and independent of
+desktop environments.  It can be used as a standalone terminal and also has
+a server/client mode.")
+    (license license:expat)))
+
+(define-public havoc
+  (package
+    (name "havoc")
+    (version "0.7.0")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/ii8/havoc")
+                    (commit version)))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "1c53dddq33b1vij5aa4rkzypgrxcp3hbgh15zb6lgbii12n0fz8y"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? #f                       ; no check target
+      #:make-flags #~(list (string-append "PREFIX=" #$output))
+      #:phases
+      #~(modify-phases %standard-phases
+          (delete 'configure)           ; no configure script
+          (add-before 'build 'set-CC
+            (lambda _
+              (setenv "CC" #$(cc-for-target)))))))
+    (native-inputs
+     (list pkg-config wayland-protocols))
+    (inputs
+     (list libxkbcommon wayland))
+    (home-page "https://github.com/ii8/havoc")
+    (synopsis "Minimal terminal emulator for Wayland")
+    (description
+     "Havoc is a minimal terminal emulator for Wayland.")
+    (license license:expat)))
+
+(define-public sakura
+  (package
+    (name "sakura")
+    (version "3.8.9")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "https://launchpad.net/sakura/trunk/"
+                                  version "/+download/sakura-" version
+                                  ".tar.bz2"))
+              (sha256
+               (base32
+                "09qa1crlml3ib3bc03dg73j950bn0brqm3y7fb8h4a6nbndird2k"))))
+    (build-system cmake-build-system)
+    (arguments
+     '(#:tests? #f))                    ; no check phase
+    (native-inputs
+     (list gettext-minimal perl ; for pod2man
+           pkg-config))
+    (inputs
+     (list libxft vte/gtk+-3))
+    (home-page "https://launchpad.net/sakura")
+    (synopsis "Simple but powerful libvte-based terminal emulator")
+    (description "@code{Sakura} is a terminal emulator based on GTK+ and VTE.
+It's a terminal emulator with few dependencies, so you don't need a full GNOME
+desktop installed to have a decent terminal emulator.")
+    (license license:gpl2)))
+
+(define-public xiate
+  (let ((commit "ae3cf30b345c64f097a747ac848e23ef5bae8b57")
+        (revision "0"))
+    (package
+      (name "xiate")
+      (version (git-version "22.12" revision commit))
+      (source (origin
+                (method git-fetch)
+                (file-name (git-file-name name version))
+                (uri (git-reference
+                      (url "https://www.uninformativ.de/git/xiate.git")
+                      (commit commit)))
+                (sha256
+                 (base32
+                  "0bc205b1gs1jvp1a2cr814l32hmlm0sgv1drfw7ykbavslfpmg2d"))))
+      (build-system gnu-build-system)
+      (arguments
+       (list #:tests? #f ;no tests
+             #:make-flags #~(list (string-append "CC="
+                                                 #$(cc-for-target))
+                                  (string-append "prefix="
+                                                 #$output))
+             #:phases #~(modify-phases %standard-phases
+                          (delete 'configure))))
+      (inputs (list gtk+ glib vte/gtk+-3))
+      (native-inputs (list pkg-config))
+      (synopsis "Minimalist terminal emulator based on GTK+")
+      (description
+       "Xiate is a terminal emulator which tries to keep a balance
+between features and simplicity.  This is achieved by using VTE as a powerful
+backend, while UI, configuration, and code try to remain much more
+minimalistic.")
+      (home-page "https://www.uninformativ.de/git/xiate/file/README.html")
+      (license license:expat))))
+
+(define-public fzf
+  (package
+    (name "fzf")
+    (version "0.74.2")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/junegunn/fzf")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0cv9h6g2l1hs3rwbmi5z0lm9vnl4z3cl7xl5zbh9dwn3wqwm1xvg"))))
+    (build-system go-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:import-path "github.com/junegunn/fzf"
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'install 'copy-binaries
+            (lambda* (#:key import-path #:allow-other-keys)
+              (with-directory-excursion (string-append "src/" import-path)
+                (install-file "bin/fzf-tmux" (string-append #$output "/bin")))))
+          (add-after 'copy-binaries 'wrap-programs
+            (lambda _
+              (let* ((bin (string-append #$output "/bin"))
+                     (findutils #$(this-package-input "findutils"))
+                     (ncurses #$(this-package-input "ncurses")))
+                (wrap-program (string-append bin "/fzf")
+                  `("PATH" ":" prefix (,(string-append findutils "/bin"))))
+                (wrap-program (string-append bin "/fzf-tmux")
+                  `("PATH" ":" prefix (,(string-append ncurses "/bin")))))))
+          (add-after 'install 'install-completions
+            (lambda* (#:key import-path #:allow-other-keys)
+              (let* ((bashrc-functions
+                      (string-append #$output "/etc/bashrc.d"))
+                     (fish-functions
+                      (string-append #$output "/share/fish/vendor_functions.d"))
+                     (zsh-completion
+                      (string-append #$output "/share/zsh/site-functions")))
+                (with-directory-excursion (string-append "src/" import-path)
+                  (mkdir-p bashrc-functions)
+                  (copy-file "shell/completion.bash"
+                             (string-append bashrc-functions "/fzf-completion.bash"))
+                  (copy-file "shell/key-bindings.bash"
+                             (string-append bashrc-functions "/fzf-bindings.bash"))
+                  (mkdir-p fish-functions)
+                  (copy-file "shell/key-bindings.fish"
+                             (string-append fish-functions "/fzf_key_bindings.fish"))
+                  (mkdir-p zsh-completion)
+                  (copy-file "shell/completion.zsh"
+                             (string-append zsh-completion "/_fzf")))))))))
+    (native-inputs
+     (list go-github-com-charlievieth-fastwalk
+           go-github-com-gdamore-tcell-v2
+           go-github-com-junegunn-go-shellwords
+           go-github-com-mattn-go-isatty
+           go-github-com-rivo-uniseg
+           go-golang-org-x-sys
+           go-golang-org-x-term))
+    (inputs
+     (list bash-minimal
+           findutils
+           ncurses))
+    (home-page "https://junegunn.github.io/fzf/")
+    (synopsis "Command-line fuzzy-finder")
+    (description "This package provides an interactive command-line filter
+usable with any list--including files, command history, processes and more.")
+    (license license:expat)))
+
+(define-public python-pyfzf
+  (package
+    (name "python-pyfzf")
+    (version "0.3.1")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (pypi-uri "pyfzf" version))
+       (sha256
+        (base32 "1lkbnhjf92063gg9snxskcx4n2yj7mck2qgrh8q9rjpyrws2x46x"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list #:tests? #f)) ;no tests
+    (native-inputs
+     (list python-setuptools))
+    (inputs
+     (list fzf))
+    (home-page "https://github.com/nk412/pyfzf")
+    (synopsis "Python wrapper for junegunn's fuzzyfinder (fzf)")
+    (description "This package provides a thin wrapper for @code{fzf}.")
+    (license license:expat)))
+
+(define-public tmate
+  (package
+    (name "tmate")
+    ;; XXX: The project looks like abandoned, where 2.4.0 was released in 2019
+    ;; and the latest commit on master's HEAD is from 2022, see:
+    ;; <https://github.com/tmate-io/tmate/issues/306>.
+    (properties '((commit . "ac919516f4f1b10ec928e20b3a5034d18f609d68")
+                  (revision . "0")))
+    (version (git-version "2.4.0"
+                          (assoc-ref properties 'revision)
+                          (assoc-ref properties 'commit)))
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/tmate-io/tmate")
+              (commit (assoc-ref properties 'commit))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1gwmwiq0fc0bl4calnzp53hp3wyr66qvsagz37jchwhcc1za1pmp"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'fix-msgpack-version
+            (lambda _
+              (substitute* "configure.ac"
+                (("msgpack >= 1.1.0")
+                 "msgpack-c >= 1.1.0")))))))
+    (inputs (list libevent libssh msgpack-c ncurses))
+    (native-inputs (list autoconf automake pkg-config))
+    (home-page "https://tmate.io/")
+    (synopsis "Terminal sharing application")
+    (description
+     "tmate is a terminal sharing application that allows you to share your
+terminal with other users over the Internet.  tmate is a fork of tmux.")
+    (license license:isc)))
+
+(define-public kitty
+  (package
+    (name "kitty")
+    (version "0.48.2")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/kovidgoyal/kitty")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "05861h7xyksphsbnkff8jphpk7xrjpsmcqxhklzwd6yckcz1bn58"))
+       (modules '((guix build utils)))
+       (snippet
+        #~(begin
+            ;; Fails to read /etc/machine-id in the build container.
+            (delete-file "tools/utils/machine_id/api_test.go")
+            (substitute* "docs/conf.py"
+              (("(from kitty.constants import str_version)" imp)
+               (string-append "sys.path.append(\"..\")\n" imp)))
+            ;; Depends on <https://github.com/pradyunsg/furo> which
+            ;; is not packaged yet and depends on some missing Node.js packages
+            (substitute* "docs/conf.py"
+              (("^html_theme = .*$") "html_theme = 'alabaster'\n"))
+            (substitute* "docs/Makefile"
+              (("^SPHINXBUILD[[:space:]]+= (python3.*)$")
+               "SPHINXBUILD = sphinx-build\n"))))))
+    (build-system go-build-system)
+    (outputs '("out" "terminfo" "shell-integration" "kitten"))
+    (arguments
+     (list
+      #:go go-1.26
+      #:import-path "github.com/kovidgoyal/kitty/tools/cmd"
+      #:unpack-path "github.com/kovidgoyal/kitty"
+      #:embed-files #~(list ".*\\.xml" ".*\\.json" ".*\\.txt" ".*\\.css" ".*\\.html" ".*\\.icc")
+      #:phases
+      #~(modify-phases %standard-phases
+          (delete 'build)
+
+          (add-after 'unpack 'setup-fonts
+            (lambda* (#:key inputs #:allow-other-keys)
+              (let ((fonts (string-append
+                            (assoc-ref inputs "font-nerd-symbols")
+                            "/share/fonts/truetype")))
+                ;; FontConfig expects a home
+                (setenv "HOME" "/tmp")
+                (mkdir-p "fonts")
+                (copy-recursively fonts "fonts"))))
+
+          (add-after 'fix-embed-files 'build-kitty
+            (lambda* (#:key inputs #:allow-other-keys)
+              (with-directory-excursion "src/github.com/kovidgoyal/kitty"
+                (for-each make-file-writable (find-files "kitty"))
+                (apply invoke "python3" "setup.py" "linux-package"
+                       "--update-check-interval=0"
+                       "--shell-integration=enabled no-rc"
+                       (map (lambda (pair)
+                              (string-append "--" (car pair) "="
+                                             (search-input-file inputs (cdr pair))))
+                            '(("egl-library" . "/lib/libEGL.so.1")
+                              ("startup-notification-library" . "/lib/libstartup-notification-1.so")
+                              ("canberra-library" . "/lib/libcanberra.so")
+                              ("fontconfig-library" . "/lib/libfontconfig.so"))))
+                (invoke "python3" "setup.py" "build-launcher"))))
+
+          (add-after 'build-kitty 'run-python-tests
+            (lambda* (#:key tests? #:allow-other-keys)
+              (with-directory-excursion "src/github.com/kovidgoyal/kitty"
+                (when tests?
+                  (setenv "HOME" (getcwd))
+                  (mkdir-p "test-home")
+                  (setenv "XDG_CONFIG_HOME" (string-append (getcwd) "/test-home"))
+                  (setenv "TMPDIR" (string-append (getcwd) "/test-tmp"))
+                  (mkdir-p (getenv "TMPDIR"))
+                  ;; Remove tests requiring display server and dbus access
+                  ;; or otherwise fail due to build container restrictions.
+                  (for-each (lambda (f)
+                              (let ((path (string-append "kitty_tests/" f ".py")))
+                                (when (file-exists? path) (delete-file path))))
+                            '("check_build" "child" "glfw" "multicell"
+                              "tui" "shell_integration" "ssh" "options"
+                              "atexit" "shm" "file_transmission" "completion"))
+                  (invoke "python3" "test.py")))))
+
+          (replace 'install
+            (lambda _
+              (with-directory-excursion "src/github.com/kovidgoyal/kitty"
+                (let ((out #$output)
+                      (terminfo #$output:terminfo)
+                      (shell-int #$output:shell-integration)
+                      (kitten #$output:kitten))
+                  (copy-recursively "linux-package/bin" (string-append out "/bin"))
+                  (copy-recursively "linux-package/share" (string-append out "/share"))
+                  (copy-recursively "linux-package/lib" (string-append out "/lib"))
+                  (mkdir-p (string-append kitten "/bin"))
+                  ;; symlinking instead of renaming since kitty expects the kitten
+                  ;; to be alongside of it
+                  (symlink (string-append out "/bin/kitten")
+                           (string-append kitten "/bin/kitten"))
+                  (mkdir-p (string-append terminfo "/share"))
+                  (rename-file (string-append out "/share/terminfo")
+                               (string-append terminfo "/share/terminfo"))
+                  (copy-recursively "shell-integration" shell-int))))))))
+    (native-inputs
+     (list bash-minimal
+           dbus
+           fish
+           font-nerd-symbols
+           go-github-com-alecthomas-chroma-v2
+           go-github-com-altree-bigfloat
+           go-github-com-bmatcuk-doublestar-v4
+           go-github-com-dlclark-regexp2
+           ;; go-github-com-ebitengine-purego ;only for Darwin
+           go-github-com-emmansun-base64
+           go-github-com-google-go-cmp
+           go-github-com-google-uuid
+           go-github-com-hako-durafmt
+           go-github-com-klauspost-compress
+           go-github-com-kovidgoyal-dbus
+           go-github-com-kovidgoyal-go-parallel
+           go-github-com-kovidgoyal-go-shm
+           go-github-com-kovidgoyal-imaging
+           go-github-com-nwaples-rardecode-v2
+           go-github-com-seancfoley-ipaddress-go
+           go-github-com-shirou-gopsutil-v4
+           go-github-com-sgtdi-fswatcher
+           go-github-com-ulikunitz-xz
+           go-github-com-zeebo-xxh3
+           go-golang-org-x-exp
+           go-golang-org-x-image
+           go-golang-org-x-sys
+           go-golang-org-x-text
+           go-howett-net-plist
+           pkg-config
+           python-pillow
+           python-sphinx
+           python-sphinx-copybutton
+           python-sphinx-inline-tabs
+           python-sphinxext-opengraph
+           wayland-protocols
+           zsh))
+    (inputs
+     (list cairo
+           fontconfig
+           harfbuzz
+           lcms
+           libcanberra
+           libpng
+           librsync
+           libx11
+           libxcursor
+           libxext
+           libxi
+           libxinerama
+           libxkbcommon
+           libxrandr
+           mesa
+           ncurses
+           openssl
+           python-wrapper
+           simde
+           startup-notification
+           wayland
+           xxhash
+           zlib))
+    (home-page "https://sw.kovidgoyal.net/kitty/")
+    (synopsis "Fast, feature-rich, GPU-based terminal emulator")
+    (description "Kitty is a fast and featureful GPU-based terminal emulator:
+@itemize
+@item Offloads rendering to the GPU for lower system load and buttery smooth
+scrolling.  Uses threaded rendering to minimize input latency.
+@item Supports all modern terminal features: graphics (images), unicode,
+true-color, OpenType ligatures, mouse protocol, focus tracking, bracketed
+paste and several new terminal protocol extensions.
+@item Supports tiling multiple terminal windows side by side in different
+layouts without needing to use an extra program like tmux.
+@item Can be controlled from scripts or the shell prompt, even over SSH.
+@item Has a framework for Kittens, small terminal programs that can be used to
+extend kitty's functionality.  For example, they are used for Unicode input,
+hints, and side-by-side diff.
+@item Supports startup sessions which allow you to specify the window/tab
+layout, working directories and programs to run on startup.
+@item Allows you to open the scrollback buffer in a separate window using
+arbitrary programs of your choice.  This is useful for browsing the history
+comfortably in a pager or editor.
+@end itemize")
+    (properties '((cpe-vendor . "kovidgoyal"))) ;to distinguish from 9bis
+    (license license:gpl3+)))
+
+(define-public eternalterminal
+  (package
+    (name "eternalterminal")
+    (version "6.2.11")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/MisterTea/EternalTerminal")
+             (commit (string-append "et-v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1ik4kdw574l087yxck2clzwjmdacar8my3k2ih8dbn5m0djq4ybp"))))
+    (build-system cmake-build-system)
+    (arguments
+     '(#:configure-flags '("-DBUILD_TEST=ON" "-DDISABLE_VCPKG=1")))
+    (inputs (list libsodium protobuf openssl zlib curl))
+    (home-page "https://mistertea.github.io/EternalTerminal/")
+    (synopsis "Remote shell that reconnects without interrupting the session")
+    (description "@dfn{Eternal Terminal} (ET) is a remote shell that
+automatically reconnects without interrupting the session.  ET uses SSH to
+initialize a secure connection.  Unlike SSH sessions, which must be killed and
+reconnected after a network outage an ET session will survive network outages
+and IP roaming.  ET provides the same core functionality as @command{mosh},
+while also supporting native scrolling and @command{tmux} control mode
+(@code{tmux -CC}).")
+    (license license:asl2.0)))
+
+(define-public tilix
+  (package
+    (name "tilix")
+    (version "1.9.6")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/gnunn1/tilix")
+             (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1vq0igfq1hj017ivfkd03zbb620qhvcjn9vd56c5dr4r1j7jiz98"))))
+    (build-system meson-build-system)
+    (arguments
+     (list
+      #:glib-or-gtk? #t
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'set-env-variables
+            (lambda _
+              (setenv "CC"
+                      #$(cc-for-target))))
+          (add-after 'unpack 'skip-gtk-update-icon-cache
+            (lambda _
+              (substitute* "meson_post_install.py"
+                (("gtk-update-icon-cache") (which "true"))
+                (("update-desktop-database") (which "true")))))
+          (add-after 'install 'remove-d-include-references
+            #$(remove-d-include-references-phase
+               (this-package-native-input "ldc"))))))
+    (inputs (list dbus
+                  dconf
+                  gettext-minimal
+                  gsettings-desktop-schemas
+                  gtkd
+                  gtk+
+                  libsecret
+                  libunwind
+                  vte/gtk+-3))
+    (native-inputs (list appstream
+                         desktop-file-utils
+                         `(,glib "bin")
+                         `(,gtk+ "bin")
+                         ldc
+                         pkg-config))
+    (home-page "https://gnunn1.github.io/tilix-web/")
+    (synopsis "Tiling terminal emulator")
+    (description
+     "Tilix is a tiling terminal emulator following the
+Gnome Human Interface Guidelines.  Its features include:
+@enumerate
+@item Layout terminals in any fashion by splitting them horizontally or
+vertically.
+@item Terminals can be re-arranged using drag and drop both within and between
+windows.
+@item Terminals can be detached into a new window via drag and drop.
+@item Input can be synchronized between terminals so commands typed in one
+terminal are replicated to the others.
+@item Supports notifications when processes are completed out of view.
+@end enumerate")
+    (license license:mpl2.0)))
+
+(define-public tio
+  (package
+    (name "tio")
+    (version "3.9")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/tio/tio")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "12g2857gp3g2m5g0zjh0dw752lybcnn6gfs7awrsh603b7iqavzp"))))
+    (build-system meson-build-system)
+    (native-inputs (list pkg-config))
+    (inputs (list glib lua))
+    (arguments
+     (list
+      #:configure-flags
+      #~(list "-Dbashcompletiondir=share/bash-completion/completions")))
+    (home-page "https://tio.github.io/")
+    (synopsis "Simple TTY terminal I/O application")
+    (description "tio is a simple TTY terminal application which features a
+straightforward commandline interface to easily connect to TTY devices for
+basic input/output.")
+    (license license:gpl2+)))
+
+(define-public alacritty
+  (package
+    (name "alacritty")
+    (version "0.17.0")
+    (source
+     (origin
+       ;; XXX: The crate at "crates.io" contains only the alacritty subproject
+       ;; of alacritty and thus has limited contents.  In particular,
+       ;; it does not contain "extra" directory with completions, icon, etc.
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/alacritty/alacritty")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1aw5v127f0jr3jq5cclsbvbvf82g6s195dh1vjlcwjpbc0gl56w9"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+       #:imported-modules (append %copy-build-system-modules
+                                  %cargo-build-system-modules)
+       #:modules '((guix build cargo-build-system)
+                   ((guix build copy-build-system) #:prefix copy:)
+                   (guix build utils))
+       #:install-source? #f
+       #:cargo-install-paths ''("alacritty")
+       #:cargo-test-flags
+       ''("--"
+          ;; Changes in clap regularly break this test.
+          "--skip=cli::tests::completions")
+       #:phases
+       #~(modify-phases %standard-phases
+           (add-after 'unpack 'patch-xdg-open
+             (lambda* (#:key inputs #:allow-other-keys)
+               (substitute* "alacritty/src/config/ui_config.rs"
+                 (("xdg-open") (search-input-file inputs "/bin/xdg-open")))))
+           (add-after 'configure 'add-absolute-library-references
+             (lambda* (#:key inputs vendor-dir #:allow-other-keys)
+               ;; Fix dlopen()ing some libraries on pure Wayland (no $DISPLAY):
+               ;; Failed to initialize any backend! Wayland status: NoWaylandLib
+               ;; XXX We patch transitive dependencies that aren't even direct
+               ;; inputs to this package, because of the way Guix's Rust build
+               ;; system currently works.  <http://issues.guix.gnu.org/46399>
+               ;; might fix this and allow patching them directly.
+               (define shared-library-regex
+                 ;; Using regex decreases the time it takes to run the
+                 ;; substitution over 12000 files by about 40%.
+                 (string-join
+                   (list "libEGL\\.so"              ; rust-glutin
+                         "libGL\\.so"               ; rust-x11-dl, rust-glutin
+                         "libX[[:alpha:]]*\\.so"    ; rust-x11-dl
+                         ; rust-wayland-sys, rust-wayland-backend
+                         "libwayland-[[:alpha:]]*\\.so"
+                         ;; rust-xkbcommon-dl
+                         "libxkbcommon\\.so"
+                         "libxkbcommon-x11\\.so")
+                   "|"))
+               (substitute* (find-files vendor-dir "\\.rs$")
+                 ((shared-library-regex all)
+                  (search-input-file inputs (string-append "lib/" all))))))
+           (add-after 'install 'install-more
+             (lambda* (#:key native-inputs inputs #:allow-other-keys
+                       #:rest args)
+               (let ((tic (search-input-file
+                            (or native-inputs inputs) "/bin/tic"))
+                     (terminfo (string-append #$output "/share/terminfo")))
+                 (define (create-manpage manpage)
+                   (with-input-from-file manpage
+                     (lambda _
+                       (with-output-to-file (string-drop-right manpage 4)
+                         (lambda _ (invoke "scdoc"))))))
+                 (with-directory-excursion "extra/man"
+                   (for-each create-manpage
+                             (find-files "." "^alacritty.*\\.[[:digit:]]\\.scd$")))
+                 (apply (assoc-ref copy:%standard-phases 'install)
+                        #:install-plan
+                        '(("extra/man" "share/man/man1" #:include-regexp ("\\.1$"))
+                          ("extra/man" "share/man/man5" #:include-regexp ("\\.5$"))
+                          ("extra/man" "share/man/man7" #:include-regexp ("\\.7$"))
+                          ("extra/linux/Alacritty.desktop" "share/applications/")
+                          ("extra/linux/org.alacritty.Alacritty.appdata.xml"
+                           "share/metainfo/")
+                          ("extra/logo/alacritty-term.svg"
+                           "share/icons/hicolor/scalable/apps/Alacritty.svg")
+                          ;; completions
+                          ("extra/completions/alacritty.bash"
+                           "share/bash-completion/completions/alacritty")
+                          ("extra/completions/_alacritty"
+                           "share/zsh/site-functions/")
+                          ("extra/completions/alacritty.fish"
+                           "share/fish/vendor_completions.d/"))
+                        args)
+                 ;; Install terminfo.
+                 (mkdir-p terminfo)
+                 ;; We don't compile alacritty-common entry because
+                 ;; it's being used only for inheritance.
+                 (invoke tic "-x" "-e" "alacritty,alacritty-direct"
+                         "-o" terminfo
+                         "extra/alacritty.info")))))))
+    (native-inputs
+     (list ncurses
+           pkg-config
+           python
+           scdoc))
+    (inputs
+     (cons* expat
+            fontconfig
+            freetype
+            libx11
+            libxcb
+            libxcursor
+            libxext
+            libxft
+            libxi
+            libxinerama
+            libxkbcommon
+            libxmu
+            libxpresent
+            libxrandr
+            libxscrnsaver
+            libxt
+            libxtst
+            libxxf86vm
+            mesa
+            xdg-utils
+            wayland
+            (cargo-inputs 'alacritty)))
+    (native-search-paths
+     ;; FIXME: This should only be located in 'ncurses'.  Nonetheless it is
+     ;; provided for usability reasons.  See <https://bugs.gnu.org/22138>.
+     (list (search-path-specification
+            (variable "TERMINFO_DIRS")
+            (files '("share/terminfo")))))
+    (home-page "https://alacritty.org/")
+    (synopsis "GPU-accelerated terminal emulator")
+    (description
+     "Alacritty is a GPU-accelerated terminal emulator with a strong focus on
+simplicity and performance.  With such a strong focus on performance, included
+features are carefully considered and you can always expect Alacritty to be
+blazingly fast.  By making sane choices for defaults, Alacritty requires no
+additional setup.  However, it does allow configuration of many aspects of the
+terminal.  Note that you need support for OpenGL 3.2 or higher.")
+    (license license:asl2.0)))
+
+(define-public bootterm
+  (package
+    (name "bootterm")
+    (version "0.5")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/wtarreau/bootterm")
+                    (commit (string-append "v" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "1xag6agcqkq2p7gp20qxjb95ah7p6lia65jmm5v51rqxfzclx2h1"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list #:tests? #f ; no test suite
+           #:make-flags #~(list (string-append "CC=" #$(cc-for-target))
+                                (string-append "PREFIX=" #$output))
+           #:phases
+           #~(modify-phases %standard-phases
+               ;; No ./configure script
+               (delete 'configure)
+               (add-after 'install 'install-doc
+                 (lambda* (#:key outputs #:allow-other-keys)
+                   (let ((doc (format #f "~a/share/doc/~a-~a"
+                                      #$output #$name #$version)))
+                     (install-file "README.md" doc)))))))
+    (home-page "https://github.com/wtarreau/bootterm")
+    (synopsis "Serial terminal")
+    (description "Bootterm is a terminal designed to ease connection to
+ephemeral serial ports.  It features automatic port detection, port enumeration,
+support for non-standard baud rates, the ability to wait for ports to appear,
+and the ability to read and write via stdin and stdout.")
+    (license license:expat)))
+
+(define-public roxterm
+  (package
+    (name "roxterm")
+    (version "3.17.2")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://github.com/realh/roxterm")
+                     (commit version)))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "1lr8fd40qwjghmlkfqa8b9c64mlxxfws7diia0rdk88v0cvb3ia0"))))
+    (build-system cmake-build-system)
+    (arguments
+     `(#:tests? #f)) ; No tests
+    (native-inputs
+     (list docbook-xsl
+           docbook-xml
+           (list glib "bin")
+           gettext-minimal
+           libxml2
+           libxslt
+           pkg-config))
+    (inputs
+     (list dbus dbus-glib gtk+ pcre vte/gtk+-3))
+    (synopsis "Terminal emulator")
+    (description "This package provides a terminal emulator with hyperlink
+support.  It's based on VTE and aimed at power users.")
+    (home-page "https://realh.github.io/roxterm/en/index.html")
+    ;; src/gresources.c is under LGPL 2.1+
+    (license (list license:gpl2+ license:lgpl2.1+))))
+
+(define-public fbterm
+  (package
+    (name "fbterm")
+    (version "1.7")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference (url "https://salsa.debian.org/debian/fbterm.git")
+			   (commit (string-append "upstream/" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "1nl9z169a59akgb8b5j2pw5fp3bbkmv553rryffkfz45d1cxskvq"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list #:make-flags #~(list (string-append "prefix=" #$output)
+                                "HOME=/tmp"
+
+                                ;; Silence "narrow conversion" errors.
+                                "CXXFLAGS=-Wno-narrowing -O2 -g")))
+    (inputs (list freetype fontconfig ncurses gpm))
+    (native-inputs (list pkg-config))
+    (home-page "https://salsa.debian.org/debian/fbterm")
+    (synopsis "Fast and lightweight framebuffer-based terminal emulator for Linux")
+    (description "FbTerm is a fast terminal emulator for Linux with frame
+buffer device or VESA video card.  Features include:
+
+@itemize
+@item mostly as fast as terminal of Linux kernel while accelerated scrolling
+is enabled;
+@item select font with fontconfig and draw text with freetype2, same as
+Qt/Gtk+ based GUI apps;
+@item dynamically create/destroy up to 10 windows initially running default
+shell;
+@item record scrollback history for every window;
+@item auto-detect current locale and convert text encoding, support double
+width scripts like Chinese, Japanese etc;
+@item switch between configurable additional text encodings with hot keys on
+the fly;
+@item copy/paste selected text between windows with mouse when gpm server is
+running;
+@item change the orientation of screen display, a.k.a. screen rotation;
+@item lightweight input method framework with client-server architecture;
+@item background image for eye candy.
+@end itemize")
+    (license license:gpl2+)))
+
+;; See https://github.com/wezterm/wezterm/blob/main/README-DISTRO-MAINTAINER.md
+(define-public wezterm
+  (let ((commit "05343b387085842b434d267f91b6b0ec157e4331")
+        ;; git -c "core.abbrev=8" show -s "--format=%cd" "--date=format:%Y%m%d.%H%M%S"
+        (date "20260117.154428"))
+    (package
+      (name "wezterm")
+      (version (string-append date "." (substring commit 0 8)))
+      (source
+       (origin
+         (method git-fetch)
+         (file-name (git-file-name name version))
+         (uri (git-reference
+                (url "https://github.com/wezterm/wezterm")
+                (commit commit)))
+         (sha256
+          (base32 "1pkng8dvjc917j4i8sly8cz91nx1yh2k83i78rcs43gdxs79gjds"))
+         (modules
+          '((ice-9 match)
+            (guix build utils)))
+         (snippet
+          '(begin
+             ;; Remove bundled dependencies.
+             (for-each
+              delete-file-recursively
+              '("assets/fonts"
+                "assets/macos"
+                "assets/windows"
+                "deps/cairo/cairo"
+                "deps/cairo/pixman"))
+             ;; Link static libraries for dependencies under ./deps.
+             (for-each
+              (match-lambda
+                ((name dependencies)
+                 (with-directory-excursion (in-vicinity "deps" name)
+                   (make-file-writable "build.rs")
+                   (with-output-to-file "build.rs"
+                     (lambda ()
+                       (format #t "\
+// Modified by Guix.
+fn main() {
+~{\
+    println!(\"cargo:rustc-link-lib=~a\");
+~}\
+}~%"
+                               dependencies))))))
+              '(("cairo"      ("cairo" "pixman-1"))
+                ("fontconfig" ("fontconfig"))
+                ("freetype"   ("freetype" "png" "z"))
+                ("harfbuzz"   ("harfbuzz"))))
+             ;; Don't try to vendor lua.
+             (substitute* "config/Cargo.toml"
+               (("\"vendored\", ") ""))))))
+      (build-system cargo-build-system)
+      (arguments
+       (list
+        #:install-source? #f
+        #:features
+        ''("distro-defaults")
+        #:cargo-test-flags
+        ''("--"
+           ;; Test data differs, probably due to unbundling of fonts.
+           ;; https://codeberg.org/guix/guix/pulls/6020#issuecomment-10364990
+           "--skip=shapecache::test::ligatures_jetbrains")
+        #:modules
+        '((srfi srfi-26)
+          (ice-9 match)
+          (guix build cargo-build-system)
+          (guix build utils))
+        #:phases
+        #~(modify-phases %standard-phases
+            (add-after 'unpack 'use-guix-vendored-dependencies
+              (lambda _
+                ;; Override dependencies declared with git repos / revisions.
+                (substitute* "Cargo.toml"
+                  ;; finl-unicode
+                  ((",  git.*default-features")
+                   ", default-features")
+                  ;; xcb-imdkit-rs.
+                  ((", git.*, rev.*}")
+                   ;; use-system-lib ensures the package won't try pulling in
+                   ;; additional dependencies and instead relies on the inputs
+                   ;; we passed in.
+                   ", features=[\"use-system-lib\"]}"))))
+            (add-after 'unpack 'prepare-build-environment
+              (lambda _
+                (with-output-to-file ".tag"
+                  (lambda ()
+                    (display #$(package-version this-package))))
+                ;; These libraries will be used at runtime.  Add into RUNPATH.
+                (setenv "RUSTFLAGS"
+                        (string-join
+                         '("-C" "link-arg=-lEGL"
+                           "-C" "link-arg=-lvulkan")
+                         " "))))
+            (add-after 'unpack 'fix-font-load-path
+              (lambda* (#:key inputs #:allow-other-keys)
+                (substitute* "wezterm-font/src/parser.rs"
+                  (("../../assets/fonts/(.*\\.ttf)" _ font)
+                   (search-input-file
+                    inputs (in-vicinity "share/fonts/truetype" font))))))
+            (replace 'install
+              (lambda* (#:key inputs native-inputs #:allow-other-keys)
+                ;; Binaries
+                (with-directory-excursion "target/release"
+                  (for-each (cut install-file <> (in-vicinity #$output "bin"))
+                            '("wezterm" "wezterm-gui"
+                              "wezterm-mux-server"
+                              "strip-ansi-escapes")))
+
+                ;; Terminfo
+                (with-directory-excursion "termwiz/data"
+                  (let ((terminfo (in-vicinity #$output "share/terminfo"))
+                        (tic (search-input-file
+                              (or native-inputs inputs) "bin/tic")))
+                    (mkdir-p terminfo)
+                    (for-each (cut invoke tic "-x" "-o" terminfo <>)
+                              '("wezterm.terminfo"
+                                ;; Wezterm by default identifies itself as
+                                ;; xterm-256color, which this terminfo provides
+                                ;; despite the "-italic" part.
+                                "xterm-256color-italic.terminfo"))))
+
+                ;; Completions
+                (with-directory-excursion "assets/shell-completion"
+                  (for-each
+                   (match-lambda
+                     ((shell . target)
+                      (let ((path (in-vicinity #$output target)))
+                        (mkdir-p (dirname path))
+                        (copy-file shell path))))
+                   '(("bash" . "share/bash-completion/completions/wezterm")
+                     ("fish" . "share/fish/vendor_completions.d/wezterm.fish")
+                     ("zsh"  . "share/zsh/site-functions/_wezterm"))))
+
+                ;; Integrations
+                (with-directory-excursion "assets/shell-integration"
+                  (let ((profile-d (in-vicinity #$output "etc/profile.d")))
+                    (mkdir-p profile-d)
+                    (install-file "wezterm.sh" profile-d)))
+
+                ;; Icon
+                (with-directory-excursion "assets/icon"
+                  (let ((icons (in-vicinity
+                                #$output "share/icons/hicolor/scalable/apps")))
+                    (mkdir-p icons)
+                    (copy-file
+                     "wezterm-icon.svg"
+                     (in-vicinity icons "org.wezfurlong.wezterm.svg"))))
+
+                ;; Desktop file
+                (install-file "assets/wezterm.desktop"
+                              (in-vicinity #$output "share/applications"))
+                (install-file "assets/wezterm.appdata.xml"
+                              (in-vicinity #$output "share/metainfo"))
+
+                ;; Nautilus extension
+                (install-file
+                 "assets/wezterm-nautilus.py"
+                 (in-vicinity #$output "share/nautilus-python/extensions"))
+
+                ;; Helper script
+                (install-file "assets/open-wezterm-here"
+                              (in-vicinity #$output "bin")))))))
+      (native-inputs (list ncurses pkg-config))
+      (inputs
+       (cons* font-google-noto-emoji
+              font-google-roboto
+              font-jetbrains-mono
+              font-nerd-symbols
+              libgit2
+              libssh
+              libssh2
+              libx11
+              libxcb
+              libxkbcommon
+              lua-5.4
+              mesa
+              openssl
+              sqlite
+              vulkan-loader
+              wayland
+              xcb-imdkit
+              xcb-util
+              xcb-util-image
+              `(,zstd "lib")
+              ;; Replacements for deps/ libraries.
+              cairo
+              fontconfig
+              freetype
+              harfbuzz
+              libpng
+              pixman
+              zlib
+              (cargo-inputs 'wezterm)))
+      (native-search-paths
+       ;; FIXME: This should only be located in 'ncurses'.  Nonetheless it is
+       ;; provided for usability reasons.  See <https://bugs.gnu.org/22138>.
+       (list (search-path-specification
+              (variable "TERMINFO_DIRS")
+              (files '("share/terminfo")))))
+      (home-page "https://wezterm.org/")
+      (synopsis "Cross-platform terminal emulator and multiplexer")
+      (description
+       "WezTerm is a GPU-accelerated terminal emulator and multiplexer that
+features:
+
+@itemize
+@item Multiplex terminal panes, tabs and windows on local and remote hosts, with
+native mouse and scrollback.
+@item Ligatures, color emoji and font fallback, with true color and dynamic
+color schemes.
+@item Hyperlinks.
+@end itemize")
+      (license license:expat))))

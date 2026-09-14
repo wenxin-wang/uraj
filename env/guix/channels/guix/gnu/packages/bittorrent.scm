@@ -1,0 +1,760 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2014 Taylan Ulrich Bayirli/Kammer <taylanbayirli@gmail.com>
+;;; Copyright © 2014, 2015, 2016 Ludovic Courtès <ludo@gnu.org>
+;;; Copyright © 2016, 2017, 2018, 2019, 2020 Leo Famulari <leo@famulari.name>
+;;; Copyright © 2016-2020, 2022, 2023 Efraim Flashner <efraim@flashner.co.il>
+;;; Copyright © 2016 Tomáš Čech <sleep_walker@gnu.org>
+;;; Copyright © 2016, 2017, 2018, 2019, 2020 Tobias Geerinckx-Rice <me@tobias.gr>
+;;; Copyright © 2017 Jelle Licht <jlicht@fsfe.org>
+;;; Copyright © 2018 Fis Trivial <ybbs.daans@hotmail.com>
+;;; Copyright © 2018 Nam Nguyen <namn@berkeley.edu>
+;;; Copyright © 2018, 2021 Ricardo Wurmus <rekado@elephly.net>
+;;; Copyright © 2019, 2020 Brett Gilio <brettg@gnu.org>
+;;; Copyright © 2020 Hartmut Goebel <h.goebel@crazy-compilers.com>
+;;; Copyright © 2021, 2026 Justin Veilleux <terramorpha@cock.li>
+;;; Copyright © 2021 Marius Bakke <marius@gnu.org>
+;;; Copyright © 2021 Josselin Poiret <josselin.poiret@protonmail.ch>
+;;; Copyright © 2022 Brice Waegeneire <brice@waegenei.re>
+;;; Copyright © 2022 Jacob Hart <hartja1@yahoo.com>
+;;; Copyright © 2022 Simon Streit <simon@netpanic.org>
+;;; Copyright © 2023 Clément Lassieur <clement@lassieur.org>
+;;; Copyright © 2024 Noisytoot <ron@noisytoot.org>
+;;; Copyright © 2024 Zheng Junjie <873216071@qq.com>
+;;; Copyright © 2025, 2026 Tomas Volf <~@wolfsden.cz>
+;;; Copyright © 2025 Janneke Nieuwenhuizen <janneke@gnu.org>
+;;; Copyright © 2025 Vinicius Monego <monego@posteo.net>
+;;; Copyright © 2025 Junker <dk@junkeria.club>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (gnu packages bittorrent)
+  #:use-module (gnu packages autotools)
+  #:use-module (gnu packages bash)
+  #:use-module (gnu packages boost)
+  #:use-module (gnu packages check)
+  #:use-module (gnu packages cmake)
+  #:use-module (gnu packages compression)
+  #:use-module (gnu packages cpp)
+  #:use-module (gnu packages crypto)
+  #:use-module (gnu packages curl)
+  #:use-module (gnu packages cyrus-sasl)
+  #:use-module (gnu packages dns)
+  #:use-module (gnu packages freedesktop)
+  #:use-module (gnu packages gettext)
+  #:use-module (gnu packages glib)
+  #:use-module (gnu packages gnome)
+  #:use-module (gnu packages gnupg)
+  #:use-module (gnu packages gstreamer)
+  #:use-module (gnu packages gtk)
+  #:use-module (gnu packages libevent)
+  #:use-module (gnu packages multiprecision)
+  #:use-module (gnu packages ncurses)
+  #:use-module (gnu packages nettle)
+  #:use-module (gnu packages networking)
+  #:use-module (gnu packages nss)
+  #:use-module (gnu packages perl)
+  #:use-module (gnu packages pkg-config)
+  #:use-module (gnu packages pretty-print)
+  #:use-module (gnu packages python)
+  #:use-module (gnu packages python-build)
+  #:use-module (gnu packages python-check)
+  #:use-module (gnu packages python-crypto)
+  #:use-module (gnu packages python-web)
+  #:use-module (gnu packages python-xyz)
+  #:use-module (gnu packages qt)
+  #:use-module (gnu packages serialization)
+  #:use-module (gnu packages sqlite)
+  #:use-module (gnu packages ssh)
+  #:use-module (gnu packages tls)
+  #:use-module (gnu packages upnp)
+  #:use-module (gnu packages version-control)
+  #:use-module (gnu packages web)
+  #:use-module (gnu packages xml)
+  #:use-module (gnu packages xorg)
+  #:use-module (gnu packages)
+  #:use-module (guix build-system cmake)
+  #:use-module (guix build-system glib-or-gtk)
+  #:use-module (guix build-system gnu)
+  #:use-module (guix build-system meson)
+  #:use-module (guix build-system pyproject)
+  #:use-module (guix build-system qt)
+  #:use-module (guix download)
+  #:use-module (guix gexp)
+  #:use-module (guix git-download)
+  #:use-module ((guix licenses) #:prefix license:)
+  #:use-module (guix packages)
+  #:use-module ((guix search-paths) #:select ($SSL_CERT_DIR $SSL_CERT_FILE))
+  #:use-module (guix utils))
+
+(define-public transmission
+  (package
+    (name "transmission")
+    (version "4.1.3")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/transmission/transmission")
+                    (commit version)
+                    ;; TODO: Unbundle more available inputs, see:
+                    ;; <https://codeberg.org/guix/guix/pulls/6542#issuecomment-10935599>.
+                    (recursive? #t)))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "0h90lpmhj30xj5fbmhxrsnw2rd3cph3ls1rcwhr4vmpyrs0kszp3"))
+              (modules '((guix build utils)))
+              (snippet
+               #~(begin
+                   (for-each
+                    (lambda (x)
+                      (delete-file-recursively (string-append "third-party/" x)))
+                    '("fast_float"
+                      "fmt"
+                      "libdeflate"
+                      "libevent"
+                      "libnatpmp"
+                      "libpsl"
+                      "miniupnp"))
+                   (for-each
+                    (lambda (x)
+                      (delete-file (string-append "cmake/" x)))
+                    '("FindFmt.cmake" "FindFastFloat.cmake"))))))
+    (build-system cmake-build-system)
+    (outputs '("out"                      ; library and command-line interface
+               "gui"))                    ; graphical user interface
+    (arguments
+      (list
+        #:imported-modules `((guix build glib-or-gtk-build-system)
+                             ,@%cmake-build-system-modules)
+        #:modules '(((guix build glib-or-gtk-build-system) #:prefix glib-or-gtk:)
+                    (guix build cmake-build-system)
+                    (guix build utils))
+        #:phases
+        #~(modify-phases %standard-phases
+           (replace 'check
+             (lambda* (#:key tests? parallel-tests? #:allow-other-keys)
+               (if tests?
+                   (invoke "ctest"
+                           ;; XXX this test fails...
+                           "-E" "usesBootstrapFile"
+                           "-j" (if parallel-tests?
+                                    (number->string (parallel-job-count))
+                                    "1"))
+                   (format #t "test suite not run~%"))))
+           (add-after 'install 'move-gui
+             (lambda* (#:key outputs #:allow-other-keys)
+               (mkdir-p (string-append #$output:gui "/bin"))
+               (mkdir-p (string-append #$output:gui "/share/man/man1"))
+               (rename-file (string-append #$output "/bin/transmission-gtk")
+                            (string-append #$output:gui "/bin/transmission-gtk"))
+               (for-each
+                (lambda (dir)
+                  (rename-file (string-append #$output "/share/" dir)
+                               (string-append #$output:gui "/share/" dir)))
+                '("applications" "icons" "metainfo"))
+              (rename-file
+               (string-append #$output "/share/man/man1/transmission-gtk.1")
+               (string-append #$output:gui "/share/man/man1/transmission-gtk.1"))))
+           (add-after 'move-gui 'glib-or-gtk-wrap
+             (lambda* (#:key outputs #:allow-other-keys #:rest args)
+               (apply (assoc-ref glib-or-gtk:%standard-phases 'glib-or-gtk-wrap)
+                      #:glib-or-gtk-wrap-excluded-outputs (list "out")
+                      args)))
+           (add-after 'glib-or-gtk-wrap 'wrap-program
+             (lambda* (#:key inputs outputs #:allow-other-keys)
+               (glib-or-gtk:generate-gdk-pixbuf-loaders-cache
+                (map cdr inputs) (list (assoc-ref outputs "gui")))
+               (wrap-program (string-append #$output:gui "/bin/transmission-gtk")
+                 ;; Wrapping GDK_PIXBUF_MODULE_FILE allows Transmission to load
+                 ;; its own icons in pure environments.
+                 `("GDK_PIXBUF_MODULE_FILE" =
+                   (,(getenv "GDK_PIXBUF_MODULE_FILE")))))))))
+    (inputs (list bash-minimal
+                  curl
+                  fast-float
+                  fmt-12
+                  (list glib "bin")
+                  gtkmm
+                  libappindicator
+                  libdeflate
+                  libevent
+                  libnatpmp
+                  libpsl
+                  miniupnpc
+                  openssl
+                  python
+                  zlib))
+    (native-inputs
+     (list intltool pkg-config))
+    (home-page "https://transmissionbt.com/")
+    (synopsis "BitTorrent client")
+    (description
+     "Transmission is a BitTorrent client that comes with graphical,
+textual, and Web user interfaces.  Transmission also has a daemon for
+unattended operations.  It supports local peer discovery, full encryption,
+DHT, µTP, PEX and Magnet Links.")
+
+    ;; COPYING reads:
+    ;;
+    ;;     Transmission can be redistributed and/or modified under the terms of
+    ;; the GNU GPLv2 (http://www.gnu.org/licenses/license-list.html#GPLv2),
+    ;; the GNU GPLv3 (http://www.gnu.org/licenses/license-list.html#GNUGPLv3),
+    ;; or any future license endorsed by Mnemosyne LLC.
+    ;;
+    ;; A few files files carry an MIT/X11 license header.
+    (license (list license:gpl2 license:gpl3))))
+
+(define-public transmission-remote-gtk
+  (package
+    (name "transmission-remote-gtk")
+    (version "1.7.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri
+        (git-reference
+         (url
+          "https://github.com/transmission-remote-gtk/transmission-remote-gtk")
+         (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "19m0jksx4klf5h9b7ici2dsdkbsrj24nj4y2iysrl5zc3sh3kii3"))))
+    (build-system meson-build-system)
+    (native-inputs (list `(,glib "bin") ;glib-compile-resources
+                         gettext-minimal
+                         gsettings-desktop-schemas
+                         perl           ;pod2man
+                         pkg-config))
+    (inputs (list gtk+ json-glib libappindicator libsoup))
+    (arguments (list #:tests? #f        ;Tests require network access.
+                     #:glib-or-gtk? #t))
+    (synopsis "Gtk frontend to the Transmission daemon")
+    (description "transmission-remote-gtk is a GTK client for remote management
+of the Transmission BitTorrent client, using its HTTP RPC protocol.")
+    (home-page "https://github.com/transmission-remote-gtk/transmission-remote-gtk")
+    (license license:gpl2+)))
+
+(define-public stig
+  (package
+    (name "stig")
+    (version "0.14.2a0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/rndusr/stig")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0gwq5ikwqc4h3r3yndpyqzpmjvxlkpb2ibif32kh3f92q5xxnzl3"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      ;; Tests are broken, see <https://github.com/rndusr/stig/issues/206>.
+      #:tests? #f
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'use-default-asyncio
+            ;; async_timeout is deprecated, upstream recommends to use
+            ;; asyncio, available since Python 3.11.
+            (lambda _
+              (substitute* "stig/client/aiotransmission/rpc.py"
+                (("async_timeout") "asyncio"))
+              (substitute* "stig/client/utils.py"
+                (("from async_timeout import timeout as async_timeout")
+                 "asyncio")
+                (("async_timeout") "asyncio.timeout"))))
+          (add-after 'unpack 'relax-requirements
+            (lambda _
+              (substitute* "setup.py"
+                (("urwidtrees==1\\.0\\.3") "urwidtrees>=1.0.3")
+                (("aiohttp==3\\.\\*") "aiohttp>=3.13.5")
+                ;; It's a part of Python 3.11+.
+                (("'async_timeout',") "")))))))
+    (native-inputs
+     (list python-setuptools))
+    (inputs
+     (list python-aiohttp
+           python-aiohttp-socks
+           python-blinker
+           python-natsort
+           python-pyxdg
+           python-setproctitle
+           python-urwid
+           python-urwidtrees
+           python-wcwidth))
+    (synopsis "TUI and CLI for the BitTorrent client Transmission")
+    (description
+     "Stig is a @acronym{TUI, Text User Interface} and @acronym{CLI, Command
+Line Interface} client for the BitTorrent client Transmission.")
+    (home-page "https://github.com/rndusr/stig")
+    (license license:gpl3)))
+
+(define-public libtorrent
+  (package
+    (name "libtorrent")
+    (version "0.16.14")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/rakshasa/libtorrent/")
+                    (commit (string-append "v" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "04jv8vix3izg7mwr07ngagghb0x46cvz8pnja6i0ifhk7c2mhfq7"))))
+    (build-system gnu-build-system)
+    (inputs (list curl openssl zlib))
+    (native-inputs (list autoconf automake cppunit libtool pkg-config))
+    (synopsis "BitTorrent library of rtorrent")
+    (description
+     "LibTorrent is a BitTorrent library used by and developed in parallel
+with the BitTorrent client rtorrent.  It is written in C++ with emphasis on
+speed and efficiency.")
+    (home-page "https://github.com/rakshasa/libtorrent")
+    (license license:gpl2+)))
+
+(define-public rtorrent
+  (package
+    (name "rtorrent")
+    (version "0.16.14")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/rakshasa/rtorrent/")
+                    (commit (string-append "v" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "0l032679ga5w40285yjh2crglw6qbmp4wzarbqdshb629njs4b2p"))))
+    (build-system gnu-build-system)
+    (arguments (list #:configure-flags #~(list "--with-xmlrpc-tinyxml2")))
+    (inputs
+     (list libtorrent
+           ncurses
+           curl
+           cyrus-sasl
+           openssl
+           tinyxml2
+           zlib))
+    (native-inputs (list autoconf automake cppunit libtool pkg-config))
+    (synopsis "BitTorrent client with ncurses interface")
+    (description
+     "rTorrent is a BitTorrent client with an ncurses interface.  It supports
+full encryption, DHT, PEX, and Magnet Links.  It can also be controlled via
+XML-RPC over SCGI.")
+    (home-page "https://github.com/rakshasa/rtorrent")
+    (license license:gpl2+)))
+
+(define-public tremc
+  (package
+    (name "tremc")
+    (version "0.9.6")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/tremc/tremc")
+             (commit version)))
+       (sha256
+        (base32
+         "0bvw9lcl256mzqlga7vhbhk3p5faq9681d3yyw7xnczpvv3kbd0r"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:tests? #f                      ; no test suite
+       #:make-flags
+       (list (string-append "PREFIX=" (assoc-ref %outputs "out")))
+       #:phases
+       (modify-phases %standard-phases
+         ;; The software is just a Python script that must be copied into place.
+         (delete 'configure)
+         (delete 'build))))
+    (inputs
+     (list python))
+    (synopsis "Console client for the Transmission BitTorrent daemon")
+    (description "Tremc is a console client, with a curses interface, for the
+Transmission BitTorrent daemon.")
+    (home-page "https://github.com/tremc/tremc")
+    (license license:gpl3+)))
+
+(define-public aria2
+  (package
+    (name "aria2")
+    (version "1.37.0")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://github.com/aria2/aria2")
+                     (commit (string-append "release-" version))))
+              (sha256
+               (base32
+                "1yr9yxr7z3bdg51afpzj0i63xl2rdk1prl20qws21y6r1x58vf65"))
+              (file-name (git-file-name name version))
+              (patches (search-patches "aria2-unbundle-wslay.patch"))
+              (snippet
+               #~(begin (use-modules (guix build utils))
+                        (delete-file-recursively "deps")))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+       #:configure-flags
+       #~(list "--enable-libaria2"
+               (string-append "--with-bashcompletiondir="
+                              #$output "/etc/bash_completion.d/"))
+       #:phases
+       #~(modify-phases %standard-phases
+           (add-after 'unpack 'update-gettext-version
+             (lambda _
+               (substitute* "configure.ac"
+                 (("AM_GNU_GETTEXT_VERSION\\(.*\\)")
+                  (format #f "AM_GNU_GETTEXT_VERSION([~a])"
+                          #$(package-version (this-package-native-input
+                                              "gettext-minimal")))))))
+           (add-after 'unpack 'delete-socket-tests
+             (lambda _
+               (substitute* "test/LpdMessageDispatcherTest.cc"
+                 (("CPPUNIT_TEST_SUITE_REGISTRATION\\(LpdMessageDispatcherTest\\);" text)
+                  (string-append "// " text)))
+               (substitute* "test/LpdMessageReceiverTest.cc"
+                 (("CPPUNIT_TEST_SUITE_REGISTRATION\\(LpdMessageReceiverTest\\);" text)
+                  (string-append "// " text))))))))
+    (native-inputs
+     (list autoconf ; since we adjusted configure.ac
+           automake
+           gettext-minimal
+           libtool
+           cppunit ; for the tests
+           pkg-config))
+    (inputs
+     (list c-ares
+           gnutls
+           gmp
+           libssh2
+           libxml2
+           nettle
+           sqlite
+           wslay
+           zlib))
+    (home-page "https://aria2.github.io/")
+    (synopsis "Utility for parallel downloading files")
+    (description
+      "Aria2 is a lightweight, multi-protocol & multi-source command-line
+download utility.  It supports HTTP/HTTPS, FTP, SFTP, BitTorrent and Metalink.
+Aria2 can be manipulated via built-in JSON-RPC and XML-RPC interfaces.")
+    (license license:gpl2+)))
+
+(define-public uget
+  (package
+    (name "uget")
+    (version "2.2.1")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "mirror://sourceforge/urlget/"
+                           "uget%20%28stable%29/" version "/uget-"
+                           version ".tar.gz"))
+       (sha256
+        (base32 "0dlrjhnm1pg2vwmp7nl2xv1aia5hyirb3021rl46x859k63zap24"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:configure-flags '("CFLAGS=-fcommon")))
+    (inputs
+     (list curl
+           gtk+
+           glib
+           gnutls
+           gstreamer
+           libgcrypt
+           libnotify
+           openssl))
+    (native-inputs
+     (list intltool pkg-config))
+    (home-page "https://ugetdm.com/")
+    (synopsis "Universal download manager with GTK+ interface")
+    (description
+     "uGet is portable download manager with GTK+ interface supporting
+HTTP, HTTPS, BitTorrent and Metalink, supporting multi-connection
+downloads, download scheduling, download rate limiting.")
+    (license license:lgpl2.1+)))
+
+(define-public mktorrent
+  (package
+    (name "mktorrent")
+    (version "1.1")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/Rudde/mktorrent")
+                    (commit (string-append "v" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "17pdc5mandl739f8q26n5is8ga56s83aqcrwhlnnplbxwx2inidr"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:phases (modify-phases %standard-phases
+                  (delete 'configure))          ; no configure script
+       #:make-flags (list (string-append "CC=" ,(cc-for-target))
+                          (string-append "PREFIX=" (assoc-ref %outputs "out"))
+                          "NO_HASH_CHECK=1"
+                          "USE_LARGE_FILES=1"
+                          "USE_LONG_OPTIONS=1"
+                          "USE_PTHREADS=1")
+       #:tests? #f))                            ; no tests
+    (home-page "https://github.com/Rudde/mktorrent")
+    (synopsis "Utility to create BitTorrent metainfo files")
+    (description
+     "mktorrent is a simple command-line utility to create BitTorrent
+@dfn{metainfo} files, often known simply as @dfn{torrents}, from both single
+files and whole directories.  It can add multiple trackers and web seed URLs,
+and set the @code{private} flag to disallow advertisement through the
+distributed hash table (@dfn{DHT}) and Peer Exchange.  Hashing is multi-threaded
+and will take advantage of multiple processor cores where possible.")
+    (license (list license:public-domain ; sha1.*, used to build without OpenSSL
+                   license:gpl2+))))     ; with permission to link with OpenSSL
+
+(define-public libtorrent-rasterbar
+  (package
+    (name "libtorrent-rasterbar")
+    (version "2.0.13")
+    (source
+     (origin
+       (method url-fetch)
+       (uri
+        (string-append "https://github.com/arvidn/libtorrent/"
+                       "releases/download/v" version "/"
+                       "libtorrent-rasterbar-" version ".tar.gz"))
+       (sha256
+        (base32 "1gxinc6bw2nkkx2y4xkn4cyrs1h8m5irzbqgvqh293ii0rfbfb49"))))
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:configure-flags
+      #~(list "-Dpython-bindings=ON"
+              "-Dbuild_tests=ON")
+      ;; Tests do not reliably work when executed in parallel.
+      #:parallel-tests? #f
+      #:phases
+      #~(modify-phases %standard-phases
+          (replace 'check
+            (lambda* (#:key tests? parallel-tests? #:allow-other-keys)
+              (let* ((disabled-tests
+                      '(;; Requires a non-localhost IPv4 interface.
+                        "test_upnp"))
+                     (exclude-regex (string-append "^("
+                                                   (string-join disabled-tests "|")
+                                                   ")$"))
+                     (jobs (if parallel-tests?
+                               (number->string (parallel-job-count))
+                               "1")))
+                (when tests?
+                  (invoke "ctest"
+                          "-E" exclude-regex
+                          "-j" jobs
+                          "--output-on-failure"))))))))
+    (inputs (list boost-1.83 openssl))
+    (native-inputs
+     (list libfaketime
+           pkg-config
+           python-setuptools
+           python-wrapper))
+    (home-page "https://www.libtorrent.org/")
+    (synopsis "Feature-complete BitTorrent implementation")
+    (description
+     "libtorrent-rasterbar is a feature-complete C++ BitTorrent implementation
+focusing on efficiency and scalability.  It runs on embedded devices as well as
+desktops.")
+    (license license:bsd-2)))
+
+(define-public qbittorrent
+  (package
+    (name "qbittorrent")
+    (version "5.1.4")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/qbittorrent/qBittorrent")
+             (commit (string-append "release-" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1zja55b97cnij3vffmfa5p65dasybbm1gd3xjspw5yyypy5cl5zm"))))
+    (build-system qt-build-system)
+    (arguments
+     (list #:qtbase qtbase
+           #:configure-flags #~(list "-DTESTING=ON")
+           #:phases
+           #~(modify-phases %standard-phases
+               (replace 'check
+                 (lambda* (#:rest args)
+                   ;; Fix for "enable_testing" not in the top-level directory.
+                   (with-directory-excursion "test"
+                     (apply (assoc-ref %standard-phases 'check) args)))))))
+    (native-inputs
+     (list qttools))
+    (inputs
+     (list boost
+           libtorrent-rasterbar
+           openssl
+           python-wrapper
+           qtsvg
+           zlib))
+    (home-page "https://www.qbittorrent.org/")
+    (synopsis "Graphical BitTorrent client")
+    (description
+     "qBittorrent is a BitTorrent client programmed in C++/Qt that uses
+libtorrent (sometimes called libtorrent-rasterbar) by Arvid Norberg.
+
+It aims to be a good alternative to all other BitTorrent clients out there.
+qBittorrent is fast, stable and provides unicode support as well as many
+features.")
+    (license license:gpl2+)))
+
+(define-public qbittorrent-no-x
+  (let ((base qbittorrent))
+    (package
+      (inherit base)
+      (name "qbittorrent-no-x")
+      (arguments
+       (substitute-keyword-arguments arguments
+         ((#:configure-flags configure-flags)
+          #~(cons "-DGUI=OFF" #$configure-flags))))
+      (inputs
+       (modify-inputs inputs
+         (delete "qtsvg"))))))
+
+(define-public qbittorrent-enhanced
+  (package
+    (inherit qbittorrent)
+    (name "qbittorrent-enhanced")
+    (version "5.1.2.10")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/c0re100/qBittorrent-Enhanced-Edition")
+             (commit (string-append "release-" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "17yvx8k1fnawfkyhhzhl458l1bjg2dhnc6a456hkh2qr32jj4y23"))))
+    (home-page "https://github.com/c0re100/qBittorrent-Enhanced-Edition")
+    (description
+     "qBittorrent Enhanced is a bittorrent client based on qBittorrent with
+the following features:
+
+@itemize
+@item Auto Ban Xunlei, QQ, Baidu, Xfplay, DLBT and Offline downloader
+@item Auto Ban Unknown Peer from China Option (Default: OFF)
+@item Auto Update Public Trackers List (Default: OFF)
+@item Auto Ban BitTorrent Media Player Peer Option (Default: OFF)
+@item Peer whitelist/blacklist
+@end itemize")))
+
+(define-public qbittorrent-enhanced-no-x
+  (package
+    (inherit qbittorrent-enhanced)
+    (name "qbittorrent-enhanced-no-x")
+    (arguments (package-arguments qbittorrent-no-x))
+    (inputs (package-inputs qbittorrent-no-x))))
+
+(define-public deluge
+  (package
+    (name "deluge")
+    (version "2.2.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append
+             "https://ftp.osuosl.org/pub/deluge/source/"
+             (version-major+minor version) "/deluge-" version ".tar.xz"))
+       (sha256
+        (base32
+         "1kbac1qjbddcib0bldqaf0dcq5mqi9i2jv2fd4fayam4bcmjgfmr"))))
+    (build-system pyproject-build-system)
+    (inputs (list bash-minimal
+                  gtk+
+                  libtorrent-rasterbar
+                  nss-certs
+                  python-pycairo
+                  python-chardet
+                  python-dbus-1.2
+                  python-mako
+                  python-pygobject-3.50
+                  python-pillow
+                  python-pyopenssl
+                  python-pyxdg
+                  python-rencode
+                  python-service-identity
+                  python-setproctitle
+                  python-twisted
+                  python-zope-interface))
+    (native-inputs
+     (list intltool
+           python-pytest
+           python-pytest-twisted
+           python-setuptools
+           python-wheel
+           xorg-server-for-tests))
+    (native-search-paths
+     (list $SSL_CERT_DIR
+           $SSL_CERT_FILE))
+    (arguments
+     (list
+      #:test-flags
+      #~(list "-m" "not internet and not slow" ;; Ignore these markers.
+              "-k" (string-append "not "
+                                  (string-join
+                                   ;; Tests below require a running daemon.
+                                   (list "TestClient"
+                                         "TestJSON"
+                                         "TestJSONCustomUserCase"
+                                         "TestRPCRaiseDelugeErrorJSON"
+                                         "TestConsoleScriptEntryWithDaemon"
+                                         ;; These need a connection.
+                                         "TestWebAPI"
+                                         "TestWebServer"
+                                         ;; These failed with AssertionError.
+                                         "test_is_interface_name"
+                                         "test_is_interface")
+                                   " and not ")))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-before 'check 'pre-check
+            (lambda _
+              ;; Setup X server for tests and a writable HOME.
+              (system "Xvfb &")
+              (setenv "DISPLAY" ":0")
+              (setenv "HOME" "/tmp")))
+          (add-before 'wrap 'wrap-deluge
+            (lambda _
+              (for-each
+               (lambda (program)
+                 (wrap-program program
+                   `("GI_TYPELIB_PATH" ":" prefix (,(getenv "GI_TYPELIB_PATH")))))
+               (map (lambda (name)
+                      (string-append #$output "/bin/" name))
+                    (list "deluge" "deluge-gtk"))))))))
+    (home-page "https://www.deluge-torrent.org/")
+    (synopsis  "Fully-featured cross-platform ​BitTorrent client")
+    (description
+     "Deluge contains the common features to BitTorrent clients such as
+Protocol Encryption, DHT, Local Peer Discovery (LSD), Peer Exchange
+(PEX), UPnP, NAT-PMP, Proxy support, Web seeds, global and per-torrent
+speed limits.  Deluge heavily utilises the ​libtorrent library.  It is
+designed to run as both a normal standalone desktop application and as a
+​client-server.")
+    (license license:gpl3+)))

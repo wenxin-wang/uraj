@@ -1,0 +1,2316 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2013 Cyril Roelandt <tipecaml@gmail.com>
+;;; Copyright © 2014 Raimon Grau <raimonster@gmail.com>
+;;; Copyright © 2014 Mark H Weaver <mhw@netris.org>
+;;; Copyright © 2014 Andreas Enge <andreas@enge.fr>
+;;; Copyright © 2016, 2017, 2020-2022 Efraim Flashner <efraim@flashner.co.il>
+;;; Copyright © 2016, 2019, 2024 Ricardo Wurmus <rekado@elephly.net>
+;;; Copyright © 2016 doncatnip <gnopap@gmail.com>
+;;; Copyright © 2016, 2017, 2019 Clément Lassieur <clement@lassieur.org>
+;;; Copyright © 2016 José Miguel Sánchez García <jmi2k@openmailbox.org>
+;;; Copyright © 2018–2021 Tobias Geerinckx-Rice <me@tobias.gr>
+;;; Copyright © 2018 Fis Trivial <ybbs.daans@hotmail.com>
+;;; Copyright © 2020 Nicolas Goaziou <mail@nicolasgoaziou.fr>
+;;; Copyright © 2020 Simon South <simon@simonsouth.net>
+;;; Copyright © 2020 Paul A. Patience <paul@apatience.com>
+;;; Copyright © 2021 Vinícius dos Santos Oliveira <vini.ipsmaker@gmail.com>
+;;; Copyright © 2021 Greg Hogan <code@greghogan.com>
+;;; Copyright © 2022 Brandon Lucas <br@ndon.dk>
+;;; Copyright © 2022 Luis Henrique Gomes Higino <luishenriquegh2701@gmail.com>
+;;; Copyright © 2022 Leo Nikkilä <hello@lnikki.la>
+;;; Copyright © 2023 Yovan Naumovski <yovan@gorski.stream>
+;;; Copyright © 2023 Valter Nazianzeno <manipuladordedados@gmail.com>
+;;; Copyright © 2023 Timo Wilken <guix@twilken.net>
+;;; Copyright © 2024 Jan Wielkiewicz <tona_kosmicznego_smiecia@interia.pl>
+;;; Copyright © 2024, 2026 Maxim Cournoyer <maxim@guixotic.coop>
+;;; Copyright © 2025 Zheng Junjie <z572@z572.online>
+;;; Copyright © 2025 Ashish SHUKLA <ashish.is@lostca.se>
+;;; Copyright © 2025 Aaron Boyd <aaron.boyd.org@gmail.com>
+;;; Copyright © 2026 Nguyễn Gia Phong <cnx@loang.net>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (gnu packages lua)
+  #:use-module ((guix licenses) #:prefix license:)
+  #:use-module (guix packages)
+  #:use-module (guix download)
+  #:use-module (guix git-download)
+  #:use-module (guix gexp)
+  #:use-module (guix hg-download)
+  #:use-module (guix utils)
+  #:use-module (guix build-system gnu)
+  #:use-module (guix build-system cmake)
+  #:use-module (guix build-system meson)
+  #:use-module (guix build-system trivial)
+  #:use-module (gnu packages)
+  #:use-module (gnu packages autotools)
+  #:use-module (gnu packages base)
+  #:use-module (gnu packages bash)
+  #:use-module (gnu packages boost)
+  #:use-module (gnu packages curl)
+  #:use-module (gnu packages build-tools)
+  #:use-module (gnu packages check)
+  #:use-module (gnu packages compression)
+  #:use-module (gnu packages dns)
+  #:use-module (gnu packages gcc)
+  #:use-module (gnu packages glib)
+  #:use-module (gnu packages gperf)
+  #:use-module (gnu packages gnupg)
+  #:use-module (gnu packages gtk)
+  #:use-module (gnu packages haskell-xyz)
+  #:use-module (gnu packages libevent)
+  #:use-module (gnu packages libffi)
+  #:use-module (gnu packages linux)
+  #:use-module (gnu packages m4)
+  #:use-module (gnu packages ncurses)
+  #:use-module (gnu packages pkg-config)
+  #:use-module (gnu packages pretty-print)
+  #:use-module (gnu packages rdf)
+  #:use-module (gnu packages compiler-tools)
+  #:use-module (gnu packages readline)
+  #:use-module (gnu packages rsync)
+  #:use-module (gnu packages ssh)
+  #:use-module (gnu packages sqlite)
+  #:use-module (gnu packages tls)
+  #:use-module (gnu packages version-control)
+  #:use-module (gnu packages vim)
+  #:use-module (gnu packages wget)
+  #:use-module (gnu packages xml)
+  #:use-module (gnu packages xorg)
+  #:use-module (ice-9 match)
+  #:use-module ((srfi srfi-1) #:hide (zip)))
+
+(define (lua-search-paths version)
+  (list (search-path-specification
+          (variable "GUIX_LUA_PATH")
+          (separator ";")
+          (files (list (string-append "share/lua/" version))))
+        (search-path-specification
+          (variable "GUIX_LUA_CPATH")
+          (separator ";")
+          (files (list (string-append "lib/lua/" version))))))
+
+(define-public lua-5.3
+  (package
+    (name "lua")
+    (version "5.3.5")
+    (source (origin
+             (method url-fetch)
+             (uri (string-append "https://www.lua.org/ftp/lua-"
+                                 version ".tar.gz"))
+             (sha256
+              (base32 "1b2qn2rv96nmbm6zab4l877bd4zq7wpwm8drwjiy2ih4jqzysbhc"))
+             (patches (search-patches "lua-pkgconfig.patch"
+                                      "lua-liblua-so.patch"
+                                      "lua-5.x-search-path-helpers.patch"
+                                      "lua-5.3-search-paths.patch"))))
+    (build-system gnu-build-system)
+    (inputs (list readline))
+    (arguments
+     `(#:modules ((guix build gnu-build-system)
+                  (guix build utils)
+                  (srfi srfi-1))
+       #:test-target "test"
+       #:make-flags
+       (list "MYCFLAGS=-fPIC -DLUA_DL_DLOPEN"
+             (string-append "CC=" ,(cc-for-target))
+             (string-append "SYSLIBS=-L" (assoc-ref %build-inputs "readline")
+                            "/lib")
+             "linux")
+       #:phases
+       (modify-phases %standard-phases
+         (delete 'configure)
+         (replace 'install
+           (lambda* (#:key outputs #:allow-other-keys)
+             (let ((out (assoc-ref outputs "out")))
+               (invoke "make" "install"
+                       (string-append "INSTALL_TOP=" out)
+                       (string-append "INSTALL_MAN=" out
+                                      "/share/man/man1"))))))))
+    (native-search-paths (lua-search-paths "5.3"))
+    (home-page "https://www.lua.org/")
+    (synopsis "Embeddable scripting language")
+    (description
+     "Lua is a powerful, fast, lightweight, embeddable scripting language.  Lua
+combines simple procedural syntax with powerful data description constructs
+based on associative arrays and extensible semantics.  Lua is dynamically typed,
+runs by interpreting bytecode for a register-based virtual machine, and has
+automatic memory management with incremental garbage collection, making it ideal
+for configuration, scripting, and rapid prototyping.")
+    (license license:x11)))
+
+(define-public lua lua-5.3)
+
+(define-public lua-5.5
+  (package (inherit lua)
+           (version "5.5.0")
+           (source (origin
+                     (method url-fetch)
+                     (uri (string-append "https://www.lua.org/ftp/lua-"
+                                         version ".tar.gz"))
+                     (sha256
+                      (base32 "0gcbsr00difm2s82pflxg28zcnjka9048lncbfvwl1fhpcmw7k2p"))
+                     ;; Note: Some lua-5.4 patches seem to apply without issues
+                     (patches (search-patches "lua-5.4-pkgconfig.patch"
+                                              "lua-5.4-liblua-so.patch"
+                                              "lua-5.x-search-path-helpers.patch"
+                                              "lua-5.5-search-paths.patch"))))
+           (native-search-paths (lua-search-paths "5.5"))))
+
+(define-public lua-5.4
+  (package (inherit lua)
+           (version "5.4.8")
+           (arguments
+            (substitute-keyword-arguments arguments
+              ((#:make-flags flags)
+               (append (delete "linux" flags)
+                       '("linux-readline")))))
+           (source (origin
+                     (method url-fetch)
+                     (uri (string-append "https://www.lua.org/ftp/lua-"
+                                         version ".tar.gz"))
+                     (sha256
+                      (base32 "1bi90r9nzmqhjwhr8ysffhmhq30wxxcpqwmbxr33wyaf2npds62g"))
+                     (patches (search-patches "lua-5.4-pkgconfig.patch"
+                                              "lua-5.4-liblua-so.patch"
+                                              "lua-5.x-search-path-helpers.patch"
+                                              "lua-5.4-search-paths.patch"))))
+           (native-search-paths (lua-search-paths "5.4"))))
+
+
+(define-public lua-5.4-for-c++
+  (let ((lua-pkg lua-5.4))
+    (hidden-package
+     (package/inherit lua-pkg
+       (name (string-append (package-name lua-pkg) "-for-c++"))
+       (arguments
+        (substitute-keyword-arguments (package-arguments lua-pkg)
+          ((#:make-flags old-flags)
+           (map
+            (match-lambda
+              ((string-append "CC=" _)
+               `(string-append "CC=" ,(cxx-for-target)))
+              (else else))
+            old-flags))))))))
+
+(define-public lua-5.2
+  (package (inherit lua)
+           (version "5.2.4")
+           (source
+            (origin
+              (method url-fetch)
+              (uri (string-append "https://www.lua.org/ftp/lua-"
+                                  version ".tar.gz"))
+              (sha256
+               (base32 "0jwznq0l8qg9wh5grwg07b5cy3lzngvl5m2nl1ikp6vqssmf9qmr"))
+              (patches (search-patches "lua-pkgconfig.patch"
+                                       "lua-liblua-so.patch"
+                                       "lua-5.x-search-path-helpers.patch"
+                                       "lua-5.2-search-paths.patch"))))
+           (native-search-paths (lua-search-paths "5.2"))))
+
+(define-public lua-5.1
+  (package (inherit lua)
+    (version "5.1.5")
+    (source (origin
+             (method url-fetch)
+             (uri (string-append "https://www.lua.org/ftp/lua-"
+                                 version ".tar.gz"))
+             (sha256
+              (base32 "0cskd4w0g6rdm2q8q3i4n1h3j8kylhs3rq8mxwl9vwlmlxbgqh16"))
+             (patches (search-patches "lua51-liblua-so.patch"
+                                      "lua-CVE-2014-5461.patch"
+                                      "lua51-pkgconfig.patch"
+                                      "lua-5.x-search-path-helpers.patch"
+                                      "lua-5.1-search-paths.patch"))))
+    (native-search-paths (lua-search-paths "5.1"))))
+
+(define-public luajit
+  (let ((branch "v2.1")
+        (commit "04dca7911ea255f37be799c18d74c305b921c1a6"))
+    (package
+      (name "luajit")
+      (version (git-version branch "0" commit))
+      (source (origin
+                (method git-fetch)
+                (uri (git-reference
+                      (url "https://luajit.org/git/luajit.git")
+                      (commit commit)))
+                (file-name (git-file-name name version))
+                (sha256
+                 (base32
+                  "0srwk9nmiz8a93f70inq2597ff6xy203ckr4c0k7jcksdixymi9v"))
+                (patches (search-patches "lua-5.x-search-path-helpers.patch"
+                                         "luajit-search-paths.patch"))))
+      (build-system gnu-build-system)
+      (arguments
+       (list #:tests? #f                    ; luajit is distributed without tests
+             #:phases
+             #~(modify-phases %standard-phases
+                 #$@(if (target-riscv64?)
+                        #~((add-after 'unpack 'patch
+                             (lambda _
+                               (invoke
+                                "patch" "--force" "-p1" "-i"
+                                #$(local-file
+                                   (search-patch
+                                    "luajit-add-riscv64-support.patch"))))))
+                        #~())
+                 (delete 'configure)) ; no configure script
+             #:make-flags #~(list (string-append "PREFIX="
+                                                 (assoc-ref %outputs "out")))))
+      (native-search-paths
+       (list (search-path-specification
+               (variable "GUIX_LUA_PATH")
+               (separator ";")
+               (files (list "share/lua/5.1"
+                            "share/luajit-2.1")))
+             (search-path-specification
+               (variable "GUIX_LUA_CPATH")
+               (separator ";")
+               (files (list "lib/lua/5.1")))))
+      (home-page "https://www.luajit.org/")
+      (synopsis
+       "Just in time compiler for Lua programming language version 5.1")
+      ;; On powerpc64le-linux, the build fails with an error: "No support for
+      ;; PowerPC 64 bit mode (yet)".  See: https://issues.guix.gnu.org/49220
+      (supported-systems (fold delete %supported-systems
+                               (list "powerpc64le-linux")))
+      (description
+       "LuaJIT is a Just-In-Time Compiler (JIT) for the Lua
+programming language.  Lua is a powerful, dynamic and light-weight programming
+language.  It may be embedded or used as a general-purpose, stand-alone
+language.")
+      (license license:x11))))
+
+(define-public luajit-lua52-openresty
+  (package
+    (inherit luajit)
+    (name "luajit-lua52-openresty")
+    (version "2.1-20201229")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/openresty/luajit2.git")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "07haj27kbpbnkv836c2nd36h2xislrmri52w0zbpxvl68xk6g96p"))))
+    (arguments
+     `(#:tests? #f                      ;no test
+       #:make-flags (list (string-append "PREFIX=" (assoc-ref %outputs "out")))
+       #:phases
+       (modify-phases %standard-phases
+         (delete 'configure)            ;no configure script
+         (add-after 'unpack 'enable-lua52-compat
+           (lambda _
+             (substitute* "src/Makefile"
+               (("#(XCFLAGS\\+= -DLUAJIT_ENABLE_LUA52COMPAT)" _ flag) flag))
+             #t)))))
+    (home-page "https://github.com/openresty/luajit2")
+    (synopsis "OpenResty's Branch of LuaJIT 2")
+    (description
+     "This is the official OpenResty branch of LuaJIT.  It is not to be
+considered a fork, since changes are regularly synchronized from the upstream
+LuaJIT project.  This package also enables the Lua 5.2 compat mode needed by
+some projects.")))
+
+(define (make-lua-rewriter lua-package old-prefix new-prefix)
+  "Define a procedure that replaces lua inputs with LUA-PACKAGE.  This only
+operates on packages with a name starting with OLD-PREFIX, which is rewritten to
+NEW-PREFIX."
+  (define (transform-name name)
+    (if (string-prefix? old-prefix name)
+        (string-append new-prefix
+                       (substring name (string-length old-prefix)))
+        name))
+
+  (define (rewrite-input-labels inputs)
+    (map (lambda (input)
+           (match input
+             ((label (? package? package) outputs ...)
+              (cons* (transform-name label) package outputs))
+             (_
+              input)))
+         inputs))
+
+  (define (transform package)
+    (if (eq? package lua)
+        lua-package
+        (let* ((old-name (package-name package))
+               (new-name (transform-name old-name)))
+          (if (string= old-name new-name)
+              package
+              (package/inherit package
+                (location (package-location package))
+                (name new-name)
+                (source
+                 (cond
+                  ;; List of packages that shouldn't have their sources
+                  ;; rewritten.  Eventually we would like to remove this
+                  ;; source rewriting, but we'll do so progressively to avoid
+                  ;; the rebuilds.
+                  ((member (package-name package) '("lua-lunitx"))
+                   (package-source package))
+                  ;; If we're using {git,hg}-fetch, then rewrite the file-name
+                  ;; of the resulting package.  This avoids causing rebuilds
+                  ;; when migrating from the older method of defining Lua
+                  ;; packages.
+                  ((eq? (origin-method (package-source package)) git-fetch)
+                   (origin
+                     (inherit (package-source package))
+                     (file-name (git-file-name name (package-version package)))))
+                  ((eq? (origin-method (package-source package)) hg-fetch)
+                   (origin
+                     (inherit (package-source package))
+                     (file-name (hg-file-name name (package-version package)))))
+                  (else
+                   (package-source package))))
+                ;; We also need to rewrite the input labels, otherwise the
+                ;; differences cause rebuilds.
+                (inputs            (rewrite-input-labels (package-inputs package)))
+                (native-inputs     (rewrite-input-labels (package-native-inputs package)))
+                (propagated-inputs (rewrite-input-labels (package-propagated-inputs package))))))))
+
+  (define (cut? package)
+    (or (eq? package lua)
+        (eq? package lua-package)))
+
+  (package-mapping transform cut?))
+
+(define package-with-lua-5.5 (make-lua-rewriter lua-5.5 "lua-" "lua5.5-"))
+(define package-with-lua-5.4 (make-lua-rewriter lua-5.4 "lua-" "lua5.4-"))
+(define package-with-lua-5.3 (make-lua-rewriter lua     "lua-" "lua5.3-"))
+(define package-with-lua-5.2 (make-lua-rewriter lua-5.2 "lua-" "lua5.2-"))
+(define package-with-lua-5.1 (make-lua-rewriter lua-5.1 "lua-" "lua5.1-"))
+
+(define-syntax define-public-lua-variant
+  (syntax-rules (lua-5.5 lua-5.4 lua-5.3 lua-5.2 lua-5.1)
+    "Helper to define a single variant for PACKAGE, called NEW-PACKAGE, for the
+specified lua version.  We explicitly match the lua package name as a symbol, so
+we can pick the rewriting function to rewrite package names appropriately."
+    ((_ package (lua-5.5 new-package))
+     (define-public new-package (package-with-lua-5.5 package)))
+    ((_ package (lua-5.4 new-package))
+     (define-public new-package (package-with-lua-5.4 package)))
+    ((_ package (lua-5.3 new-package))
+     (define-public new-package (package-with-lua-5.3 package)))
+    ((_ package (lua-5.2 new-package))
+     (define-public new-package (package-with-lua-5.2 package)))
+    ((_ package (lua-5.1 new-package))
+     (define-public new-package (package-with-lua-5.1 package)))))
+
+(define-syntax-rule (define-public-lua-variants package (lua-version new-package) ...)
+  "Define variants of PACKAGE for each LUA-VERSION, naming the corresponding
+package NEW-PACKAGE."
+  (begin (define-public-lua-variant package (lua-version new-package)) ...))
+
+(define-syntax-rule (this-lua-version)
+  "Return the major+minor version string of the current package's lua input."
+  (version-major+minor (package-version (or (this-package-input "lua")
+                                            (this-package-native-input "lua")))))
+
+(define-syntax-rule (this-lua-input name)
+  "Return the package input which matches NAME, after replacing any lua- prefix
+with the appropriate luaX.X- prefix for this package."
+  (this-package-input
+   (if (string-prefix? "lua-" name)
+       (string-append "lua" (this-lua-version) "-" (substring name 4))
+       name)))
+
+(define-public lua-expat
+  (package
+    (name "lua-expat")
+    (version "1.5.2")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/lunarmodules/luaexpat")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "03wb1rr739qh9xvvi762kpiw5bs99m2plypq5caaan3qacm73rry"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? #f                       ;tests require "busted"
+      #:make-flags
+      #~(let ((lua-version #$(this-lua-version)))
+          (list (string-append "CC=" #$(cc-for-target))
+                (string-append "LUA_LDIR=" #$output "/share/lua/" lua-version)
+                (string-append "LUA_CDIR=" #$output "/lib/lua/" lua-version)))
+      #:phases
+      #~(modify-phases %standard-phases
+          (delete 'configure))))
+    (inputs
+     (list lua expat))
+    (home-page "https://github.com/lunarmodules/luaexpat")
+    (synopsis "SAX XML parser based on the Expat library")
+    (description "LuaExpat is a SAX XML parser based on the Expat library.")
+    (license (package-license lua-5.1))))
+
+(define-public-lua-variants lua-expat
+  (lua-5.5 lua5.5-expat)
+  (lua-5.4 lua5.4-expat)
+  (lua-5.3 lua5.3-expat)
+  (lua-5.2 lua5.2-expat)
+  (lua-5.1 lua5.1-expat))
+
+(define-public lua-socket
+  ;; The 3.1.0 tag still has 3.0.0 in a bunch of places.
+  (let ((commit "de359ea4083ac6d944216229e4104dc36537c29c")
+        (revision "1"))
+    (package
+      (name "lua-socket")
+      (version (git-version "3.1.0" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri
+          (git-reference
+            (url "https://github.com/lunarmodules/luasocket")
+            (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32 "1bdcdad8fq2p193jcvsv59wm5mifb07alvrxm8qq31qmgs1q4mpw"))))
+      (build-system gnu-build-system)
+      (arguments
+       (list
+        #:make-flags
+        #~(list (string-append "INSTALL_TOP=" #$output)
+                (string-append "LUAV=" #$(this-lua-version))
+                "MYCFLAGS=-DLUASOCKET_DEBUG")
+        #:modules
+        (cons '(ice-9 threads) %default-gnu-modules)
+        #:phases
+        #~(modify-phases %standard-phases
+            (delete 'configure)
+            (delete 'check)
+            (add-after 'install 'install-unix
+              (lambda* (#:key make-flags #:allow-other-keys)
+                (apply invoke "make" "install-unix" make-flags)))
+            (add-after 'install-unix 'check
+              (lambda _
+                (setenv "GUIX_LUA_CPATH"
+                        (string-append #$output "/lib/lua/" #$(this-lua-version)))
+                (setenv "GUIX_LUA_PATH"
+                        (string-append #$output "/share/lua/" #$(this-lua-version)))
+                (with-directory-excursion "test"
+                  (make-thread invoke "lua" "testsrvr.lua")
+                  (make-thread invoke "lua" "utestsrvr.lua")
+                  (for-each
+                   (lambda (test)
+                     (invoke "lua" (string-append test ".lua")))
+                   '("hello" "stufftest" "excepttest" "test_bind"
+                     "test_getaddrinfo" "ltn12test" "mimetest" "urltest"
+                     "test_socket_error" "testclnt" "utestclnt"))))))))
+      (inputs (list lua))
+      (home-page "https://lunarmodules.github.io/luasocket")
+      (synopsis "Network support for the Lua language")
+      (description
+       "LuaSocket is a Lua extension library that is composed by two parts:
+a C core that provides support for the TCP and UDP transport layers,
+and a set of Lua modules that add support for functionality commonly needed by
+applications that deal with the Internet.
+
+Among the supported modules, the most commonly used implement the
+SMTP (sending e-mails), HTTP (WWW access) and FTP (uploading and downloading
+files) client protocols.  These provide a very natural and generic interface
+to the functionality defined by each protocol.  In addition, you will find
+that the MIME (common encodings), URL (anything you could possible want to do
+with one) and LTN12 (filters, sinks, sources and pumps) modules can be very
+handy.")
+      (license (package-license lua-5.1)))))
+
+(define-public-lua-variants lua-socket
+  (lua-5.5 lua5.5-socket)
+  (lua-5.4 lua5.4-socket)
+  (lua-5.3 lua5.3-socket)
+  (lua-5.2 lua5.2-socket)
+  (lua-5.1 lua5.1-socket))
+
+(define-public lua-filesystem
+  (package
+    (name "lua-filesystem")
+    (version "1.9.0")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://github.com/keplerproject/luafilesystem")
+                     (commit (string-append "v"
+                                            (string-join
+                                              (string-split version #\.) "_")))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "0vd1b9rnbjl24bbnk91jrkli81dc1b2kvpjlsx319azjmynlk0y6"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:make-flags
+       (let ((out (assoc-ref %outputs "out"))
+             (lua-version ,(this-lua-version)))
+         (list (string-append "PREFIX=" out)
+               (string-append "LUA_LIBDIR=" out "/lib/lua/" lua-version)))
+       #:test-target "test"
+       #:phases
+       (modify-phases %standard-phases
+         (delete 'configure))))
+    (inputs
+     (list lua))
+    (home-page "https://keplerproject.github.io/luafilesystem/index.html")
+    (synopsis "File system library for Lua")
+    (description "LuaFileSystem is a Lua library developed to complement the
+set of functions related to file systems offered by the standard Lua
+distribution.  LuaFileSystem offers a portable way to access the underlying
+directory structure and file attributes.")
+    (license (package-license lua-5.1))))
+
+(define-public-lua-variants lua-filesystem
+  (lua-5.4 lua5.4-filesystem)
+  (lua-5.3 lua5.3-filesystem)
+  (lua-5.2 lua5.2-filesystem)
+  (lua-5.1 lua5.1-filesystem))
+
+(define-public lua-bee
+  ;; There are no releases; use the commit known to work with the packaged
+  ;; luamake.
+  (let ((commit "fe3feb2b62e8f0179dad5abb438ed4df39f675d4")
+        (revision "0"))
+    (package
+      (name "lua-bee")
+      (version (git-version "0.0.0" revision commit))
+      (source (origin
+                (method git-fetch)
+                (uri (git-reference
+                       (url "https://github.com/actboy168/bee.lua/")
+                       (commit commit)
+                       ;; Requires a few git submodules such as the Lua
+                       ;; sources to patch and a few source libraries.
+                       (recursive? #t)))
+                (file-name (git-file-name name version))
+                (sha256
+                 (base32
+                  "1iv4cdkgcs123zw67ngq4jfbp7p7hkmj8zg2lbblipmm0hivhbd2"))))
+      (build-system gnu-build-system)
+      (arguments
+       (list
+        ;; TODO: Re-enable the tests after luamake can use a newer bee commit
+        ;; (see:
+        ;; <https://github.com/actboy168/bee.lua/commit/679c566f0f26bcf0c19e37066e678993122e1f34>).
+        #:tests? #f
+        #:phases
+        #~(modify-phases %standard-phases
+            (delete 'configure)
+            (replace 'build
+              (lambda* (#:key parallel-build? #:allow-other-keys)
+                (invoke "luamake"
+                        "-EXE" "lua"
+                        "-notest"
+                        "-j" (if parallel-build?
+                                 (number->string (parallel-job-count))
+                                 "1")
+                        "-v")))
+            (replace 'check
+              (lambda* (#:key parallel-tests? tests? #:allow-other-keys)
+                (when tests?
+                  (invoke "luamake"
+                          "-EXE" "lua"
+                          "-j" (if parallel-tests?
+                                   (number->string (parallel-job-count))
+                                   "1")
+                          "test" "-v"))))
+            (replace 'install
+              (lambda _
+                (install-file "build/bin/lua"
+                              (string-append #$output "/bin"))
+                (install-file "build/bin/bee.so"
+                              (string-append #$output "/lib/")))))))
+      (native-inputs (list luamake))
+      (home-page "https://github.com/actboy168/bee.lua/")
+      (synopsis "Lua runtime with a few extra features")
+      (description "The Bee Lua runtime implements a few extra features
+such as:
+@itemize
+@item Deterministic tables traversal
+@item Enable @code{lua_assert} in debug mode
+@item Add error hook (for debugger)
+@item Add resume/yield hook (for debugger)
+@item Disable tail calls in debug mode (for debugger)
+@end itemize")
+      (license license:expat))))
+
+(define-public luamake
+  (package
+    (name "luamake")
+    (version "1.7")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://github.com/actboy168/luamake")
+                     (commit (string-append "v" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "075sp8dpcb81kwrpp843f1y00kvaqan09np6spf6b72z5dhf6aiw"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'copy-lua-bee-sources
+            (lambda* (#:key native-inputs inputs #:allow-other-keys)
+              (copy-recursively (dirname
+                                 (search-input-directory
+                                  (or native-inputs inputs) "bee"))
+                                "bee.lua")))
+          (add-after 'unpack 'patch-commands
+            (lambda* (#:key inputs #:allow-other-keys)
+              (substitute* "scripts/action.lua"
+                (("\"ninja\"")
+                 (format #f "~s" (search-input-file inputs "bin/ninja"))))))
+          (delete 'configure)
+          (replace 'build
+            (lambda* (#:key parallel-build? #:allow-other-keys)
+              (invoke "compile/build.sh" "-j"
+                      (if parallel-build?
+                          (number->string (parallel-job-count))
+                          "1")
+                      "notest" "-v")))
+          (replace 'check
+            (lambda* (#:key parallel-tests? tests? #:allow-other-keys)
+              (when tests?
+                (invoke "compile/build.sh" "-j"
+                        (if parallel-tests?
+                            (number->string (parallel-job-count))
+                            "1")
+                        "test" "-v"))))
+          (replace 'install
+            (lambda _
+              (let ((bin (string-append #$output "/bin"))
+                    (lib (string-append #$output "/lib/luamake")))
+                (install-file "luamake" lib)
+                (install-file "main.lua" lib)
+                (copy-recursively "scripts"
+                                  (string-append lib "/scripts"))
+                (copy-recursively "tools"
+                                  (string-append lib "/tools"))
+                (mkdir bin)
+                (symlink (string-append lib "/luamake")
+                         (string-append bin "/luamake"))))))))
+    (native-inputs (list (package-source lua-bee)
+                         ninja))
+    (inputs (list ninja))
+    (home-page "https://github.com/actboy168/luamake")
+    (synopsis "Make-inspired configuration and build system")
+    (description "Luamake is a platform independent configuration and
+build system that uses the standard Lua command-line interpreter.")
+    (license license:expat)))
+
+(define-public lua-language-server
+  (package
+    (name "lua-language-server")
+    (version "3.17.1")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://github.com/LuaLS/lua-language-server")
+                     (commit version)
+                     ;; There are quite a few bundled Lua libraries under the
+                     ;; '3rd' and 'meta/3rd' directories; most are currently
+                     ;; not packaged in Guix, and they all track exact
+                     ;; commits, so it would be annoying to maintain them as
+                     ;; separate origins (on top of having to patch the build
+                     ;; system to unbundle them).
+                     (recursive? #t)))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "1fjhh02iph0mplqrgxfrdqfydrppksjsgw3lg6k8y5w6g24l3z1m"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      ;; The test suite currently fails with luamake apparently attempting to
+      ;; find the bee.so shared object (see:
+      ;; <https://github.com/LuaLS/lua-language-server/issues/3325>).
+      #:tests? #f
+      #:phases
+      #~(modify-phases %standard-phases
+          (delete 'configure)
+          (replace 'build
+            (lambda* (#:key parallel-build? #:allow-other-keys)
+              (invoke "luamake"
+                      "-notest"
+                      "-j" (if parallel-build?
+                               (number->string (parallel-job-count))
+                               "1")
+                      "-v")))
+          (replace 'check
+            (lambda* (#:key parallel-tests? tests? #:allow-other-keys)
+              (when tests?
+                (invoke "luamake"
+                        "-j" (if parallel-tests?
+                                 (number->string (parallel-job-count))
+                                 "1")
+                        "test" "-v"))))
+          (replace 'install
+            ;; This is inspired by the package definition in Slackware.
+            (lambda* (#:key inputs #:allow-other-keys)
+              (let* ((bin (string-append #$output "/bin"))
+                     (lib (string-append #$output
+                                         "/libexec/lua-language-server"))
+                     (lib/bin (string-append lib "/bin")))
+                ;; XXX: The binary expects some odd layout to find its resources,
+                ;; hence the bin subdirectory under libexec.
+                (mkdir-p lib)
+                (for-each (lambda (x)
+                            (copy-recursively x (string-append lib "/" x)))
+                          (list "bin"
+                                "debugger.lua"
+                                "locale"
+                                "main.lua"
+                                "meta"
+                                "script"))
+                ;; Create a custom wrapper, adjusted to log elsewhere than in
+                ;; its read-only location under the store.
+                (mkdir bin)
+                (call-with-output-file (string-append bin "/lua-language-server")
+                  (lambda (p)
+                    (format p "#!~a
+exec ~a --logpath=\"/tmp/runtime-$USER/lua-language-server/log\" \
+--metapath=\"/tmp/runtime-$USER/lua-language-server/meta\" \"$@\""
+                            (search-input-file inputs "bin/sh")
+                            (string-append lib/bin
+                                           "/lua-language-server"))))
+                (chmod (string-append bin "/lua-language-server") #o755)))))))
+    (native-inputs (list luamake))
+    (inputs (list bash-minimal))        ;for the wrapper
+    (home-page "https://github.com/LuaLS/lua-language-server")
+    (synopsis "Lua language server")
+    (description "The Lua language server provides various language
+ features for Lua to make development easier and faster, including:
+@itemize
+@item Support for all recent versions of Lua, including LuaJIT
+@item Jump to definition
+@item Dynamic type checking
+@item Find references
+@item Diagnostics/Warnings
+@item Syntax checking
+@item Element renaming
+@item Hover to view details on variables, functions, and more
+@item Auto-completion
+@item Support for libraries
+@item Code formatting
+@item Spell checking
+@item Custom plugins
+@item Documentation generation
+@end itemize")
+    (license license:expat)))
+
+(define-public lua-ossl
+  (package
+    (name "lua-ossl")
+    (version "20220711")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/wahern/luaossl")
+                    (commit (string-append "rel-" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "1a9pgmc6fbhgh1m9ksz9fq057yzz46npqgakcsy9vngg47xacfdb"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:make-flags
+      #~(let ((lua-api-version #$(this-lua-version)))
+          (list (string-append "CC=" #$(cc-for-target))
+                "CFLAGS='-D HAVE_SYS_SYSCTL_H=0'" ; sys/sysctl.h is deprecated
+                (string-append "prefix=" #$output)
+                (string-append "LUA_APIS=" lua-api-version)))
+       #:phases
+       #~(modify-phases %standard-phases
+           (delete 'configure)
+           (delete 'check)
+           (add-after 'install 'check
+             (lambda _
+               (let ((lua-version #$(this-lua-version)))
+                 (setenv "LUA_CPATH"
+                         (string-append #$output "/lib/lua/" lua-version "/?.so;;"))
+                 (setenv "LUA_PATH"
+                         (string-append #$output "/share/lua/" lua-version "/?.lua;;"))
+                 (with-directory-excursion "regress"
+                   (for-each (lambda (f)
+                               (unless (member f (list
+                                                  ;; This test is for luajit only
+                                                  "./104-interposition-discarded.lua"
+                                                  ;; needs cqueues, which needs ossl
+                                                  "./148-custom-extensions.lua"))
+                                 (invoke "lua" f)))
+                             (find-files "." "^[0-9].*\\.lua$")))))))))
+    (inputs
+     (list lua openssl))
+    (home-page "https://25thandclement.com/~william/projects/luaossl.html")
+    (synopsis "OpenSSL bindings for Lua")
+    (description "The luaossl extension module for Lua provides comprehensive,
+low-level bindings to the OpenSSL library, including support for certificate
+and key management, key generation, signature verification, and deep bindings
+to the distinguished name, alternative name, and X.509v3 extension interfaces.
+It also binds OpenSSL's bignum, message digest, HMAC, cipher, and CSPRNG
+interfaces.")
+    (license license:expat)))
+
+(define-public-lua-variants lua-ossl
+  (lua-5.3 lua5.3-ossl)
+  (lua-5.2 lua5.2-ossl)
+  (lua-5.1 lua5.1-ossl))
+
+(define-public lua-sec
+  (package
+    (name "lua-sec")
+    (version "1.3.2")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://github.com/brunoos/luasec")
+                     (commit (string-append "v" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "0rrdfbnkd8pgqwh3f0iyd5cxy7g1h0568a88m3sq1z7715js4yx3"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? #f                       ;no tests
+      #:make-flags
+      #~(let* ((lua-api-version #$(this-lua-version))
+               (lua-path (string-append #$output "/share/lua/" lua-api-version))
+               (lua-cpath (string-append #$output "/lib/lua/" lua-api-version)))
+          (list "linux"
+                (string-append "CC=" #$(cc-for-target))
+                (string-append "LD=" #$(cc-for-target))
+                (string-append "LUAPATH=" lua-path)
+                (string-append "LUACPATH=" lua-cpath)))
+      #:phases #~(modify-phases %standard-phases
+                   (delete 'configure))))
+    (inputs (list lua openssl))
+    (propagated-inputs (list lua-socket))
+    (home-page "https://github.com/brunoos/luasec/wiki")
+    (synopsis "OpenSSL bindings for Lua")
+    (description
+     "LuaSec is a binding for OpenSSL library to provide TLS/SSL communication.
+It takes an already established TCP connection and creates a secure session
+between the peers.")
+    (license license:expat)))
+
+(define-public-lua-variants lua-sec
+  (lua-5.5 lua5.5-sec)
+  (lua-5.4 lua5.4-sec)
+  (lua-5.3 lua5.3-sec)
+  (lua-5.2 lua5.2-sec)
+  (lua-5.1 lua5.1-sec))
+
+(define-public lua-cqueues
+  (package
+    (name "lua-cqueues")
+    (version "20200726")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/wahern/cqueues")
+                    (commit (string-append "rel-" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "17gwqndlga6gnishgs6wk8cvgwzanddr42yikkg2xd4nanhcg8z9"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:modules '((guix build gnu-build-system)
+                  (guix build utils)
+                  (ice-9 string-fun))
+      #:make-flags
+      #~(let ((lua-api-version #$(this-lua-version)))
+          (list (string-append "CC=" #$(cc-for-target))
+                (string-append "LUA_APIS=" lua-api-version)))
+      #:phases
+      #~(modify-phases %standard-phases
+          (delete 'configure)
+          (delete 'check)
+          (replace 'install
+            (lambda* (#:key make-flags #:allow-other-keys)
+              (apply invoke "make" "install"
+                     (append make-flags
+                             (list (string-append "DESTDIR=" #$output)
+                                   "prefix=")))))
+          (add-after 'install 'check
+            (lambda* (#:key make-flags #:allow-other-keys)
+              (let*
+                  ((lua-version #$(this-lua-version))
+                   (env-suffix (if (equal? lua-version "5.1")
+                                   ""
+                                   (string-append
+                                    "_"
+                                    (string-replace-substring lua-version "." "_"))))
+
+                   (lua-cpath (lambda (p)
+                                (string-append p "/lib/lua/" lua-version "/?.so")))
+                   (lua-path (lambda (p)
+                               (string-append p "/share/lua/" lua-version "/?.lua"))))
+                ;; The test suite sets Lua-version-specific search-path variables
+                ;; when available so we must do the same, as these take
+                ;; precedence over the generic "LUA_CPATH" and "LUA_PATH"
+                (setenv (string-append "LUA_CPATH" env-suffix)
+                        (string-append
+                         (string-join (map lua-cpath (list #$output #$(this-lua-input "lua-ossl"))) ";")
+                         ";;"))
+                (setenv (string-append "LUA_PATH" env-suffix)
+                        (string-append
+                         (string-join (map lua-path (list #$output #$(this-lua-input "lua-ossl"))) ";")
+                         ";;"))
+
+                ;; Skip regression tests we expect to fail
+                (with-directory-excursion "regress"
+                  (for-each (lambda (f)
+                              (rename-file f (string-append f ".skip")))
+                            (append
+                             ;; Regression tests that require network
+                             ;; connectivity
+                             '("22-client-dtls.lua"
+                               "30-starttls-completion.lua"
+                               "62-noname.lua"
+                               "153-dns-resolvers.lua")
+
+                             ;; Regression tests that require LuaJIT
+                             '("44-resolvers-gc.lua"
+                               "51-join-defunct-thread.lua"
+                               ;; These both need the ffi module.
+                               "73-starttls-buffering.lua"
+                               "87-alpn-disappears.lua")
+
+                             ;; Regression tests that require Lua 5.3
+                             (if (not (equal? lua-version "5.3"))
+                                 '("152-thread-integer-passing.lua")
+                                 '()))))
+
+                (apply invoke "make" "check" make-flags)))))))
+    (native-inputs
+     (list m4))
+    (inputs
+     (list lua openssl))
+    (propagated-inputs
+     (list lua-ossl))
+    (home-page "https://25thandclement.com/~william/projects/cqueues.html")
+    (synopsis "Event loop for Lua using continuation queues")
+    (description "The cqueues extension module for Lua implements an event loop
+that operates through the yielding and resumption of coroutines.  It is designed
+to be non-intrusive, composable, and embeddable within existing applications.")
+    (license license:expat)))
+
+(define-public-lua-variants lua-cqueues
+  (lua-5.3 lua5.3-cqueues)
+  (lua-5.2 lua5.2-cqueues)
+  (lua-5.1 lua5.1-cqueues))
+
+(define-public lua-penlight
+  (package
+    (name "lua-penlight")
+    (version "1.7.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/Tieske/Penlight")
+             (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0qc2d1riyr4b5a0gnsmdw2lz5pw65s4ac60hc34w3mmk9l6yg6nl"))))
+    (build-system trivial-build-system)
+    (inputs
+     (list lua))
+    (propagated-inputs
+     (list lua-filesystem))
+    (arguments
+     `(#:modules ((guix build utils))
+       #:builder
+       (begin
+         (use-modules (guix build utils))
+         (let* ((source (assoc-ref %build-inputs "source"))
+                (lua-version ,(version-major+minor (package-version lua)))
+                (destination (string-append (assoc-ref %outputs "out")
+                                            "/share/lua/" lua-version)))
+           (mkdir-p destination)
+           (with-directory-excursion source
+             (copy-recursively "lua/" destination)))
+         #t)))
+    (home-page "http://tieske.github.io/Penlight/")
+    (synopsis "Collection of general purpose libraries for the Lua language")
+    (description "Penlight is a set of pure Lua libraries focusing on
+input data handling (such as reading configuration files), functional
+programming (such as map, reduce, placeholder expressions,etc), and OS
+path management.  Much of the functionality is inspired by the Python
+standard libraries.")
+    (license license:expat)))
+
+(define-public lua-ldoc
+  (package
+    (name "lua-ldoc")
+    (version "1.4.6")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/stevedonovan/LDoc")
+             (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1h0cf7bp4am54r0j8lhjs2l1c7q5vz74ba0jvw9qdbaqimls46g8"))))
+    (build-system gnu-build-system)
+    (inputs
+     (list lua))
+    (propagated-inputs
+     (list lua-penlight))
+    (arguments
+     `(#:tests? #f                 ;tests must run after installation.
+       #:phases
+       (modify-phases %standard-phases
+         (add-after 'unpack 'fix-installation-directory
+           (lambda* (#:key outputs #:allow-other-keys)
+             (let ((out (assoc-ref outputs "out"))
+                   (lua-version ,(version-major+minor (package-version lua))))
+               (substitute* "makefile"
+                 (("LUA=.*") "#\n")
+                 (("(LUA_PREFIX=).*" _ prefix)
+                  (string-append prefix out "\n"))
+                 (("(LUA_BINDIR=).*" _ prefix)
+                  (string-append prefix out "/bin\n"))
+                 (("(LUA_SHAREDIR=).*" _ prefix)
+                  (string-append prefix out "/share/lua/" lua-version "\n"))))
+             #t))
+         (delete 'configure)
+         (add-before 'install 'create-bin-directory
+           (lambda* (#:key outputs #:allow-other-keys)
+             (mkdir-p (string-append (assoc-ref outputs "out") "/bin"))
+             #t)))))
+    (home-page "https://stevedonovan.github.io/ldoc/")
+    (synopsis "Lua documentation generator")
+    (description
+     "LDoc is a LuaDoc-compatible documentation generation system for
+Lua source code.  It parses the declaration and documentation comments
+in a set of Lua source files and produces a set of XHTML pages
+describing the commented declarations and functions.")
+    (license license:expat)))
+
+(define-public lua-lgi
+  (package
+    (name "lua-lgi")
+    (version "0.9.2")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/pavouk/lgi")
+             (commit version)))
+       (file-name (git-file-name name version))
+       (patches (search-patches "lua-lgi-fix-ref.patch"
+                                "lua-lgi-fix-pango.patch"))
+       (sha256
+        (base32 "03rbydnj411xpjvwsyvhwy4plm96481d7jax544mvk7apd8sd5jj"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:make-flags
+       (list ,(string-append "CC=" (cc-for-target))
+             (string-append "PREFIX=" (assoc-ref %outputs "out")))
+       #:phases
+       (modify-phases %standard-phases
+         (delete 'configure)            ; no configure script
+         (add-before 'build 'set-env
+           (lambda* (#:key inputs #:allow-other-keys)
+             ;; We need to load cairo dynamically.
+             (let* ((cairo (string-append (assoc-ref inputs "cairo") "/lib")))
+               (setenv "LD_LIBRARY_PATH" cairo)
+               #t)))
+         (add-before 'build 'set-lua-version
+           (lambda _
+             ;; Lua version and therefore install directories are hardcoded.
+             (substitute* "./lgi/Makefile"
+               (("LUA_VERSION=5.1")
+                (format #f
+                        "LUA_VERSION=~a"
+                        ,(this-lua-version))))
+             #t))
+         (add-before 'check 'skip-test-gtk
+           (lambda _
+             ;; FIXME: Skip GTK tests:
+             ;;   gtk3 - can't get it to run with the xorg-server config below
+             ;;          and some non-gtk tests will also fail
+             ;;   gtk2 - lots of functions aren't implemented
+             ;; We choose gtk2 as the lesser evil and simply skip the test.
+             ;; Currently, awesome is the only package that uses lua-lgi but
+             ;; it doesn't need or interact with GTK using lua-lgi.
+             (substitute* "./tests/test.lua"
+               (("'gtk.lua',") "-- 'gtk.lua',"))
+             #t))
+         (add-before 'check 'start-xserver-instance
+           (lambda* (#:key inputs #:allow-other-keys)
+             ;; There must be a running X server during tests.
+             (system (format #f "~a/bin/Xvfb :1 &"
+                             (assoc-ref inputs "xorg-server")))
+             (setenv "DISPLAY" ":1")
+             #t)))))
+    (native-inputs
+     (list dbus ;tests use 'dbus-run-session'
+           pkg-config))
+    (inputs
+     `(("cairo" ,cairo)
+       ("glib" ,glib)
+       ("gobject-introspection" ,gobject-introspection)
+       ("gtk" ,gtk+-2)
+       ("libffi" ,libffi)
+       ("lua" ,lua)
+       ("pango" ,pango)
+       ("xorg-server" ,xorg-server)))
+    (home-page "https://github.com/pavouk/lgi/")
+    (synopsis "Lua bridge to GObject based libraries")
+    (description
+     "LGI is gobject-introspection based dynamic Lua binding to GObject based
+libraries.  It allows using GObject-based libraries directly from Lua.
+Notable examples are GTK+, GStreamer and Webkit.")
+    (license license:expat)))
+
+(define-public-lua-variants lua-lgi
+  (lua-5.3 lua5.3-lgi)
+  (lua-5.2 lua5.2-lgi)
+  (lua-5.1 lua5.1-lgi))
+
+(define-public lua-lpeg
+  (package
+    (name "lua-lpeg")
+    (version "1.1.0")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "http://www.inf.puc-rio.br/~roberto/lpeg/lpeg-"
+                                  version ".tar.gz"))
+              (sha256
+               (base32
+                "0aimsjpcpkh3kk65f0pg1z2bp6d83rn4dg6pgbx1yv14s9kms5ab"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:phases
+       (modify-phases %standard-phases
+         (delete 'configure)
+         ;; `make install` isn't available, so we have to do it manually
+         (replace 'install
+           (lambda* (#:key outputs #:allow-other-keys)
+             (let ((out (assoc-ref outputs "out"))
+                   (lua-version ,(this-lua-version)))
+               (install-file "lpeg.so"
+                             (string-append out "/lib/lua/" lua-version))
+               (install-file "re.lua"
+                             (string-append out "/share/lua/" lua-version))
+               #t))))
+       #:test-target "test"))
+    (inputs (list lua))
+    (synopsis "Pattern-matching library for Lua")
+    (description
+     "LPeg is a pattern-matching library for Lua, based on Parsing Expression
+Grammars (PEGs).")
+    (home-page "https://www.inf.puc-rio.br/~roberto/lpeg")
+    (license license:expat)))
+
+(define-public-lua-variants lua-lpeg
+  (lua-5.4 lua5.4-lpeg)
+  (lua-5.3 lua5.3-lpeg)
+  (lua-5.2 lua5.2-lpeg)
+  (lua-5.1 lua5.1-lpeg))
+
+(define-public lua-luv
+  (package
+    (name "lua-luv")
+    (version "1.52.1-0")
+    (source (origin
+              ;; The release tarball includes the sources of libuv but does
+              ;; not include the pkg-config files.
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/luvit/luv")
+                    (commit version)))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "109d1g4j8kfjixxnp70wb64wn6rhvpi9amcd71vs5f7398z8d0sr"))))
+    (build-system cmake-build-system)
+    (arguments
+     (list #:tests? #f                      ; there are none
+           #:configure-flags
+           #~'("-DWITH_LUA_ENGINE=Lua"
+               "-DWITH_SHARED_LIBUV=On"
+               "-DBUILD_MODULE=Off"
+               "-DBUILD_SHARED_LIBS=On"
+               "-DLUA_BUILD_TYPE=System")
+           #:phases
+           #~(modify-phases %standard-phases
+               (add-after 'unpack 'copy-lua-compat
+                 (lambda* _
+                   (copy-recursively #+(this-package-native-input "lua-compat")
+                                     "lua-compat")
+                   (setenv "CPATH"
+                           (string-append (getcwd) "/lua-compat/c-api:"
+                                          (or (getenv "CPATH") "")))
+                   #t)))))
+    (inputs
+     (list lua libuv-for-luv))
+    (native-inputs
+     `(("lua-compat"
+        ,(origin
+           (method git-fetch)
+           (uri (git-reference
+                 (url "https://github.com/keplerproject/lua-compat-5.3")
+                 (commit "v0.10")))
+           (file-name "lua-compat-5.3-checkout")
+           (sha256
+            (base32
+             "1caxn228gx48g6kymp9w7kczgxcg0v0cd5ixsx8viybzkd60dcn4"))))))
+    (home-page "https://github.com/luvit/luv/")
+    (synopsis "Libuv bindings for Lua")
+    (description
+     "This library makes libuv available to Lua scripts.")
+    (license license:asl2.0)))
+
+(define-public-lua-variants lua-luv
+  (lua-5.3 lua5.3-luv)
+  (lua-5.2 lua5.2-luv)
+  (lua-5.1 lua5.1-luv))
+
+;; Lua 5.3 is not supported, so this package is not exported.
+(define lua-bitop
+  (package
+    (name "lua-bitop")
+    (version "1.0.2")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "http://bitop.luajit.org/download/"
+                                  "LuaBitOp-" version ".tar.gz"))
+              (sha256
+               (base32
+                "16fffbrgfcw40kskh2bn9q7m3gajffwd2f35rafynlnd7llwj1qj"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:test-target "test"
+       #:make-flags
+       (list "INSTALL=install -pD"
+             (string-append "INSTALLPATH=printf "
+                            (assoc-ref %outputs "out")
+                            "/lib/lua/"
+                            ,(this-lua-version)
+                            "/bit/bit.so"))
+       #:phases
+       (modify-phases %standard-phases
+         (delete 'configure))))
+    (inputs (list lua))
+    (home-page "https://bitop.luajit.org/index.html")
+    (synopsis "Bitwise operations on numbers for Lua")
+    (description
+     "Lua BitOp is a C extension module for Lua which adds bitwise operations
+on numbers.")
+    (license license:expat)))
+
+(define-public-lua-variants lua-bitop
+  (lua-5.2 lua5.2-bitop)
+  (lua-5.1 lua5.1-bitop))
+
+(define-public lua-djot
+  (package
+    (name "lua-djot")
+    (version "0.2.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/jgm/djot.lua")
+             (commit version)))
+       (file-name (git-file-name name version))
+       (sha256 (base32 "0kivx4yyj2zhj23d93h5rr0ab7gkazd3z7r7aqv1bgmigcw47pj2"))
+       (modules '((guix build utils)))
+       (snippet #~(begin
+                    (delete-file-recursively "clib")
+                    (delete-file-recursively "doc/api")
+                    (delete-file "doc/djot.1")))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'patch-makefile
+            (lambda _
+              (substitute* "Makefile"
+                (("^all: .*") "all:\n"))))
+          (delete 'configure)
+          (replace 'check
+            (lambda* (#:key tests? #:allow-other-keys)
+              (when tests?
+                (invoke "lua" "test.lua"))))
+          (replace 'install
+            (lambda _
+              (let ((lua-path
+                     (string-append
+                      #$output
+                      "/share/lua/"
+                      #$(this-lua-version))))
+                (install-file "djot.lua" lua-path)
+                (copy-recursively "djot" (string-append lua-path "/djot"))))))))
+    (native-inputs (list lua))
+    (home-page "https://github.com/jgm/djot.lua")
+    (synopsis "Lua parser for the djot light markup language")
+    (description
+     "This package provides a Lua parser for djot, a light markup syntax.
+It can produce an AST, rendered HTML, or a stream of match tokens
+that identify elements by source position, which could be used
+for syntax highlighting or a linting tool.")
+    (license license:expat)))
+
+(define-public-lua-variants lua-djot
+  (lua-5.4 lua5.4-djot)
+  (lua-5.3 lua5.3-djot)
+  (lua-5.2 lua5.2-djot)
+  (lua-5.1 lua5.1-djot))
+
+(define-public djot
+  (package
+    (inherit lua5.1-djot)
+    (name "djot")
+    (arguments
+     (substitute-keyword-arguments (package-arguments lua5.1-djot)
+       ((#:phases phases)
+        #~(modify-phases #$phases
+            (replace 'patch-makefile
+              (lambda _
+                (substitute* "Makefile"
+                  (("^all: .*") "all: doc/djot.1\n"))))
+            (replace 'check
+              (lambda* (#:key tests? #:allow-other-keys)
+                (when tests?
+                  (invoke "luajit" "test.lua"))))
+            (add-after 'install 'install-bin-and-man
+              (lambda* (#:key inputs #:allow-other-keys)
+                (let ((out-lua (string-append #$output "/share/lua/5.1"))
+                      (out-bin (string-append #$output "/bin/djot")))
+                  (copy-file "bin/main.lua" "bin/djot")
+                  (substitute* "bin/djot"
+                    (("^local djot = require" all)
+                     (string-append
+                      "#!"
+                      (search-input-file inputs "bin/luajit")
+                      "\n"
+                      all)))
+                  (install-file "bin/djot" (string-append #$output "/bin"))
+                  (chmod out-bin #o755)
+                  (wrap-program out-bin
+                    `("GUIX_LUA_PATH" ";" = (,out-lua))))
+                (install-file "doc/djot.1"
+                              (string-append #$output "/share/man/man1"))))))))
+    (native-inputs (list pandoc))
+    (inputs (list luajit))))
+
+(define-public lua-readline
+  (package
+    (name "lua-readline")
+    (version "3.3")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference              ;Peter Billam's Lua module monorepo
+             (url "https://gitlab.com/peterbillam/pjb_lua.git")
+             (commit "c558b912032cb81508f1f41fcd1fa417ba9ea4f3")))
+       (file-name (git-file-name "pjb-lua" "2023.11.26"))
+       (sha256 (base32 "00xwfyf7p6lvm51msv67sjxw3xkjydfr32dq4p0wfn0ig3xz8m63"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? #f                       ;test_rl.lua is manual
+      #:phases
+      #~(let* ((lua-api-version #$(this-lua-version))
+               (lua-cpath (string-append #$output "/lib/lua/" lua-api-version))
+               (lua-path (string-append #$output "/share/lua/" lua-api-version))
+               (shared-object "C-readline.so"))
+          (modify-phases %standard-phases
+            (add-after 'unpack 'change-dir
+              (lambda _
+                (chdir "readline-0.0")))
+            (delete 'configure)
+            (replace 'build
+              (lambda _
+                (invoke #$(cc-for-target) "-O2" "-fPIC" "C-readline.c"
+                        "-llua" "-lreadline" "-shared" "-o" shared-object)))
+            (replace 'install
+              (lambda _
+                (install-file shared-object lua-cpath)
+                (install-file "readline.lua" lua-path)))))))
+    (inputs (list lua readline))
+    (home-page "https://peterbillam.gitlab.io/pjb_lua/lua/readline.html")
+    (synopsis "Simple Lua interface to the readline and history libraries")
+    (description
+     "This Lua module offers an interface to the GNU readline library.
+
+The function @code{readline()} is a wrapper, which invokes the GNU readline,
+adds the line to the end of the history list, and then returns the line.
+Usually you call @code{save_history()} before the program exits,
+so that the history list is saved to the @code{histfile}.
+
+This Lua module can dialogue with the user on the controlling-terminal
+of the process (typically @file{/dev/tty}) as returned by @code{ctermid()}.
+It also support most of readline's alternative interface, namely
+@code{handler_install}, @code{read_char} and @code{handler_remove},
+and readline's custom completion.")
+    (license license:expat)))
+
+(define-public-lua-variants lua-readline
+  (lua-5.5 lua5.5-readline)
+  (lua-5.4 lua5.4-readline)
+  (lua-5.3 lua5.3-readline)
+  (lua-5.2 lua5.2-readline)
+  (lua-5.1 lua5.1-readline))
+
+(define-public lua-scintillua
+  (package
+    (name "lua-scintillua")
+    (version "6.6")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/orbitalquark/scintillua")
+             (commit (string-append "scintillua_" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "121ilpy91wyprqp3la4xzbb60i2yp1xpnvjlahzgzg0vck48njm7"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:phases
+      #~(let* ((lua-api-version #$(this-lua-version))
+               (lua-cpath (string-append "/lib/lua/" lua-api-version))
+               (lua-path (string-append "/share/lua/" lua-api-version))
+               (scintillua (string-append #$output lua-path "/scintillua"))
+               (lexers (string-append scintillua "/lexers")))
+          (modify-phases %standard-phases
+            (delete 'configure)
+            (delete 'build)
+            (delete 'check)             ;move after install
+            (replace 'install
+              (lambda _
+                (mkdir-p scintillua)
+                (copy-recursively "lexers" lexers)
+                (substitute* (string-append lexers "/lexer.lua")
+                  (("package\\.path")
+                   (string-append "('" lexers "/?.lua;' .. package.path)")))
+                (with-output-to-file (string-append scintillua "/init.lua")
+                  (lambda ()
+                    (display
+                     "return require'scintillua.lexers.lexer'\n")))))
+            (add-after 'install 'set-lua-path
+              (lambda* (#:key inputs #:allow-other-keys)
+                (let ((input-dirs (map cdr (alist-delete "source" inputs))))
+                  (setenv "GUIX_LUA_CPATH"
+                          (string-join
+                           (map (lambda (prefix)
+                                  (string-append prefix lua-cpath))
+                                input-dirs)
+                           ";"))
+                  (setenv "GUIX_LUA_PATH"
+                          (string-join
+                           (map (lambda (prefix)
+                                  (string-append prefix lua-path))
+                                (cons #$output input-dirs))
+                           ";")))))
+            (add-after 'set-lua-path 'check
+              (lambda _
+                (substitute* "tests.lua"
+                  (("^package\\.path = .*") "")
+                  (("require\\('lexer'\\)") "require'scintillua'")
+                  (("'lexers'") (string-append "'" lexers "'"))
+                  (("test_lua51" all)
+                   (string-append "skip_" all)))
+                (invoke "lua" "tests.lua")))))))
+      (native-inputs (list lua))
+      (propagated-inputs (list lua-lpeg lua-filesystem))
+      (home-page "https://orbitalquark.github.io/scintillua/")
+      (synopsis "Collection of LPeg lexer for source code")
+      (description
+       "This Lua library provides LPeg lexers for source code syntax
+highlighting.  It can either be used by itself or as a drop-in replacement
+for Scintilla lexers.")
+      (license license:expat)))
+
+(define-public-lua-variants lua-scintillua
+  (lua-5.4 lua5.4-scintillua))
+
+(define-public lutok
+  (package
+    (name "lutok")
+    (version "0.6.2")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/freebsd/lutok")
+                    (commit (string-append name "-" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "1hk8shp1vkxa09qxaafcfrgc9098cr75n5zc192bv8yjyvz0hvc3"))))
+    (build-system gnu-build-system)
+    ;; Disable the test suite to avoid a circular dependency on kyua.
+    (arguments (list #:tests? #f))
+    (native-inputs (list autoconf automake libtool pkg-config))
+    (inputs (list atf))
+    (propagated-inputs (list lua-5.4))  ;included in c_gate.hpp
+    (home-page "https://github.com/freebsd/lutok")
+    (synopsis "Lightweight C++ API for Lua")
+    (description "Lutok is a lightweight C++ API library for Lua.
+
+Lutok provides thin C++ wrappers around the Lua C API to ease the interaction
+between C++ and Lua.  These wrappers make intensive use of @acronym{RAII,
+Resource Acquisition is Initialization} to prevent resource leakage, expose
+C++-friendly data types, report errors by means of exceptions and ensure that
+the Lua stack is always left untouched in the face of errors.  The library
+also provides a small subset of miscellaneous utility functions built on top
+of the wrappers.
+
+Lutok focuses on providing a clean and safe C++ interface; the drawback is
+that it is not suitable for performance-critical environments.  In order to
+implement error-safe C++ wrappers on top of a Lua C binary library, Lutok adds
+several layers or abstraction and error checking that go against the original
+spirit of the Lua C API and thus degrade performance.")
+    (license license:bsd-3)))
+
+(define-public selene
+  (package
+    (name "selene")
+    (version "2017.08.25")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/jeremyong/Selene")
+                    ;; The release is quite old.
+                    (commit "ffe1ade2568d4cff5894552be8f43e63e379a4c9")))
+              (file-name "Selene")
+              (sha256
+               (base32
+                "1axrgv3rxxdsaf807lwvklfzicn6x6gpf35narllrnz9lg6hn508"))))
+    (build-system cmake-build-system)
+    (arguments
+     `(#:configure-flags
+       ;; lua pc file in CMakeLists.txt is lua5.3.pc
+       '("-DLUA_PC_CFG=lua;lua-5.3;lua-5.1")
+       #:phases
+       ;; This is a header only library
+       (modify-phases %standard-phases
+         (delete 'build)
+         (replace 'install
+           (lambda* (#:key inputs outputs #:allow-other-keys)
+             (let* ((output (assoc-ref outputs "out"))
+                    (source (assoc-ref inputs "source"))
+                    (includedir (string-append output "/include")))
+               (copy-recursively
+                (string-append source "/include")
+                includedir))
+             #t))
+         ;; The path of test files are hard coded.
+         (replace 'check
+           (lambda* (#:key inputs outputs #:allow-other-keys)
+             (let* ((output (assoc-ref outputs "out"))
+                    (source (assoc-ref inputs "source"))
+                    (builddir (getcwd))
+                    (testdir  (string-append builddir "/test")))
+               (copy-recursively (string-append source "/test") testdir)
+               (invoke "make")
+               (mkdir-p "runner")
+               (copy-file "./test_runner" "./runner/test_runner")
+               (chdir "./runner")
+               (invoke "./test_runner")))))))
+    (native-inputs
+     (list lua pkg-config))
+    (home-page "https://github.com/jeremyong/Selene")
+    (synopsis "Lua C++11 bindings")
+    (description
+     "Selene is a simple C++11 header-only library enabling seamless
+ interoperability between C++ and Lua programming language.")
+    (license license:zlib)))
+
+(define-public lua-resty-core
+  (package
+    (name "lua-resty-core")
+    (version "0.1.18")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/openresty/lua-resty-core")
+                    (commit (string-append "v" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "1c58hykwpg5zqbyhrcb703pzwbkih409v3bh2gady6z2kj9q32dw"))))
+    (build-system trivial-build-system)
+    (arguments
+     `(#:modules ((guix build utils))
+       #:builder
+       (begin
+         (use-modules (guix build utils))
+         (let* ((luajit-major+minor ,(version-major+minor (package-version lua)))
+                (package-lua-resty (lambda (input output)
+                                     (mkdir-p (string-append output "/lib/lua"))
+                                     (copy-recursively (string-append input "/lib/resty")
+                                                       (string-append output "/lib/lua/resty"))
+                                     (copy-recursively (string-append input "/lib/ngx")
+                                                       (string-append output "/lib/ngx"))
+                                     (symlink (string-append output "/lib/lua/resty")
+                                              (string-append output "/lib/resty")))))
+           (package-lua-resty (assoc-ref %build-inputs "source")
+                              (assoc-ref %outputs "out")))
+         #t)))
+    (home-page "https://github.com/openresty/lua-resty-core")
+    (synopsis "Lua API for NGINX")
+    (description "This package provides a FFI-based Lua API for
+@code{ngx_http_lua_module} or @code{ngx_stream_lua_module}.")
+    (license license:bsd-2)))
+
+(define-public lua-resty-lrucache
+  (package
+    (name "lua-resty-lrucache")
+    (version "0.10")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/openresty/lua-resty-lrucache")
+                    (commit (string-append "v" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "1bsc54v1rvxmkwg7a2c01p192lvw5g576f589is8fy1m1c6v4ap8"))))
+    (build-system trivial-build-system)
+    (arguments
+     `(#:modules ((guix build utils))
+       #:builder
+       (begin
+         (use-modules (guix build utils))
+         (let* ((luajit-major+minor ,(version-major+minor (package-version lua)))
+                (package-lua-resty (lambda (input output)
+                                     (mkdir-p (string-append output "/lib/lua/" luajit-major+minor))
+                                     (copy-recursively (string-append input "/lib/resty")
+                                                       (string-append output "/lib/lua/" luajit-major+minor  "/resty"))
+                                     (symlink (string-append output "/lib/lua/" luajit-major+minor "/resty")
+                                              (string-append output "/lib/resty")))))
+           (package-lua-resty (assoc-ref %build-inputs "source")
+                              (assoc-ref %outputs "out")))
+         #t)))
+    (home-page "https://github.com/openresty/lua-resty-lrucache")
+    (synopsis "Lua LRU cache based on the LuaJIT FFI")
+    (description
+     "This package provides Lua LRU cache based on the LuaJIT FFI.")
+    (license license:bsd-2)))
+
+(define-public lua-resty-signal
+  (package
+    (name "lua-resty-signal")
+    (version "0.02")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/openresty/lua-resty-signal")
+                    (commit (string-append "v" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "13y1pqn45y49mhqwywasfdsid46d0c33yi6mrnracbnmvyxz1cif"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:tests? #f ;TODO: Run the test suite.
+       #:make-flags (list ,(string-append "CC=" (cc-for-target))
+                          (string-append "PREFIX=" %output))
+       #:phases
+       (modify-phases %standard-phases
+         (delete 'configure)
+         (add-after 'install 'install-lua
+           (lambda* (#:key inputs outputs #:allow-other-keys)
+             (use-modules (guix build utils))
+             (let* ((luajit-major+minor ,(version-major+minor (package-version lua)))
+                    (package-lua-resty (lambda (input output)
+                                         (mkdir-p (string-append output "/lib/lua/" luajit-major+minor))
+                                         (copy-recursively (string-append input "/lib/resty")
+                                                           (string-append output "/lib/lua/" luajit-major+minor  "/resty"))
+                                         (symlink (string-append output "/lib/lua/" luajit-major+minor "/resty")
+                                                  (string-append output "/lib/resty")))))
+               (package-lua-resty (assoc-ref inputs "source")
+                                  (assoc-ref outputs "out")))
+             #t)))))
+    (home-page "https://github.com/openresty/lua-resty-signal")
+    (synopsis "Lua library for killing or sending signals to Linux processes")
+    (description "This package provides Lua library for killing or sending
+signals to Linux processes.")
+    (license license:bsd-3)))
+
+(define-public lua-tablepool
+  (package
+    (name "lua-tablepool")
+    (version "0.01")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/openresty/lua-tablepool")
+                    (commit (string-append "v" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "03yjj3w6znvj6843prg84m0lkrn49l901f9hj9bgy3cj9s0awl6y"))))
+    (build-system trivial-build-system)
+    (arguments
+     `(#:modules ((guix build utils))
+       #:builder
+       (begin
+         (use-modules (guix build utils))
+         (let* ((luajit-major+minor ,(version-major+minor (package-version lua)))
+                (package-lua-resty (lambda (input output)
+                                     (mkdir-p (string-append output "/lib/lua/" luajit-major+minor))
+                                     (copy-recursively (string-append input "/lib")
+                                                       (string-append output "/lib")))))
+           (package-lua-resty (assoc-ref %build-inputs "source")
+                              (assoc-ref %outputs "out")))
+         #t)))
+    (home-page "https://github.com/openresty/lua-tablepool")
+    (synopsis "Lua table recycling pools for LuaJIT")
+    (description "This package provides Lua table recycling pools for LuaJIT.")
+    (license license:bsd-2)))
+
+(define-public lua-resty-shell
+  (package
+    (name "lua-resty-shell")
+    (version "0.03")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/openresty/lua-resty-shell")
+                    (commit (string-append "v" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "1s6g04ip4hr97r2pd8ry3alq063604s9a3l0hn9nsidh81ps4dp7"))))
+    (build-system trivial-build-system)
+    (arguments
+     `(#:modules ((guix build utils))
+       #:builder
+       (begin
+         (use-modules (guix build utils))
+         (let* ((luajit-major+minor ,(version-major+minor (package-version lua)))
+                (package-lua-resty (lambda (input output)
+                                     (mkdir-p (string-append output "/lib/lua/" luajit-major+minor))
+                                     (copy-recursively (string-append input "/lib/resty")
+                                                       (string-append output "/lib/lua/" luajit-major+minor  "/resty"))
+                                     (symlink (string-append output "/lib/lua/" luajit-major+minor "/resty")
+                                              (string-append output "/lib/resty")))))
+           (package-lua-resty (assoc-ref %build-inputs "source")
+                              (assoc-ref %outputs "out")))
+         #t)))
+    (home-page "https://github.com/openresty/lua-resty-shell")
+    (synopsis "Lua module for nonblocking system shell command executions")
+    (description "This package provides Lua module for nonblocking system
+shell command executions.")
+    (license license:bsd-3)))
+
+(define-public luarocks
+  (package
+    (name "luarocks")
+    (version "3.9.2")
+    (home-page "https://luarocks.org/")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "https://luarocks.org/releases/luarocks-"
+                                  version ".tar.gz"))
+              (sha256
+               (base32
+                "1nsfp7cwqcxa8vmkcqkgi5wc0iax0j3gbdfd183kw81cq3nf99mw"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:tests? #f ;upstream has no tests
+       #:phases
+       (modify-phases %standard-phases
+         (add-before 'build 'patch-bin-sh
+           (lambda* (#:key inputs #:allow-other-keys)
+             (substitute* '("GNUmakefile" "src/luarocks/fs/unix.lua"
+                            "src/luarocks/core/sysdetect.lua")
+               (("/bin/sh")
+                (search-input-file inputs "/bin/sh")))))
+         (replace 'configure
+           (lambda* (#:key outputs #:allow-other-keys)
+             (let ((out (assoc-ref outputs "out")))
+               (invoke "./configure"
+                       (string-append "--prefix=" out)))))
+         (add-after 'install 'patch-unzip
+           (lambda* (#:key inputs outputs #:allow-other-keys)
+             (substitute*
+                 (string-append
+                  (assoc-ref outputs "out") "/etc/luarocks/config-"
+                  ,(this-lua-version) ".lua") ;e.g. "5.2"
+               (("variables = \\{")
+                (string-append
+                 "variables = {\n"
+                 "   AR = \"" (search-input-file inputs "/bin/ar") "\";\n"
+                 "   BUNZIP2 = \"" (search-input-file inputs "/bin/bunzip2") "\";\n"
+                 "   CC = \"" (search-input-file inputs "/bin/gcc") "\";\n"
+                 "   CHMOD = \"" (search-input-file inputs "/bin/chmod") "\";\n"
+                 "   CP = \"" (search-input-file inputs "/bin/cp") "\";\n"
+                 "   CURL = \"" (search-input-file inputs "/bin/curl") "\";\n"
+                 "   FIND = \"" (search-input-file inputs "/bin/find") "\";\n"
+                 "   GIT = \"" (search-input-file inputs "/bin/git") "\";\n"
+                 "   GPG = \"" (search-input-file inputs "/bin/gpg") "\";\n"
+                 "   GUNZIP = \"" (search-input-file inputs "/bin/gunzip") "\";\n"
+                 "   HG = \"" (search-input-file inputs "/bin/hg") "\";\n"
+                 "   LD = \"" (search-input-file inputs "/bin/ld") "\";\n"
+                 "   LS = \"" (search-input-file inputs "/bin/ls") "\";\n"
+                 "   MAKE = \"" (search-input-file inputs "/bin/make") "\";\n"
+                 "   MD5SUM = \"" (search-input-file inputs "/bin/md5sum") "\";\n"
+                 "   MKDIR = \"" (search-input-file inputs "/bin/mkdir") "\";\n"
+                 "   MKTEMP = \"" (search-input-file inputs "/bin/mktemp") "\";\n"
+                 "   OPENSSL = \"" (search-input-file inputs "/bin/openssl") "\";\n"
+                 "   PWD = \"" (search-input-file inputs "/bin/pwd") "\";\n"
+                 "   RANLIB = \"" (search-input-file inputs "/bin/ranlib") "\";\n"
+                 "   RM = \"" (search-input-file inputs "/bin/rm") "\";\n"
+                 "   RMDIR = \"" (search-input-file inputs "/bin/rmdir") "\";\n"
+                 "   RSYNC = \"" (search-input-file inputs "/bin/rsync") "\";\n"
+                 "   SCP = \"" (search-input-file inputs "/bin/scp") "\";\n"
+                 "   TAR = \"" (search-input-file inputs "/bin/tar") "\";\n"
+                 "   TEST = \"" (search-input-file inputs "/bin/test") "\";\n"
+                 "   TOUCH = \"" (search-input-file inputs "/bin/touch") "\";\n"
+                 "   UNZIP = \"" (search-input-file inputs "/bin/unzip") " -n\";\n"
+                 "   WGET = \"" (search-input-file inputs "/bin/wget") "\";\n"
+                 "   ZIP = \"" (search-input-file inputs "/bin/zip") "\";"))))))))
+    (inputs (list lua
+                  bash-minimal
+                  ;; Executables required by luarocks.
+                  binutils
+                  bzip2
+                  coreutils
+                  curl
+                  findutils
+                  gcc
+                  git
+                  gnupg
+                  gzip
+                  gnu-make
+                  mercurial
+                  openssh
+                  openssl
+                  rsync
+                  tar
+                  unzip
+                  wget
+                  zip))
+    (native-inputs (list unzip))
+    (synopsis "Package manager for Lua modules")
+    (description
+     "LuaRocks is the package manager for the Lua programming
+language.
+
+It allows you to install Lua modules as self-contained packages called
+@url{https://luarocks.org/en/Types_of_rocks, @emph{rocks}}, which also contain
+version @url{https://luarocks.org/en/Dependencies, dependency} information.
+This information can be used both during installation, so that when one rock
+is requested all rocks it depends on are installed as well, and also
+optionally at run time, so that when a module is required, the correct version
+is loaded.  LuaRocks supports both local and
+@url{http://luarocks.org/en/Rocks_repositories, remote} repositories, and
+multiple local rocks trees.")
+    (license license:expat)))
+
+;; Luarocks doesn't use the usual "lua-" prefix, so it doesn't play nicely with
+;; our standard rewriter. Make a custom one just for this case for now.
+(define luarocks-5.2-rewriter
+  (make-lua-rewriter lua-5.2 "luarocks" "lua5.2-luarocks"))
+
+(define-public lua5.2-luarocks
+  (luarocks-5.2-rewriter luarocks))
+
+(define-public dkjson
+  (package
+    (name "dkjson")
+    (version "2.8")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "https://dkolf.de/dkjson-lua/dkjson-" version ".lua"))
+       (sha256
+        (base32 "0i3x9qzx2m25fpf1pd6j45imm1gpykpjxibbvfi9bcwgd1hg2fzb"))))
+    (build-system trivial-build-system)
+    (arguments
+     (list
+      #:modules '((guix build utils))
+      #:builder
+      #~(begin
+          (use-modules (guix build utils))
+          (let* ((luajit-major+minor
+                  #$(version-major+minor (package-version lua)))
+                 (lua-dir
+                  (string-append #$output "/share/lua/" luajit-major+minor)))
+            (mkdir-p lua-dir)
+            (copy-file #$source (string-append lua-dir "/dkjson.lua"))))))
+    (inputs (list lua))
+    (synopsis "JSON module for Lua")
+    (description
+     "dkjson is a lua module for processing json in lua. It can handle tasks
+ like encoding or decoding JSON objects to and from lua tables.")
+    (home-page "https://dkolf.de/dkjson-lua/")
+    (license license:expat)))
+
+(define-public fennel
+  (package
+    (name "fennel")
+    (version "1.6.1")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://git.sr.ht/~technomancy/fennel")
+                    (commit version)))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "0n58410gmxfnmgggdw6ap12fa68z5s7f83487b2apim52a8wpd9h"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list #:make-flags #~(list (string-append "PREFIX=" #$output))
+           #:test-target "test"
+           #:phases #~(modify-phases %standard-phases
+                        (delete 'configure)
+                        (add-after 'build 'patch-fennel
+                          (lambda* (#:key inputs #:allow-other-keys)
+                            ;; Remove IRC CI build status reporting
+                            (delete-file "test/irc.lua")
+                            (substitute* "test/init.lua"
+                              ((",\\{hooks=\\{exit=dofile\\(\"test/irc.lua\"\\)\\}\\}")
+                               ""))
+                            (substitute* "fennel"
+                              (("/usr/bin/env .*lua")
+                               (search-input-file inputs "/bin/lua")))))
+                        (delete 'check)
+                        (add-after 'install 'wrap
+                         (lambda _
+                           (wrap-program (string-append #$output "/bin/fennel")
+                             `("GUIX_LUA_CPATH" ";" suffix
+                               (,(getenv "GUIX_LUA_CPATH")))
+                             `("GUIX_LUA_PATH" ";" suffix
+                               (,(getenv "GUIX_LUA_PATH"))))))
+                        (add-after 'wrap 'check
+                          (assoc-ref %standard-phases
+                                     'check)))))
+    (inputs (list lua lua-readline))
+    (home-page "https://fennel-lang.org/")
+    (synopsis "Lisp that compiles to Lua")
+    (description
+     "Fennel is a programming language that brings together the speed,
+simplicity, and reach of Lua with the flexibility of a Lisp syntax and macro
+system.")
+    (license license:expat)))
+
+(define-public antifennel
+  (package
+    (version "0.2.0")
+    (name "antifennel")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://git.sr.ht/~technomancy/antifennel")
+             (commit version)))
+       (sha256
+        (base32 "1hd9h17q31b3gg88c657zq4han4air2ag55rrakbmcpy6n8acsqc"))
+       (file-name (git-file-name name version))))
+    (build-system gnu-build-system)
+    (inputs (list luajit))
+    (arguments
+     (list
+      #:phases #~(modify-phases %standard-phases
+                   (delete 'configure)
+                   ;; Tests pass after the fix introduced by the commit
+                   ;; ecd2169fcad1fa6616fdf6e6a8569f5b866601e5
+                   (delete 'check)
+                   (replace 'install
+                     (lambda _
+                       (install-file "antifennel"
+                                     (string-append #$output "/bin")))))))
+    (home-page "https://git.sr.ht/~technomancy/antifennel")
+    (synopsis "Turn Lua code into Fennel code")
+    (description
+     "This package provides a way to turn Lua code into Fennel code.
+This compiler does the opposite of what the Fennel compiler does.")
+    (license license:expat)))
+
+(define-public fnlfmt
+  (package
+    (name "fnlfmt")
+    (version "0.3.0")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://git.sr.ht/~technomancy/fnlfmt")
+                    (commit version)))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "06gzw7f20yw4192kymr4karxw3ia3apjnjqpm6vxph87c67d1fa3"))
+              (modules '((guix build utils)))
+              (snippet
+               #~(begin
+                   ;; Use input fennel instead of bundled fennel.
+                   (delete-file "fennel")
+                   (delete-file "fennel.lua")
+                   (substitute* "Makefile"
+                     (("./fennel") "fennel"))))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:modules ((guix build gnu-build-system)
+                  (guix build utils)
+                  (ice-9 match))
+       #:test-target "test"
+       #:phases
+       (modify-phases %standard-phases
+        (delete 'configure)
+        (add-before 'build 'patch-makefile
+         (lambda* (#:key native-inputs inputs #:allow-other-keys)
+          (substitute* "Makefile"
+           ;; Patch lua shebang that gets inserted to fnlfmt.
+           (("/usr/bin/env lua")
+            (search-input-file (or native-inputs inputs) "/bin/lua")))))
+        (replace 'install
+         ;; There is no install target; manually install the output file.
+         (lambda* (#:key outputs #:allow-other-keys)
+          (let* ((out (assoc-ref outputs "out"))
+                 (bin (string-append out "/bin")))
+           (for-each (lambda (file)
+                      (install-file file bin))
+            (find-files "." "fnlfmt")))))
+        (add-after 'install 'wrap
+         (lambda* (#:key outputs #:allow-other-keys)
+          (let* ((fnlfmt (assoc-ref outputs "out")))
+           (wrap-program (string-append fnlfmt "/bin/fnlfmt")
+             `("GUIX_LUA_PATH" ";" suffix (,(getenv "GUIX_LUA_PATH"))))
+           #t))))))
+    (inputs (list bash-minimal))
+    (native-inputs (list lua fennel))
+    (home-page "https://git.sr.ht/~technomancy/fnlfmt")
+    (synopsis "Automatic formatting of Fennel code")
+    (description
+     "Fnlfmt is a tool for automatically formatting Fennel code in a consistent
+way, following established lisp conventions.")
+    (license license:lgpl3+)))
+
+(define-public fennel-ls
+  (package
+    (name "fennel-ls")
+    (version "0.2.4")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://git.sr.ht/~xerool/fennel-ls")
+             (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1bi7dr0svnfldkl98fs1w5dd2ms1f8km5rg5ch8brl65z4pk12a4"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:make-flags #~(list "VENDOR=false")
+      #:tests? #f                ; tests require additional dependencies
+      #:phases
+      #~(let ((luajit-major+minor
+               #$(version-major+minor (package-version lua))))
+         (modify-phases %standard-phases
+          (delete 'configure)
+          (add-before 'build 'rm-vendored-deps
+            (lambda _
+              (delete-file-recursively "fennel")
+              (delete-file-recursively "deps/")))
+          (replace 'install
+            (lambda _
+              (install-file "fennel-ls"
+                            (string-append #$output "/bin"))))
+          (add-after 'install 'wrap
+            (lambda _
+              (wrap-program (string-append #$output "/bin/fennel-ls")
+                `("GUIX_LUA_PATH" ";" prefix (,(getenv "GUIX_LUA_PATH"))))))))))
+    (inputs (list bash-minimal lua fennel pandoc dkjson))
+    (synopsis "Language server for Fennel")
+    (description
+     "Fennel Language Server is a language server for the Fennel programming
+ language.")
+    (home-page "https://git.sr.ht/~xerool/fennel-ls")
+    (license license:expat)))
+
+(define-public lua-lunitx
+  (package
+    (name "lua-lunitx")
+    (version "0.8.2")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     ;; Upstream repository name is "lunit", but it provides
+                     ;; both lunit and lunitx modules.
+                     (url "https://github.com/dcurrie/lunit")
+                     (commit version)))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "0y9szbd2g8xk63s8781bjmw8sv3s5m6rnv47kh1sk21ml3mxi69y"))))
+    (build-system trivial-build-system)
+    (arguments
+      (list
+       #:modules '((guix build utils))
+       #:builder
+       #~(begin
+            (use-modules (guix build utils))
+            (let* ((lua (string-append #$(this-package-native-input "lua") "/bin/lua"))
+                   (lua-version #$(this-lua-version))
+                   (lua-dir (string-append #$output "/share/lua/" lua-version)))
+              (when #$(not (%current-target-system))
+                (with-directory-excursion (string-append #$source "/lua")
+                  (invoke lua "../test/selftest.lua")))
+              (mkdir-p lua-dir)
+              (copy-recursively (string-append #$source "/lua") lua-dir)))))
+    (native-inputs (list lua))
+    (home-page "https://github.com/dcurrie/lunit")
+    (synopsis "Unit testing framework for Lua")
+    (description "Lunit is a unit testing framework for Lua.  It includes
+lunitx extensions adding Lua 5.2 compatibility via @code{lunit.module} and
+the @code{lunitx} module for running tests automatically at program exit.")
+    (license license:expat)))
+
+(define-public-lua-variants lua-lunitx
+  (lua-5.4 lua5.4-lunitx)
+  (lua-5.3 lua5.3-lunitx)
+  (lua-5.2 lua5.2-lunitx)
+  (lua-5.1 lua5.1-lunitx))
+
+(define-public lua-lsqlite3
+  (package
+    (name "lua-lsqlite3")
+    (version "0.9.6")
+    (source (origin
+              (method url-fetch)
+              (uri "https://lua.sqlite.org/home/zip/lsqlite3_v096.zip")
+              (file-name (string-append "lsqlite3-v" version ".zip"))
+              (sha256
+               (base32
+                "10md6bfvbzflrhz4n75jr1ppmz86mwsip85llny23w2ld9iygipc"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? (not (%current-target-system))
+      #:phases
+      #~(modify-phases %standard-phases
+          (delete 'configure)
+          (replace 'build
+            (lambda _
+              (invoke #$(cc-for-target) "-fPIC" "-shared" "-O2"
+                      "-o" "lsqlite3.so"
+                      "lsqlite3.c"
+                      "-llua" "-lsqlite3")))
+          (replace 'install
+            (lambda* (#:key outputs #:allow-other-keys)
+              (let* ((out (assoc-ref outputs "out"))
+                     (lua-version #$(this-lua-version))
+                     (cmod-dir (string-append out "/lib/lua/" lua-version)))
+                (install-file "lsqlite3.so" cmod-dir))))
+          (delete 'check)
+          (add-after 'install 'check
+            (lambda* (#:key tests? outputs #:allow-other-keys)
+              (when tests?
+                ;; Built only for the upstream test suite (test-dyld.lua).
+                (invoke #$(cc-for-target) "-fPIC" "-shared" "-O2"
+                        "-o" "extras/libsqlitefunctions.so"
+                        "extras/extension-functions.c"
+                        "-lsqlite3")
+                ;; Only test the dynamic lsqlite3 module; lsqlite3complete
+                ;; (SQLite amalgamation) is not built by this package.
+                (invoke "lua" "test/tests-sqlite3.lua" "lsqlite3")
+                (invoke "lua" "test/test.lua")
+                (invoke "lua" "test/test-dyld.lua")))))))
+    (native-inputs (list unzip lua-lunitx))
+    (inputs (list lua sqlite))
+    (home-page "https://lua.sqlite.org/")
+    (synopsis "SQLite3 binding for Lua")
+    (description "LuaSQLite3 is a thin wrapper around the public domain
+SQLite3 database engine.  It provides a complete binding to the SQLite3 C API
+from within Lua programs.")
+    (license license:expat)))
+
+(define-public-lua-variants lua-lsqlite3
+  (lua-5.4 lua5.4-lsqlite3)
+  (lua-5.3 lua5.3-lsqlite3)
+  (lua-5.2 lua5.2-lsqlite3)
+  (lua-5.1 lua5.1-lsqlite3))
+
+(define-public lua-unbound
+  (package
+    (name "lua-unbound")
+    (version "1.1.0")
+    (source
+     (origin
+       (method hg-fetch)
+       (uri (hg-reference
+             (url "https://hg.sr.ht/~zash/luaunbound")
+             (changeset version)))
+       (file-name (hg-file-name name version))
+       (sha256
+        (base32 "17q5n9h1hnlx00x4k3h93rwyy41gfpd42yyp13rqkhhkmimw6q2y"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? #f                     ;no test
+      #:make-flags
+      #~(let ((lua-version #$(this-lua-version)))
+          (list
+           (string-append "CC=" #$(cc-for-target))
+           (string-append "LUA_VERSION=" lua-version)
+           (string-append "LUA_LIBDIR=/lib/lua/" lua-version)
+           (string-append "MYLDFLAGS=-L"
+                          #$(this-package-input "unbound") "/lib")
+           (string-append "DESTDIR=" #$output)))
+      #:phases
+      #~(modify-phases %standard-phases
+          (delete 'configure))))
+    (native-inputs (list pkg-config))
+    (inputs (list lua unbound))
+    (home-page "https://www.zash.se/luaunbound.html")
+    (synopsis "Unbound binding for Lua")
+    (description
+     "This is a binding to libunbound for Lua, allowing both asynchronous
+and DNSSEC-secured DNS lookups of arbitrary DNS record types.
+
+It was created because Prosody needs an asynchronous DNS library with support
+for SRV records, and the ones found at the time did one or the other, or was
+missing DNSSEC that allowed implementing DANE.
+
+It originated out of a need in the XMPP server software Prosody for an
+async-capable resolver library supporting SRV records, as well as a desire to
+experiment with DNSSEC and new DNS records.")
+    (license license:expat)))
+
+(define-public-lua-variants lua-unbound
+  (lua-5.5 lua5.5-unbound)
+  (lua-5.4 lua5.4-unbound)
+  (lua-5.3 lua5.3-unbound)
+  (lua-5.2 lua5.2-unbound))

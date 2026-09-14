@@ -1,0 +1,17 @@
+Libraries (such as 'libtorch_cpu.so') and executables (such as
+'torch_shm_manager') get installed, quite surprisingly, to
+'lib/pythonX.Y/site-packages/{bin,lib}'.  Make sure RUNPATH matches that.
+
+diff --git a/cmake/Dependencies.cmake b/cmake/Dependencies.cmake
+index be45936a8..7b19e5359 100644
+--- a/cmake/Dependencies.cmake
++++ b/cmake/Dependencies.cmake
+@@ -4,7 +4,7 @@ if(APPLE)
+   set(CMAKE_MACOSX_RPATH ON)
+   set(_rpath_portable_origin "@loader_path")
+ else()
+-  set(_rpath_portable_origin $ORIGIN)
++  set(_rpath_portable_origin $ORIGIN/../lib)
+ endif(APPLE)
+ # Use separate rpaths during build and install phases
+ set(CMAKE_SKIP_BUILD_RPATH  FALSE)

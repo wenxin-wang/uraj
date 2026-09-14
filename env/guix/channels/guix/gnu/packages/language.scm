@@ -1,0 +1,1423 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2015, 2016 Eric Bavier <bavier@member.fsf.org>
+;;; Copyright © 2017, 2018, 2020 Tobias Geerinckx-Rice <me@tobias.gr>
+;;; Copyright © 2018 Nikita <nikita@n0.is>
+;;; Copyright © 2019 Alex Vong <alexvong1995@gmail.com>
+;;; Copyright © 2020 Ricardo Wurmus <rekado@elephly.net>
+;;; Copyright © 2020, 2022 Julien Lepiller <julien@lepiller.eu>
+;;; Copyright © 2022 Milran <milranmike@protonmail.com>
+;;; Copyright © 2023 Maxim Cournoyer <maxim@guixotic.coop>
+;;; Copyright © 2023, 2025 gemmaro <gemmaro.dev@gmail.com>
+;;; Copyright © 2024 Efraim Flashner <efraim@flashner.co.il>
+;;; Copyright © 2024 Charles <charles@charje.net>
+;;; Copyright © 2024 Nicolas Graves <ngraves@ngraves.fr>
+;;; Copyright © 2024, 2025 Zheng Junjie <z572@z572.online>
+;;; Copyright © 2025 Janneke Nieuwenhuizen <janneke@gnu.org>
+;;; Copyright © 2026 Nguyễn Gia Phong <cnx@loang.net>
+;;; Copyright © 2026 Artyom V. Poptsov <poptsov.artyom@gmail.com>
+;;; Copyright © 2026 Spencer King <spencer.king@wustl.edu>
+;;; Copyright © 2026 Konstantin Suntsov <protvin@disroot.org>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (gnu packages language)
+  #:use-module (gnu packages)
+  #:use-module (gnu packages anthy)
+  #:use-module (gnu packages audio)
+  #:use-module (gnu packages autotools)
+  #:use-module (gnu packages base)
+  #:use-module (gnu packages check)
+  #:use-module (gnu packages cmake)
+  #:use-module (gnu packages compiler-tools)
+  #:use-module (gnu packages compression)
+  #:use-module (gnu packages dbm)
+  #:use-module (gnu packages dictionaries)
+  #:use-module (gnu packages docbook)
+  #:use-module (gnu packages fontutils)
+  #:use-module (gnu packages freedesktop)
+  #:use-module (gnu packages fribidi)
+  #:use-module (gnu packages gd)
+  #:use-module (gnu packages gettext)
+  #:use-module (gnu packages glib)
+  #:use-module (gnu packages gnome)
+  #:use-module (gnu packages gtk)
+  #:use-module (gnu packages ibus)
+  #:use-module (gnu packages java)
+  #:use-module (gnu packages libffi)
+  #:use-module (gnu packages linux)
+  #:use-module (gnu packages llvm)
+  #:use-module (gnu packages man)
+  #:use-module (gnu packages ncurses)
+  #:use-module (gnu packages ocr)
+  #:use-module (gnu packages pcre)
+  #:use-module (gnu packages perl)
+  #:use-module (gnu packages perl-check)
+  #:use-module (gnu packages pkg-config)
+  #:use-module (gnu packages pulseaudio)
+  #:use-module (gnu packages python)
+  #:use-module (gnu packages python-build)
+  #:use-module (gnu packages python-xyz)
+  #:use-module (gnu packages qt)
+  #:use-module (gnu packages ruby)
+  #:use-module (gnu packages rust)
+  #:use-module (gnu packages scheme)
+  #:use-module (gnu packages serialization)
+  #:use-module (gnu packages sqlite)
+  #:use-module (gnu packages swig)
+  #:use-module (gnu packages texinfo)
+  #:use-module (gnu packages web)
+  #:use-module (gnu packages xdisorg)
+  #:use-module (gnu packages xml)
+  #:use-module (gnu packages xorg)
+  #:use-module (guix build-system cargo)
+  #:use-module (guix build-system cmake)
+  #:use-module (guix build-system copy)
+  #:use-module (guix build-system glib-or-gtk)
+  #:use-module (guix build-system gnu)
+  #:use-module (guix build-system perl)
+  #:use-module (guix build-system pyproject)
+  #:use-module (guix build-system qt)
+  #:use-module (guix deprecation)
+  #:use-module (guix download)
+  #:use-module (guix gexp)
+  #:use-module (guix git-download)
+  #:use-module ((guix licenses) #:prefix license:)
+  #:use-module (guix modules)
+  #:use-module (guix packages)
+  #:use-module (guix utils)
+  #:use-module (srfi srfi-1))
+
+(define-public nimf
+  (package
+    (name "nimf")
+    (version "1.4.19")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/hamonikr/nimf")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0p88y1v4wngy9bn5xikcrljjd2wg7s73fg9gw839n3q8061qamk0"))))
+    (build-system glib-or-gtk-build-system)
+    (outputs '("out" "gtk" "qt" "doc"))
+    (arguments
+     (list
+      #:imported-modules `(,@%glib-or-gtk-build-system-modules
+                           (guix build cmake-build-system)
+                           (guix build qt-build-system)
+                           (guix build qt-utils))
+      #:modules `(((guix build qt-build-system) #:prefix qt:)
+                  ,@%glib-or-gtk-build-system-default-modules)
+      #:configure-flags
+      #~(list "--with-im-config-data"
+              "--with-imsettings-data"
+              (string-append "--with-html-dir=" #$output:doc
+                             "/share/gtk-doc/html")
+              (string-append "GTK_QUERY_IMMODULES3="
+                             (search-input-file
+                              %build-inputs "/bin/gtk-query-immodules-3.0"))
+              (string-append "GTK_QUERY_IMMODULES2="
+                             (search-input-file
+                              %build-inputs "/bin/gtk-query-immodules-2.0"))
+              (string-append "GTK_UPDATE_ICON_CACHE="
+                             (search-input-file
+                              %build-inputs "/bin/gtk-update-icon-cache")))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'patch-paths
+            (lambda* (#:key inputs #:allow-other-keys)
+              (substitute* "configure.ac"
+                (("/usr/share/anthy/anthy.dic")
+                 (search-input-file inputs "/share/anthy/anthy.dic")))
+              (substitute* "configure.ac"
+                (("ayatana-appindicator3-0.1")
+                 "appindicator3-0.1")
+                (("-Werror")
+                 "-Wno-error"))
+              (substitute* "modules/services/indicator/nimf-indicator.c"
+                (("libayatana-appindicator/app-indicator.h")
+                 "libappindicator/app-indicator.h"))
+              (substitute* "modules/clients/gtk/Makefile.am"
+                (("\\$\\(GTK3_LIBDIR\\)")
+                 (string-append #$output:gtk "/lib"))
+                (("\\$\\(GTK2_LIBDIR\\)")
+                 (string-append #$output:gtk "/lib")))
+              (substitute* "modules/clients/qt5/Makefile.am"
+                (("\\$\\(QT5_IM_MODULE_DIR\\)")
+                 (string-append #$output:qt
+                                "/lib/qt5/plugins/inputmethods")))
+              (substitute* '("bin/nimf-settings/Makefile.am"
+                             "data/apparmor-abstractions/Makefile.am"
+                             "data/Makefile.am" "data/im-config/Makefile.am"
+                             "data/imsettings/Makefile.am")
+                (("/etc")
+                 (string-append #$output "/etc"))
+                (("/usr/share")
+                 (string-append #$output "/share")))))
+          (add-after 'install 'qt-wrap
+            (assoc-ref qt:%standard-phases 'qt-wrap)))))
+    (native-inputs
+     (list autoconf
+           automake
+           docbook-xml-4.3
+           gettext-minimal
+           gobject-introspection
+           `(,gtk+-2 "bin")
+           `(,gtk+ "bin")
+           gtk-doc/stable
+           intltool
+           libtool
+           perl
+           pkg-config
+           which))
+    (inputs
+     (list anthy
+           libappindicator
+           gtk+-2
+           gtk+
+           libhangul
+           m17n-db
+           m17n-lib
+           qtbase-5
+           librime
+           (librsvg-for-system)
+           wayland
+           wayland-protocols
+           libx11
+           libxkbcommon
+           libxklavier))
+    (propagated-inputs (list glib))
+    (synopsis "Lightweight input method framework")
+    (description "Nimf is a lightweight, fast and extensible input method
+framework.  This package provides a fork of the original nimf project, that
+focuses especially on Korean input (Hangul, Hanja, ...).")
+    (home-page "https://github.com/hamonikr/nimf/")
+    (license license:lgpl3+)))
+
+(define-public hime
+  (package
+    (name "hime")
+    (version "0.9.11")
+    (source
+     (origin
+       (method git-fetch)
+       (uri
+        (git-reference
+          (url "https://github.com/hime-ime/hime.git")
+          (commit
+           (string-append "v" version))))
+       (file-name
+        (git-file-name name version))
+       (sha256
+        (base32 "1wn0ici78x5qh6hvv50bf76ld7ds42hzzl4l5qz34hp8wyvrwakw"))))
+    (build-system glib-or-gtk-build-system)
+    (arguments
+     (list
+      #:tests? #f                      ; No target
+      #:imported-modules
+      `(,@%glib-or-gtk-build-system-modules
+        (guix build cmake-build-system)
+        (guix build qt-build-system)
+        (guix build qt-utils))
+      #:modules
+      `(((guix build qt-build-system) #:prefix qt:)
+        ,@%glib-or-gtk-build-system-default-modules)
+      #:configure-flags
+      #~(list
+         ;; FIXME
+         ;; error: unknown type name ‘GtkStatusIcon’
+         "--disable-system-tray")
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-before 'configure 'relax-gcc-14-strictness
+            (lambda _
+              (setenv
+               "CFLAGS"
+               (string-append "-g -O2"
+                              " -Wno-error=incompatible-pointer-types"
+                              " -Wno-error=int-conversion"
+                              " -Wno-error=implicit-function-declaration"))))
+          (add-after 'unpack 'patch-std
+            (lambda _
+              (substitute* "configure"
+                (("gnu17")
+                 "gnu11")
+                (("gnu++17")
+                 "gnu++11"))))
+          (add-after 'install 'qt-wrap
+            (assoc-ref qt:%standard-phases 'qt-wrap)))))
+    (native-inputs
+     (list gettext-minimal
+           pkg-config
+           util-linux))
+    (inputs
+     (list anthy
+           libappindicator
+           libchewing
+           gtk+
+           qtbase-5
+           libxtst))
+    (synopsis "HIME Input Method Editor")
+    (description "Hime is an extremely easy-to-use input method framework.  It
+is lightweight, stable, powerful and supports many commonly used input methods,
+including Cangjie, Zhuyin, Dayi, Ranked, Shrimp, Greek, Anthy, Korean, Latin,
+Random Cage Fighting Birds, Cool Music etc.")
+    (home-page "https://hime-ime.github.io/")
+    (license (list license:gpl2+ license:lgpl2.1+
+                   license:fdl1.2+)))) ; documentation
+
+(define-public libchewing
+  (package
+    (name "libchewing")
+    (version "0.11.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/chewing/libchewing")
+             (commit (string-append "v" version))
+             ;; Also libchewing-data
+             (recursive? #t)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "08734i3xyq3wv5vimki7cz438v56ywk3x3assgfjlrngj1ijw0y8"))))
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:modules '(((guix build cargo-build-system) #:prefix cargo:)
+                  (guix build utils)
+                  (guix build cmake-build-system))
+      #:imported-modules `((guix build cmake-build-system)
+                           ,@%cargo-build-system-modules)
+      #:out-of-source? #f              ;For the tests.
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'prepare-cargo-build-system
+            (lambda args
+              (for-each
+               (lambda (phase)
+                 (format #t "Running cargo phase: ~a~%" phase)
+                 (apply (assoc-ref cargo:%standard-phases phase)
+                        ;; Keep the vendor-dir outside of cmake's directories.
+                        #:vendor-dir "../guix-vendor"
+                        #:cargo-target #$(cargo-triplet)
+                        args))
+               '(unpack-rust-crates
+                 configure
+                 check-for-pregenerated-files
+                 patch-cargo-checksums))))
+          (add-after 'unpack 'work-around-genkeystroke
+            (lambda _
+              ;; Remove this phase when we can find ncurses with cmake.
+              (substitute* "tests/CMakeLists.txt"
+                (("CURSES_FOUND") "FALSE")))))))
+    (native-inputs
+     (append
+      (list rust `(,rust "cargo") )
+      (or (and=> (%current-target-system)
+                 (compose list make-rust-sysroot))
+          '())))
+    (inputs
+     (cons* corrosion ncurses sqlite (cargo-inputs 'libchewing)))
+    (synopsis "Chinese phonetic input method")
+    (description "Chewing is an intelligent phonetic (Zhuyin/Bopomofo) input
+method, one of the most popular choices for Traditional Chinese users.")
+    (home-page "https://chewing.im/")
+    (license license:lgpl2.1+)))
+
+(define-public liblouis
+  (package
+    (name "liblouis")
+    (version "3.34.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri
+        (git-reference
+         (url "https://github.com/liblouis/liblouis")
+         (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1p6ihaxnbwqi8vk471h7v71lkrknk6ahxggm3p7v7l6hal7n6smq"))))
+    (build-system gnu-build-system)
+    (outputs '("out" "bin" "doc" "python"))
+    (arguments
+     (list
+      #:configure-flags #~(list "--disable-static" "--enable-ucs4")
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'fix-python-lib-path
+            (lambda _
+              (with-directory-excursion "python"
+                (substitute* "louis/__init__.py.in"
+                  (("###LIBLOUIS_SONAME###")
+                   (string-append #$output "/lib/###LIBLOUIS_SONAME###"))))))
+          (add-after 'install 'install-python-extension
+            (lambda _
+              (with-directory-excursion "python"
+                (invoke "python3" "setup.py" "install" "--root=/"
+                        (string-append "--prefix=" #$output:python))))))))
+    (native-inputs
+     (list autoconf
+           automake
+           clang-13
+           help2man
+           libtool
+           libyaml
+           texinfo
+           perl
+           pkg-config
+           python-minimal
+           python-setuptools))
+    (synopsis "Braille translator and back-translator")
+    (description "Liblouis is a braille translator and back-translator named in
+honor of Louis Braille.  It features support for computer and literary braille,
+supports contracted and uncontracted translation for many languages and has
+support for hyphenation.  New languages can easily be added through tables that
+support a rule- or dictionary based approach.  Tools for testing and debugging
+tables are also included.  Liblouis also supports math braille, Nemeth and
+Marburg.")
+    (home-page "https://liblouis.io/")
+    (license (list license:lgpl2.1+     ; library
+                   license:gpl3+))))    ; tools
+
+(define-public liblouisutdml
+  (let ((commit "84916f523709855a2d845645cb52a8b3d9b6197e")
+        (revision "2"))
+    (package
+      (name "liblouisutdml")
+      (version (git-version "2.12.0" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri
+          (git-reference
+           (url "https://github.com/liblouis/liblouisutdml")
+           (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32 "09azlyj32xzrwbaykkllfmjy0wd686ncxz5iy8na7crqvh2bs90z"))))
+      (build-system gnu-build-system)
+      (outputs '("out" "bin" "doc"))
+      (arguments
+       (list #:configure-flags
+             #~(list "--disable-static"
+                     "CFLAGS=-Wno-error=incompatible-pointer-types")))
+      (native-inputs
+       (list autoconf
+             automake
+             help2man
+             `(,icedtea "jdk")
+             libtool
+             texinfo
+             pkg-config))
+      (inputs
+       (list libxml2))
+      (propagated-inputs
+       (list liblouis
+             `(,liblouis "bin")))
+      (synopsis "Braille transcription services")
+      (description "Liblouisutdml is a library providing complete braille
+transcription services for xml, html and text documents.  It translates into
+appropriate braille codes and formats according to its style sheet and the
+specifications in the document.")
+      (home-page "https://liblouis.io/")
+      (license (list license:lgpl3+       ; library
+                     license:gpl3+)))))    ; tools
+
+(define-public libstemmer
+  (package
+    (name "libstemmer")
+    (version "2.2.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "https://snowballstem.org/dist/libstemmer_c-"
+                           version ".tar.gz"))
+       (sha256
+        (base32 "1hvphdl8pfq1q3cgh7bshsabsxc7id6wswrqilplwszkkkzdjhdr"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:tests? #f                      ; No tests exist
+       #:make-flags
+       (list
+        (string-append "CC=" ,(cc-for-target))
+        "CFLAGS=-fPIC")
+       #:phases
+       (modify-phases %standard-phases
+         (delete 'configure)
+         (replace 'install
+           (lambda* (#:key outputs #:allow-other-keys)
+             (let* ((out (assoc-ref outputs "out"))
+                    (out-bin (string-append out "/bin"))
+                    (out-include (string-append out "/include"))
+                    (out-lib (string-append out "/lib")))
+               (install-file "stemwords" out-bin)
+               (install-file "include/libstemmer.h" out-include)
+               (install-file "libstemmer.a" out-lib)))))))
+    (synopsis "Stemming Library")
+    (description "LibStemmer provides stemming library, supporting several
+languages.")
+    (home-page "https://snowballstem.org/")
+    (properties
+     '((release-monitoring-url . "https://snowballstem.org/download.html")
+       (upstream-name . "libstemmer_c")))
+    (license license:bsd-3)))
+
+(define-public perl-lingua-en-findnumber
+  (package
+    (name "perl-lingua-en-findnumber")
+    (version "1.32")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "mirror://cpan/authors/id/N/NE/NEILB/"
+                           "Lingua-EN-FindNumber-" version ".tar.gz"))
+       (sha256
+        (base32
+         "015ximzdp42v824llwlg2pd77vd0d172lb4xs55q9f9zhqf6s5qx"))))
+    (build-system perl-build-system)
+    (propagated-inputs
+     (list perl-lingua-en-words2nums))
+    (home-page "https://metacpan.org/release/Lingua-EN-FindNumber")
+    (synopsis "Locate (written) numbers in English text")
+    (description "This module provides a regular expression for finding
+numbers in English text.  It also provides functions for extracting and
+manipulating such numbers.")
+    (license license:perl-license)))
+
+(define-public perl-lingua-en-inflect
+  (package
+    (name "perl-lingua-en-inflect")
+    (version "1.903")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "mirror://cpan/authors/id/D/DC/DCONWAY/"
+                           "Lingua-EN-Inflect-" version ".tar.gz"))
+       (sha256
+        (base32
+         "0j8d1f1wvmgc11d71pc8xp8fv5a1nb2yfw1dgd19xhscn1klpvzw"))))
+    (build-system perl-build-system)
+    (native-inputs (list perl-module-build))
+    (home-page "https://metacpan.org/release/Lingua-EN-Inflect")
+    (synopsis "Convert singular to plural")
+    (description "Lingua::EN::Inflect provides plural inflections,
+\"a\"/\"an\" selection for English words, and manipulation of numbers as
+words.  Plural forms of all nouns, most verbs, and some adjectives are
+provided.  Where appropriate, \"classical\" variants (for example: \"brother\"
+-> \"brethren\", \"dogma\" -> \"dogmata\", etc.) are also provided.")
+    (license license:perl-license)))
+
+(define-public perl-lingua-en-inflect-number
+  (package
+    (name "perl-lingua-en-inflect-number")
+    (version "1.12")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "mirror://cpan/authors/id/N/NE/NEILB/"
+                           "Lingua-EN-Inflect-Number-" version ".tar.gz"))
+       (sha256
+        (base32
+         "1gxccynkaqav43ww43jp4rzkyr36x97jd03yb5f6yx0jhn1k7yv6"))))
+    (build-system perl-build-system)
+    (propagated-inputs
+     (list perl-lingua-en-inflect))
+    (home-page "https://metacpan.org/release/Lingua-EN-Inflect-Number")
+    (synopsis "Force number of words to singular or plural")
+    (description "This module extends the functionality of Lingua::EN::Inflect
+with three new functions for determining plurality of a word and forcefully
+converting a word to singular or plural.")
+    (license license:perl-license)))
+
+(define-public perl-lingua-en-inflect-phrase
+  (package
+    (name "perl-lingua-en-inflect-phrase")
+    (version "0.20")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "mirror://cpan/authors/id/R/RK/RKITOVER/"
+                           "Lingua-EN-Inflect-Phrase-" version ".tar.gz"))
+       (sha256
+        (base32
+         "1a6y1l2pjim2242wcpgz066di4pbzfgsjjdl7vg5a5wzm48qj1am"))))
+    (build-system perl-build-system)
+    (native-inputs
+     (list perl-test-nowarnings))
+    (propagated-inputs
+     (list perl-lingua-en-findnumber perl-lingua-en-inflect
+           perl-lingua-en-inflect-number perl-lingua-en-number-isordinal
+           perl-lingua-en-tagger))
+    (home-page "https://metacpan.org/release/Lingua-EN-Inflect-Phrase")
+    (synopsis "Inflect short English phrases")
+    (description "This module attempts to pluralize or singularize short
+English phrases.")
+    (license license:perl-license)))
+
+(define-public perl-lingua-en-number-isordinal
+  (package
+    (name "perl-lingua-en-number-isordinal")
+    (version "0.05")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "mirror://cpan/authors/id/R/RK/RKITOVER/"
+                           "Lingua-EN-Number-IsOrdinal-" version ".tar.gz"))
+       (sha256
+        (base32
+         "1mhqjvh2ad30gjab5b3a6mbr4aysyrscp4wp42yy5x6001a6km98"))))
+    (build-system perl-build-system)
+    (native-inputs
+     (list perl-try-tiny perl-test-fatal))
+    (propagated-inputs
+     (list perl-lingua-en-findnumber))
+    (home-page "https://metacpan.org/release/Lingua-EN-Number-IsOrdinal")
+    (synopsis "Detect if English number is ordinal or cardinal")
+    (description "This module will tell you if a number, either in words or as
+digits, is a cardinal or ordinal number.")
+    (license license:perl-license)))
+
+(define-public perl-lingua-en-tagger
+  (package
+    (name "perl-lingua-en-tagger")
+    (version "0.30")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "mirror://cpan/authors/id/A/AC/ACOBURN/"
+                           "Lingua-EN-Tagger-" version ".tar.gz"))
+       (sha256
+        (base32
+         "0nrnkvsf9f0a7lp82sanmy89ms2nqq1lvjqicvsagsvzp513bl5b"))))
+    (build-system perl-build-system)
+    (propagated-inputs
+     (list perl-memoize-expirelru perl-lingua-stem perl-html-parser
+           perl-html-tagset))
+    (home-page "https://metacpan.org/release/Lingua-EN-Tagger")
+    (synopsis "Part-of-speech tagger for English natural language processing")
+    (description "This module is a probability based, corpus-trained tagger
+that assigns part-of-speech tags to English text based on a lookup dictionary
+and a set of probability values.  The tagger assigns appropriate tags based on
+conditional probabilities - it examines the preceding tag to determine the
+appropriate tag for the current word.  Unknown words are classified according
+to word morphology or can be set to be treated as nouns or other parts of
+speech.  The tagger also extracts as many nouns and noun phrases as it can,
+using a set of regular expressions.")
+    (license license:gpl3)))
+
+(define-public perl-lingua-en-words2nums
+  (package
+    (name "perl-lingua-en-words2nums")
+    (version "0.18")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "mirror://cpan/authors/id/J/JO/JOEY/"
+                           "Lingua-EN-Words2Nums-" version ".tar.gz"))
+       (sha256
+        (base32
+         "118xx8qr1zbx30psv7ic55w65h15mc1vz6zicshfm96jgiwmcrb8"))))
+    (build-system perl-build-system)
+    (home-page "https://metacpan.org/release/Lingua-EN-Words2Nums")
+    (synopsis "Convert English text to numbers")
+    (description "This module converts English text into numbers.  It supports
+both ordinal and cardinal numbers, negative numbers, and very large numbers.")
+    (license license:perl-license)))
+
+(define-public perl-lingua-pt-stemmer
+  (package
+    (name "perl-lingua-pt-stemmer")
+    (version "0.02")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "mirror://cpan/authors/id/N/NE/NEILB/"
+                           "Lingua-PT-Stemmer-" version ".tar.gz"))
+       (sha256
+        (base32
+         "17c48sfbgwd2ivlgf59sr6jdhwa3aim8750f8pyzz7xpi8gz0var"))))
+    (build-system perl-build-system)
+    (home-page "https://metacpan.org/release/Lingua-PT-Stemmer")
+    (synopsis "Portuguese language stemming")
+    (description "This module implements a Portuguese stemming algorithm
+proposed in the paper A Stemming Algorithm for the Portuguese Language by
+Moreira, V. and Huyck, C.")
+    (license license:perl-license)))
+
+(define-public perl-lingua-stem
+  (package
+    (name "perl-lingua-stem")
+    (version "0.84")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "mirror://cpan/authors/id/S/SN/SNOWHARE/"
+                           "Lingua-Stem-" version ".tar.gz"))
+       (sha256
+        (base32
+         "12avh2mnnc7llmmshrr5bgb473fvydxnlqrqbl2815mf2dp4pxcg"))))
+    (build-system perl-build-system)
+    (native-inputs
+     (list perl-module-build))
+    (propagated-inputs
+     (list perl-lingua-pt-stemmer
+           perl-lingua-stem-fr
+           perl-lingua-stem-it
+           perl-lingua-stem-ru
+           perl-lingua-stem-snowball-da
+           perl-snowball-norwegian
+           perl-snowball-swedish
+           perl-text-german))
+    (home-page "https://metacpan.org/release/Lingua-Stem")
+    (synopsis "Stemming of words in various languages")
+    (description "This routine applies stemming algorithms to its parameters,
+returning the stemmed words as appropriate to the selected locale.")
+    (license license:perl-license)))
+
+(define-public perl-lingua-stem-fr
+  (package
+    (name "perl-lingua-stem-fr")
+    (version "0.02")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "mirror://cpan/authors/id/S/SD/SDP/"
+                           "Lingua-Stem-Fr-" version ".tar.gz"))
+       (sha256
+        (base32
+         "0vyrspwzaqjxm5mqshf4wvwa3938mkajd1918d9ii2l9m2rn8kwx"))))
+    (build-system perl-build-system)
+    (home-page "https://metacpan.org/release/Lingua-Stem-Fr")
+    (synopsis "Porter's stemming algorithm for French")
+    (description "This module uses a modified version of the Porter Stemming
+Algorithm to return a stemmed French word.")
+    (license license:perl-license)))
+
+(define-public perl-lingua-stem-it
+  (package
+    (name "perl-lingua-stem-it")
+    (version "0.02")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "mirror://cpan/authors/id/A/AC/ACALPINI/"
+                           "Lingua-Stem-It-" version ".tar.gz"))
+       (sha256
+        (base32
+         "1207r183s5hlh4mfwa6p46vzm0dhvrs2dnss5s41a0gyfkxp7riq"))))
+    (build-system perl-build-system)
+    (home-page "https://metacpan.org/release/Lingua-Stem-It")
+    (synopsis "Porter's stemming algorithm for Italian")
+    (description "This module applies the Porter Stemming Algorithm to its
+parameters, returning the stemmed Italian word.")
+    (license license:perl-license)))
+
+(define-public perl-lingua-stem-ru
+  (package
+    (name "perl-lingua-stem-ru")
+    (version "0.04")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "mirror://cpan/authors/id/N/NE/NEILB/"
+                           "Lingua-Stem-Ru-" version ".tar.gz"))
+       (sha256
+        (base32
+         "0a2jmdz7jn32qj5hyiw5kbv8fvlpmws8i00a6xcbkzb48yvwww0j"))))
+    (build-system perl-build-system)
+    (home-page "https://metacpan.org/release/Lingua-Stem-Ru")
+    (synopsis "Porter's stemming algorithm for Russian")
+    (description "This module applies the Porter Stemming Algorithm to its
+parameters, returning the stemmed Russian (KOI8-R only) word.")
+    (license license:perl-license)))
+
+(define-public perl-lingua-stem-snowball-da
+  (package
+    (name "perl-lingua-stem-snowball-da")
+    (version "1.01")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "mirror://cpan/authors/id/C/CI/CINE/"
+                           "Lingua-Stem-Snowball-Da-" version ".tar.gz"))
+       (sha256
+        (base32
+         "0mm0m7glm1s6i9f6a78jslw6wh573208arxhq93yriqmw17bwf9f"))))
+    (build-system perl-build-system)
+    (home-page "https://metacpan.org/release/Lingua-Stem-Snowball-Da")
+    (synopsis "Porters stemming algorithm for Danish")
+    (description "Lingua::Stem::Snowball::Da is a perl port of the danish
+stemmer at http://snowball.sourceforge.net, it was originally altered from the
+Lingua::Stem::Snowball::Se.")
+    (license license:gpl2)))
+
+(define-public perl-snowball-norwegian
+  (package
+    (name "perl-snowball-norwegian")
+    (version "1.2")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "mirror://cpan/authors/id/A/AS/ASKSH/"
+                           "Snowball-Norwegian-" version ".tar.gz"))
+       (sha256
+        (base32
+         "0675v45bbsh7vr7kpf36xs2q79g02iq1kmfw22h20xdk4rzqvkqx"))))
+    (build-system perl-build-system)
+    (native-inputs (list perl-module-build))
+    (home-page "https://metacpan.org/release/Snowball-Norwegian")
+    (synopsis "Porters stemming algorithm for Norwegian")
+    (description "Lingua::Stem::Snowball::No is a perl port of the norwegian
+stemmer at http://snowball.tartarus.org.")
+    (license license:perl-license)))
+
+(define-public perl-snowball-swedish
+  (package
+    (name "perl-snowball-swedish")
+    (version "1.2")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "mirror://cpan/authors/id/A/AS/ASKSH/"
+                           "Snowball-Swedish-" version ".tar.gz"))
+       (sha256
+        (base32
+         "0agwc12jk5kmabnpsplw3wf4ii5w1zb159cpin44x3srb0sr5apg"))))
+    (build-system perl-build-system)
+    (native-inputs (list perl-module-build))
+    (home-page "https://metacpan.org/release/Snowball-Swedish")
+    (synopsis "Porters stemming algorithm for Swedish")
+    (description "Lingua::Stem::Snowball::Se is a perl port of the swedish
+stemmer at http://snowball.sourceforge.net.")
+    (license license:perl-license)))
+
+(define-public perl-string-toidentifier-en
+  (package
+    (name "perl-string-toidentifier-en")
+    (version "0.12")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "mirror://cpan/authors/id/R/RK/RKITOVER/"
+                           "String-ToIdentifier-EN-" version ".tar.gz"))
+       (sha256
+        (base32
+         "12nw7h2yiybhdw0vnnpc7bif8ylhsn6kqf6s39dsrf9h54iq9yrs"))))
+    (build-system perl-build-system)
+    (propagated-inputs
+     (list perl-lingua-en-inflect-phrase perl-text-unidecode
+           perl-namespace-clean))
+    (home-page "https://metacpan.org/release/String-ToIdentifier-EN")
+    (synopsis "Convert strings to English program identifiers")
+    (description "This module provides a utility method, \"to_identifier\" for
+converting an arbitrary string into a readable representation using the ASCII
+subset of \"\\w\" for use as an identifier in a computer program.  The intent
+is to make unique identifier names from which the content of the original
+string can be easily inferred by a human just by reading the identifier.")
+    (license license:perl-license)))
+
+(define-public perl-text-german
+  (package
+    (name "perl-text-german")
+    (version "0.06")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "mirror://cpan/authors/id/U/UL/ULPFR/"
+                           "Text-German-" version ".tar.gz"))
+       (sha256
+        (base32
+         "1p87pgap99lw0nv62i3ghvsi7yg90lhn8vsa3yqp75rd04clybcj"))))
+    (build-system perl-build-system)
+    (home-page "https://metacpan.org/release/Text-German")
+    (synopsis "German grundform reduction")
+    (description "This module is a rather incomplete implementation of work
+done by Gudrun Putze-Meier.")
+    (license license:perl-license)))
+
+(define-public link-grammar
+  (package
+    (name "link-grammar")
+    (version "5.13.0")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://github.com/opencog/link-grammar")
+                     (commit (string-append "link-grammar-" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "028szynag4jqj24cw9kadzd4gs9a292aiqfxg37m5g7z95ds9nd1"))))
+    (build-system gnu-build-system)
+    (inputs (list automake
+                  autoconf
+                  autoconf-archive
+                  flex
+                  libtool
+                  pcre2
+                  pkg-config))
+    (home-page "https://opencog.github.io/link-grammar-website/")
+    (synopsis "Link grammar parser")
+    (description "The Link Grammar Parser is a syntactic parser of English,
+Russian, Arabic and Persian (and other languages as well), based on Link
+Grammar, an original theory of syntax and morphology.  Given a sentence, the
+system assigns to it a syntactic structure, which consists of a set of
+labelled links connecting pairs of words.  The parser also produces a
+\"constituent\" (HPSG style phrase tree) representation of a sentence (showing
+noun phrases, verb phrases, etc.).")
+    (license license:lgpl2.1+)))
+
+(define-public praat
+  (package
+    (name "praat")
+    (version "6.6.30")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/praat/praat.github.io")
+                    (commit (string-append "v" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "0a5cvb5iyq8v887czyx7dii8jfaih7ypbkg89zablrd1yfg8szq6"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list #:make-flags #~(list (string-append "CC="
+                                               #$(cc-for-target)))
+           #:phases #~(modify-phases %standard-phases
+                        (add-after 'unpack 'delete-failing-tests
+                          (lambda _
+                            (substitute* "test/script/fileReadable.praat"
+                              (("assert folderExists: \"~/?\"")
+                               ""))))
+                        (delete 'configure)
+                        (replace 'check
+                          (lambda* (#:key tests? #:allow-other-keys)
+                            (when tests?
+                              (invoke "./praat" "--run"
+                                      "test/runAllTests_batch.praat"))))
+                        (replace 'install
+                          (lambda* (#:key outputs #:allow-other-keys)
+                            (let* ((out (assoc-ref outputs "out"))
+                                   (bin (string-append out "/bin")))
+                              (mkdir-p bin)
+                              (copy-file "praat"
+                                         (string-append bin "/praat"))))))))
+    (inputs (list alsa-lib gtk+ jack-1 pulseaudio))
+    (native-inputs (list pkg-config))
+    (home-page "https://praat.org/")
+    (synopsis "Doing phonetics by computer")
+    (description
+     "Praat is a tool to perform phonetics tasks.  It can do speech
+analysis (pitch, formant, intensity, ...), speech synthesis, labelling, segmenting
+and manipulation.")
+    (license license:gpl2+)))
+
+(define-public libskk
+  (package
+    (name "libskk")
+    (version "1.1.1")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/ueno/libskk")
+                    (commit version)))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "0x2fswxybc5ii821ydmm7bjn8cyr35zi3mdld2zmaqc7863hzhqq"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list #:parallel-tests? #f        ;Concurrency issues in tests.
+           #:phases
+           #~(modify-phases %standard-phases
+               (add-after 'install 'symlink-skk-jisyo
+                 (lambda* (#:key inputs #:allow-other-keys)
+                   (let ((dict-dir "share/skk"))
+                     (symlink (search-input-directory inputs dict-dir)
+                              (in-vicinity #$output dict-dir))))))))
+    (native-inputs (list autoconf
+                         automake
+                         gettext-minimal
+                         gobject-introspection
+                         libtool
+                         pkg-config
+                         vala))
+    (inputs (list json-glib libxkbcommon skk-jisyo))
+    (propagated-inputs (list glib libgee)) ;required by libskk.pc
+    (home-page "https://github.com/ueno/libskk")
+    (synopsis "Dealing with Japanese kana-to-kanji conversion")
+    (description
+     "libskk is a library to deal with Japanese kana-to-kanji conversion method.")
+    (license license:gpl3+)))
+
+(define-public m17n-db
+  (package
+    (name "m17n-db")
+    (version "1.8.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://https.git.savannah.gnu.org/git/m17n/m17n-db.git")
+              (commit (string-append "REL-"
+                                     (string-replace-substring version
+                                                               "." "-")))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0d43qrsc9fhk6f42bkvzzp8sycqpmav0vhs533k7p30nmvlwvq8m"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:configure-flags
+      #~(list (string-append "--with-charmaps="
+                             (search-input-directory %build-inputs
+                                                     "/share/i18n/charmaps")))))
+    (native-inputs
+     (list autoconf
+           automake
+           gettext-minimal))
+    ;; INFO: With `guix lint' the home-page URI returns a small page saying
+    ;; that your browser does not handle frames. This triggers the "URI
+    ;; returns suspiciously small file" warning.
+    (home-page "https://www.nongnu.org/m17n/")
+    (synopsis "Multilingual text processing library (database)")
+    (description
+     "The m17n library realizes multilingualization of many aspects of
+applications.  The m17n library represents multilingual text as an object
+named M-text.  M-text is a string with attributes called text properties, and
+designed to substitute for string in C.  Text properties carry any information
+required to input, display and edit the text.
+
+This package contains the library database.")
+    (license license:lgpl2.1+)))
+
+(define-public m17n-lib
+  (package
+    (name "m17n-lib")
+    (version "1.8.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://https.git.savannah.gnu.org/git/m17n/m17n-lib.git")
+              (commit (string-append "REL-"
+                                     (string-replace-substring version
+                                                               "." "-")))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0zvgs9xf9lnhab3n8r3ywc1zbpnz5548gm7g03r7r9b587pvz5zx"))
+       (patches
+        (search-patches "m17n-lib-1.8.0-use-pkg-config-for-freetype.patch"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:parallel-build? #f
+      #:phases
+      (if (%current-target-system)
+          #~(modify-phases %standard-phases
+              ;; INFO: AC_FUNC_MALLOC and AC_FUNC_REALLOC usually unneeded.
+              ;; See <https://lists.gnu.org/archive/html/autoconf/2003-02/msg00017.html>
+              (add-after 'unpack 'fix-rpl_malloc
+                (lambda _
+                  (substitute* "configure.ac"
+                    (("AC_FUNC_MALLOC") "")
+                    (("AC_FUNC_REALLOC") "")))))
+          #~%standard-phases)))
+    (native-inputs
+     (list autoconf
+           automake
+           gettext-minimal
+           libtool
+           pkg-config))
+    (inputs
+     (list fribidi
+           gd
+           libotf
+           libxft
+           libxml2
+           m17n-db))
+    ;; With `guix lint' the home-page URI returns a small page saying
+    ;; that your browser does not handle frames. This triggers the "URI
+    ;; returns suspiciously small file" warning.
+    (home-page "https://www.nongnu.org/m17n/")
+    (synopsis "Multilingual text processing library (runtime)")
+    (description "The m17n library realizes multilingualization of
+many aspects of applications.  The m17n library represents
+multilingual text as an object named M-text.  M-text is a string with
+attributes called text properties, and designed to substitute for
+string in C.  Text properties carry any information required to input,
+display and edit the text.
+
+This package contains the library runtime.")
+    (license license:lgpl2.1+)))
+
+(define-public mecab
+  (package
+    (name "mecab")
+    (version "0.996")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://github.com/taku910/mecab")
+                     ;; latest commit
+                     (commit "046fa78b2ed56fbd4fac312040f6d62fc1bc31e3")))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "1hdv7rgn8j0ym9gsbigydwrbxa8cx2fb0qngg1ya15vvbw0lk4aa"))
+              (patches
+                (search-patches
+                  "mecab-variable-param.patch"))))
+    (build-system gnu-build-system)
+    (native-search-paths
+      (list (search-path-specification
+              (variable "MECAB_DICDIR")
+              (separator #f)
+              (files '("lib/mecab/dic")))))
+    (arguments
+     `(#:phases
+       (modify-phases %standard-phases
+         (add-after 'unpack 'chdir
+           (lambda _
+             (chdir "mecab")))
+         (add-before 'build 'add-mecab-dicdir-variable
+           (lambda _
+             (substitute* "mecabrc.in"
+               (("dicdir = .*")
+                "dicdir = $MECAB_DICDIR"))
+             (substitute* "mecab-config.in"
+               (("echo @libdir@/mecab/dic")
+                "if [ -z \"$MECAB_DICDIR\" ]; then
+  echo @libdir@/mecab/dic
+else
+  echo \"$MECAB_DICDIR\"
+fi")))))))
+    (inputs (list libiconv))
+    (home-page "https://taku910.github.io/mecab")
+    (synopsis "Morphological analysis engine for texts")
+    (description "Mecab is a morphological analysis engine developed as a
+collaboration between the Kyoto university and Nippon Telegraph and Telephone
+Corporation.  The engine is independent of any language, dictionary or corpus.")
+    (license (list license:gpl2+ license:lgpl2.1+ license:bsd-3))))
+
+(define-public mecab-ipadic
+  (package
+    (name "mecab-ipadic")
+    (version "2.7.0")
+    (source (package-source mecab))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:configure-flags
+       (list (string-append "--with-dicdir=" (assoc-ref %outputs "out")
+                            "/lib/mecab/dic")
+             "--with-charset=utf8")
+       #:phases
+       (modify-phases %standard-phases
+         (add-after 'unpack 'chdir
+           (lambda _
+             (chdir "mecab-ipadic")))
+         (add-before 'configure 'set-mecab-dir
+           (lambda* (#:key outputs #:allow-other-keys)
+             (setenv "MECAB_DICDIR" (string-append (assoc-ref outputs "out")
+                                                   "/lib/mecab/dic")))))))
+    (native-inputs (list mecab)); for mecab-config
+    (home-page "https://taku910.github.io/mecab")
+    (synopsis "Dictionary data for MeCab")
+    (description "This package contains dictionary data derived from
+ipadic for use with MeCab.")
+    (license (license:non-copyleft "mecab-ipadic/COPYING"))))
+
+(define-public mecab-unidic
+  (package
+    (name "mecab-unidic")
+    (version "3.1.0")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "https://clrd.ninjal.ac.jp/unidic_archive/cwj/"
+                                  version "/unidic-cwj-" version ".zip"))
+              (sha256
+               (base32
+                "1z132p2q3bgchiw529j2d7dari21kn0fhkgrj3vcl0ncg2m521il"))))
+    (build-system copy-build-system)
+    (arguments
+     `(#:install-plan
+       '(("." "lib/mecab/dic"
+          #:include-regexp ("\\.bin$" "\\.def$" "\\.dic$" "dicrc")))))
+    (native-inputs (list unzip))
+    (home-page "https://clrd.ninjal.ac.jp/unidic/en/")
+    (synopsis "Dictionary data for MeCab")
+    (description "UniDic for morphological analysis is a dictionary for
+analysis with the morphological analyser MeCab, where the short units exported
+from the database are used as entries (heading terms).")
+    ;; triple-licensed (at the user’s choice)
+    (license (list license:gpl2+ license:lgpl2.1 license:bsd-3))))
+
+(define-public python-lexilang
+  (package
+    (name "python-lexilang")
+    (version "1.0.7")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/LibreTranslate/LexiLang")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256 (base32 "0myrim1m9zq65y5c77wq4f9ix024lyw8dvjxws33qkfsd6xzvwz7"))
+       (modules '((guix build utils)))
+       (snippet                         ;use src layout for isolated tests
+        #~(begin
+            (mkdir "src")
+            (rename-file "dictionaries" "src/dictionaries")
+            (rename-file "lexilang" "src/lexilang")
+            (substitute* "setup.py"
+              (("packages=" all)
+               (string-append "package_dir={'': 'src'}, " all)))))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:phases #~(modify-phases %standard-phases
+                   (add-after 'unpack 'compile-data
+                     (lambda _
+                       (with-directory-excursion "src"
+                         (invoke "python" "-c"
+                          "from lexilang.utils import compile_data
+compile_data()")))))
+      #:test-backend #~'custom
+      #:test-flags #~'("test.py")))
+    (native-inputs (list python-setuptools))
+    (home-page "https://github.com/LibreTranslate/LexiLang")
+    (synopsis "Dictionary-based language detector for short texts")
+    (description
+     "LexiLang is a natural language detector, designed for handling small text
+(under 20 characters).  It will probably not work reliably
+for longer text sequences.  As it relies on dictionaries,
+if a word is missing or mispelled, the detection will fail.")
+    (license license:agpl3)))
+
+;; This source provides the database files created by The Árni Magnússon
+;; Institute for Icelandic Studies which are needed for building certain
+;; packages.  The source is not intended to be installed directly.  It's a
+;; mirror of <https://bin.arnastofnun.is/DMII/LTData/data/mimisbrunnur/>
+;; distributed udner CC BY-SA 4.0 license.
+(define arnastofnun-dim
+  (let ((version "July2026"))
+    (origin
+      (method git-fetch)
+      (uri (git-reference
+             (url "https://codeberg.org/spencerking/DIM-mirror")
+             (commit version)))
+      (file-name (git-file-name "arnastofnun-dim" version))
+      (sha256
+       (base32 "00pmzhzyw43vh44qfdywdhirxgdbc3anayrxykfll0xfrg216rdn")))))
+
+(define-public python-islenska-bootstrap
+  (hidden-package
+   (package
+     (name "python-islenska-bootstrap")
+     (version "1.3.2")
+     ;; Use the git source since this should not include database files.
+     (source
+      (origin
+        (method git-fetch)
+        (uri (git-reference
+               (url "https://github.com/mideind/BinPackage")
+               (commit version)))
+        (file-name (git-file-name "python-islenska" version))
+        (sha256
+         (base32 "1zc5pn0rd44dqsipc2i4w37a1ws7smhv81p8whl9ixamhp1rsbkl"))))
+     (build-system pyproject-build-system)
+     (arguments
+      (list
+       #:phases
+       ;; Add two new phases to ensure that the database resource files
+       ;; are included in the installed package. This is necessary for
+       ;; running the bundled build scripts (tools/binpack.py and
+       ;; tools/dawgbuilder.py) when bootstrapping.
+       #~(modify-phases %standard-phases
+           (add-after 'unpack 'create-manifest-in
+             (lambda* (#:key inputs #:allow-other-keys)
+               (with-output-to-file "MANIFEST.in"
+                 (lambda ()
+                   (display "graft src/islenska/resources")))))
+           (add-after 'unpack 'patch-setup-py
+             (lambda* (#:key inputs #:allow-other-keys)
+               (substitute* "setup.py"
+                 (("(.*)cffi_modules=.*" cffi indent)
+                  (string-append
+                   cffi
+                   indent "package_data={'islenska':['src/resources/*']},\n"
+                   indent "include_package_data=True,\n"))))))
+       ;; Tests will fail since database files have not been bootstrapped yet.
+       #:tests? #f))
+     (propagated-inputs (list python-cffi python-typing-extensions))
+     (native-inputs (list python-cffi python-pytest python-setuptools))
+     (home-page "https://github.com/mideind/BinPackage")
+     (synopsis
+      "The vocabulary of modern Icelandic, encapsulated in a Python package")
+     (description
+      "Islenska is a Python package that embeds the vocabulary of the Database
+of Icelandic Morphology and offers various lookups and queries of the data.
+The database contains over 6.5 million entries, over 3.1 million unique word
+forms, and about 300,000 distinct lemmas.")
+     (license license:expat))))
+
+(define-public python-islenska
+  (package/inherit python-islenska-bootstrap
+    (name "python-islenska")
+    (arguments
+     (list
+      #:phases
+      #~(modify-phases %standard-phases
+          ;; Delete the phases added for python-islenska-bootstrap.
+          (delete 'create-manifest-in)
+          (delete 'patch-setup-py)
+          ;; Copy KRISTINsnid.csv to the expected directory
+          ;; for the build scripts.
+          (add-after 'unpack 'unpack-resources
+            (lambda* (#:key inputs #:allow-other-keys)
+              (install-file
+               (search-input-file inputs "KRISTINsnid.csv/KRISTINsnid.csv")
+               "src/islenska/resources")))
+          ;; Run the build scripts
+          (add-before 'build 'build-databases
+            (lambda _
+              (invoke "python" "tools/binpack.py")
+              (invoke "python" "tools/dawgbuilder.py"))))
+      #:tests? #t))
+    (native-inputs (list arnastofnun-dim
+                         python-cffi
+                         python-islenska-bootstrap
+                         python-pytest
+                         python-setuptools
+                         unzip))
+    (license (list license:cc-by4.0     ;resource files
+                   license:expat))
+    (properties
+     (alist-delete 'hidden? (package-properties python-islenska-bootstrap)))))
+
+(define-public python-icegrams
+  (package
+    (name "python-icegrams")
+    (version "1.1.7")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             ;; no tests in the PyPI archive
+             (url "https://github.com/mideind/Icegrams")
+             (commit (string-append version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1wbjk0l8j0bm3wym6pkp25vnfj4mdxl7amybzgfpfg6d43rf0n4w"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:test-flags
+      #~(list
+         ;; two tests fail because of a hardcoded file path in the package's source code
+         ;; this should be fixed upstream instead of with a substitution here
+         "-k"
+         (string-append "not test_trigrams" " and not test_word_ids")
+         "test/test_ngrams.py")))
+    (propagated-inputs (list python-cffi))
+    (native-inputs (list python-pytest python-setuptools
+                         python-setuptools-scm python-wheel))
+    (home-page "https://github.com/mideind/Icegrams")
+    (synopsis "Trigram statistics for Icelandic")
+    (description
+     "Icegrams is a Python package that encapsulates a large trigram
+library for Icelandic.  You can use Icegrams to obtain probabilities (relative
+frequencies) of over a million different unigrams (single words or tokens), or of
+bigrams (pairs of two words or tokens), or of trigrams.  Icegrams is useful for
+instance in spelling correction, predictive typing, to help disabled people
+write text fast, and for various text generation, statistics, and modeling tasks.")
+    (license license:expat)))
+
+(define-public python-tokenizer
+  (package
+    (name "python-tokenizer")
+    (version "3.6.4")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/mideind/Tokenizer")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0acfy1aqf1581vy4d5y6wkjfsx52c6azxx2hy85x9rqv6fpij0m2"))))
+    (build-system pyproject-build-system)
+    (native-inputs (list python-pytest
+                         python-setuptools))
+    (home-page "https://github.com/mideind/Tokenizer")
+    (synopsis "Tokenizer for Icelandic text with sentence segmentation")
+    (description "This package provides a fast, compact, pure-Python tokenizer
+for Icelandic text with sentence segmentation.")
+    (license license:expat)))
+
+(define-public python-sacremoses
+  (package
+    (name "python-sacremoses")
+    (version "0.1.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/hplt-project/sacremoses")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0g70vchfniknp65n4wnx7chg6g49d4xrz1wagv7f7ir2swdzyn9b"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (let ((norvig-big-txt
+            (origin
+              (method url-fetch)
+              ;; The file is a concatenation of public domain book excerpts
+              ;; from Project Gutenberg and lists of most frequent words
+              ;; from Wiktionary and the British National Corpus:
+              ;; https://norvig.com/spell-correct.html
+              (uri "https://norvig.com/big.txt")
+              (sha256
+               (base32
+                "0yz80icdly7na03cfpl0nfk5h3j3cam55rj486n03wph81ynq1ps")))))
+       (list #:phases #~(modify-phases %standard-phases
+                          (add-before 'check 'supply-big-txt
+                            (lambda _
+                              (symlink #$norvig-big-txt "big.txt"))))
+             #:test-backend #~'unittest
+             #:test-flags #~'("discover" "-s" "sacremoses/test"))))
+    (native-inputs (list python-setuptools))
+    (propagated-inputs (list python-click
+                             python-joblib
+                             python-regex
+                             python-tqdm))
+    (home-page "https://github.com/hplt-project/sacremoses")
+    (synopsis "Natural language tokenizer, truecaser and normalizer")
+    (description
+     "SacreMoses is a Python port of Moses'
+tokenizer, detokenizer, truecaser and punctuation normalizer.")
+    (license license:expat)))
+
+;; Deprecated on 2026-06-05.
+(define-deprecated/public-alias dparser
+  (@ (gnu packages compiler-tools) dparser))

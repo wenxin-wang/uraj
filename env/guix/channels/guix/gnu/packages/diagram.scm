@@ -1,0 +1,94 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2022 pukkamustard <pukkamustard@posteo.net>
+;;; Copyright © 2025 Evgeny Pisemsky <mail@pisemsky.site>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (gnu packages diagram)
+  #:use-module (guix packages)
+  #:use-module (guix build-system gnu)
+  #:use-module (guix download)
+  #:use-module (guix git-download)
+  #:use-module (guix gexp)
+  #:use-module (guix utils)
+  #:use-module ((guix licenses) #:prefix license:))
+
+(define-public pikchr
+  (let ((commit "a7f1c35bc0448daf")
+        (revision "1"))                 ;increment for each new snapshot
+    (package
+      (name "pikchr")
+      ;; To update, use the last check-in in https://pikchr.org/home/timeline?r=trunk
+      (version (string-append revision "-" (string-take commit 5)))
+      (source (origin
+                (method url-fetch)
+                (uri (string-append "https://pikchr.org/home/tarball/" commit
+                                    "/pikchr.tar.gz"))
+                (file-name (string-append "pikchr-" version ".tar.gz"))
+                (sha256
+                 (base32
+                  "06sx7mc6g79i8gvqczl1mlky9z6r23nbpmmlypjziiiv1mmmc9ad"))))
+      (build-system gnu-build-system)
+      (arguments
+       (list #:tests? #f                ;no tests
+             #:make-flags #~(list (string-append "CC=" #$(cc-for-target)))
+             #:phases
+             #~(modify-phases %standard-phases
+                 (delete 'bootstrap)
+                 (delete 'configure)
+                 (replace 'install
+                   (lambda* (#:key outputs #:allow-other-keys)
+                     (let* ((out (assoc-ref outputs "out"))
+                            (bin (string-append out "/bin")))
+                       (install-file "pikchr" bin)))))))
+      (home-page "https://pikchr.org")
+      (synopsis "Markup language for diagrams in technical documentation")
+      (description
+       "Pikchr (pronounced @emph{picture}) is a PIC-like markup language for
+diagrams in technical documentation.  Pikchr is designed to be embedded in
+fenced code blocks of Markdown or similar mechanisms of other documentation
+markup languages.")
+      (license license:bsd-0))))
+
+(define-public dpic
+  (let ((commit "1354b63eb7120e5d0d40855c18d69e413a636ef2")
+        (revision "0"))
+    (package
+      (name "dpic")
+      (version (git-version "2025.08.01" revision commit))
+      (home-page "https://gitlab.com/aplevich/dpic")
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+               (url (string-append home-page ".git"))
+               (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32 "00r4dqwmlbpbb7kshprp9n29cmb8vxy345xqpzlba6bnw5vrgpv9"))))
+      (build-system gnu-build-system)
+      (arguments
+       (list
+        #:tests? #f
+        #:make-flags
+        #~(list (string-append "CC=" #$(cc-for-target))
+                (string-append "DESTDIR=" #$output))))
+      (synopsis "Implementation of the pic language")
+      (description
+       "Dpic is an implementation of the pic \"little language\" for creating
+line drawings and illustrations for documents, web pages, and other
+uses.")
+      (license (list license:bsd-2 license:cc-by3.0 license:lppl1.3c)))))

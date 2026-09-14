@@ -1,0 +1,402 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2013, 2014, 2015, 2019, 2020, 2023 Ludovic Courtès <ludo@gnu.org>
+;;; Copyright © 2015 Mark H Weaver <mhw@netris.org>
+;;; Copyright © 2015, 2016, 2019, 2021, 2023, 2026 Efraim Flashner <efraim@flashner.co.il>
+;;; Copyright © 2020 Marius Bakke <mbakke@fastmail.com>
+;;; Copyright © 2020 Vincent Legoll <vincent.legoll@gmail.com>
+;;; Copyright © 2020, 2021, 2024 Janneke Nieuwenhuizen <janneke@gnu.org>
+;;; Copyright © 2020, 2021 Maxim Cournoyer <maxim@guixotic.coop>
+;;; Copyright © 2025 Zheng Junjie <z572@z572.online>
+;;; Copyright © 2025 Andreas Enge <andreas@enge.fr>
+;;; Copyright © 2026 David Elsing <david.elsing@posteo.net>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (gnu packages gdb)
+  #:use-module (gnu packages)
+  #:use-module (gnu packages bash)
+  #:use-module (gnu packages bison)
+  #:use-module (gnu packages compression)
+  #:use-module (gnu packages cross-base)
+  #:use-module (gnu packages dejagnu)
+  #:use-module (gnu packages compiler-tools)
+  #:use-module (gnu packages guile)
+  #:use-module (gnu packages hurd)
+  #:use-module (gnu packages llvm)
+  #:use-module (gnu packages multiprecision)
+  #:use-module (gnu packages ncurses)
+  #:use-module (gnu packages pciutils)
+  #:use-module (gnu packages perl)
+  #:use-module (gnu packages pkg-config)
+  #:use-module (gnu packages pretty-print)
+  #:use-module (gnu packages python)
+  #:use-module (gnu packages readline)
+  #:use-module (gnu packages rocm)
+  #:use-module (gnu packages texinfo)
+  #:use-module (gnu packages xml)
+  #:use-module (guix download)
+  #:use-module (guix gexp)
+  #:use-module (guix git-download)
+  #:use-module ((guix licenses) #:prefix license:)
+  #:use-module (guix packages)
+  #:use-module (guix utils)
+  #:use-module (guix build-system cmake)
+  #:use-module (guix build-system gnu)
+  #:use-module ((guix build utils) #:select (alist-replace))
+  #:use-module (srfi srfi-1))
+
+
+(define (gdb-python-config pkg-config)
+  "Return a script to satisfy gdb to enable python support."
+  ;; based on https://www.sourceware.org/gdb/wiki/CrossCompilingWithPythonSupport
+  (program-file "gdb-python-config"
+    #~(begin
+        (use-modules (ice-9 match))
+        (let ((pkg-config #$pkg-config))
+          (match (command-line)
+            ((_ _ "--includes")
+             (execlp pkg-config pkg-config
+                     "python3-embed" "--cflags"))
+            ((_ _ "--ldflags")
+             (execlp pkg-config pkg-config
+                     "python3-embed" "--libs"))
+            ((_ _ "--exec-prefix")
+             (execlp pkg-config pkg-config
+                     "python3-embed" "--variable=exec_prefix"))
+            (_  (exit 1)))))))
+
+(define-public gdb-17
+  (package
+    (name "gdb")
+    (version "17.2")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "mirror://gnu/gdb/gdb-"
+                                  version ".tar.xz"))
+              (sha256
+               (base32
+                "1312lccryan1jfkjwkbw9mpxgyfnmlr8dj4lbkxx3cz4f86nq0qw"))))
+    (build-system gnu-build-system)
+    (outputs '("out" "debug"))
+    (arguments
+     (list
+      #:tests? #f                       ;FIXME: 217 unexpected failures
+      #:out-of-source? #t
+      #:modules `((srfi srfi-1)
+                  ,@%default-gnu-modules)
+      #:configure-flags
+      #~(list
+         #$@(if (this-package-input "zlib")
+                '("--with-system-zlib")
+                '())
+         #$@(if (and (this-package-input "python-wrapper")
+                     (%current-target-system))
+                #~((string-append "--with-python="
+                                  #+(gdb-python-config (pkg-config-for-target))))
+                #~())
+         #$@(if (target-hurd64?)
+                #~("--enable-targets=i586-pc-gnu,x86_64-pc-gnu")
+                #~()))
+      #:phases #~(modify-phases %standard-phases
+                   ;; The following phase only applies to gdb@12, which
+                   ;; inherits from this package. Remove it when removing
+                   ;; gdb@12.
+                   #$@(if (target-aarch64?)
+                     #~((add-after 'unpack 'patch-aarch64
+                       (lambda _
+                         (substitute* "sim/aarch64/cpustate.h"
+                           (("aarch64_get_CPSR_bits  \\(sim_cpu \\*, uint32_t\\)")
+                             "aarch64_get_CPSR_bits  (sim_cpu *, FlagMask)")))))
+                     #~())
+                   #$@(if (%current-target-system)
+                          #~((add-after 'unpack 'enable-guile
+                               (lambda* (#:key native-inputs #:allow-other-keys)
+                                 (setenv "ac_cv_guild_program_name" (which "guild"))
+                                 (setenv "ac_cv_path_pkg_config_prog_path"
+                                         (which #$(pkg-config-for-target))))))
+                          #~())
+                   (add-after 'unpack 'patch-paths
+                     (lambda* (#:key inputs #:allow-other-keys)
+                       (let ((sh (string-append (assoc-ref inputs "bash")
+                                                "/bin/sh")))
+                         (substitute* '("gdb/ser-pipe.c"
+                                        "gdbsupport/pathstuff.cc")
+                           (("\"/bin/sh\"")
+                            (format #f "~s" sh))))))
+                   (add-after 'configure 'post-configure
+                     (lambda _
+                       (for-each patch-makefile-SHELL
+                                 (find-files "." "Makefile\\.in"))))
+                   (add-after 'install 'remove-libs-already-in-binutils
+                     (lambda* (#:key native-inputs inputs outputs
+                               #:allow-other-keys)
+                       ;; Like Binutils, GDB installs libbfd, libopcodes, etc.
+                       ;; However, this leads to collisions when both are
+                       ;; installed, and really is none of its business,
+                       ;; conceptually.  So remove them.
+                       (let* ((binutils (or (assoc-ref inputs "binutils")
+                                            (assoc-ref native-inputs "binutils")))
+                              (out      (assoc-ref outputs "out"))
+                              (files1   (with-directory-excursion binutils
+                                          (append (find-files "lib")
+                                                  (find-files "include"))))
+                              (files2   (with-directory-excursion out
+                                          (append (find-files "lib")
+                                                  (find-files "include"))))
+                              (common   (lset-intersection string=?
+                                                           files1 files2)))
+                         (with-directory-excursion out
+                           (for-each delete-file common))))))))
+    (inputs
+     `(("bash" ,bash)
+       ("expat" ,expat)
+       ("mpfr" ,mpfr)
+       ("gmp" ,gmp)
+       ("readline" ,readline)
+       ("ncurses" ,ncurses)
+       ("guile" ,guile-3.0)
+       ("python-wrapper" ,python-wrapper)
+       ("source-highlight" ,source-highlight)
+       ("zlib" ,zlib)
+
+       ;; Allow use of XML-formatted syscall information.  This enables 'catch
+       ;; syscall' and similar commands.
+       ("libxml2" ,libxml2)
+
+       ;; The Hurd needs -lshouldbeinlibc.
+       ,@(if (target-hurd?)
+             `(("hurd" ,hurd))
+             '())))
+    (native-inputs
+     `(("texinfo" ,texinfo)
+       ("dejagnu" ,dejagnu)
+       ("pkg-config" ,pkg-config)
+       ,@(if (%current-target-system)
+             `(("guile" ,guile-3.0))
+             '())
+       ,@(if (target-hurd?)
+             ;; When cross-compiling from x86_64-linux, make sure to use a
+             ;; 32-bit MiG because we assume target i586-pc-gnu.
+             `(("mig" ,(if (%current-target-system)
+                           (cross-mig (%current-target-system))
+                           mig)))
+             '())))
+    ;; TODO: Add support for the GDB_DEBUG_FILE_DIRECTORY environment
+    ;; variable in GDB itself instead of relying on some glue code in
+    ;; the Guix-provided .gdbinit file.
+    (native-search-paths (list (search-path-specification
+                                (variable "GDB_DEBUG_FILE_DIRECTORY")
+                                (files '("lib/debug")))))
+    (home-page "https://www.gnu.org/software/gdb/")
+    (synopsis "The GNU debugger")
+    (description
+     "GDB is the GNU debugger.  With it, you can monitor what a program is
+doing while it runs or what it was doing just before a crash.  It allows you
+to specify the runtime conditions, to define breakpoints, and to change how
+the program is running to try to fix bugs.  It can be used to debug programs
+written in C, C++, Ada, Objective-C, Pascal and more.")
+    (license license:gpl3+)))
+
+(define-public gdb/pinned
+  ;; This is the fixed version that packages depend on.  Update it rarely
+  ;; enough to avoid massive rebuilds.
+  (package
+    (inherit gdb-17)
+    (version "17.1")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "mirror://gnu/gdb/gdb-"
+                                  version ".tar.xz"))
+              (sha256
+               (base32
+                "0xnqqv3j463r5rnfmblj3zwhf0l0lyy4bp1zaid8zxn9fignz68l"))))
+    ;; XXX: Remove this when updating gdb/pinned
+    (inputs
+     (modify-inputs inputs
+       (delete "zlib")))
+    (properties `((hidden? . #t)))))
+
+(define-public gdb-15
+  (package
+    (inherit gdb-17)
+    (version "15.2")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "mirror://gnu/gdb/gdb-"
+                                  version ".tar.xz"))
+              (patches (search-patches "gdb-hurd64.patch"))
+              (sha256
+               (base32
+                "0k9i8mizg4hby020k53kqmc835pajh9c8d5klv5s1ddm6p6hqdc3"))))))
+
+(define-public gdb-16
+  (package
+    (inherit gdb-17)
+    (version "16.3")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "mirror://gnu/gdb/gdb-"
+                                  version ".tar.xz"))
+              (patches (search-patches "gdb-16-hurd64.patch"))
+              (sha256
+               (base32
+                "1i940b04404xr44xc66c4r4nk091czqz7zzrmhbpk64aaaax1z5w"))))))
+
+(define-public gdb
+  ;; The "default" version.
+  gdb-17)
+
+(define-public gdb-multiarch
+  (package/inherit gdb
+    (name "gdb-multiarch")
+    (arguments
+     (substitute-keyword-arguments arguments
+       ((#:configure-flags flags '())
+        #~(cons* "--enable-targets=all"
+                 "--enable-multilib"
+                 "--enable-interwork"
+                 "--enable-languages=c,c++"
+                 "--disable-nls"
+                 #$flags))))
+    (synopsis "The GNU debugger (with all architectures enabled)")))
+
+(define-public gdb-minimal
+  (package/inherit gdb
+    (name "gdb-minimal")
+    (inputs (fold alist-delete (package-inputs gdb)
+                  '("libxml2" "ncurses" "python-wrapper" "source-highlight")))))
+
+(define-public gdb-minimal-15
+  (package/inherit gdb-15
+    (name "gdb-minimal")
+    (inputs (fold alist-delete (package-inputs gdb-15)
+                  '("libxml2" "ncurses" "python-wrapper" "source-highlight")))))
+
+(define-public avr-gdb
+  (package/inherit gdb-15
+    (name "avr-gdb")
+    (arguments
+     (substitute-keyword-arguments arguments
+       ((#:configure-flags flags '())
+        #~(cons* "--target=avr"
+                 "--disable-nls"
+                 "--enable-languages=c,c++"
+                 "--with-system-readline"
+                 "--enable-source-highlight"
+                 #$flags))))
+    (synopsis "The GNU Debugger for AVR")
+    (description
+     "GDB is the GNU debugger.  With it, you can monitor what a program is
+doing while it runs or what it was doing just before a crash.  It allows you
+to specify the runtime conditions, to define breakpoints, and to change how
+the program is running to try to fix bugs.
+
+This variant of GDB can be used to debug programs written for the AVR
+microcontroller architecture.")))
+
+;; This must match '%rocm-version' in the following files:
+;; - rocm.scm
+;; - rocm-libs.scm
+;; - rocm-tools.scm
+(define %rocm-gdb-version "7.1.1")
+
+(define-public rocdbgapi
+  (package
+    (name "rocdbgapi")
+    (version %rocm-gdb-version)
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url (string-append "https://github.com/ROCm/rocdbgapi"))
+              (commit (string-append "rocm-" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "1lq7xkfpzy9iyvp4zgqsqzvxrm5h00nq74pr999dp106zhj1j1j7"))))
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:tests? #f ; no tests
+      #:build-type "Release"
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'set-pci.ids-path
+            (lambda _
+              (substitute* "CMakeLists.txt"
+                (("/usr/share/hwdata")
+                 (string-append
+                  #$(this-package-native-input "hwdata")
+                  "/share/hwdata"))))))))
+    (inputs
+     (list rocm-comgr
+           rocr-runtime))
+    (native-inputs
+     (list hwdata
+           rocm-cmake))
+    (synopsis "AMD Debugger API")
+    (description "The AMD Debugger API is a library that provides all
+the support necessary for a debugger and other tools to perform low
+level control of the execution and inspection of execution state of
+AMD's commercially available GPU architectures.")
+    (home-page "https://github.com/ROCm/ROCdbgapi")
+    (license license:expat)))
+
+(define-public rocgdb
+  (package
+    (inherit gdb)
+    (name "rocgdb")
+    (version %rocm-gdb-version)
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url (string-append "https://github.com/ROCm/rocgdb"))
+              (commit (string-append "rocm-" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "1msxz5xnm6fl2p9hzjnkaayd8x3dc0dp34ff60asr8mgxwxlcd9c"))))
+    (inputs
+     (modify-inputs inputs
+       (prepend rocdbgapi)))
+    (native-inputs
+     (modify-inputs native-inputs
+       (prepend bison flex perl)))
+    (arguments
+     (substitute-keyword-arguments arguments
+       ((#:configure-flags _ '())
+        ''("--program-prefix=roc"
+           "--disable-binutils"
+           "--disable-gprofng"
+           "--disable-gprof"
+           "--enable-tui"
+           "--enable-64-bit-bfd"
+           "--enable-targets=x86_64-linux-gnu,amdgcn-amd-amdhsa"
+           "--with-system-readline"
+           "--with-expat"
+           "--with-system-zlib"
+           "--with-lzma"
+           "--disable-gdbtk"
+           "--disable-ld"
+           "--disable-gas"
+           "--disable-gdbserver"
+           "--disable-sim"))))
+    (synopsis "ROCm source-level debugger for Linux based on GDB")
+    (description "The AMD ROCm Debugger (ROCgdb) is the AMD
+source-level debugger for Linux, based on the GNU Debugger (GDB).")
+    (home-page "https://github.com/ROCm/ROCgdb")
+    (license license:gpl3+)))

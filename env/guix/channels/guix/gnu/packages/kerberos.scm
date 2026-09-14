@@ -1,0 +1,170 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2012, 2013, 2025 Andreas Enge <andreas@enge.fr>
+;;; Copyright © 2014, 2015, 2016 Mark H Weaver <mhw@netris.org>
+;;; Copyright © 2016, 2017 Leo Famulari <leo@famulari.name>
+;;; Copyright © 2016, 2022 Efraim Flashner <efraim@flashner.co.il>
+;;; Copyright © 2012, 2013 Nikita Karetnikov <nikita@karetnikov.org>
+;;; Copyright © 2012, 2017 Ludovic Courtès <ludo@gnu.org>
+;;; Copyright © 2017, 2019 Ricardo Wurmus <rekado@elephly.net>
+;;; Copyright © 2018 Tobias Geerinckx-Rice <me@tobias.gr>
+;;; Copyright © 2019 Mathieu Othacehe <m.othacehe@gmail.com>
+;;; Copyright © 2020 Jan (janneke) Nieuwenhuizen <janneke@gnu.org>
+;;; Copyright © 2020, 2021 Maxim Cournoyer <maxim@guixotic.coop>
+;;; Copyright © 2021 Maxime Devos <maximedevos@telenet.be>
+;;; Copyright © 2022 Marius Bakke <marius@gnu.org>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (gnu packages kerberos)
+  #:use-module (gnu packages)
+  #:use-module (gnu packages admin)
+  #:use-module (gnu packages autotools)
+  #:use-module (gnu packages bash)
+  #:use-module (gnu packages bison)
+  #:use-module (gnu packages crypto)
+  #:use-module (gnu packages dbm)
+  #:use-module (gnu packages compiler-tools)
+  #:use-module (gnu packages perl)
+  #:use-module (gnu packages python)
+  #:use-module (gnu packages gettext)
+  #:use-module (gnu packages gnupg)
+  #:use-module (gnu packages libidn)
+  #:use-module (gnu packages hurd)
+  #:use-module (gnu packages linux)
+  #:use-module (gnu packages openldap)
+  #:use-module (gnu packages pkg-config)
+  #:use-module (gnu packages compression)
+  #:use-module (gnu packages readline)
+  #:use-module (gnu packages sqlite)
+  #:use-module (gnu packages texinfo)
+  #:use-module (gnu packages tls)
+  #:use-module ((guix licenses) #:prefix license:)
+  #:use-module (guix packages)
+  #:use-module (guix download)
+  #:use-module (guix gexp)
+  #:use-module (guix utils)
+  #:use-module (guix build-system gnu))
+
+(define-public mit-krb5
+  (package
+    (name "mit-krb5")
+    (version "1.21")
+    (source (origin
+              (method url-fetch)
+              (uri (list
+                    (string-append "https://web.mit.edu/kerberos/dist/krb5/"
+                                   (version-major+minor version)
+                                   "/krb5-" version ".tar.gz")
+                    (string-append "https://kerberos.org/dist/krb5/"
+                                   (version-major+minor version)
+                                   "/krb5-" version ".tar.gz")))
+              (patches (search-patches "mit-krb5-hurd.patch"))
+              (sha256
+               (base32
+                "0fx91rickkb5pvxm3imqmaavsncjkgcsrfx4czgk4j28hpzsmy39"))))
+    (build-system gnu-build-system)
+    (native-inputs
+     (list bison perl)) ;required for some tests
+    (inputs
+     (list openssl))
+    (arguments
+     `(;; XXX: On 32-bit systems, 'kdb5_util' hangs on an fcntl/F_SETLKW call
+       ;; while running the tests in 'src/tests'. Also disable tests when
+       ;; cross-compiling.
+       #:tests? ,(and (not (%current-target-system))
+                      (string=? (%current-system) "x86_64-linux"))
+
+       ,@(if (%current-target-system)
+             '(#:configure-flags
+               (list "--localstatedir=/var"
+                     "krb5_cv_attr_constructor_destructor=yes"
+                     "ac_cv_func_regcomp=yes"
+                     "ac_cv_printf_positional=yes"
+                     "ac_cv_file__etc_environment=yes"
+                     "ac_cv_file__etc_TIMEZONE=no")
+               #:make-flags
+               (list "CFLAGS+=-DDESTRUCTOR_ATTR_WORKS=1"))
+             '(#:configure-flags
+               (list "--localstatedir=/var")))
+       #:phases
+       (modify-phases %standard-phases
+         (add-after 'unpack 'enter-source-directory
+           (lambda _
+             (chdir "src")))
+         (add-before 'check 'pre-check
+           (lambda* (#:key inputs native-inputs #:allow-other-keys)
+             (let ((perl (search-input-file (or native-inputs inputs)
+                                            "bin/perl")))
+               (substitute* "plugins/kdb/db2/libdb2/test/run.test"
+                 (("/bin/cat") perl)
+                 (("D/bin/sh") (string-append "D" (which "sh")))
+                 (("bindir=/bin/.") (string-append "bindir="
+                                                   (dirname perl))))))))))
+    (synopsis "MIT Kerberos 5")
+    (description
+     "Massachusetts Institute of Technology implementation of Kerberos.
+Kerberos is a network authentication protocol designed to provide strong
+authentication for client/server applications by using secret-key
+cryptography.")
+    (license (license:non-copyleft "file://NOTICE"
+                                   "See NOTICE in the distribution."))
+    (home-page "https://web.mit.edu/kerberos/")
+    (properties '((cpe-name . "kerberos")))))
+
+(define-public shishi
+  (package
+    (name "shishi")
+    (version "1.0.3")
+    (source
+     (origin
+      (method url-fetch)
+      (uri (string-append "mirror://gnu/shishi/shishi-"
+                          version ".tar.gz"))
+      (sha256
+       (base32
+        "14kyj7rdki2g1sj5k42y9v5ya9jar81yw483ivwa80fx2byqyycm"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+       #:configure-flags
+       #~(list "--disable-static"
+               "--with-key-dir=/etc/shishi"
+               "--with-db-dir=/var/shishi")
+       #:phases
+       #~(modify-phases %standard-phases
+           (add-after 'configure 'disable-automatic-key-generation
+             (lambda _
+               (substitute* "Makefile"
+                (("^install-data-hook:")
+                 "install-data-hook:\nx:\n")))))))
+    (native-inputs (list pkg-config))
+    (inputs
+     (list gnutls
+           libidn
+           linux-pam
+           zlib
+           libgcrypt
+           libtasn1))
+    (home-page "https://www.gnu.org/software/shishi/")
+    (synopsis "Implementation of the Kerberos 5 network security system")
+    (description
+     "GNU Shishi is a free implementation of the Kerberos 5 network security
+system.  It is used to allow non-secure network nodes to communicate in a
+secure manner through client-server mutual authentication via tickets.
+
+After installation, the system administrator should generate keys using
+@code{shisa -a /etc/shishi/shishi.keys}.")
+    (license license:gpl3+)))

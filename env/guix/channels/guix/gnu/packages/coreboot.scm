@@ -1,0 +1,295 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2018 Danny Milosavljevic <dannym@scratchpost.org>
+;;; Copyright © 2018 Ludovic Courtès <ludo@gnu.org>
+;;; Copyright © 2019 Tobias Geerinckx-Rice <me@tobias.gr>
+;;; Copyright © 2025 Cayetano Santos <csantosb@disroot.org>
+;;; Copyright © 2026 Denis 'GNUtoo' Carikli <GNUtoo@cyberdimension.org>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (gnu packages coreboot)
+  #:use-module (gnu packages bison)
+  #:use-module (gnu packages compression)
+  #:use-module (gnu packages compiler-tools)
+  #:use-module (gnu packages pciutils)
+  #:use-module ((guix licenses) #:prefix license:)
+  #:use-module (guix build-system cargo)
+  #:use-module (guix build-system cmake)
+  #:use-module (guix build-system copy)
+  #:use-module (guix build-system gnu)
+  #:use-module (guix build-system go)
+  #:use-module (guix build-system meson)
+  #:use-module (guix build-system pyproject)
+  #:use-module (guix build-system qt)
+  #:use-module (guix download)
+  #:use-module (guix gexp)
+  #:use-module (guix git-download)
+  #:use-module (guix packages)
+  #:use-module (guix utils)
+  #:use-module (srfi srfi-26))
+
+(define %coreboot-version "26.03")
+
+(define %coreboot-origin
+  (origin
+    (method git-fetch)
+    (uri (git-reference
+           (url "https://review.coreboot.org/coreboot")
+           (commit %coreboot-version)))
+    (file-name (git-file-name "coreboot" %coreboot-version))
+    (sha256
+     (base32
+      "0436rr0vibh35phvkxrc939njvrmnfq9xw87y1b0nlllglvq07kk"))))
+
+(define-public bincfg
+  (package
+    (name "bincfg")
+    (version %coreboot-version)
+    (source %coreboot-origin)
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? #f ; no test suite
+      #:make-flags
+      #~(list
+         (string-append "CC=" #$(cc-for-target)))
+      #:phases
+      #~(modify-phases %standard-phases
+          (delete 'configure) ; no configure script
+          (add-after 'unpack 'chdir
+            (lambda _
+              (chdir "util/bincfg")))
+          (add-after 'build 'build-binaries
+            (lambda* (#:key make-flags #:allow-other-keys)
+              (for-each
+               (lambda (target result)
+                 (apply invoke "make" (string-append "gen-" target) make-flags)
+                 (rename-file result
+                              (string-append target ".bin")))
+               (list
+                ;; generate GbE for X200
+                "gbe-ich9m"
+                ;; generate GbE for X220/x230
+                "gbe-82579LM"
+                ;; generate IFD for X200
+                "ifd-x200")
+               (list
+                "flashregion_3_gbe.bin"
+                "flashregion_3_gbe.bin"
+                "flashregion_0_fd.bin"))))
+          ;; The Makefile has no install target.
+          (replace 'install
+            (lambda _
+              (let ((bin (string-append #$output "/bin"))
+                    (lib (string-append #$output "/lib/bincfg"))
+                    (data (string-append #$output "/share/bincfg")))
+                ;; Install the program
+                (install-file "bincfg" bin)
+                ;; And its data
+                (for-each
+                 (lambda (path)
+                   (install-file path data))
+                 (append (find-files "." ".*\\.set")
+                         (find-files "." ".*\\.spec")))
+                ;; And the files generated with the data
+                (for-each
+                 (lambda (path)
+                   (install-file path lib))
+                 (find-files "." ".*\\.bin"))))))))
+    (native-inputs (list bison flex))
+    (home-page "https://coreboot.org")
+    (synopsis "Encoder/decoder for binary formats described in text files")
+    (description "
+The bincfg program comes with specifications files for the following binary
+formats:
+@itemize
+@item Various DDR3 and DDR4 SPD
+@item Configuration data for the Intel 82579LM Gigabit Ethernet PHY
+@item Configuration data for the Intel Gigabit Ethernet controller present in
+      the Intel ICH9-M chipset.
+@item Intel Firmware Descriptor data for the Lenovo ThinkPad X200
+@item Configuration data for the ITE IT8718F SuperIO
+@end itemize
+It also comes with example files generated by bincfg.")
+    (license license:gpl3+)))
+
+(define-public bucts
+  (package
+    (name "bucts")
+    (version %coreboot-version)
+    (source %coreboot-origin)
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? #f ;no tests
+      #:make-flags #~(list (string-append "CC=" #$(cc-for-target)))
+      #:phases #~(modify-phases %standard-phases
+                   (delete 'configure) ;no configure script
+                   (add-after 'unpack 'enter-source
+                     (lambda _
+                       (chdir "util/bucts")))
+                   (add-after 'enter-source 'set-version
+                     (lambda _
+                       (substitute* "Makefile"
+                         (("^VERSION:=*")
+                          #$(string-append "VERSION:=" version)))))
+                   ;; no install target
+                   (replace 'install
+                     (lambda _
+                       (let ((bin (string-append #$output "/bin"))
+                             (doc (string-append #$output "/share/doc/bucts/"))
+                             (licenses (string-append #$output
+                                        "/share/licenses/bucts/")))
+                         (install-file "bucts" bin)
+                         (install-file "readme.md" doc)
+                         (install-file "../../COPYING" licenses)))))))
+    (inputs (list pciutils))
+    (home-page "https://coreboot.org")
+    (synopsis "Tool to swap the BIOS bootblock and backup bootblock on the
+Intel I945 chipsets")
+    (description
+     "The @command{bucts} command can flip a bit in the BUC.TS register of the
+Intel I945 chipsets and show the register status.  When the bit is set, it
+swaps the bootblock location.  Because the bootblock region is often set
+read-only by the default BIOS, this enables to bypass that restriction and is
+used as part of a procedure to replace the nonfree BIOS with free software on
+various computers (Lenovo X60, X60s, X60T, T60, probably more).")
+    (license license:gpl2)))
+
+(define-public ectool
+  (package
+    (name "ectool")
+    (version %coreboot-version)
+    (source %coreboot-origin)
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? #f ; no test suite
+      #:make-flags
+      #~(list (string-append "CC=" #$(cc-for-target))
+              "INSTALL=install"
+              (string-append "PREFIX=" #$output))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'chdir
+            (lambda _
+              (chdir "util/ectool")))
+          (delete 'configure)))) ; no configure script
+    (home-page "https://doc.coreboot.org/util.html")
+    (synopsis "Tool to dump and modify @acronym{EC, Embedded Controller} RAM
+on computers such as laptops")
+    (description "This package provides @command{ectool}, a program to dump
+and modify the contents of @acronym{EC, Embedded Controller} RAM
+on mobile computers.")
+    (license license:gpl2)))
+
+(define-public ifdtool
+  (package
+    (name "ifdtool")
+    (version %coreboot-version)
+    (source %coreboot-origin)
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:make-flags
+      #~(list (string-append "CC=" #$(cc-for-target))
+              "INSTALL=install"
+              (string-append "PREFIX=" #$output))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'chdir
+            (lambda _
+              (chdir "util/ifdtool")))
+          (delete 'configure))           ; no configure script
+      #:tests? #f))                    ; no test suite
+    (home-page "https://doc.coreboot.org/util/ifdtool/")
+    (synopsis "Intel Firmware Descriptor dumper")
+    (description "This package provides @command{ifdtool}, a program to
+dump Intel Firmware Descriptor data of an image file.")
+    (license license:gpl2)))
+
+(define-public intelmetool
+  (package
+    (name "intelmetool")
+    (version %coreboot-version)
+    (source %coreboot-origin)
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? #f                       ;no test suite
+      #:make-flags
+      #~(list (string-append "CC=" #$(cc-for-target))
+              "INSTALL=install"
+              (string-append "PREFIX=" #$output))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'chdir
+            (lambda _
+              (chdir "util/intelmetool")))
+          (delete 'configure) ;no configure script
+          (delete 'check))))
+    (inputs (list pciutils zlib))
+    (home-page
+     "https://github.com/coreboot/coreboot/tree/main/util/intelmetool/")
+    (synopsis "Intel Management Engine tools")
+    (description "This package provides tools for working with Intel
+Management Engine (ME).  You need to @code{sudo rmmod mei_me} and
+@code{sudo rmmod mei} before using this tool.  Also pass
+@code{iomem=relaxed} to the Linux kernel command line.")
+    (license license:gpl2)
+
+    ;; This is obviously an Intel thing, plus it requires <cpuid.h>.
+    (supported-systems '("x86_64-linux" "i686-linux"))))
+
+(define-public nvramtool
+  (package
+    (name "nvramtool")
+    (version %coreboot-version)
+    (source %coreboot-origin)
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? #f ; no test suite
+      #:make-flags
+      #~(list (string-append "CC=" #$(cc-for-target))
+              "INSTALL=install"
+              (string-append "PREFIX=" #$output))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'chdir
+            (lambda _
+              (chdir "util/nvramtool")))
+          (delete 'configure)))) ; no configure script
+    (home-page "https://coreboot.org")
+    (synopsis "Command line tool that can edit Coreboot settings")
+    (description "@command{nvramtool} can see and/or modify Coreboot settings
+like the serial port speed, log level, etc.  It requires Coreboot to be compiled
+with CONFIG_USE_OPTION_TABLE and some options require the iomem=relaxed kernel
+command line to work.  Features:
+@itemize
+@item If Coreboot was compiled without CONFIG_STATIC_OPTION_TABLE, it can change
+      its settings, which are applied after a reboot.
+@item It can modify Coreboot images  default settings with
+      @command{nvramtool -C coreboot.rom [...]}.
+@item It has various options related to the file format used to store these
+      settings.
+@item It can also read/write the CMOS memory where the Coreboot settings can be
+      located.
+@end itemize")
+    ;; Some files are "GPL-2.0-only or BSD-3-Clause", other are GPL-2.0-only
+    ;; and anyway there is. There is also a license declaration in
+    ;; cli/nvramtool.8 that applies to "This program" which uses the GPLv2.
+    (license license:gpl2)))

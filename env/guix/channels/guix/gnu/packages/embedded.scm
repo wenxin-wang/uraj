@@ -1,0 +1,2091 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2016-2019, 2023-2026 Ricardo Wurmus <rekado@elephly.net>
+;;; Copyright © 2016, 2017 Theodoros Foradis <theodoros@foradis.org>
+;;; Copyright © 2016 David Craven <david@craven.ch>
+;;; Copyright © 2017, 2020 Efraim Flashner <efraim@flashner.co.il>
+;;; Copyright © 2018, 2020 Tobias Geerinckx-Rice <me@tobias.gr>
+;;; Copyright © 2018, 2019, 2021 Clément Lassieur <clement@lassieur.org>
+;;; Copyright © 2020, 2022 Marius Bakke <marius@gnu.org>
+;;; Copyright © 2020 Björn Höfling <bjoern.hoefling@bjoernhoefling.de>
+;;; Copyright © 2021 Julien Lepiller <julien@lepiller.eu>
+;;; Copyright © 2020, 2021, 2022 Simon South <simon@simonsouth.net>
+;;; Copyright © 2021 Morgan Smith <Morgan.J.Smith@outlook.com>
+;;; Copyright © 2022 Mathieu Othacehe <othacehe@gnu.org>
+;;; Copyright © 2022, 2023 Maxim Cournoyer <maxim@guixotic.coop>
+;;; Copyright © 2023 Janneke Nieuwenhuizen <janneke@gnu.org>
+;;; Copyright © 2024, 2026 Artyom V. Poptsov <poptsov.artyom@gmail.com>
+;;; Copyright © 2025 Junker dk@junkeria.club
+;;; Copyright © 2025 Reza Housseini <reza@housseini.me>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (gnu packages embedded)
+  #:use-module (guix utils)
+  #:use-module (guix packages)
+  #:use-module (guix deprecation)
+  #:use-module (guix download)
+  #:use-module (guix gexp)
+  #:use-module (guix memoization)
+  #:use-module (guix svn-download)
+  #:use-module (guix git-download)
+  #:use-module ((guix licenses) #:prefix license:)
+  #:use-module (guix build-system cargo)
+  #:use-module (guix build-system cmake)
+  #:use-module (guix build-system gnu)
+  #:use-module (guix build-system pyproject)
+  #:use-module (guix build-system trivial)
+  #:use-module ((guix build utils) #:select (alist-replace delete-file-recursively))
+  #:use-module (gnu packages)
+  #:use-module (gnu packages admin)
+  #:use-module (gnu packages autotools)
+  #:use-module (gnu packages base)
+  #:use-module (gnu packages bison)
+  #:use-module (gnu packages boost)
+  #:use-module (gnu packages build-tools)
+  #:use-module (gnu packages check)
+  #:use-module (gnu packages compression)
+  #:use-module (gnu packages cross-base)
+  #:use-module (gnu packages dejagnu)
+  #:use-module (gnu packages compiler-tools)
+  #:use-module (gnu packages gcc)
+  #:use-module (gnu packages gdb)
+  #:use-module (gnu packages guile)
+  #:use-module (gnu packages libffi)
+  #:use-module (gnu packages libftdi)
+  #:use-module (gnu packages libusb)
+  #:use-module (gnu packages linux)
+  #:use-module (gnu packages messaging)
+  #:use-module (gnu packages ncurses)
+  #:use-module (gnu packages perl)
+  #:use-module (gnu packages pkg-config)
+  #:use-module (gnu packages protobuf)
+  #:use-module (gnu packages python)
+  #:use-module (gnu packages python-build)
+  #:use-module (gnu packages python-crypto)
+  #:use-module (gnu packages python-web)
+  #:use-module (gnu packages python-xyz)
+  #:use-module (gnu packages qt)
+  #:use-module (gnu packages readline)
+  #:use-module (gnu packages rust)
+  #:use-module (gnu packages swig)
+  #:use-module (gnu packages texinfo)
+  #:use-module (gnu packages tls)
+  #:use-module (gnu packages version-control)
+  #:use-module (gnu packages xorg)
+  #:use-module (srfi srfi-1)
+  #:export (make-gcc-arm-none-eabi-4.9
+            make-gcc-arm-none-eabi-6
+            make-gcc-arm-none-eabi-7-2018-q2-update
+            make-gcc-arm-none-eabi-9-2020-q2-update
+            make-gcc-arm-none-eabi-12.3.rel1
+
+            make-newlib-arm-none-eabi
+            make-newlib-arm-none-eabi-7-2018-q2-update
+            make-newlib-arm-none-eabi-9-2020-q2-update
+            make-newlib-arm-none-eabi-12.3.rel1
+
+            make-newlib-nano-arm-none-eabi
+            make-newlib-nano-arm-none-eabi-7-2018-q2-update
+            make-newlib-nano-arm-none-eabi-9-2020-q2-update
+            make-newlib-nano-arm-none-eabi-12.3.rel1
+
+            make-arm-none-eabi-toolchain-4.9
+            make-arm-none-eabi-toolchain-6
+            make-arm-none-eabi-toolchain-7-2018-q2-update
+            make-arm-none-eabi-toolchain-9-2020-q2-update
+            make-arm-none-eabi-toolchain-12.3.rel1
+
+            make-arm-none-eabi-nano-toolchain-4.9
+            make-arm-none-eabi-nano-toolchain-6
+            make-arm-none-eabi-nano-toolchain-7-2018-q2-update
+            make-arm-none-eabi-nano-toolchain-9-2020-q2-update
+            make-arm-none-eabi-nano-toolchain-12.3.rel1
+
+            make-gdb-arm-none-eabi
+
+            make-propeller-gcc
+            make-propeller-gcc-4
+            make-propeller-gcc-6
+            make-propeller-toolchain))
+
+;;; Commentary:
+;;;
+;;; This modules contains toolchain generators as well as packages for use in
+;;; embedded contexts.  Note: the toolchain and specialized packages are
+;;; procedures, so as to delay their references to top level bindings such as
+;;; 'gcc' or 'cross-gcc', etc.
+;;;
+
+;; We must not use the released GCC sources here, because the cross-compiler
+;; does not produce working binaries.  Instead we take the very same SVN
+;; revision from the branch that is used for a release of the "GCC ARM
+;; embedded" project on launchpad.
+;; See https://launchpadlibrarian.net/218827644/release.txt
+(define make-gcc-arm-none-eabi-4.9
+  (mlambda ()
+    (let ((xgcc (cross-gcc "arm-none-eabi"
+                           #:xgcc gcc-4.9
+                           #:xbinutils (cross-binutils "arm-none-eabi")))
+          (revision "1")
+          (svn-revision 227977))
+      (package
+        (inherit xgcc)
+        (version (string-append (package-version xgcc) "-"
+                                revision "." (number->string svn-revision)))
+        (source
+         (origin
+           (method svn-fetch)
+           (uri (svn-reference
+                 (url "svn://gcc.gnu.org/svn/gcc/branches/ARM/\
+embedded-4_9-branch/")
+                 (revision svn-revision)))
+           (file-name (string-append "gcc-arm-embedded-" version "-checkout"))
+           (sha256
+            (base32
+             "113r98kygy8rrjfv2pd3z6zlfzbj543pq7xyq8bgh72c608mmsbr"))
+
+           (patches (cons (search-patch "gcc-4.9-inline.patch")
+                          ;; Remove the one patch that doesn't apply to this
+                          ;; 4.9 snapshot (the patch is for 4.9.4 and later
+                          ;; but this svn snapshot is older).
+                          (remove (lambda (patch)
+                                    (string=? (basename patch)
+                                              "gcc-arm-bug-71399.patch"))
+                                  (origin-patches (package-source xgcc)))))))
+        (native-inputs
+         `(("flex" ,flex)
+           ("gcc@5" ,gcc-5)
+           ,@(package-native-inputs xgcc)))
+        (arguments
+         (substitute-keyword-arguments arguments
+           ((#:phases phases)
+            #~(modify-phases #$phases
+                (add-after 'set-paths 'augment-CPLUS_INCLUDE_PATH
+                  (lambda* (#:key inputs #:allow-other-keys)
+                    (let ((gcc (assoc-ref inputs  "gcc")))
+                      ;; Remove the default compiler from CPLUS_INCLUDE_PATH
+                      ;; to prevent header conflict with the GCC from
+                      ;; native-inputs.
+                      (setenv "CPLUS_INCLUDE_PATH"
+                              (string-join
+                               (delete (string-append gcc "/include/c++")
+                                       (string-split (getenv "CPLUS_INCLUDE_PATH")
+                                                     #\:))
+                               ":"))
+                      (format #t
+                              "environment variable `CPLUS_INCLUDE_PATH' changed to ~a~%"
+                              (getenv "CPLUS_INCLUDE_PATH")))))
+                (add-after 'unpack 'fix-genmultilib
+                  (lambda _
+                    (substitute* "gcc/genmultilib"
+                      (("#!/bin/sh") (string-append "#!" (which "sh"))))))))
+           ((#:configure-flags flags)
+            ;; The configure flags are largely identical to the flags used by the
+            ;; "GCC ARM embedded" project.
+            #~(append (list "--enable-multilib"
+                            "--with-newlib"
+                            "--with-multilib-list=armv6-m,armv7-m,armv7e-m"
+                            "--with-host-libstdcxx=-static-libgcc \
+-Wl,-Bstatic,-lstdc++,-Bdynamic -lm"
+                            "--enable-plugins"
+                            "--disable-decimal-float"
+                            "--disable-libffi"
+                            "--disable-libgomp"
+                            "--disable-libmudflap"
+                            "--disable-libquadmath"
+                            "--disable-libssp"
+                            "--disable-libstdcxx-pch"
+                            "--disable-nls"
+                            "--disable-shared"
+                            "--disable-threads"
+                            "--disable-tls")
+                      (delete "--disable-multilib" #$flags)))))
+        (native-search-paths
+         (list (search-path-specification
+                (variable "CROSS_C_INCLUDE_PATH")
+                (files '("arm-none-eabi/include")))
+               (search-path-specification
+                (variable "CROSS_CPLUS_INCLUDE_PATH")
+                (files '("arm-none-eabi/include/c++"
+                         "arm-none-eabi/include/c++/arm-none-eabi"
+                         "arm-none-eabi/include")))
+               (search-path-specification
+                (variable "CROSS_LIBRARY_PATH")
+                (files '("arm-none-eabi/lib")))))))))
+
+(define make-gcc-arm-none-eabi-6
+  (mlambda ()
+    (package
+      (inherit (make-gcc-arm-none-eabi-4.9))
+      (version (package-version gcc-6))
+      (source (origin
+                (inherit (package-source gcc-6))
+                (patches
+                 (append
+                  (origin-patches (package-source gcc-6))
+                  (search-patches "gcc-6-cross-environment-variables.patch"
+                                  "gcc-6-arm-none-eabi-multilib.patch"))))))))
+
+(define make-newlib-arm-none-eabi
+  (mlambda ()
+    (package
+      (name "newlib")
+      (version "2.4.0")
+      (source (origin
+                (method url-fetch)
+                (uri (string-append "ftp://sourceware.org/pub/newlib/newlib-"
+                                    version ".tar.gz"))
+                (sha256
+                 (base32
+                  "01i7qllwicf05vsvh39qj7qp5fdifpvvky0x95hjq39mbqiksnsl"))))
+      (build-system gnu-build-system)
+      (arguments
+       `(#:out-of-source? #t
+         ;; The configure flags are identical to the flags used by the "GCC ARM
+         ;; embedded" project.
+         #:configure-flags '("--target=arm-none-eabi"
+                             "--enable-newlib-io-long-long"
+                             "--enable-newlib-register-fini"
+                             "--disable-newlib-supplied-syscalls"
+                             "--disable-nls")
+         #:phases
+         (modify-phases %standard-phases
+           (add-after 'unpack 'fix-references-to-/bin/sh
+             (lambda _
+               (substitute* (find-files "libgloss" "^Makefile\\.in$")
+                 (("/bin/sh") (which "sh")))
+               #t)))))
+      (native-inputs
+       `(("xbinutils" ,(cross-binutils "arm-none-eabi"))
+         ("xgcc" ,(make-gcc-arm-none-eabi-4.9))
+         ("texinfo" ,texinfo)))
+      (home-page "https://www.sourceware.org/newlib/")
+      (synopsis "C library for use on embedded systems")
+      (description "Newlib is a C library intended for use on embedded
+systems.  It is a conglomeration of several library parts that are easily
+usable on embedded products.")
+      (license (license:non-copyleft
+                "https://www.sourceware.org/newlib/COPYING.NEWLIB")))))
+
+(define make-newlib-nano-arm-none-eabi
+  (mlambda ()
+    (let ((base (make-newlib-arm-none-eabi)))
+      (package
+        (inherit base)
+        (name "newlib-nano")
+        (arguments
+         (substitute-keyword-arguments arguments
+           ;; The configure flags are identical to the flags used by the "GCC
+           ;; ARM embedded" project.  They optimize newlib for use on small
+           ;; embedded systems with limited memory.
+           ((#:configure-flags _)
+            ''("--target=arm-none-eabi"
+               "--enable-multilib"
+               "--disable-newlib-supplied-syscalls"
+               "--enable-newlib-reent-small"
+               "--disable-newlib-fvwrite-in-streamio"
+               "--disable-newlib-fseek-optimization"
+               "--disable-newlib-wide-orient"
+               "--enable-newlib-nano-malloc"
+               "--disable-newlib-unbuf-stream-opt"
+               "--enable-lite-exit"
+               "--enable-newlib-global-atexit"
+               "--enable-newlib-nano-formatted-io"
+               "--disable-nls"))
+           ((#:phases phases)
+            `(modify-phases ,phases
+               ;; XXX: Most arm toolchains offer both *.a and *_nano.a as
+               ;; newlib and newlib-nano respectively.  The headers are
+               ;; usually arm-none-eabi/include/newlib.h for newlib and
+               ;; arm-none-eabi/include/newlib-nano/newlib.h for newlib-nano.
+               ;; We have two different toolchain packages for each which
+               ;; works but is a little strange.
+               (add-after 'install 'hardlink-newlib
+                 (lambda* (#:key outputs #:allow-other-keys)
+                   (let ((out (assoc-ref outputs "out")))
+                     ;; The nano.specs file says that newlib-nano files should
+                     ;; end in "_nano.a" instead of just ".a".  Note that this
+                     ;; applies to all the multilib folders too.
+                     (for-each
+                      (lambda (file)
+                        (link file
+                              (string-append
+                               ;; Strip ".a" off the end
+                               (substring file 0 (- (string-length file) 2))
+                               ;; Add "_nano.a" onto the end
+                               "_nano.a")))
+                      (find-files
+                       out
+                       "^(libc.a|libg.a|librdimon.a|libstdc\\+\\+.a|\
+libsupc\\+\\+.a)$"))
+
+                     ;; newlib.h is usually in this location instead so both
+                     ;; newlib and newlib-nano can be in the toolchain at the
+                     ;; same time
+                     (mkdir (string-append
+                             out "/arm-none-eabi/include/newlib-nano"))
+                     (symlink
+                      "../newlib.h"
+                      (string-append
+                       out
+                       "/arm-none-eabi/include/newlib-nano/newlib.h")))))))))
+        (synopsis "Newlib variant for small systems with limited memory")))))
+
+
+;;; The following definitions are for the "7-2018-q2-update" variant of the
+;;; ARM cross toolchain as offered on https://developer.arm.com
+(define make-gcc-arm-none-eabi-7-2018-q2-update
+  (mlambda ()
+    (let ((xgcc (cross-gcc "arm-none-eabi"
+                           #:xgcc gcc-7
+                           #:xbinutils (cross-binutils "arm-none-eabi")))
+          (revision "1")
+          (svn-revision 261907))
+      (package (inherit xgcc)
+               (version (string-append "7-2018-q2-update-"
+                                       revision "."
+                                       (number->string svn-revision)))
+               (source
+                (origin
+                  (method svn-fetch)
+                  (uri (svn-reference
+                        (url "svn://gcc.gnu.org/svn/gcc/branches/ARM/\
+embedded-7-branch/")
+                        (revision svn-revision)))
+                  (file-name (string-append "gcc-arm-embedded-" version
+                                            "-checkout"))
+                  (sha256
+                   (base32
+                    "192ggs63bixf3irpijgfkjks73yx1r3a4i6grk1y0i0iny76pmx5"))
+                  (patches
+                   (append
+                    (origin-patches (package-source gcc-7))
+                    (search-patches
+                     "gcc-7-cross-environment-variables.patch")))))
+               (native-inputs
+                (modify-inputs native-inputs
+                  (delete "isl")
+                  (prepend flex isl-0.18)))
+               (arguments
+                (substitute-keyword-arguments arguments
+                  ((#:phases phases)
+                   #~(modify-phases #$phases
+                       (add-after 'unpack 'expand-version-string
+                         (lambda _
+                           (make-file-writable "gcc/DEV-PHASE")
+                           (with-output-to-file "gcc/DEV-PHASE"
+                             (lambda ()
+                               (display "7-2018-q2-update")))))
+                       (add-after 'unpack 'fix-genmultilib
+                         (lambda _
+                           (substitute* "gcc/genmultilib"
+                             (("#!/bin/sh")
+                              (string-append "#!" (which "sh"))))))
+                       (add-after 'set-paths 'augment-CPLUS_INCLUDE_PATH
+                         (lambda* (#:key inputs #:allow-other-keys)
+                           (let ((gcc (assoc-ref inputs  "gcc")))
+                             ;; Remove the default compiler from
+                             ;; CPLUS_INCLUDE_PATH to prevent header conflict
+                             ;; with the GCC from native-inputs.
+                             (setenv "CPLUS_INCLUDE_PATH"
+                                     (string-join
+                                      (delete (string-append gcc "/include/c++")
+                                              (string-split
+                                               (getenv "CPLUS_INCLUDE_PATH")
+                                               #\:))
+                                      ":"))
+                             (format #t
+                                     "environment variable `CPLUS_INCLUDE_PATH'\
+ changed to ~a~%"
+                                     (getenv "CPLUS_INCLUDE_PATH")))))))
+                  ((#:configure-flags flags)
+                   ;; The configure flags are largely identical to the flags
+                   ;; used by the "GCC ARM embedded" project.
+                   #~(append (list "--enable-multilib"
+                                   "--with-newlib"
+                                   "--with-multilib-list=rmprofile"
+                                   "--with-host-libstdcxx=-static-libgcc \
+-Wl,-Bstatic,-lstdc++,-Bdynamic -lm"
+                                   "--enable-plugins"
+                                   "--disable-decimal-float"
+                                   "--disable-libffi"
+                                   "--disable-libgomp"
+                                   "--disable-libmudflap"
+                                   "--disable-libquadmath"
+                                   "--disable-libssp"
+                                   "--disable-libstdcxx-pch"
+                                   "--disable-nls"
+                                   "--disable-shared"
+                                   "--disable-threads"
+                                   "--disable-tls")
+                             (delete "--disable-multilib" #$flags)))))
+               (native-search-paths
+                (list (search-path-specification
+                       (variable "CROSS_C_INCLUDE_PATH")
+                       (files '("arm-none-eabi/include")))
+                      (search-path-specification
+                       (variable "CROSS_CPLUS_INCLUDE_PATH")
+                       (files '("arm-none-eabi/include/c++"
+                                "arm-none-eabi/include/c++/arm-none-eabi"
+                                "arm-none-eabi/include")))
+                      (search-path-specification
+                       (variable "CROSS_LIBRARY_PATH")
+                       (files '("arm-none-eabi/lib")))))))))
+
+(define make-base-newlib-arm-none-eabi-7-2018-q2-update
+  ;; This is the same commit as used for the 7-2018-q2-update release
+  ;; according to the release.txt.
+  (mlambda (base)
+    (let ((commit "3ccfb407af410ba7e54ea0da11ae1e40b554a6f4")
+          (revision "0"))
+      (package
+        (inherit base)
+        (version (git-version "3.0.0" revision commit))
+        (source
+         (origin
+           (method git-fetch)
+           (uri (git-reference
+                 (url "http://sourceware.org/git/newlib-cygwin.git")
+                 (commit commit)))
+           (file-name (git-file-name "newlib" commit))
+           (sha256
+            (base32
+             "1dq23fqrk75g1a4v7569fvnnw5q440zawbxi3w0g05n8jlqsmvcy"))))
+        (arguments
+         (substitute-keyword-arguments arguments
+           ;; The configure flags are identical to the flags used by the "GCC
+           ;; ARM embedded" project.
+           ((#:configure-flags flags)
+            `(cons* "--enable-newlib-io-c99-formats"
+                    "--enable-newlib-retargetable-locking"
+                    "--with-headers=yes"
+                    ,flags))))
+        (native-inputs
+         `(("xbinutils" ,(cross-binutils "arm-none-eabi"))
+           ("xgcc" ,(make-gcc-arm-none-eabi-7-2018-q2-update))
+           ("texinfo" ,texinfo)))))))
+
+(define make-newlib-arm-none-eabi-7-2018-q2-update
+  (mlambda ()
+    (make-base-newlib-arm-none-eabi-7-2018-q2-update (make-newlib-arm-none-eabi))))
+
+(define make-newlib-nano-arm-none-eabi-7-2018-q2-update
+  (mlambda ()
+    (make-base-newlib-arm-none-eabi-7-2018-q2-update (make-newlib-nano-arm-none-eabi))))
+
+
+;;; The following definitions are for the "9-2020-q2-update" variant of the
+;;; ARM cross toolchain as offered on https://developer.arm.com
+(define make-gcc-arm-none-eabi-9-2020-q2-update
+  (mlambda ()
+    (let ((xgcc (cross-gcc "arm-none-eabi"
+                           #:xgcc gcc-9
+                           #:xbinutils (cross-binutils "arm-none-eabi")))
+          (commit "13861a80750d118fbdca6006ab175903bacbb7ec")
+          (revision "1"))
+      (package (inherit xgcc)
+               (version (git-version "9-2020-q2-update" revision commit))
+               (source
+                (origin
+                  (inherit (package-source xgcc))
+                  (method git-fetch)
+                  (uri (git-reference
+                        (url "git://gcc.gnu.org/git/gcc.git")
+                        (commit commit)))
+                  (file-name (git-file-name "gcc-arm-embedded" version))
+                  (sha256
+                   (base32
+                    "1cshb1wbynjac3icbf2na633k4d8r7nqn4nv0d65q6f78w295h97"))
+                  (patches
+                   (append
+                    (origin-patches (package-source gcc-9))
+                    (search-patches
+                     "gcc-10-cross-environment-variables.patch")))))
+               (native-inputs
+                (modify-inputs native-inputs
+                  (delete "isl")
+                  (prepend flex isl-0.18)))
+               (arguments
+                (substitute-keyword-arguments arguments
+                  ((#:phases phases)
+                   #~(modify-phases #$phases
+                       (add-after 'unpack 'expand-version-string
+                         (lambda _
+                           (make-file-writable "gcc/DEV-PHASE")
+                           (with-output-to-file "gcc/DEV-PHASE"
+                             (lambda ()
+                               (display "9-2020-q2-update")))))
+                       (add-after 'unpack 'fix-genmultilib
+                         (lambda _
+                           (substitute* "gcc/genmultilib"
+                             (("#!/bin/sh")
+                              (string-append "#!" (which "sh"))))))
+                       (add-after 'set-paths 'augment-CPLUS_INCLUDE_PATH
+                         (lambda* (#:key inputs #:allow-other-keys)
+                           (let ((gcc (assoc-ref inputs  "gcc")))
+                             ;; Remove the default compiler from
+                             ;; CPLUS_INCLUDE_PATH to prevent header conflict
+                             ;; with the GCC from native-inputs.
+                             (setenv "CPLUS_INCLUDE_PATH"
+                                     (string-join
+                                      (delete (string-append gcc "/include/c++")
+                                              (string-split
+                                               (getenv "CPLUS_INCLUDE_PATH")
+                                               #\:))
+                                      ":"))
+                             (format #t
+                                     "environment variable `CPLUS_INCLUDE_PATH'\
+ changed to ~a~%"
+                                     (getenv "CPLUS_INCLUDE_PATH")))))))
+                  ((#:configure-flags flags)
+                   ;; The configure flags are largely identical to the flags
+                   ;; used by the "GCC ARM embedded" project.
+                   #~(append (list "--enable-multilib"
+                                   "--with-newlib"
+                                   "--with-multilib-list=rmprofile"
+                                   "--with-host-libstdcxx=-static-libgcc \
+-Wl,-Bstatic,-lstdc++,-Bdynamic -lm"
+                                   "--enable-plugins"
+                                   "--disable-decimal-float"
+                                   "--disable-libffi"
+                                   "--disable-libgomp"
+                                   "--disable-libmudflap"
+                                   "--disable-libquadmath"
+                                   "--disable-libssp"
+                                   "--disable-libstdcxx-pch"
+                                   "--disable-nls"
+                                   "--disable-shared"
+                                   "--disable-threads"
+                                   "--disable-tls")
+                             (delete "--disable-multilib" #$flags)))))
+               (native-search-paths
+                (list (search-path-specification
+                       (variable "CROSS_C_INCLUDE_PATH")
+                       (files '("arm-none-eabi/include")))
+                      (search-path-specification
+                       (variable "CROSS_CPLUS_INCLUDE_PATH")
+                       (files '("arm-none-eabi/include/c++"
+                                "arm-none-eabi/include/c++/arm-none-eabi"
+                                "arm-none-eabi/include")))
+                      (search-path-specification
+                       (variable "CROSS_LIBRARY_PATH")
+                       (files '("arm-none-eabi/lib")))))))))
+
+(define make-base-newlib-arm-none-eabi-9-2020-q2-update
+  ;; This is the same commit as used for the 9-2020-q2-update release
+  ;; according to the release.txt.
+  (mlambda (base)
+    (let ((commit "6d79e0a58866548f435527798fbd4a6849d05bc7")
+          (revision "0"))
+      (package
+        (inherit base)
+        (version (git-version "3.3.0" revision commit))
+        (source
+         (origin
+           (method git-fetch)
+           (uri (git-reference
+                 (url "http://sourceware.org/git/newlib-cygwin.git")
+                 (commit commit)))
+           (file-name (git-file-name "newlib" version))
+           (sha256
+            (base32
+             "095j23mg928rmf4yqmj39wc0nsd207liqrdw4ygh58nygsm4gpmh"))))
+        (arguments
+         (substitute-keyword-arguments arguments
+           ;; The configure flags are identical to the flags used by the "GCC
+           ;; ARM embedded" project.
+           ((#:configure-flags flags)
+            `(cons* "--enable-newlib-io-c99-formats"
+                    "--enable-newlib-retargetable-locking"
+                    "--with-headers=yes"
+                    ,flags))))
+        (native-inputs
+         `(("xbinutils" ,(cross-binutils "arm-none-eabi"))
+           ("xgcc" ,(make-gcc-arm-none-eabi-9-2020-q2-update))
+           ("texinfo" ,texinfo)))))))
+
+(define make-newlib-arm-none-eabi-9-2020-q2-update
+  (mlambda ()
+    (make-base-newlib-arm-none-eabi-9-2020-q2-update (make-newlib-arm-none-eabi))))
+
+(define make-newlib-nano-arm-none-eabi-9-2020-q2-update
+  (mlambda ()
+    (make-base-newlib-arm-none-eabi-9-2020-q2-update (make-newlib-nano-arm-none-eabi))))
+
+
+;;; The following definitions are for the "12.3.rel1" variant of the
+;;; ARM cross toolchain as offered on https://developer.arm.com
+(define-public make-gcc-arm-none-eabi-12.3.rel1
+  (mlambda ()
+    (let ((base (make-gcc-arm-none-eabi-7-2018-q2-update))
+          (xgcc-base (cross-gcc "arm-none-eabi"
+                                #:xgcc gcc-12
+                                #:xbinutils (cross-binutils "arm-none-eabi"))))
+      (package
+        (inherit base)
+        (version "12.3.rel1")
+        (source
+         (origin
+           (inherit (package-source xgcc-base))
+           (method git-fetch)
+           (uri (git-reference
+                 (url "git://gcc.gnu.org/git/gcc.git")
+                 (commit "0f54a73b998b72f7c8452a63730ec3b16fc47854")))
+           (sha256
+            (base32 "0r6q0m3d8g3k3rkmnqjw8aw5fcnsrmywf4ispdkxmk1al3whk1vk"))))
+        (arguments
+         (substitute-keyword-arguments arguments
+           ((#:phases phases)
+            #~(modify-phases #$phases
+                (replace 'expand-version-string
+                  (lambda _
+                    (make-file-writable "gcc/DEV-PHASE")
+                    (with-output-to-file "gcc/DEV-PHASE"
+                      (lambda ()
+                        (display "12.3.rel1")))))))
+           ((#:configure-flags flags)
+            #~(cons* "--with-multilib-list=aprofile,rmprofile"
+                     "--with-headers=yes"
+                     "--enable-checking=release"
+                     "--with-gnu-as"
+                     "--with-gnu-ld"
+                     (filter
+                      (lambda (flag)
+                        (not (member flag
+                                     '("--with-multilib-list=rmprofile"
+                                       "--enable-plugins"
+                                       "--disable-libffi"))))
+                      #$flags)))))))))
+
+(define make-base-newlib-arm-none-eabi-12.3.rel1
+  (mlambda (original-base)
+    (let ((base (make-base-newlib-arm-none-eabi-7-2018-q2-update original-base))
+          (commit "4c7d0dfec5793cbf5cf3930b91f930479126d8ce")
+          (revision "0"))
+      (package
+        (inherit base)
+        (version (git-version "4.3.0" revision commit))
+        (source
+         (origin
+           (method git-fetch)
+           (uri (git-reference
+                 (url "http://sourceware.org/git/newlib-cygwin.git")
+                 (commit commit)))
+           (sha256
+            (base32
+             "0drs9v8avh4y2h5bs0ixjn9x662jzkkikx8z034wgl41dxmn6786"))))
+        (arguments (substitute-keyword-arguments arguments
+                     ((#:configure-flags flags)
+                      #~(cons* "--enable-newlib-mb"
+                               "--enable-newlib-reent-check-verify"
+                               "--enable-newlib-register-fini"
+                               #$flags))))))))
+
+(define make-newlib-arm-none-eabi-12.3.rel1
+  (mlambda ()
+    (make-base-newlib-arm-none-eabi-12.3.rel1 (make-newlib-arm-none-eabi))))
+
+(define make-newlib-nano-arm-none-eabi-12.3.rel1
+  (mlambda ()
+    (make-base-newlib-arm-none-eabi-12.3.rel1 (make-newlib-nano-arm-none-eabi))))
+
+
+(define make-libstdc++-arm-none-eabi
+  (mlambda (xgcc newlib)
+    (let* ((libstdc++ (make-libstdc++ xgcc))
+           (src (package-source libstdc++)))
+      (package
+        (inherit libstdc++)
+        (source
+         (origin
+           (inherit src)
+           (patches (append
+                     ; libstdc++ cannot be linked with since the configure phase
+                     ; cannot detect properly the presence of getentropy function.
+                     ; The function is inside of a header, but it's not present in the resulting
+                     ; newlib. configure will conclude getentropy is present,
+                     ; random will use getentropy, and any linking with random will fail.
+                     (if (version>=? (package-version xgcc) "12.0")
+                         (search-patches "newlib-getentropy.patch")
+                         '())
+                     (origin-patches src)))))
+        (name "libstdc++-arm-none-eabi")
+        (arguments
+         (substitute-keyword-arguments (package-arguments libstdc++)
+           ((#:make-flags flags #f)
+            #~(cons* "CFLAGS=-g -O2 -fdata-sections -ffunction-sections"
+                     "CXXFLAGS=-g -O2 -fdata-sections -ffunction-sections"
+                     (or #$flags '())))
+           ((#:configure-flags _)
+            ``(; This is more of a hack. This option doesn't really seem
+               ; to change what subdir is used eventually, but without it there is
+               ; error: Link tests are not allowed after GCC_NO_EXECUTABLES with
+               ; The 12.3 toolchain
+               "--with-target-subdir=\".\""
+               "--target=arm-none-eabi"
+               "--host=arm-none-eabi"
+               "--disable-libstdcxx-pch"
+               "--enable-multilib"
+               "--with-multilib-list=armv6-m,armv7-m,armv7e-m"
+               "--disable-shared"
+               "--disable-tls"
+               "--disable-plugin"
+               "--with-newlib"
+               ,(string-append "--libdir="
+                               (assoc-ref %outputs "out")
+                               "/arm-none-eabi/lib")
+               ,(string-append "--with-gxx-include-dir="
+                               (assoc-ref %outputs "out")
+                               "/arm-none-eabi/include/c++")))
+           ((#:strip-directories _ #f)
+            ''("arm-none-eabi/lib"))))
+        (native-inputs
+         `(("newlib" ,newlib)
+           ("xgcc" ,xgcc)
+           ,@(package-native-inputs libstdc++)))))))
+
+(define make-libstdc++-nano-arm-none-eabi
+  (mlambda (xgcc newlib-nano)
+    (let ((base (make-libstdc++-arm-none-eabi xgcc newlib-nano)))
+      (package
+        (inherit base)
+        (name "libstdc++-nano-arm-none-eabi")
+        (arguments (substitute-keyword-arguments arguments
+                     ((#:make-flags flags)
+                      #~(map (lambda (flag)
+                               (if (or (string-prefix? "CFLAGS=" flag)
+                                       (string-prefix? "CXXFLAGS=" flag))
+                                   (string-append flag " -fno-exceptions")
+                                   flag))
+                             #$flags))
+                     ((#:phases phases)
+                      #~(modify-phases #$phases
+                          (add-after 'install 'hardlink-libstdc++
+                            ;; XXX: Most arm toolchains offer both *.a and *_nano.a as
+                            ;; newlib and newlib-nano respectively.  The headers are
+                            ;; usually arm-none-eabi/include/newlib.h for newlib and
+                            ;; arm-none-eabi/include/newlib-nano/newlib.h for newlib-nano.
+                            ;; We have two different toolchain packages for each which
+                            ;; works but is a little strange.
+                            (lambda* (#:key outputs #:allow-other-keys)
+                              (let ((out (assoc-ref outputs "out")))
+                                ;; The nano.specs file says that newlib-nano files should
+                                ;; end in "_nano.a" instead of just ".a".  Note that this
+                                ;; applies to all the multilib folders too.
+                                (for-each
+                                 (lambda (file)
+                                   (link file
+                                         (string-append
+                                          ;; Strip ".a" off the end
+                                          (substring file 0 (- (string-length file) 2))
+                                          ;; Add "_nano.a" onto the end
+                                          "_nano.a")))
+                                 (find-files
+                                  out "^(libstdc\\+\\+.a|libsupc\\+\\+.a)$")))))))))))))
+
+(define make-arm-none-eabi-toolchain
+  (mlambda (xgcc newlib)
+    "Produce a cross-compiler toolchain package with the compiler XGCC and the
+C library variant NEWLIB."
+    (let* ((nano? (string=? (package-name newlib)
+                            "newlib-nano"))
+           (newlib-with-xgcc
+            (package
+              (inherit newlib)
+              (native-inputs
+               (alist-replace "xgcc" (list xgcc)
+                              (package-native-inputs newlib)))))
+           (libstdc++
+            (if nano?
+                (make-libstdc++-nano-arm-none-eabi xgcc newlib-with-xgcc)
+                (make-libstdc++-arm-none-eabi xgcc newlib-with-xgcc))))
+      (package
+        (name (string-append "arm-none-eabi"
+                             (if nano? "-nano" "")
+                             "-toolchain"))
+        (version (package-version xgcc))
+        (source #f)
+        (build-system trivial-build-system)
+        (arguments
+         '(#:modules ((guix build union))
+           #:builder
+           (begin
+             (use-modules (ice-9 match)
+                          (guix build union))
+             (match %build-inputs
+               (((names . directories) ...)
+                (union-build (assoc-ref %outputs "out")
+                             directories))))))
+        (propagated-inputs
+         `(("binutils" ,(cross-binutils "arm-none-eabi"))
+           ("libstdc++" ,libstdc++)
+           ("gcc" ,xgcc)
+           ("newlib" ,newlib-with-xgcc)))
+        (synopsis "Complete GCC tool chain for ARM bare metal development")
+        (description "This package provides a complete GCC tool chain for ARM
+bare metal development.  This includes the GCC arm-none-eabi cross compiler
+and newlib (or newlib-nano) as the C library.  The supported programming
+languages are C and C++.")
+        (home-page (package-home-page xgcc))
+        (license (package-license xgcc))))))
+
+(define make-arm-none-eabi-toolchain-4.9
+  (mlambda ()
+    (make-arm-none-eabi-toolchain (make-gcc-arm-none-eabi-4.9)
+                                  (make-newlib-arm-none-eabi))))
+
+(define make-arm-none-eabi-nano-toolchain-4.9
+  (mlambda ()
+    (make-arm-none-eabi-toolchain (make-gcc-arm-none-eabi-4.9)
+                                  (make-newlib-nano-arm-none-eabi))))
+
+(define make-arm-none-eabi-toolchain-6
+  (mlambda ()
+    (make-arm-none-eabi-toolchain (make-gcc-arm-none-eabi-6)
+                                  (make-newlib-arm-none-eabi))))
+
+(define make-arm-none-eabi-nano-toolchain-6
+  (mlambda ()
+    (make-arm-none-eabi-toolchain (make-gcc-arm-none-eabi-6)
+                                  (make-newlib-nano-arm-none-eabi))))
+
+(define make-arm-none-eabi-toolchain-7-2018-q2-update
+  (mlambda ()
+    (make-arm-none-eabi-toolchain
+     (make-gcc-arm-none-eabi-7-2018-q2-update)
+     (make-newlib-arm-none-eabi-7-2018-q2-update))))
+
+(define make-arm-none-eabi-nano-toolchain-7-2018-q2-update
+  (mlambda ()
+    (make-arm-none-eabi-toolchain
+     (make-gcc-arm-none-eabi-7-2018-q2-update)
+     (make-newlib-nano-arm-none-eabi-7-2018-q2-update))))
+
+(define make-arm-none-eabi-toolchain-9-2020-q2-update
+  (mlambda ()
+    (make-arm-none-eabi-toolchain
+     (make-gcc-arm-none-eabi-9-2020-q2-update)
+     (make-newlib-arm-none-eabi-9-2020-q2-update))))
+
+(define make-arm-none-eabi-nano-toolchain-9-2020-q2-update
+  (mlambda ()
+    (make-arm-none-eabi-toolchain
+     (make-gcc-arm-none-eabi-9-2020-q2-update)
+     (make-newlib-nano-arm-none-eabi-9-2020-q2-update))))
+
+(define make-arm-none-eabi-toolchain-12.3.rel1
+  (mlambda ()
+    (make-arm-none-eabi-toolchain
+     (make-gcc-arm-none-eabi-12.3.rel1)
+     (make-newlib-arm-none-eabi-12.3.rel1))))
+
+(define make-arm-none-eabi-nano-toolchain-12.3.rel1
+  (mlambda ()
+    (make-arm-none-eabi-toolchain
+     (make-gcc-arm-none-eabi-12.3.rel1)
+     (make-newlib-nano-arm-none-eabi-12.3.rel1))))
+
+(define make-gdb-arm-none-eabi
+  (mlambda ()
+    (package
+      (inherit gdb)
+      (name "gdb-arm-none-eabi")
+      (arguments
+       (substitute-keyword-arguments arguments
+         ((#:configure-flags flags '())
+          #~(cons* "--target=arm-none-eabi"
+                   "--enable-multilib"
+                   "--enable-interwork"
+                   "--enable-languages=c,c++"
+                   "--disable-nls"
+                   #$flags)))))))
+
+(define-public libjaylink
+  (package
+    (name "libjaylink")
+    (version "0.3.1")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://repo.or.cz/libjaylink.git")
+                    (commit version)))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "1wps72ir2kwdr7dphx4vp6cy0d46dm3nkwbk0mpryn9la09l7lm1"))))
+    (build-system gnu-build-system)
+    (native-inputs
+     (list autoconf automake libtool pkg-config))
+    (inputs
+     (list libusb))
+    (home-page "https://repo.or.cz/w/libjaylink.git")
+    (synopsis "Library to interface Segger J-Link devices")
+    (description "libjaylink is a shared library written in C to access
+SEGGER J-Link and compatible devices.")
+    (license license:gpl2+)))
+
+;; Deprecated on 2026-06-27.
+(define-deprecated/public-alias jimtcl
+  (@ (gnu packages tcl) jimtcl))
+
+(define-public openocd
+  (package
+    (name "openocd")
+    (version "0.12.0")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://git.code.sf.net/p/openocd/code")
+                    (commit (string-append "v" version))))
+              (file-name (string-append name "-" version "-checkout"))
+              (sha256
+               (base32
+                "09wb11zlmrw6rx1bql3kafgi3ilzp9mhvb6j6rql216by06csing"))))
+    (build-system gnu-build-system)
+    (native-inputs
+     (list autoconf
+           automake
+           libtool
+           which
+           pkg-config
+           texinfo))
+    (inputs
+     (list hidapi (@ (gnu packages tcl) jimtcl) libftdi libjaylink openssl))
+    (arguments
+     '(#:configure-flags
+       (append (list "LIBS=-lutil -lcrypto -lssl"
+                     "--disable-werror"
+                     "--enable-sysfsgpio"
+                     "--disable-internal-jimtcl"
+                     "--disable-internal-libjaylink")
+               (map (lambda (programmer)
+                      (string-append "--enable-" programmer))
+                    '("amtjtagaccel" "armjtagew" "buspirate" "ftdi"
+                      "gw16012" "jlink" "opendous" "osbdm"
+                      "parport" "aice" "cmsis-dap" "dummy" "jtag_vpi"
+                      "remote-bitbang" "rlink" "stlink" "ti-icdi" "ulink"
+                      "usbprog" "vsllink" "usb-blaster-2" "usb_blaster"
+                      "presto" "openjtag" "rshim" "ft232r" "xds110"
+                      "cmsis-dap-v2" "nulink" "kitprog" "jtag_dpi"
+                      "bcm2835gpio" "imx_gpio" "ep93xx" "at91rm9200"
+                      "sysfsgpio" "xlnx-pcie-xvc")))
+       #:phases
+       (modify-phases %standard-phases
+         (replace 'bootstrap
+           (lambda _
+             ;; Make build reproducible.
+             (substitute* "src/Makefile.am"
+               (("-DPKGBLDDATE=") "-DDISABLED_PKGBLDDATE="))
+             (patch-shebang "bootstrap")
+             (invoke "./bootstrap" "nosubmodule")))
+         (add-after 'unpack 'change-udev-group
+           (lambda _
+             (substitute* "contrib/60-openocd.rules"
+               (("plugdev") "dialout"))))
+         (add-after 'install 'install-udev-rules
+           (lambda* (#:key outputs #:allow-other-keys)
+             (install-file "contrib/60-openocd.rules"
+                           (string-append
+                            (assoc-ref outputs "out")
+                            "/lib/udev/rules.d/")))))))
+    (home-page "https://openocd.org/")
+    (synopsis "On-Chip Debugger")
+    (description "OpenOCD provides on-chip programming and debugging support
+with a layered architecture of JTAG interface and TAP support.")
+    (license license:gpl2+)))
+
+;; The commits for all propeller tools are the stable versions published at
+;; https://github.com/propellerinc/propgcc in the release_1_0.  According to
+;; personal correspondence with the developers in July 2017, more recent
+;; versions are currently incompatible with the "Simple Libraries".
+
+(define make-propeller-binutils
+  (mlambda ()
+    (let ((xbinutils (cross-binutils "propeller-elf"))
+          (commit "4c46ecbe79ffbecd2ce918497ace5b956736b5a3")
+          (revision "2"))
+      (package
+        (inherit xbinutils)
+        (name "propeller-binutils")
+        (version (string-append "0.0.0-" revision "." (string-take commit 9)))
+        (source (origin
+                  (inherit (package-source xbinutils))
+                  (method git-fetch)
+                  (uri (git-reference
+                        (url "https://github.com/parallaxinc/propgcc")
+                        (commit commit)))
+                  (file-name (string-append name "-" commit "-checkout"))
+                  (sha256
+                   (base32
+                    "0w0dff3s7wv2d9m78a4jhckiik58q38wx6wpbba5hzbs4yxz35ck"))
+                  (patches '())))
+        (arguments
+         (substitute-keyword-arguments arguments
+           ((#:configure-flags flags)
+            #~(cons "--disable-werror" #$flags))
+           ;; FIXME: For some reason there are many test failures.  It's not
+           ;; obvious how to fix the failures.
+           ((#:tests? tests? #false) #false)
+           ((#:phases phases '%standard-phases)
+            `(modify-phases ,phases
+               (add-after 'unpack 'chdir
+                 (lambda _ (chdir "binutils")))))))
+        (native-inputs
+         `(("bison" ,bison)
+           ("flex" ,flex)
+           ("texinfo" ,texinfo)
+           ("dejagnu" ,dejagnu)
+           ,@(package-native-inputs xbinutils)))))))
+
+(define make-propeller-gcc-6
+  (mlambda ()
+    (let ((xgcc (cross-gcc "propeller-elf"
+                           #:xbinutils (make-propeller-binutils)))
+          (commit "b4f45a4725e0b6d0af59e594c4e3e35ca4105867")
+          (revision "1"))
+      (package
+        (inherit xgcc)
+        (name "propeller-gcc")
+        (version (string-append "6.0.0-" revision "." (string-take commit 9)))
+        (source (origin
+                  (method git-fetch)
+                  (uri (git-reference
+                        (url "https://github.com/totalspectrum/gcc-propeller")
+                        (commit commit)))
+                  (file-name (string-append name "-" commit "-checkout"))
+                  (sha256
+                   (base32
+                    "0d9kdxm2fzanjqa7q5850kzbsfl0fqyaahxn74h6nkxxacwa11zb"))
+                  (patches
+                   (append
+                    (origin-patches (package-source gcc-6))
+                    (search-patches "gcc-cross-environment-variables.patch")))))
+        (native-inputs
+         (modify-inputs native-inputs
+           (prepend flex)))
+        ;; All headers and cross libraries of the propeller toolchain are
+        ;; installed under the "propeller-elf" prefix.
+        (native-search-paths
+         (list (search-path-specification
+                (variable "CROSS_C_INCLUDE_PATH")
+                (files '("propeller-elf/include")))
+               (search-path-specification
+                (variable "CROSS_LIBRARY_PATH")
+                (files '("propeller-elf/lib")))))
+        (home-page "https://github.com/totalspectrum/gcc-propeller")
+        (synopsis "GCC for the Parallax Propeller")))))
+
+(define make-propeller-gcc-4
+  (mlambda ()
+    (let ((xgcc (make-propeller-gcc-6))
+          (commit "4c46ecbe79ffbecd2ce918497ace5b956736b5a3")
+          (revision "2"))
+      (package
+        (inherit xgcc)
+        (name "propeller-gcc")
+        (version (string-append "4.6.1-" revision "." (string-take commit 9)))
+        (source (origin
+                  (method git-fetch)
+                  (uri (git-reference
+                        (url "https://github.com/parallaxinc/propgcc")
+                        (commit commit)))
+                  (file-name (string-append name "-" commit "-checkout"))
+                  (sha256
+                   (base32
+                    "0w0dff3s7wv2d9m78a4jhckiik58q38wx6wpbba5hzbs4yxz35ck"))
+                  (patch-flags (list "-p1" "--directory=gcc"))
+                  (patches
+                   (append
+                    (origin-patches (package-source gcc-base))
+                    (search-patches
+                     "gcc-cross-environment-variables.patch")))))
+        (arguments
+         (substitute-keyword-arguments arguments
+           ((#:phases phases)
+            #~(modify-phases #$phases
+                (delete 'pre-x86-configure)
+                (add-after 'unpack 'chdir
+                  (lambda _ (chdir "gcc")))))))
+        (native-inputs
+         (modify-inputs native-inputs
+           (prepend gcc-5)))
+        (home-page "https://github.com/parallaxinc/propgcc")
+        (supported-systems (delete "aarch64-linux" %supported-systems))))))
+
+;; Version 6 is experimental and may not work correctly.  This is why we
+;; default to version 4, which is also used in the binary toolchain bundle
+;; provided by Parallax Inc.
+(define make-propeller-gcc make-propeller-gcc-4)
+
+
+;; FIXME: We do not build the tiny library because that would require C++
+;; headers, which are not available.  This may require adding a propeller-elf
+;; variant of the libstdc++ package.
+(define-public proplib
+  (let ((commit "4c46ecbe79ffbecd2ce918497ace5b956736b5a3")
+        (revision "2"))
+    (package
+      (name "proplib")
+      (version (string-append "0.0.0-" revision "." (string-take commit 9)))
+      (source (origin
+                (method git-fetch)
+                (uri (git-reference
+                      (url "https://github.com/parallaxinc/propgcc")
+                      (commit commit)))
+                (file-name (string-append name "-" commit "-checkout"))
+                (sha256
+                 (base32
+                  "0w0dff3s7wv2d9m78a4jhckiik58q38wx6wpbba5hzbs4yxz35ck"))))
+      (build-system gnu-build-system)
+      (arguments
+       `(#:tests? #f ; no tests
+         #:make-flags
+         (list (string-append "PREFIX=" (assoc-ref %outputs "out"))
+               (string-append "BUILD="  (getcwd) "/build"))
+         #:phases
+         (modify-phases %standard-phases
+           (delete 'configure)
+           (add-after 'unpack 'chdir
+             (lambda _ (chdir "lib") #t))
+           (add-after 'chdir 'fix-Makefile
+             (lambda _
+               (substitute* "Makefile"
+                 ;; Control the installation time of the headers.
+                 ((" install-includes") ""))
+               #t))
+           ;; The Makefile does not separate building from installation, so we
+           ;; have to create the target directories at build time.
+           (add-before 'build 'create-target-directories
+             (lambda* (#:key make-flags #:allow-other-keys)
+               (apply invoke "make" "install-dirs" make-flags)))
+           (add-before 'build 'set-cross-environment-variables
+             (lambda* (#:key outputs #:allow-other-keys)
+               (setenv "CROSS_LIBRARY_PATH"
+                       (string-append (assoc-ref outputs "out")
+                                      "/propeller-elf/lib:"
+                                      (or (getenv "CROSS_LIBRARY_PATH") "")))
+               (setenv "CROSS_C_INCLUDE_PATH"
+                       (string-append (assoc-ref outputs "out")
+                                      "/propeller-elf/include:"
+                                      (or (getenv "CROSS_C_INCLUDE_PATH") "")))
+               #t))
+           (add-before 'install 'install-includes
+             (lambda* (#:key make-flags #:allow-other-keys)
+               (apply invoke "make" "install-includes" make-flags))))))
+      (native-inputs
+       (list (make-propeller-gcc) (make-propeller-binutils) perl))
+      (home-page "https://github.com/parallaxinc/propgcc")
+      (synopsis "C library for the Parallax Propeller")
+      (description "This is a C library for the Parallax Propeller
+micro-controller.")
+      ;; Most of the code is released under the Expat license.  Some of the
+      ;; included code is public domain and some changes are BSD licensed.
+      (license license:expat))))
+
+(define make-propeller-toolchain
+  (mlambda ()
+    (let ((propeller-gcc (make-propeller-gcc)))
+      (package
+        (name "propeller-toolchain")
+        (version (package-version propeller-gcc))
+        (source #f)
+        (build-system trivial-build-system)
+        (arguments '(#:builder (begin (mkdir %output) #t)))
+        (propagated-inputs
+         `(("binutils" ,(make-propeller-binutils))
+           ("libc" ,proplib)
+           ("gcc" ,propeller-gcc)))
+        (synopsis "Complete GCC tool chain for Propeller micro-controllers")
+        (description "This package provides a complete GCC tool chain for
+Propeller micro-controller development.")
+        (home-page (package-home-page propeller-gcc))
+        (license (package-license propeller-gcc))))))
+
+(define-public openspin
+  (package
+    (name "openspin")
+    (version "1.00.78")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://github.com/parallaxinc/OpenSpin")
+                     (commit version)))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "0ghk8hj4717ydhqzx2pfs6737s1cxng6sgg2xgbkwvcfclxdbrd0"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:tests? #f ; no tests
+       #:phases
+       (modify-phases %standard-phases
+         (delete 'configure)
+         (add-after 'unpack 'remove-timestamp
+           (lambda _
+             (substitute* "SpinSource/openspin.cpp"
+               ((" Compiled on.*$") "\\n\");"))
+             #t))
+         ;; Makefile does not include "install" target
+         (replace 'install
+           (lambda* (#:key outputs #:allow-other-keys)
+             (let ((bin (string-append (assoc-ref outputs "out")
+                                       "/bin")))
+               (mkdir-p bin)
+               (install-file "build/openspin" bin)
+               #t))))))
+    (home-page "https://github.com/parallaxinc/OpenSpin")
+    (synopsis "Spin/PASM compiler for the Parallax Propeller")
+    (description "OpenSpin is a compiler for the Spin/PASM language of the
+Parallax Propeller.  It was ported from Chip Gracey's original x86 assembler
+code.")
+    (license license:expat)))
+
+(define-public propeller-load
+  (let ((commit "4c46ecbe79ffbecd2ce918497ace5b956736b5a3")
+        (revision "2"))
+    (package
+      (name "propeller-load")
+      (version "3.4.0")
+      (source (origin
+                (method git-fetch)
+                (uri (git-reference
+                      (url "https://github.com/parallaxinc/propgcc")
+                      (commit commit)))
+                (file-name (string-append name "-" commit "-checkout"))
+                (sha256
+                 (base32
+                  "0w0dff3s7wv2d9m78a4jhckiik58q38wx6wpbba5hzbs4yxz35ck"))))
+      (build-system gnu-build-system)
+      (arguments
+       (list
+        #:tests? #false                 ;no tests
+        #:parallel-build? #false        ;not supported
+        #:make-flags
+        #~(list "OS=linux"
+                (string-append "TARGET=" #$output))
+        #:phases
+        '(modify-phases %standard-phases
+           (add-after 'unpack 'chdir
+             (lambda _ (chdir "loader")))
+           (add-after 'chdir 'patch-for-readlink
+             (lambda _
+               (substitute* "src/system.c"
+                 (("#include <stdio.h>")
+                  "\
+#include <stdio.h>
+#include <unistd.h>"))))
+           (delete 'configure))))
+      (native-inputs
+       (list openspin (make-propeller-toolchain)))
+      (home-page "https://github.com/parallaxinc/propgcc")
+      (synopsis "Loader for Parallax Propeller micro-controllers")
+      (description "This package provides the tool @code{propeller-load} to
+upload binaries to a Parallax Propeller micro-controller.")
+      (license license:expat))))
+
+(define-public spinsim
+  (let ((commit "66915a7ad1a3a2cf990a725bb341fab8d11eb620")
+        (revision "1"))
+    (package
+      (name "spinsim")
+      (version (string-append "0.75-" revision "." (string-take commit 9)))
+      (source (origin
+                (method git-fetch)
+                (uri (git-reference
+                      (url "https://github.com/parallaxinc/spinsim")
+                      (commit commit)))
+                (file-name (string-append name "-" commit "-checkout"))
+                (sha256
+                 (base32
+                  "1n9kdhlxsdx7bz6c80w8dhi96zp633gd6qs0x9i4ii8qv4i7sj5k"))))
+      (build-system gnu-build-system)
+      (arguments
+       `(#:tests? #f ; no tests
+         #:phases
+         (modify-phases %standard-phases
+           (delete 'configure)
+           (replace 'install
+             (lambda* (#:key outputs #:allow-other-keys)
+               (let ((bin (string-append (assoc-ref outputs "out")
+                                         "/bin")))
+                 (install-file "build/spinsim" bin))
+               #t)))))
+      (home-page "https://github.com/parallaxinc/spinsim")
+      (synopsis "Spin simulator")
+      (description "This package provides the tool @code{spinsim}, a simulator
+and simple debugger for Spin programs written for a Parallax Propeller
+micro-controller.  Spinsim supports execution from cog memory and hub
+execution, but it does not support multi-tasking.  It supports about
+two-thirds of the opcodes in the P2 instruction set.")
+      (license license:expat))))
+
+(define-public imx-usb-loader
+  ;; There are no proper releases.
+  (let ((commit "30b43d69770cd69e84c045dc9dcabb1f3e9d975a")
+        (revision "0"))
+    (package
+      (name "imx-usb-loader")
+      ;; For the version string, see IMX_LOADER_VERSION in imx_loader.h.
+      (version (git-version "0.2pre" revision commit))
+      (source (origin
+                (method git-fetch)
+                (uri (git-reference
+                      (url "https://github.com/boundarydevices/imx_usb_loader")
+                      (commit commit)))
+                (file-name (git-file-name name version))
+                (sha256
+                 (base32
+                  "1jdxbg63qascyl8x32njs9k9gzy86g209q7hc0jp74qyh0i6fwwc"))))
+      (build-system gnu-build-system)
+      (arguments
+       (list #:test-target "tests"
+             #:make-flags #~(list (string-append "CC=" #$(cc-for-target))
+                                  (string-append "prefix=" #$output))
+             #:phases #~(modify-phases %standard-phases
+                          (delete 'configure))))
+      (native-inputs (list pkg-config))
+      (inputs (list libusb))
+      (home-page "https://github.com/boundarydevices/imx_usb_loader")
+      (synopsis "USB and UART loader for i.MX5/6/7/8 series")
+      (description "This utility downloads and executes code on Freescale
+i.MX5/i.MX6/i.MX7 and Vybrid SoCs through the Serial Download Protocol (SDP).
+Depending on the board, there is usually some kind of recovery button to bring
+the SoC into serial download boot mode; check the documentation of your
+hardware.  The utility support USB and UART as serial link.")
+      (license license:lgpl2.1+))))
+
+(define-public python-cmsis-pack-manager
+  (package
+    (name "python-cmsis-pack-manager")
+    (version "0.6.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/pyocd/cmsis-pack-manager")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0djxvmpw6krv459w0w98cva9clrpqicwfr0fx55hkaix1x51bgci"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:imported-modules `(,@%cargo-build-system-modules
+                           ,@%pyproject-build-system-modules)
+      #:modules '(((guix build cargo-build-system) #:prefix cargo:)
+                  (guix build pyproject-build-system)
+                  (guix build utils))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'prepare-cargo-build-system
+            (lambda args
+              (for-each
+               (lambda (phase)
+                 (format #t "Running cargo phase: ~a~%" phase)
+                 (apply (assoc-ref cargo:%standard-phases phase)
+                        #:cargo-target #$(cargo-triplet)
+                        args))
+               '(prepare-rust-crates
+                 unpack-rust-crates
+                 configure
+                 check-for-pregenerated-files
+                 patch-cargo-checksums)))))))
+    (propagated-inputs
+     (list python-appdirs
+           python-cffi
+           python-pyyaml))
+    (native-inputs
+     (append
+      (list maturin
+            python-wrapper
+            python-jinja2
+            python-pytest
+            rust
+            `(,rust "cargo"))
+      (or (and=> (%current-target-system)
+                 (compose list make-rust-sysroot))
+          '())))
+    (inputs (cargo-inputs 'python-cmsis-pack-manager))
+    (home-page "https://github.com/pyocd/cmsis-pack-manager")
+    (synopsis "CMSIS-Pack index manager")
+    (description
+     "@code{cmsis-pack-manager} is a Python module, Rust crate and command line
+utility for managing current device information that is stored in many
+@acronym{Common Microcontroller Software Interface Standard, CMSIS}
+PACKs. Users of @code{cmsis-pack-manager} may query for information such as
+processor type, flash algorithm and memory layout information in a Python
+program or through the command line utility, @code{pack-manager}, provided as
+part of this module.")
+    (license license:asl2.0)))
+
+(define-public python-libmpsse
+  (package
+    (name "python-libmpsse")
+    (version "1.4.1")
+    (source
+      (origin
+        (method git-fetch)
+        (uri (git-reference
+              (url "https://github.com/daym/libmpsse")
+              (commit (string-append "v" version))))
+        (file-name "libmpsse-checkout")
+        (sha256
+          (base32
+            "1rypfb96k2szqgygp3jnwg2zq9kwmfz0460dsahn3r2vkzml8wn7"))))
+    (build-system gnu-build-system)
+    (inputs
+     (list libftdi python))
+    (native-inputs
+     (list pkg-config swig-4.4 which))
+    (arguments
+     `(#:tests? #f ; No tests exist.
+       #:parallel-build? #f  ; Would be buggy.
+       #:make-flags
+       (list (string-append "CFLAGS=-Wall -fPIC -fno-strict-aliasing -g -O2 "
+                            "$(shell pkg-config --cflags libftdi1)"))
+       #:phases
+       (modify-phases %standard-phases
+         (add-after 'unpack 'set-environment-up
+           (lambda* (#:key inputs outputs #:allow-other-keys)
+             (let ((python (assoc-ref inputs "python")))
+               (chdir "src")
+               (setenv "PYDEV" (string-append python
+                               "/include/python"
+                               ,(version-major+minor (package-version python))))
+               #t)))
+         (replace 'install
+           (lambda* (#:key inputs outputs make-flags #:allow-other-keys #:rest args)
+             (let* ((out (assoc-ref outputs "out"))
+                    (out-python (string-append out
+                                               "/lib/python"
+                                               ,(version-major+minor (package-version python))
+                                               "/site-packages"))
+                    (install (assoc-ref %standard-phases 'install)))
+               (install #:make-flags (cons (string-append "PYLIB=" out-python)
+                                           make-flags))))))))
+    (home-page "https://code.google.com/archive/p/libmpsse/")
+    (synopsis "Python library for MPSSE SPI I2C JTAG adapter by FTDI")
+    (description "This package provides a library in order to support the
+MPSSE (Multi-Protocol Synchronous Serial Engine) adapter by FTDI that can do
+SPI, I2C, JTAG.")
+    (license license:gpl2+)))
+
+(define-public picprog
+  (package
+    (name "picprog")
+    (version "1.9.1")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "http://www.iki.fi/hyvatti/pic/picprog-"
+                                  version ".tar.gz"))
+              (file-name (string-append name "-" version ".tar.gz"))
+              (sha256
+               (base32
+                "1r04hg1n3v2jf915qr05la3q9cxy7a5jnh9cc98j04lh6c9p4x85"))
+              (patches (search-patches "picprog-non-intel-support.patch"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:tests? #f                      ; No tests exist.
+       #:phases
+       (modify-phases %standard-phases
+         (add-after 'unpack 'patch-paths
+           (lambda* (#:key outputs #:allow-other-keys)
+             (substitute* "Makefile"
+               (("/usr/local") (assoc-ref outputs "out"))
+               ((" -o 0 -g 0 ") " ")
+               (("testport") ""))
+             #t))
+         (add-before 'install 'mkdir
+           (lambda* (#:key outputs #:allow-other-keys)
+             (let ((out (assoc-ref outputs "out")))
+               (mkdir-p (string-append out "/bin"))
+               (mkdir-p (string-append out "/man/man1"))
+               #t)))
+         (delete 'configure))))
+    (synopsis "Programs Microchip's PIC microcontrollers")
+    (description "This program programs Microchip's PIC microcontrollers.")
+    (home-page "https://hyvatti.iki.fi/~jaakko/pic/picprog.html")
+    (license license:gpl3+)))
+
+(define-public stcgal
+  (package
+    (name "stcgal")
+    (version "1.10")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/grigorig/stcgal")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "04hsj49sw5mb6swhd3sdsm7dzwp1frnzpmq70wgsn5vmjavb1ka8"))))
+    (build-system pyproject-build-system)
+    (propagated-inputs (list python-pyserial python-pyusb python-tqdm))
+    (native-inputs
+     ;; For tests.
+     (list python-pytest python-pyyaml python-setuptools))
+    (home-page "https://github.com/grigorig/stcgal")
+    (synopsis "Programmer for STC 8051-compatible microcontrollers")
+    (description "stcgal is a command-line flash-programming tool for STC
+MCU's line of Intel 8051-compatible microcontrollers, including those in the
+STC89, STC90, STC10, STC11, STC12, STC15, STC8 and STC32 series.")
+    (license license:expat)))
+
+(define-public stlink
+  (let ((commit "6a6718b3342b6c5e282a4e33325b9f97908a0692")
+        (revision "0"))
+    (package
+      (name "stlink")
+      (version (git-version "1.8.0" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+                (url "https://github.com/stlink-org/stlink")
+                (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32
+           "1sk9qr3f8v1rm735vq6pxckgwzsgr4k2kl6skh79f4v2qm0hc4qd"))))
+      (build-system cmake-build-system)
+      (arguments
+       (list #:tests? #f                      ;no tests
+             #:configure-flags
+             #~(let* ((etc (in-vicinity #$output "etc"))
+                      (modprobe (in-vicinity etc "modprobe.d"))
+                      (udev-rules (in-vicinity etc "udev/rules.d")))
+                 (list (string-append "-DSTLINK_UDEV_RULES_DIR=" udev-rules)
+                       (string-append "-DSTLINK_MODPROBED_DIR=" modprobe)))))
+      (inputs
+       (list libusb))
+      (synopsis "Programmer for STM32 Discovery boards")
+      (description "This package provides a firmware programmer for the STM32
+  Discovery boards.  It supports two versions of the chip: ST-LINK/V1 (on
+  STM32VL discovery kits) and ST-LINK/V2 (on STM32L discovery and later kits).
+  Two different transport layers are used: ST-LINK/V1 uses SCSI passthru
+  commands over USB, and ST-LINK/V2 and ST-LINK/V2-1 (seen on Nucleo boards) use
+  raw USB commands.")
+      (home-page "https://github.com/stlink-org/stlink")
+      ;; The flashloaders/stm32l0x.s and flashloaders/stm32lx.s source files are
+      ;; licensed under the GPLv2+.
+      (license (list license:bsd-3 license:gpl2+)))))
+
+(define-public west
+  (package
+    (name "west")
+    (version "1.5.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/zephyrproject-rtos/west")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0fa3bbw69khw8la4mi4q18d8brixywwj5yby7dh36hd40wxspzk3"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:test-flags
+      ;; XXX: This test tries to access the network.
+      #~(list "-k" "not test_init_with_clone_option_depth_one")
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-before 'check 'configure-tests
+            (lambda _
+              (setenv "TOXTEMPDIR"
+                      (mkdtemp
+                       (string-append (dirname (getcwd)) "/tmpXXXXXX"))))))))
+    (propagated-inputs
+     (list python-colorama
+           python-packaging
+           python-pykwalify
+           python-pyyaml))
+    (native-inputs (list git-minimal/pinned python-pytest python-setuptools))
+    (home-page "https://github.com/zephyrproject-rtos/west")
+    (synopsis "Zephyr RTOS Project meta-tool")
+    (description
+     "West is the swiss-army knife command line tool of the Zephyr project.
+Its built-in commands provide a multiple repository management system with
+features inspired by Google’s Repo tool and Git submodules.  West simplifies
+configuration and is also pluggable: you can write your own west \"extension
+commands\" which add additional features to west.  Zephyr uses this feature to
+provide conveniences for building applications, flashing and debugging them,
+and more.")
+    (license license:expat)))
+
+(define-public ebusd
+  (package
+    (name "ebusd")
+    (version "26.1")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://github.com/john30/ebusd")
+                     (commit version)))
+              (file-name (string-append name "-" version "-checkout"))
+              (sha256
+               (base32
+                "1as59bjv9m6hgzg7bjy4nwwzqkwf18a1ss515wjzziaz8a32nq0a"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list #:configure-flags #~(list "--localstatedir=/var")
+           #:phases
+           #~(modify-phases %standard-phases
+               (add-after 'unpack 'patch
+                 (lambda _
+                   (let ((config (string-append #$output "/share/ebusd/")))
+                     (substitute* "src/ebusd/main.h"
+                       (("#define CONFIG_PATH .*")
+                        (format #f "#define CONFIG_PATH \"~a\"\n" config))))))
+               ;; If we don't set GIT_REVISION, then the build system will include the
+               ;; current date in the version string, making the build unreproducible.
+               ;;
+               ;; See:
+               ;;   * https://codeberg.org/guix/guix/issues/6638
+               ;;   * https://github.com/john30/ebusd/blob/v22.4/configure.ac#L159-L163
+               (add-after 'unpack 'set-version-info
+                 (lambda _
+                   (setenv "GIT_REVISION" #$version)))
+               (add-after 'install 'install-config
+                 (lambda _
+                   (let ((config-destination (string-append #$output
+                                                            "/share/ebusd"))
+                         (config #$(this-package-native-input "config")))
+                     (copy-recursively (string-append config "/src/")
+                                       config-destination)))))))
+    (inputs
+     (list mosquitto))
+    (native-inputs
+     `(("automake" ,automake)
+       ("autoconf" ,autoconf)
+       ("config"
+        ,(origin
+           (method git-fetch)
+           (uri (git-reference
+                  (url "https://github.com/john30/ebusd-configuration")
+                  (commit "f72859829a4a6a03c51f5374356f4c0d6353e897")))
+           (file-name "ebusd-configuration")
+           (sha256
+            (base32
+             "0683jnj6nvvhp6w6sam8ldakw39lf64wjlwjzva9v35ly2fddj5g"))))))
+    (synopsis "Daemon for communicating with eBUS devices")
+    (description "This package provides @command{ebusd}, a daemon for
+handling communication with eBUS devices connected to a 2-wire bus system
+(\"energy bus\" used by numerous heating systems).")
+    (home-page "https://ebusd.eu/")
+    (license license:gpl3+)))
+
+(define-public ucsim
+  (package
+    (name "ucsim")
+    (version "0.8.2")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "http://mazsola.iit.uni-miskolc.hu/ucsim/download/"
+                    "v" (version-major+minor version) ".x/"
+                    "ucsim_" version "_orig.tar.gz"))
+              (sha256
+               (base32
+                "1zdvzfhdsbydyyjy5rf2934bn06skdlnky6l9ngbp2k645g0ynlh"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'patch-makefiles
+            (lambda _
+              (substitute* (find-files "." "(\\.mk$|\\.in$)")
+                (("/bin/sh") (which "sh")))
+
+              ;; Ensure the documentation is installed to the correct path,
+              ;; without a duplicate "ucsim" segment (necessary as we are
+              ;; building μCsim outside of SDCC).
+              (substitute* "doc/Makefile.in"
+                (("@docdir@/ucsim") "@docdir@")))))
+      ;; μCsim's regression-test suite is of little use in this context since
+      ;; it doesn't stop or return an error code when it encounters a problem.
+      #:tests? #f))
+    (inputs
+     (list ncurses))
+    (native-inputs
+     (list bison flex))
+    (outputs '("out" "doc"))
+    (home-page "http://mazsola.iit.uni-miskolc.hu/ucsim/")
+    (synopsis "Simulators for various microcontroller families")
+    (description "μCsim is a collection of software simulators for
+microcontrollers in the Atmel AVR; Fairchild F8; Intel MCS-51 (8051) and 8085;
+MOS Technology 6502; Motorola 6800, 6809, 68HC08, 68HC11 and 68HC12; P1516;
+Padauk PDK13, PDK14 and PDK15; STMicroelectronics ST7 and STM8; Xilinx
+PicoBlaze; and Zilog Z80 families, plus many of their variants.")
+    (license license:gpl2+)))
+
+(define-public sdcc
+  (package
+    (name "sdcc")
+    (version "4.4.0")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "mirror://sourceforge/sdcc/sdcc"
+                    "/" version "/sdcc-src-" version ".tar.bz2"))
+              (sha256
+               (base32
+                "0xbaj3vx5cp3na1kmyhy4jvhcqwrg648scjbykgq0xmibqb1535f"))
+              (modules '((guix build utils)))
+              (snippet
+               #~(begin
+                   ;; Remove non-free source files.
+                   (delete-file-recursively "device/non-free")
+                   ;; Remove bundled μCsim source.
+                   (delete-file-recursively "sim")))
+              (patches (search-patches "sdcc-disable-non-free-code.patch"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:configure-flags
+      #~(list
+         ;; GPUTILS is required for the PIC ports, but the licensing status of
+         ;; some of the files contained in its distribution is unclear (see
+         ;; https://issues.guix.gnu.org/44557).  For this reason it is not yet
+         ;; available as a package in Guix.
+         "--disable-pic14-port"
+         "--disable-pic16-port"
+
+         ;; Do not build or install the bundled copy of μCsim, for which Guix
+         ;; has its own package.
+         "--disable-ucsim")
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'patch-makefiles
+            (lambda _
+              (substitute* (find-files "." "(\\.mk$|\\.in$)")
+                (("/bin/sh") (which "sh")))
+              ;; --disable-ucsim disables sdcc-misc, patch it back in.
+              (substitute* "Makefile.in"
+                (("debugger/mcs51" line)
+                 (string-append line  "\n"
+                                "TARGETS += sdcc-misc\n"
+                                "PKGS += $(SDCC_MISC)")))))
+          (add-after 'patch-makefiles 'embed-absolute-ucsim-reference
+            (lambda _
+              ;; Embed in the debugger an absolute reference to the MCS-51
+              ;; simulator from Guix's μCsim package to ensure it is always
+              ;; available.
+              (substitute* "debugger/mcs51/sdcdb.c"
+                (("s51")
+                 (string-append #$(this-package-input "ucsim")
+                                "/bin/s51"))))))))
+    (inputs
+     (list readline ucsim))
+    (native-inputs
+     (list bison boost flex python-minimal-wrapper texinfo zlib))
+    (home-page "https://sdcc.sourceforge.net/")
+    (synopsis "C compiler suite for 8-bit microcontrollers")
+    (description "SDCC is a retargetable, optimizing Standard C compiler suite
+that targets 8-bit microcontrollers in the Intel MCS-51 (8051); MOS Technology
+6502; Motorola 68HC08; Padauk PDK13, PDK14 and PDK15; STMicroelectronics STM8;
+and Zilog Z80 families, plus many of their variants.")
+    (license (list license:gpl2+
+                   license:gpl3+
+                   license:lgpl2.0+
+                   license:lgpl2.1+
+                   license:lgpl3+
+                   license:public-domain
+                   license:zlib))))
+
+(define-public python-psptool
+  (package
+    (name "python-psptool")
+    (version "3.6")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/PSPReverse/psptool")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1s53bqimh1ih0xqmyppm2ikphi8r9492k67kn4pz3jngh2gp1wnf"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list #:test-backend #~'unittest))
+    (native-inputs
+     (list python-hatch-vcs
+           python-hatchling
+           python-psptrace-bootstrap
+           python-setuptools))
+    (propagated-inputs
+     (list python-cryptography
+           python-prettytable))
+    (home-page "https://github.com/PSPReverse/psptool")
+    (synopsis "Tool for dealing with AMD binary blobs")
+    (description "PSPTool is a tool for dealing with AMD binary blobs.")
+    (license license:gpl3+)))
+
+(define-public python-psptrace
+  (package
+    (name "python-psptrace")
+    (version "0.11")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (pypi-uri "psptrace" version))
+       (sha256
+        (base32 "0lzv0dy2m5g6q4rpjd4wpw0p7n8v8crkx7akbp53lpy1c6y40iw8"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list #:tests? #f)) ;no tests in PyPI or Git
+    (native-inputs
+     (list python-hatch-vcs
+           python-hatchling
+           python-setuptools))
+    (propagated-inputs
+     (list python-prettytable
+           python-psptool))
+    (home-page "https://github.com/PSPReverse/PSPTrace")
+    (synopsis "Capture of an AMD boot procedure")
+    (description
+     "PSPTrace is a tool for correlating an SPI capture of an AMD boot
+procedure to the PSP firmware components.")
+    (license license:gpl3+)))
+
+(define-public python-psptrace-bootstrap
+  (hidden-package
+   (package/inherit python-psptrace
+     (name "python-psptrace")
+     (arguments
+      (list #:tests? #f
+            #:phases
+            #~(modify-phases %standard-phases
+                (delete 'sanity-check))))
+     (propagated-inputs '()))))
+
+(define-public agent-proxy
+  (let ((commit "8927798a71d246871ea8fc22b4512296a3fa1765")
+        (revision "0"))
+    (package
+      (name "agent-proxy")
+      (version (git-version "1.98" revision commit))
+      (home-page
+       "https://git.kernel.org/pub/scm/utils/kernel/kgdb/agent-proxy.git")
+      (source (origin
+                (method git-fetch)
+                (uri (git-reference (url home-page) (commit commit)))
+                (file-name (git-file-name name version))
+                (sha256
+                 (base32
+                  "1bxkzwsqfld4pknmiq8j3k55pv90n8s6kzh0xh42bhy2jv1wxz2z"))))
+      (build-system gnu-build-system)
+      (arguments
+       `(#:tests? #f
+         #:phases
+         (modify-phases %standard-phases
+           (delete 'configure)
+           (add-after 'build 'build-kdmx
+             (lambda _
+               (invoke "make" "-C" "kdmx")
+               #t))
+           (replace 'install
+             (lambda* (#:key outputs #:allow-other-keys)
+               (let ((bin (string-append (assoc-ref outputs "out") "/bin")))
+                 (install-file "agent-proxy" bin)
+                 (install-file "kdmx/kdmx" bin)
+                 #t))))))
+      (synopsis "Proxies to run kgdb/gdbserver and console on a serial port")
+      (description "These programs are proxies allowing to run kgdb/gdbserver
+and console on a single serial port.  agent-proxy creates network sockets,
+whereas kdmx creates pseudo-ttys.")
+      (license license:gpl2))))
+
+(define-public mbed-tools
+  (package
+    (name "mbed-tools")
+    (version "7.59.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (pypi-uri "mbed-tools" version))
+       (sha256
+        (base32 "12h8g8mv3llwqcjii4zvz94mv7cmhmbc204w4nqd6nnhwfvcl6ky"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      ;; tests: 631 passed, 27 skipped, 1 warning
+      #:test-flags
+      ;; E   ModuleNotFoundError: No module named 'mbed_tools_ci_scripts'
+      #~(list "--ignore=tests/ci_scripts/test_sync_board_db.py")))
+    (native-inputs
+     (list python-factory-boy
+           python-pytest
+           python-requests-mock
+           python-semver
+           python-setuptools
+           python-setuptools-scm))
+    (propagated-inputs
+     (list python-click
+           python-dotenv
+           python-gitpython
+           python-jinja2
+           python-psutil
+           python-pyserial
+           python-pyudev
+           python-requests
+           python-tabulate
+           python-tqdm
+           python-typing-extensions))
+    (home-page "https://github.com/ARMmbed/mbed-tools")
+    (synopsis "ARM Mbed command line tools")
+    (description "This package is the successor of @code{mbed-cli}.  It
+provides command line tools for Mbed OS to detect Mbed enabled devices
+connected by USB, checkout Mbed projects and perform builds amongst other
+operations.")
+    (license license:asl2.0)))
+
+(define-public ts4900-utils
+  (package
+    (name "ts4900-utils")
+    (version "3.0.0")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://github.com/embeddedTS/ts4900-utils")
+                     (commit (string-append "v" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "08x40ii56v4cmnz9hk6rvjrc500k1bij5ns52360vczznc8lx8bx"))))
+    (build-system gnu-build-system)
+    (native-inputs
+     (list autoconf
+           automake
+           libgpiod
+           pkg-config))
+    (home-page "https://github.com/embeddedTS/ts4900-utils")
+    (synopsis "Utilities for the TS-4900 board family")
+    (description "This package contains utilities useful for boards of the
+TS-4900 family.  The included commands are:
+@itemize @code
+@item adc8390
+@item gpioctl
+@item isl12020rtc
+@item load_fpga
+@item nvramctl
+@item tshwctl
+@item tsmicroctl
+@item tsmicroupdate
+@item tssilomon
+@end itemize")
+    (license license:bsd-2)))
+
+(define-public cc-tool
+  (package
+    (name "cc-tool")
+    (version "0.27")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/dashesy/cc-tool")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1bnyp3fxhzhz6in4yx8s6vh004gslykrpysdz6b8x8b96ha35c7c"))))
+    (build-system gnu-build-system)
+    (inputs (list libusb))
+    (native-inputs (list pkg-config
+                         boost-1.83
+                         automake
+                         autoconf
+                         libtool))
+    (home-page "https://github.com/dashesy/cc-tool")
+    (synopsis "Support for Texas Instruments CC Debugger in Linux")
+    (description
+     "cc-tool provides support for Texas Instruments CC Debugger for Linux OS
+in order to program 8051-based System-On-Chip devices: CC254x CC253x CC243x
+CC251x CC111x.")
+    (license license:gpl2)))
+
+(define-public qflipper
+  (package
+    (name "qflipper")
+    (version "1.3.3")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/flipperdevices/qFlipper")
+             (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0q68pkkak1ji0800hxbypshgj89vzwkql3j5x53sd32v96c8j7yp"))
+       (patches
+        (search-patches "qflipper-qt6.9-compat.patch"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:phases
+      #~(modify-phases %standard-phases
+          (replace 'configure
+            (lambda* (#:key inputs #:allow-other-keys)
+              (invoke "qmake"
+                      (string-append "PREFIX=" #$output)
+                      (string-append
+                       "QT_TOOL.lrelease.binary="
+                       (search-input-file inputs "/bin/lrelease"))
+                      "DEFINES+=DISABLE_APPLICATION_UPDATES")))
+          (add-after 'unpack 'fix-version
+            (lambda _
+              (substitute* "qflipper_common.pri"
+                (("GIT_VERSION =.*") (string-append "GIT_VERSION = \"" #$version "\"\n")))))
+          (add-after 'unpack 'unbundle-nanopb
+            (lambda _
+              (substitute* "qFlipper.pro"
+                ((".*3rdparty.*") ""))
+              (substitute* "plugins/flipperproto0/flipperproto0.pro"
+                (("-l3rdparty") "-lprotobuf-nanopb")))))))
+    (native-inputs (list pkg-config))
+    (inputs
+     (list libusb
+           nanopb-malloc
+           qt5compat
+           qtbase
+           qtdeclarative
+           qtserialport
+           qtsvg
+           qttools
+           qtwayland
+           zlib))
+    (home-page "https://github.com/flipperdevices/qFlipper")
+    (synopsis "Desktop application for Flipper Zero")
+    (description
+     "qFlipper is a graphical application for Flipper Zero with the following features:
+
+@itemize @bullet
+@item Update Flipper's firmware and supplemental data
+@item Repair a broken firmware installation
+@item Stream Flipper's display and control it remotely
+@item Install firmware from a @code{.dfu} file
+@item Backup and restore settings, progress and pairing data
+@item Command line interface
+@end itemize
+
+Tip: to be able to use this application as a regular user, search for the
+@code{42-flipperzero.rules} file in the contents of the package, install it
+using udev-rules-service, then add your user to the dialout group.")
+    (license license:gpl3)))

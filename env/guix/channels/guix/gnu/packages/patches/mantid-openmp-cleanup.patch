@@ -1,0 +1,126 @@
+From 42ea31e762ceac723d80e1ce7f3df459e83383da Mon Sep 17 00:00:00 2001
+Message-ID: <42ea31e762ceac723d80e1ce7f3df459e83383da.1765240044.git.danny.milosavljevic@tuwien.ac.at>
+From: Danny Milosavljevic <danny.milosavljevic@tuwien.ac.at>
+Date: Tue, 9 Dec 2025 00:46:45 +0100
+Subject: [PATCH] Shut down OpenMP in time
+
+Fixes test cleanup segfaults.
+
+---
+ .../Kernel/inc/MantidKernel/MultiThreaded.h   |  5 +++
+ .../mantid/kernel/CMakeLists.txt              |  2 ++
+ .../kernel/src/Exports/ThreadLifecycle.cpp    | 12 +++++++
+ .../test/testhelpers/testrunner.py            | 32 ++++++++++++-------
+ 4 files changed, 39 insertions(+), 12 deletions(-)
+ create mode 100644 Framework/PythonInterface/mantid/kernel/src/Exports/ThreadLifecycle.cpp
+
+diff --git a/Framework/Kernel/inc/MantidKernel/MultiThreaded.h b/Framework/Kernel/inc/MantidKernel/MultiThreaded.h
+index 84be778dcad..33d927a4a46 100644
+--- a/Framework/Kernel/inc/MantidKernel/MultiThreaded.h
++++ b/Framework/Kernel/inc/MantidKernel/MultiThreaded.h
+@@ -212,6 +212,8 @@ inline void setMaxCoresToConfig() {
+  */
+ #define PRAGMA_OMP(expression) PRAGMA(omp expression)
+ 
++#define PARALLEL_SHUTDOWN_THREAD_RESOURCES omp_pause_resource(omp_pause_soft, 0)
++
+ #else //_OPENMP
+ 
+ /// Empty definitions - to enable set your complier to enable openMP
+@@ -232,4 +234,7 @@ inline void setMaxCoresToConfig() {
+ #define PARALLEL_SECTIONS
+ #define PARALLEL_SECTION
+ #define PRAGMA_OMP(expression)
++
++#define PARALLEL_SHUTDOWN_THREAD_RESOURCES
++
+ #endif //_OPENMP
+diff --git a/Framework/PythonInterface/mantid/kernel/CMakeLists.txt b/Framework/PythonInterface/mantid/kernel/CMakeLists.txt
+index 3700d361303..1454785b0d2 100644
+--- a/Framework/PythonInterface/mantid/kernel/CMakeLists.txt
++++ b/Framework/PythonInterface/mantid/kernel/CMakeLists.txt
+@@ -56,9 +56,11 @@ set(EXPORT_FILES
+     src/Exports/PropertyHistory.cpp
+     src/Exports/Memory.cpp
+     src/Exports/ProgressBase.cpp
++    src/Exports/ThreadLifecycle.cpp
+     src/Exports/Material.cpp
+     src/Exports/MaterialBuilder.cpp
+     src/Exports/Statistics.cpp
++    
+     src/Exports/TimeROI.cpp
+     src/Exports/OptionalBool.cpp
+     src/Exports/UsageService.cpp
+diff --git a/Framework/PythonInterface/mantid/kernel/src/Exports/ThreadLifecycle.cpp b/Framework/PythonInterface/mantid/kernel/src/Exports/ThreadLifecycle.cpp
+new file mode 100644
+index 00000000000..85221753421
+--- /dev/null
++++ b/Framework/PythonInterface/mantid/kernel/src/Exports/ThreadLifecycle.cpp
+@@ -0,0 +1,12 @@
++#include "MantidKernel/MultiThreaded.h"
++#include <boost/python/class.hpp>
++
++using namespace boost::python;
++
++static inline void releaseThreadResources() {
++	PARALLEL_SHUTDOWN_THREAD_RESOURCES;
++}
++
++void export_ThreadLifecycle() {
++	def("releaseThreadResources", &releaseThreadResources, "Explicitly release OpenMP thread resources"); // to prevent shutdown crashes
++}
+diff --git a/Framework/PythonInterface/test/testhelpers/testrunner.py b/Framework/PythonInterface/test/testhelpers/testrunner.py
+index 2b29d73a565..91a76c4a92c 100644
+--- a/Framework/PythonInterface/test/testhelpers/testrunner.py
++++ b/Framework/PythonInterface/test/testhelpers/testrunner.py
+@@ -17,7 +17,7 @@ from importlib.machinery import SourceFileLoader
+ import os
+ import sys
+ import unittest
+-
++from mantid.kernel import releaseThreadResources
+ 
+ def main(argv):
+     """
+@@ -47,17 +47,25 @@ def main(argv):
+         this_globals[key] = getattr(test_module, key)
+ 
+     # create runner & execute
+-    unittest.main(
+-        module=test_module,
+-        # We've processed the test source so don't let unittest try to reparse it
+-        # This forces it to load the tests from the supplied module
+-        argv=(argv[0],),
+-        # these make sure that some options that are not applicable
+-        # remain hidden from the help menu.
+-        failfast=False,
+-        buffer=False,
+-        catchbreak=False,
+-    )
++    try:
++        test_program = unittest.main(
++            module=test_module,
++            # We've processed the test source so don't let unittest try to reparse it
++            # This forces it to load the tests from the supplied module
++            argv=(argv[0],),
++            # these make sure that some options that are not applicable
++            # remain hidden from the help menu.
++            failfast=False,
++            buffer=False,
++            catchbreak=False,
++            exit=False,
++        )
++        os._exit(not test_program.result.wasSuccessful())
++    finally:
++        try:
++            releaseThreadResources()
++        except:
++            pass
+ 
+ 
+ def module_name(pathname):
+
+base-commit: 6f608113ffd400469ed039fc13856d215f3cb79c
+-- 
+2.52.0
+

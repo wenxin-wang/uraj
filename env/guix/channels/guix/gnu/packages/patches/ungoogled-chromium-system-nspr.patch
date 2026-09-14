@@ -1,0 +1,54 @@
+Build with the system NSPR library instead of the bundled version.
+
+Originally based on this Debian patch:
+https://salsa.debian.org/chromium-team/chromium/-/blob/master/debian/patches/system/nspr.patch
+
+diff --git a/base/BUILD.gn b/base/BUILD.gn
+--- a/base/BUILD.gn
++++ b/base/BUILD.gn
+@@ -159,6 +159,12 @@
+   flags = [ "CRONET_BUILD=$is_cronet_build" ]
+ }
+ 
++if (is_linux) {
++  ldflags = [
++    "-lnspr4",
++  ]
++}
++
+ use_epoll = is_linux || is_chromeos || is_android
+ 
+ # Base and everything it depends on should be a static library rather than
+@@ -809,8 +815,6 @@
+     "task/updateable_sequenced_task_runner.h",
+     "test/scoped_logging_settings.h",
+     "test/spin_wait.h",
+-    "third_party/nspr/prtime.cc",
+-    "third_party/nspr/prtime.h",
+     "thread_annotations.h",
+     "threading/hang_watcher.cc",
+     "threading/hang_watcher.h",
+diff --git a/base/time/pr_time_unittest.cc b/base/time/pr_time_unittest.cc
+--- a/base/time/pr_time_unittest.cc
++++ b/base/time/pr_time_unittest.cc
+@@ -6,7 +6,7 @@
+ #include <time.h>
+ 
+ #include "base/compiler_specific.h"
+-#include "base/third_party/nspr/prtime.h"
++#include <nspr/prtime.h>
+ #include "base/time/time.h"
+ #include "build/build_config.h"
+ #include "testing/gtest/include/gtest/gtest.h"
+diff --git a/base/time/time.cc b/base/time/time.cc
+--- a/base/time/time.cc
++++ b/base/time/time.cc
+@@ -15,7 +15,7 @@
+ #include "base/check.h"
+ #include "base/format_macros.h"
+ #include "base/strings/stringprintf.h"
+-#include "base/third_party/nspr/prtime.h"
++#include <nspr/prtime.h>
+ #include "base/time/time_override.h"
+ #include "build/build_config.h"
+ 

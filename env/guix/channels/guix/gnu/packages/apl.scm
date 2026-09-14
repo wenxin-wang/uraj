@@ -1,0 +1,176 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2013 Nikita Karetnikov <nikita@karetnikov.org>
+;;; Copyright © 2014, 2015 Mark H Weaver <mhw@netris.org>
+;;; Copyright © 2017, 2019 Efraim Flashner <efraim@flashner.co.il>
+;;; Copyright © 2022 Paul A. Patience <paul@apatience.com>
+;;; Copyright © 2023 B. Wilson <elaexuotee@wilsonb.com>
+;;; Copyright © 2025 Lee Thompson <lee.p.thomp@gmail.com>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (gnu packages apl)
+  #:use-module ((guix licenses) #:prefix license:)
+  #:use-module (guix download)
+  #:use-module (guix git-download)
+  #:use-module (guix svn-download)
+  #:use-module (guix gexp)
+  #:use-module (guix packages)
+  #:use-module (guix build-system gnu)
+  #:use-module (guix build-system trivial)
+  #:use-module (gnu packages algebra)
+  #:use-module (gnu packages base)
+  #:use-module (gnu packages bash)
+  #:use-module (gnu packages compression)
+  #:use-module (gnu packages gettext)
+  #:use-module (gnu packages gtk)
+  #:use-module (gnu packages image)
+  #:use-module (gnu packages java)
+  #:use-module (gnu packages maths)
+  #:use-module (gnu packages pcre)
+  #:use-module (gnu packages pkg-config)
+  #:use-module (gnu packages readline)
+  #:use-module (gnu packages sqlite)
+  #:use-module (gnu packages xorg))
+
+(define-public apl
+  (let ((revision 1977))
+    (package
+      (name "apl")
+      (version (string-append "2.0.1-r" (number->string revision)))
+      (source
+       (origin
+         (method svn-fetch)
+         (uri (svn-reference
+               (url "svn://svn.savannah.gnu.org/apl/trunk")
+               (revision revision)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32 "1llm1hqpfd71jrhd4pizhmvvca5wr18v8zqfajwmvjjxcmzfkvv1"))))
+      (build-system gnu-build-system)
+      (home-page "https://www.gnu.org/software/apl/")
+      (native-inputs (list gettext-minimal which pkg-config))
+      (inputs
+       (list gettext-minimal
+             libxcb
+             fftw
+             openblas
+             gsl
+             libpng
+             gtk+
+             pcre2
+             readline
+             sqlite))
+      (arguments
+       (list #:configure-flags #~(list (string-append
+                                        "--with-sqlite3="
+                                        #$(this-package-input "sqlite")))
+             #:phases
+             #~(modify-phases %standard-phases
+                 (add-before 'configure 'fix-configure
+                   (lambda _
+                     (substitute* "configure"
+                       ;; Manually set the SVN revision, since the directory
+                       ;; is unversioned and we know it anyway.
+                       (("\\$apl_ARCHIVE_SVNINFO")
+                        #$(number->string revision))))))))
+      (synopsis "APL interpreter")
+      (description
+       "GNU APL is a free interpreter for the programming language APL.  It is
+an implementation of the ISO standard 13751.")
+      (license license:gpl3+))))
+
+(define-public dzaima-apl
+  (package
+    (name "dzaima-apl")
+    (version "0.2.0")
+    (source
+      (origin
+        (method git-fetch)
+        (uri (git-reference
+               (url "https://github.com/dzaima/APL.git")
+               (commit (string-append "v" version))))
+        (sha256
+          (base32 "1hnrq0mlff6b9c9129afphcnmzd05wdyyfs905n421diyd5xa0il"))
+        (file-name (git-file-name name version))))
+    (build-system gnu-build-system)
+    (inputs (list bash-minimal openjdk18))
+    (native-inputs (list `(,openjdk18 "jdk") zip))
+    (arguments
+     (list
+       #:imported-modules `(,@%default-gnu-imported-modules
+                            (guix build ant-build-system))
+       #:modules `((guix build gnu-build-system)
+                   ((guix build ant-build-system) #:prefix ant:)
+                   (guix build utils)
+                   (ice-9 ftw)
+                   (ice-9 regex)
+                   (srfi srfi-26))
+       #:phases
+       `(modify-phases %standard-phases
+         (delete 'configure)
+         (replace 'build
+           (lambda* (#:key inputs #:allow-other-keys)
+             (let* ((javac   (search-input-file inputs "/bin/javac"))
+                    (jar     (search-input-file inputs "/bin/jar")))
+               (mkdir-p "src/build")
+               (apply invoke javac "-encoding" "UTF-8" "-d" "src/build"
+                      (let ((files '()))
+                        (ftw "src/APL/"
+                          (lambda (filename statinfo flags)
+                            (if (string-match ".*\\.java" filename)
+                              (set! files (cons filename files)))
+                            #t))
+                        files))
+               (with-directory-excursion "src/build"
+                 (invoke jar "--create" "--verbose"
+                             "--file=dzaima-apl.jar"
+                             "--main-class=APL.Main"
+                             "APL")))))
+         (delete 'check) ;; Upstream implements no tests
+         (replace 'install
+           (lambda* (#:key inputs outputs #:allow-other-keys)
+             (let* ((out     (assoc-ref outputs "out"))
+                    (bin     (string-append out "/bin"))
+                    (share   (string-append out "/share/java"))
+                    (wrapper (string-append bin "/dzaima-apl")))
+               (mkdir-p share)
+               (mkdir-p bin)
+               (install-file "src/build/dzaima-apl.jar" share)
+               (with-output-to-file wrapper
+                 (lambda _
+                   (display (string-append
+                              "#!" (search-input-file inputs "/bin/sh") "\n"
+                              (search-input-file inputs "/bin/java")
+                              " -jar " share "/dzaima-apl.jar \"$@\""))))
+               (chmod wrapper #o555))))
+         (add-after 'install 'reorder-jar-content
+           (lambda* (#:key outputs #:allow-other-keys)
+              (apply (assoc-ref ant:%standard-phases 'reorder-jar-content)
+                     #:outputs (list outputs))))
+         (add-after 'reorder-jar-content 'generate-jar-indices
+           (lambda* (#:key outputs #:allow-other-keys)
+              (apply (assoc-ref ant:%standard-phases 'generate-jar-indices)
+                     #:outputs (list outputs))))
+         (add-after 'generate-jar-indices 'reorder-jar-content
+           (lambda* (#:key outputs #:allow-other-keys)
+              (apply (assoc-ref ant:%standard-phases 'reorder-jar-content)
+                     #:outputs (list outputs)))))))
+    (home-page "https://github.com/dzaima/APL")
+    (synopsis "Implementation of the APL programming language in Java")
+    (description
+     "This package provides an implementation of APL in Java, extended from
+Dyalog APL.")
+    (license license:expat)))

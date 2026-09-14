@@ -1,0 +1,18 @@
+diff --git a/gajim/common/configpaths.py b/gajim/common/configpaths.py
+index f9076d7..b5b5eed 100644
+--- a/gajim/common/configpaths.py
++++ b/gajim/common/configpaths.py
+@@ -42,7 +42,12 @@ def get_temp_dir() -> Path:
+ def get_plugin_dirs() -> list[Path]:
+     if gajim.IS_FLATPAK:
+         return [Path(_paths["PLUGINS_BASE"]), Path("/app/plugins")]
+-    return [Path(_paths["PLUGINS_BASE"]), Path(_paths["PLUGINS_USER"])]
++
++    dirs = [Path(_paths["PLUGINS_BASE"]), Path(_paths["PLUGINS_USER"])]
++    for path in os.getenv("GAJIM_PLUGIN_PATH", "").split(":"):
++        if path and Path(path).is_dir():
++            dirs.append(Path(path))
++    return dirs
+ 
+ 
+ def get_ui_path(filename: str) -> Path:

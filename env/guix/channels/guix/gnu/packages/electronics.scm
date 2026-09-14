@@ -1,0 +1,5673 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2016, 2017, 2018 Theodoros Foradis <theodoros@foradis.org>
+;;; Copyright © 2018-2021, 2023 Tobias Geerinckx-Rice <me@tobias.gr>
+;;; Copyright © 2019 Clément Lassieur <clement@lassieur.org>
+;;; Copyright © 2018-2019 Arun Isaac <arunisaac@systemreboot.net>
+;;; Copyright © 2017-2018, 2021, 2023-2024 Efraim Flashner <efraim@flashner.co.il>
+;;; Copyright © 2021 Leo Famulari <leo@famulari.name>
+;;; Copyright © 2021-2023, 2025 Maxim Cournoyer <maxim@guixotic.coop>
+;;; Copyright © 2024 Juliana Sims <juli@incana.org>
+;;; Copyright © 2025, 2026 Cayetano Santos <csantosb@disroot.org>
+;;; Copyright © 2025-2026 Sharlatan Hellseher <sharlatanus@gmail.com>
+;;; Copyright © 2022 Konstantinos Agiannis <agiannis.kon@gmail.com>
+;;; Copyright © 2015-2025 Ricardo Wurmus <rekado@elephly.net>
+;;; Copyright © 2022, 2024, 2025 Artyom V. Poptsov <poptsov.artyom@gmail.com>
+;;; Copyright © 2016, 2018 Danny Milosavljevic <dannym@scratchpost.org>
+;;; Copyright © 2019 Amin Bandali <bandali@gnu.org>
+;;; Copyright © 2020-2025 Vinicius Monego <monego@posteo.net>
+;;; Copyright © 2021 Andrew Miloradovsky <andrew@interpretmath.pw>
+;;; Copyright © 2022 Christian Gelinek <cgelinek@radlogic.com.au>
+;;; Copyright © 2022 jgart <jgart@dismail.de>
+;;; Copyright © 2023 Simon South <simon@simonsouth.net>
+;;; Copyright © 2024 Jakob Kirsch <jakob.kirsch@web.de>
+;;; Copyright © 2025 Zheng Junjie <873216071@qq.com>
+;;; Copyright © 2022, 2025 Evgeny Pisemsky <mail@pisemsky.site>
+;;; Copyright © 2025, Ekaitz Zarraga <ekaitz@elenq.tech>
+;;; Copyright © 2021, 2022 Guillaume Le Vaillant <glv@posteo.net>
+;;; Copyright © 2018, 2020-2023 Marius Bakke <marius@gnu.org>
+;;; Copyright © 2020 Vincent Legoll <vincent.legoll@gmail.com>
+;;; Copyright © 2025, 2026 Gabriel Wicki <gabriel@erlikon.ch>
+;;; Copyright © 2026 Thomas Kramer <thomas@f-si.org>
+;;; Copyright © 2023 pinoaffe <pinoaffe@gmail.com>
+;;; Copyright © 2018, 2020-2021 Ludovic Courtès <ludo@gnu.org>
+;;; Copyright © 2020 Brice Waegeneire <brice@waegenei.re>
+;;; Copyright © 2025 Greg Hogan <code@greghogan.com>
+;;; Copyright © 2018 Jonathan Brielmaier <jonathan.brielmaier@web.de>
+;;; Copyright © 2021 Julien Lepiller <julien@lepiller.eu>
+;;; Copyright © 2021 Mathieu Othacehe <othacehe@gnu.org>
+;;; Copyright © 2025 Nicolas Graves <ngraves@ngraves.fr>
+;;; Copyright © 2021-2026 Peter Polidoro <peter@polidoro.io>
+;;; Copyright © 2022 Petr Hodina <phodina@protonmail.com>
+;;; Copyright © 2025 Thomas Guillermo Albers Raviola <thomas@thomaslabs.org>
+;;; Copyright © 2019 Vagrant Cascadian <vagrant@debian.org>
+;;; Copyright © 2026 Thiago Negri <evohunz@gmail.com>
+;;; Copyright © 2020 Morgan Smith <Morgan.J.Smith@outlook.com>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+;;; Packages for electronic design automation, including electronic circuit
+;;; capture and simulation, printed circuit board design, chip design tools,
+;;; and electronic test and instrumentation software.
+
+(define-module (gnu packages electronics)
+  #:use-module ((guix licenses) #:prefix license:)
+  #:use-module (guix build-system cargo)
+  #:use-module (guix build-system cmake)
+  #:use-module (guix build-system copy)
+  #:use-module (guix build-system glib-or-gtk)
+  #:use-module (guix build-system gnu)
+  #:use-module (guix build-system meson)
+  #:use-module (guix build-system pyproject)
+  #:use-module (guix build-system qt)
+  #:use-module (guix deprecation)
+  #:use-module (guix download)
+  #:use-module (guix gexp)
+  #:use-module (guix git-download)
+  #:use-module (guix packages)
+  #:use-module (guix utils)
+  #:use-module (gnu packages)
+  #:use-module (gnu packages algebra)
+  #:use-module (gnu packages autotools)
+  #:use-module (gnu packages backup)
+  #:use-module (gnu packages base)
+  #:use-module (gnu packages bash)
+  #:use-module (gnu packages bison)
+  #:use-module (gnu packages boost)
+  #:use-module (gnu packages c)
+  #:use-module (gnu packages check)
+  #:use-module (gnu packages cmake)
+  #:use-module (gnu packages compression)
+  #:use-module (gnu packages cpp)
+  #:use-module (gnu packages curl)
+  #:use-module (gnu packages databases)
+  #:use-module (gnu packages dns)
+  #:use-module (gnu packages documentation)
+  #:use-module (gnu packages elf)
+  #:use-module (gnu packages embedded)
+  #:use-module (gnu packages engineering)
+  #:use-module (gnu packages compiler-tools)
+  #:use-module (gnu packages fontutils)
+  #:use-module (gnu packages freedesktop)
+  #:use-module (gnu packages gawk)
+  #:use-module (gnu packages gcc)
+  #:use-module (gnu packages gd)
+  #:use-module (gnu packages gdb)
+  #:use-module (gnu packages gettext)
+  #:use-module (gnu packages ghostscript)
+  #:use-module (gnu packages gl)
+  #:use-module (gnu packages glib)
+  #:use-module (gnu packages gnome)
+  #:use-module (gnu packages gperf)
+  #:use-module (gnu packages graph)
+  #:use-module (gnu packages graphviz)
+  #:use-module (gnu packages groff)
+  #:use-module (gnu packages gtk)
+  #:use-module (gnu packages guile)
+  #:use-module (gnu packages haskell-xyz)
+  #:use-module (gnu packages image)
+  #:use-module (gnu packages java)
+  #:use-module (gnu packages jupyter)
+  #:use-module (gnu packages libedit)
+  #:use-module (gnu packages libffi)
+  #:use-module (gnu packages libftdi)
+  #:use-module (gnu packages libusb)
+  #:use-module (gnu packages linux)
+  #:use-module (gnu packages llvm)
+  #:use-module (gnu packages logging)
+  #:use-module (gnu packages m4)
+  #:use-module (gnu packages man)
+  #:use-module (gnu packages markup)
+  #:use-module (gnu packages maths)
+  #:use-module (gnu packages mpi)
+  #:use-module (gnu packages multiprecision)
+  #:use-module (gnu packages networking)
+  #:use-module (gnu packages pdf)
+  #:use-module (gnu packages perl)
+  #:use-module (gnu packages pkg-config)
+  #:use-module (gnu packages pretty-print)
+  #:use-module (gnu packages protobuf)
+  #:use-module (gnu packages python)
+  #:use-module (gnu packages python-build)
+  #:use-module (gnu packages python-check)
+  #:use-module (gnu packages python-compression)
+  #:use-module (gnu packages python-crypto)
+  #:use-module (gnu packages python-graphics)
+  #:use-module (gnu packages python-science)
+  #:use-module (gnu packages python-web)
+  #:use-module (gnu packages python-xyz)
+  #:use-module (gnu packages qt)
+  #:use-module (gnu packages readline)
+  #:use-module (gnu packages regex)
+  #:use-module (gnu packages ruby)
+  #:use-module (gnu packages ruby-xyz)
+  #:use-module (gnu packages rust-crates)
+  #:use-module (gnu packages rust-sources)
+  #:use-module (gnu packages sdl)
+  #:use-module (gnu packages serialization)
+  #:use-module (gnu packages shells)
+  #:use-module (gnu packages sphinx)
+  #:use-module (gnu packages sqlite)
+  #:use-module (gnu packages stb)
+  #:use-module (gnu packages swig)
+  #:use-module (gnu packages tcl)
+  #:use-module (gnu packages texinfo)
+  #:use-module (gnu packages textutils)
+  #:use-module (gnu packages tls)
+  #:use-module (gnu packages toolkits)
+  #:use-module (gnu packages version-control)
+  #:use-module (gnu packages web)
+  #:use-module (gnu packages wxwidgets)
+  #:use-module (gnu packages xdisorg)
+  #:use-module (gnu packages xml)
+  #:use-module (gnu packages xorg))
+
+(define delkw (@@ (guix utils) delkw))
+
+(define-public aacircuit
+  ;; No release in PyPI or version tag on Git, use the latest commit.
+  (let ((commit "18635c846754b6219da1a2ceb8977714f70004d0")
+        (revision "0"))
+    (package
+      (name "aacircuit")
+      (version (git-version "0" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+                (url "https://github.com/Blokkendoos/AACircuit")
+                (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32 "07agb7fbpbq74zm27j9b00imr46q6kpwhxzmmffw2s9scv80c1km"))))
+      (build-system pyproject-build-system)
+      (arguments
+       (list
+        #:imported-modules `((guix build glib-or-gtk-build-system)
+                             ,@%pyproject-build-system-modules)
+        #:modules '(((guix build glib-or-gtk-build-system)
+                     #:prefix glib-or-gtk:)
+                    (guix build pyproject-build-system)
+                    (guix build utils))
+        #:phases
+        #~(modify-phases %standard-phases
+            (add-after 'unpack 'generate-gdk-pixbuf-loaders-cache-file
+              (assoc-ref glib-or-gtk:%standard-phases
+                         'generate-gdk-pixbuf-loaders-cache-file))
+            (add-after 'unpack 'fix-python-incompatibilities
+              (lambda _
+                (substitute* (find-files "." "\\.py$")
+                  (("assertEquals") "assertEqual"))))
+            (add-before 'build 'set-home-env
+              (lambda _
+                (setenv "HOME" "/tmp")))
+            (replace 'check
+              (lambda* (#:key tests? #:allow-other-keys)
+                (when tests?
+                  ;; Delete develompent test file.
+                  (delete-file "tests/test_flake.py")
+                  ;; Exclude tests intended for visual review.
+                  (setenv "NOSE_EXCLUDE"
+                          (string-join '("test_export_pdf"
+                                         "test_import_aacircuit_export_pdf")
+                                       ","))
+                  (invoke "xvfb-run" "./testrunner.sh"))))
+            (add-after 'wrap 'glib-or-gtk-wrap
+              (assoc-ref glib-or-gtk:%standard-phases
+                         'glib-or-gtk-wrap))
+            (add-after 'glib-or-gtk-wrap 'wrap-aacircuit
+              (lambda _
+                (wrap-program (string-append #$output "/bin/aacircuit")
+                  `("GDK_PIXBUF_MODULE_FILE" =
+                    (,(getenv "GDK_PIXBUF_MODULE_FILE")))
+                  `("GI_TYPELIB_PATH" ":" prefix
+                    (,(getenv "GI_TYPELIB_PATH")))))))))
+      (native-inputs
+       (list python-pynose
+             python-setuptools
+             xvfb-run))
+      (inputs
+       (list bash-minimal
+             gtk+
+             python-bresenham
+             python-platformdirs
+             python-pycairo
+             python-pyclip
+             python-pygobject-3.50
+             python-pypubsub))
+      (home-page "https://github.com/Blokkendoos/AACircuit")
+      (synopsis "Draw electronic circuits with ASCII characters")
+      (description
+       "This is a pythonized, kind of reverse engineered version of original
+AACircuit written by Andreas Weber in Borland Delphi.  The idea and GUI layout
+are also taken from the original.")
+      (license license:gpl3+))))
+
+(define-public abc
+  (let ((commit "8e224cd794a10e578d6dc3ee76e504c5c3edbdbe")
+        (revision "2")
+        (version "1.01"))     ;see ABC_VERSION in src/base/main/mainInt.h
+    (package
+      (name "abc")
+      (version (git-version version revision commit))
+      (source (origin
+                (method git-fetch)
+                (uri (git-reference
+                       (url "https://github.com/berkeley-abc/abc")
+                       (commit commit)))
+                (file-name (git-file-name name version))
+                ;; Remove *.dll and *.lib binaries.
+                (snippet
+                 #~(begin
+                     (use-modules (guix build utils))
+                     (with-directory-excursion "lib"
+                       (for-each delete-file-recursively '("x64" "x86")))))
+                (sha256
+                 (base32
+                  "09rp8b1wm629a32xd2apx6x29nb1bryd56vjhzdk67bnzlgzp1kc"))
+                (patches
+                 (search-patches "abc-tests.patch"))))
+      (build-system cmake-build-system)
+      (arguments
+       (list #:configure-flags
+             #~(list "-DCMAKE_C_COMPILER=clang"
+                     "-DCMAKE_CXX_COMPILER=clang++")
+             #:phases
+             #~(modify-phases %standard-phases
+                 (replace 'install
+                   (lambda _
+                     (install-file "abc" (string-append #$output "/bin"))))
+                 (add-after 'install 'install-license
+                   (lambda _
+                     (install-file
+                      "../source/copyright.txt"
+                      (string-append
+                       #$output "/share/doc/" #$name "-" #$version)))))))
+      (inputs
+       (list readline))
+      (native-inputs
+       (list clang googletest perl))
+      (home-page "https://people.eecs.berkeley.edu/~alanmi/abc/")
+      (synopsis "Sequential logic synthesis and formal verification")
+      (description "ABC is a program for sequential logic synthesis and
+formal verification.")
+      (license
+       (list license:expat              ;abc - the mit-modern-variant is used
+             license:expat              ;btor, glucose, glucose2, kissat,
+                                        ;bsat2, cadical, bsat
+             license:bsd-3              ;bzlib
+             license:bsd-2              ;satoko
+             license:zlib)))))          ;zlib
+
+(define-public abc-yosyshq
+  (package
+    (inherit abc)
+    (name "abc-yosyshq")
+    (version "0.69")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://github.com/YosysHQ/abc/")
+                     (commit (string-append "v" version))))
+              (file-name (git-file-name name version))
+              ;; Remove *.dll and *.lib binaries.
+              (snippet
+               #~(begin
+                   (use-modules (guix build utils))
+                   (with-directory-excursion "lib"
+                     (for-each delete-file-recursively '("x64" "x86")))))
+              (sha256
+               (base32
+                "12v5qf184im8mi37ph3863sx5p5238fqd3bfvqhg33gv5mwi5xqs"))
+              (patches
+               (search-patches "abc-tests.patch"))))
+    (arguments
+     (substitute-keyword-arguments arguments
+       ((#:phases phases #~%standard-phases)
+        #~(modify-phases #$phases
+            (replace 'install-license
+              (lambda _
+                (install-file
+                 "../source/copyright.txt"
+                 (string-append
+                  #$output "/share/doc/" #$name "-" #$version))))))))
+    (home-page "https://github.com/YosysHQ/abc/")
+    (description "ABC is a program for sequential logic synthesis and
+formal verification.  This is the Yosyshq fork of ABC.")
+    (license (license:non-copyleft "file:///copyright.txt"))))
+
+(define-public adms
+  (package
+    (name "adms")
+    (version "2.3.7")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://github.com/Qucs/ADMS")
+                     (commit (string-append "release-" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "0i37c9k6q1iglmzp9736rrgsnx7sw8xn3djqbbjw29zsyl3pf62c"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list #:phases
+           #~(modify-phases %standard-phases
+               (add-after 'unpack 'patch-shebang
+                 (lambda _
+                   (substitute* "bootstrap.sh"
+                     (("# !/bin/sh")
+                      (string-append "#!" (which "sh")))))))))
+    (native-inputs
+     (list autoconf
+           automake
+           bison
+           flex
+           libtool
+           perl
+           perl-xml-libxml))
+    (home-page "https://github.com/Qucs/ADMS")
+    (synopsis "Automatic device model synthesizer")
+    (description
+     "ADMS is a code generator that converts electrical compact device models
+specified in high-level description language into ready-to-compile C code for
+the API of spice simulators.  Based on transformations specified in XML
+language, ADMS transforms Verilog-AMS code into other target languages.")
+    (license license:gpl3)))
+
+(define-public apycula
+  (package
+    (name "apycula")
+    (version "0.33")
+    ;; The pypi tar.gz file includes the necessary .pickle files, not available
+    ;; in the home-page repository.
+    (source
+     (origin
+       (method url-fetch)
+       (uri (pypi-uri "apycula" version))
+       (sha256
+        (base32 "05kf11g0g1q8hzlpf82dls0r66swhcsbvwa00h06a7rcpxd6ydcy"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list #:tests? #f ;requires Gowin EDA tools
+           #:phases
+           #~(modify-phases %standard-phases
+               (add-after 'unpack 'patch-setup
+                 (lambda _
+                   ;; Acceptable, but degraded performance.
+                   (substitute* "setup.py"
+                     ((".*fastcrc.*") ""))))))) ;TODO: Package python-fastcrc
+    (propagated-inputs
+     (list python-cattrs
+           python-numpy
+           python-msgpack
+           python-msgspec))
+    (native-inputs (list python-setuptools python-setuptools-scm))
+    (home-page "https://github.com/YosysHQ/apicula/")
+    (synopsis "Gowin FPGA bitstream format")
+    (description
+     "The project Apycula provides tools to support development and
+generating bitstreams with Gowin FPGAs.")
+    (license license:expat)))
+
+(define-public bender
+  (package
+    (name "bender")
+    (version "0.31.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "bender" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "1ddrzn6ggwqsrxrkblsissyrmjbbgb90w1irpd0hrbjxwmsgv8gq"))))
+    (build-system cargo-build-system)
+    (inputs (cargo-inputs 'bender))
+    (home-page "https://github.com/pulp-platform/bender")
+    (synopsis "dependency management tool for hardware projects.")
+    (description
+     "This package provides a dependency management tool for hardware projects.")
+    (license (list license:asl2.0 license:expat))))
+
+(define-public camv-rnd
+  (package
+    (name "camv-rnd")
+    (version "1.1.7")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "http://repo.hu/projects/camv-rnd/"
+                           "releases/camv-rnd-" version ".tar.gz"))
+       (sha256
+        (base32
+         "0l61z35q1k6aixbq2sxdqzi7km7nk2d4z3n71z1my3nhiszhyzdm"))))
+    (build-system glib-or-gtk-build-system)
+    (arguments
+     (list
+      #:tests? #f
+      #:phases
+      #~(modify-phases %standard-phases
+          (replace 'configure
+            ;; The configure script doesn't tolerate most of our configure
+            ;; flags.
+            (lambda _
+              (setenv "CC" #$(cc-for-target))
+              (setenv "LIBRND_PREFIX" #$(this-package-input "librnd"))
+              (invoke "./configure" (string-append "--prefix=" #$output)))))))
+    (inputs (list librnd))
+    (home-page "http://repo.hu/projects/route-rnd/")
+    (synopsis "Viewer for electronic boards in CAM file formats")
+    (description
+     "@code{Camv-rnd} is a viewer for @acronym{PCB, Printed Circuit Board}
+supporting gerber, excellon and g-code.  It is part of the RiNgDove EDA
+suite.")
+    (license license:gpl2+)))
+
+(define-public charlib
+  (package
+    (name "charlib")
+    (version "2.0.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/stineje/CharLib")
+             (commit version)))
+       (sha256
+        (base32 "0phklm6wcpvwdfx00k0q8qvpvdqf6wjvzirkfji7vc7ils7wz2sl"))
+       (file-name (git-file-name name version))))
+    (build-system pyproject-build-system)
+    (inputs
+     (list ngspice
+           pyspice
+           python-liberty-parser
+           python-matplotlib
+           python-numpy
+           python-ply
+           python-pyyaml
+           python-requests
+           python-schema
+           python-scipy
+           python-tqdm))
+    (native-inputs
+     (list python-poetry-core
+           python-pytest
+           python-setuptools))
+    (home-page "https://stineje.github.io/CharLib")
+    (synopsis "CMOS standard-cell characterization")
+    (description
+     "@code{Charlib} is an @acronym{EDA, Electronic Design Automation} tool used to
+extract timing and power characteristics from CMOS combinational and sequential
+standard-cells.  It is compatible with @code{ngspice} and @code{Xyce}.")
+    (license license:gpl2)))
+
+(define-public ciel
+  (package
+    (name "ciel")
+    (version "2.6.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/fossi-foundation/ciel")
+             (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1aqc68v57sx9grl311f5j6sg72a0rajbjrz40b9zchymvy51pyxc"))))
+    (arguments
+     (list
+      ;; No unit tests, there are some integration tests, see:
+      ;; <.github/workflows/ci.yml>.
+      #:tests? #f
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'relax-requirements
+            (lambda _
+              (substitute* "pyproject.toml"
+                ;; rich = ">=12,<15"
+                ((">=12,<15") ">=12"))))
+          (add-after 'wrap 'wrap-ciel
+            (lambda* (#:key inputs #:allow-other-keys)
+              (wrap-program (string-append #$output "/bin/ciel")
+                `("PATH" ":" prefix
+                  (,(string-append
+                     (assoc-ref inputs "git-minimal") "/bin")))))))))
+    (build-system pyproject-build-system)
+    (native-inputs
+     (list python-poetry-core))
+    (inputs
+     (list bash-minimal
+           git-minimal/pinned))
+    (propagated-inputs
+     (list python-click
+           python-httpx
+           python-pcpp
+           python-rich
+           python-zstandard))
+    (home-page "https://github.com/fossi-foundation/ciel")
+    (synopsis
+     "Version manager for open-source @acronym{PDKs, Process Design Kits}")
+    (description
+     "@code{ciel} downloads and installs open-source PDKs which are used for
+chip design and @acronym{EDA, Electronic Design Automation}.")
+    (license license:asl2.0)))
+
+(define-public comedilib
+  (package
+    (name "comedilib")
+    (version "0.13.0")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "https://www.comedi.org/download/comedilib-"
+                                  version ".tar.gz"))
+              (sha256
+               (base32
+                "0jdw5gp02d8q3p4ldjrc3zaw0v435kmn3c95pv094gyxj3pwhacm"))))
+    (build-system gnu-build-system)
+    (synopsis "Library for Comedi")
+    (description "Comedilib is a user-space library that provides a
+developer-friendly interface to Comedi devices.  Comedi is a collection of
+drivers for a variety of common data acquisition plug-in boards.  The drivers
+are implemented as a core Linux kernel module providing common functionality and
+individual low-level driver modules.")
+    (home-page "https://www.comedi.org/")
+    (license license:lgpl2.1)))
+
+(define-public eqy
+  (package
+    (name "eqy")
+    (version "0.69")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/YosysHQ/eqy/")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1zfhqr3ga7x63yx7p51wdqm2zj4ai3fdx95ma3r9virzwc7la07y"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:imported-modules %pyproject-build-system-modules
+      #:modules '((guix build gnu-build-system)
+                  ((guix build pyproject-build-system) #:prefix py:)
+                  (guix build utils))
+      #:make-flags
+      #~(list (string-append "PREFIX=" #$output))
+      #:phases
+      #~(modify-phases %standard-phases
+          (delete 'configure)
+          (delete 'build)
+          (delete 'check)
+          (add-after 'unpack 'build-info
+            (lambda _
+              (invoke "make" "-C" "docs" "info")
+              (install-file "docs/build/texinfo/yosyshqeqy.info"
+                            (string-append #$output "/share/info"))))
+          (add-after 'unpack 'patch-/usr/bin/env
+            (lambda _
+              (substitute* "src/eqy_job.py"
+                (("\"/usr/bin/env\", ") ""))))
+          (add-after 'install 'check-after-install
+            (lambda* (#:key tests? #:allow-other-keys)
+              (when tests?
+                (setenv "PATH"
+                        (string-append #$output "/bin:" (getenv "PATH")))
+                ;; make test fails on upstream, see:
+                ;; https://github.com/YosysHQ/eqy/actions/runs/18767539188/job/53545383858
+                (invoke "make" "-C" "examples/spm")
+                (invoke "make" "-C" "examples/simple"))))
+          (add-after 'install 'python:wrap
+            (assoc-ref py:%standard-phases 'wrap)))))
+    (native-inputs
+     (list
+      clang                             ;same as yosys
+      python-minimal-wrapper
+      python-sphinx
+      texinfo
+      yosys
+      `(,yosys "config")))
+    (inputs
+     (list python-click python-json5 readline))
+    (home-page "https://yosyshq.readthedocs.io/projects/eqy/en/latest/")
+    (synopsis "Equivalence checking using formal verification with Yosys")
+    (description
+     "@command{Eqy} is an @acronym{EDA, Electronic Design Automation}
+front-end driver program for Yosys-based formal hardware equivalence
+checking.  It performs formal verification on two designs, such as ensuring
+that a synthesis tool has not introduced functional changes into a design, or
+ensuring that a design refactor preserves correctness in all conditions.")
+    (license license:isc)))
+
+(define-public fftgen
+  (let ((commit "3378b77d83a98b06184656a5cb9b54e50dfe4485") ;no releases
+        (revision "1"))
+    (package
+      (name "fftgen")
+      (version (git-version "0" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+                (url "https://github.com/ZipCPU/dblclockfft")
+                (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32
+           "1rvln871wjkbbqnv88jnx328xlhn5sgbr8fglk3ajnd9rwgiq3jg"))))
+      (build-system gnu-build-system)
+      (arguments
+       (list
+        #:test-target "bench-test"
+        #:make-flags #~(list "CFLAGS=-g -O2") ;default flags lack -O2
+        #:phases
+        #~(modify-phases %standard-phases
+            (delete 'configure)
+            (replace 'install
+              (lambda _
+                (install-file "sw/fftgen"
+                              (string-append #$output "/bin")))))))
+      (native-inputs (list bc fftw python-minimal verilator which))
+      (synopsis "Generic pipelined FFT core generator")
+      (description "fftgen produces @acronym{FFT, fast-Fourier transforms}
+hardware designs in Verilog.")
+      (home-page "https://github.com/ZipCPU/zipcpu/")
+      (license license:lgpl3+))))
+
+(define-public gdstk
+  (package
+    (name "gdstk")
+    (version "1.0.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/heitzmann/gdstk")
+             (commit (string-append "v" version))))
+       (sha256
+        (base32 "0if4i71gsx5p8hspmxhhdf1pj7ynkpdq74rybb1nbpjwg26fsd30"))
+       (file-name (git-file-name name version))
+       (snippet '(begin
+                   ;; This snippet is also inherited by python-gdstk.
+                   (use-modules (guix build utils))
+                   ;; Disable 'external' source code directory.
+                   (substitute* "CMakeLists.txt"
+                     (("add_subdirectory\\(external\\)")
+                      ""))
+                   (delete-file-recursively "external")
+                   (substitute* "src/CMakeLists.txt"
+                     (("clipper)")
+                      "polyclipping)"))
+                   (substitute* "src/clipper_tools.cpp"
+                     (("clipper/")
+                      "polyclipping/"))))))
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-before 'check 'build-examples
+            (lambda* (#:key tests? #:allow-other-keys)
+              (when tests?
+                (invoke "make" "examples")))))))
+    (native-inputs (list python-minimal-wrapper))
+    (inputs (list clipper qhull zlib))
+    (home-page "https://heitzmann.github.io/gdstk/")
+    (synopsis "Library for creation and manipulation of GDSII files")
+    (description
+     "@code{gdstk} is a library for creation and manipulation of GDSII
+layout files which are commonly used for
+@acronym{EDA, elecronic design automation} and chip design.")
+    (license license:boost1.0)))
+
+(define-public gerbv
+  (package
+    (name "gerbv")
+    (version "2.13.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/gerbv/gerbv")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1vm5i5rnajvz1wv6kbinyrp6bfwqcvf34l492xyvn75589xal72c"))))
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      ;; TODO: See tests/README.md.
+      #:tests? #f            ;passed 94, failed 11, skipped 0 out of 105 tests
+      #:configure-flags #~(list
+                           (string-append "-DCMAKE_C_FLAGS="
+                                          "-Wno-implicit-function-declaration"
+                                          " -Wno-int-conversion"))))
+    (native-inputs (list desktop-file-utils
+                         gettext-minimal
+                         ;; Version generator needs git to work properly:
+                         ;; https://github.com/gerbv/gerbv/issues/244
+                         git-minimal/pinned
+                         pkg-config))
+    (inputs (list cairo
+                  ;; As of 2.13.0 gerbv is still GTK+2 only.  GTK 3/4 porting
+                  ;; issue: https://github.com/gerbv/gerbv/issues/71.
+                  gtk+-2))
+    (home-page "https://gerbv.github.io/")
+    (synopsis "Gerber file viewer")
+    (description
+     "Gerbv is a viewer for files in the Gerber format (RS-274X only), which
+is commonly used to represent printed circuit board (PCB) layouts.  Gerbv lets
+you load several files on top of each other, do measurements on the displayed
+image, etc.  Besides viewing Gerbers, you may also view Excellon drill files
+as well as pick-place files.")
+    (license license:gpl2+)))
+
+(define-public gnucap
+  (package
+    (name "gnucap")
+    (version "20260329")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://git.git.savannah.gnu.org/git/gnucap.git")
+              (commit (string-append version "-dev"))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "0lgsjpi158kdvc3mq20i120d71ql4qdsz4pcm732d9babc84jq8y"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:validate-runpath? #f
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'fixes
+            (lambda _
+              (substitute* "configure"
+                (("force_in_tree=no") "force_in_tree=yes"))
+              (substitute* "tests/Make.test"
+                (("SHELL=/bin/bash")
+                 (string-append "SHELL=" (which "sh"))))))
+          (add-before 'validate-runpath 'wrap
+            (lambda _
+              (for-each
+               (lambda (program)
+                 (wrap-program (string-append #$output "/bin/" program)
+                   `("LD_LIBRARY_PATH" ":" prefix
+                     (,(string-append #$output "/lib")))))
+               (list "gnucap" "gnucap-modelgen")))))))
+    (native-inputs (list which))
+    (inputs (list readline))
+    (home-page "https://www.gnu.org/software/gnucap/")
+    (synopsis "Mixed analog and digital circuit simulator")
+    (description "GNUcap is a circuit analysis package used for @acronym{EDA,
+Electronic Design Automation}.  It offers a general purpose circuit simulator
+and can perform DC and transient analyses, fourier analysis and AC analysis.
+The engine is designed to do true mixed-mode simulation.")
+    (license license:gpl3+)))
+
+(define-public gtkwave
+  ;; The last release is more than 2 years old, and there are improvements in
+  ;; the master branch, such as GTK 4 support: pick the latest commit that
+  ;; passes their CI.
+  (let ((commit "7d7b4db9e2f5485afe2aeeab0ad112f5b6a9b94b")
+        (revision "0"))
+    (package
+      (name "gtkwave")
+      ;; The version string can be found in meson.build.
+      (version (git-version "4.0.0" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+                (url "https://github.com/gtkwave/gtkwave")
+                (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32 "18k3axnnpj0zfmwfg6anm09niyyzv7323m7yppm19xz4w7y9chll"))))
+      (build-system meson-build-system)
+      (arguments (list #:glib-or-gtk? #t))
+      (native-inputs (list desktop-file-utils
+                           flex
+                           `(,glib "bin") ;for glib-mkenums
+                           gobject-introspection
+                           gperf
+                           `(,gtk "bin")
+                           pkg-config))
+      (inputs (list gtk gtk+ json-glib libfst))
+      (synopsis "Waveform viewer for FPGA simulator trace files")
+      (description "This package is a waveform viewer for @acronym{FST, FPGA
+Simulator Trace} files.")
+      (home-page "https://github.com/gtkwave/gtkwave")
+      ;; Exception against free government use in tcl_np.c and tcl_np.h.
+      (license (list license:gpl2+ license:expat license:tcl/tk)))))
+
+(define-public hal
+  (package
+    (name "hal")
+    (version "4.5.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/emsec/hal")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1mb8mdrw8kp9mxj7ayv9gw59ghkbaj4jy1pbba8ia3s2nbzwqwp0"))
+       (patches
+        (search-patches "hal-disable-googletest.patch"))
+       (snippet
+        #~(begin
+            (use-modules (guix build utils)
+                         (ice-9 ftw)
+                         (srfi srfi-26))
+            (define (delete-all-but directory . preserve)
+              (with-directory-excursion directory
+                (let* ((pred (negate (cut member <>
+                                          (cons* "." ".." preserve))))
+                       (items (scandir "." pred)))
+                  (for-each (cut delete-file-recursively <>) items))))
+            (delete-all-but "deps" "abc" "subprocess")))))
+    (build-system qt-build-system)
+    (arguments
+     (list
+      #:tests? #f                       ;too many failures in this release
+      #:configure-flags
+      #~(list "-DBUILD_ALL_PLUGINS=ON"
+              "-DBUILD_TESTS=ON"
+              (string-append
+               "-DLIBRARY_INSTALL_DIRECTORY_FULL="
+               #$output "/lib;" #$output "/lib/hal_plugins")
+              "-DUSE_VENDORED_PYBIND11=OFF"
+              "-DUSE_VENDORED_SPDLOG=OFF"
+              "-DUSE_VENDORED_QUAZIP=OFF"
+              "-DUSE_VENDORED_IGRAPH=OFF"
+              "-DUSE_VENDORED_NLOHMANN_JSON=OFF"
+              "-DHAL_VERSION_MAJOR=4"
+              "-DHAL_VERSION_MINOR=5"
+              "-DHAL_VERSION_PATCH=0"
+              "-DHAL_VERSION_TWEAK=0"
+              "-DHAL_VERSION_ADDITIONAL_COMMITS=0"
+              "-DHAL_VERSION_DIRTY=false"
+              "-DHAL_VERSION_BROKEN=false"
+              "-DENABLE_PPA=OFF"
+              (string-append "-DCMAKE_MODULE_PATH="
+                             #$(this-package-native-input "sanitizers-cmake")
+                             "/share/sanitizers-cmake/cmake"))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'fix-cmake-release-detection
+            (lambda _
+              (substitute* '("cmake/detect_dependencies.cmake"
+                             "plugins/gui/CMakeLists.txt")
+                (("IMPORTED_LOCATION_RELEASE\\)") "LOCATION)"))))
+          (add-before 'check 'set-home
+            (lambda _ (setenv "HOME" "/tmp"))))))
+    (native-inputs
+     (list googletest
+           pkg-config
+           pybind11
+           python-wrapper
+           sanitizers-cmake
+           verilator))
+    (inputs
+     (list bitwuzla
+           boost
+           gmp
+           graphviz
+           igraph
+           nlohmann-json
+           mpfr
+           qtbase-5
+           qtsvg-5
+           quazip-5
+           rapidjson
+           spdlog
+           symfpu
+           z3))
+    (home-page "https://github.com/emsec/hal")
+    (synopsis "Hardware analyzer for netlists")
+    (description "HAL is an @acronym{EDA, Electronic Design Automation}
+comprehensive netlist reverse engineering and manipulation framework.  It
+provides a framework to parse netlists of arbitrary sources, e.g., FPGAs or
+ASICs, into a graph-based netlist representation, providing the necessary
+built-in tools for traversal and analysis of the included gates and nets.")
+    (license license:expat)))
+
+(define-public horizon-eda
+  (package
+    (name "horizon-eda")
+    (version "2.7.2")
+    ;; TODO: try to unbundle some of the 3rd parties.
+    ;; We have packages for nlohmann-json, range-v3, catch2 and clipper.
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/horizon-eda/horizon")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "16q22yf407820430cva8i2b3dcmwpjdsbx0wlarj8v2mj5ixs932"))))
+    (build-system meson-build-system)
+    (arguments
+     (list
+      #:tests? #f ; no tests
+      #:glib-or-gtk? #t))
+    (native-inputs (list cmake-minimal ;; OpenCASCADE is only found by cmake
+                         `(,glib "bin")
+                         gobject-introspection
+                         pkg-config))
+    (inputs (list boost
+                  cairomm
+                  cppzmq
+                  curl
+                  glib
+                  glibmm
+                  glm
+                  gsettings-desktop-schemas
+                  gtk+
+                  gtkmm-3
+                  libarchive
+                  libgit2-glib
+                  librsvg
+                  libspnav
+                  libzip
+                  opencascade-occt
+                  podofo
+                  sqlite
+                  `(,util-linux "lib")
+                  zeromq))
+    (home-page "https://horizon-eda.org/")
+    (synopsis "@acronym{PCB, Printed Circuit Board} design tool")
+    (description "Horizon is an @acronym{EDA, Electronic Design Automation}
+package supporting an integrated end-to-end workflow for PCB design, including
+from parts management and schematic entry to gerber export.")
+    (license license:gpl3+)))
+
+;; Deprecated on 2026-07-13.
+(define-deprecated/public-alias input-leap
+  (@ (gnu packages hardware) input-leap))
+
+(define-public iverilog
+  (package
+    (name "iverilog")
+    (version "13_0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/steveicarus/iverilog")
+              (commit
+               (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0vjja9vlnia42wb5l6vg7zv2v3n6d70nr0l26b3v0lmpnb3q7ws9"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:bootstrap-scripts #~(list "autoconf.sh")
+      #:make-flags
+      #~(list (string-append "CC=" #$(cc-for-target))
+              (string-append "CXX=" #$(cxx-for-target))
+              (string-append "PREFIX=" #$output))
+      #:phases #~(modify-phases %standard-phases
+                   (add-after 'unpack 'ensure-native-baked-CC/CXX
+                     (lambda _
+                       ;; The compilers used to build are retained in
+                       ;; bin/iverilog-vpi, which is a Makefile
+                       ;; script. Normalize these to just 'gcc' and 'g++' to
+                       ;; avoid having these set to cross compilers.
+                       (substitute* "Makefile.in"
+                         (("s;@IVCC@;\\$\\(CC);")
+                          "s;@IVCC@;gcc;")
+                         (("s;@IVCXX@;\\$\\(CXX);")
+                          "s;@IVCXX@;g++;")))))))
+    (native-inputs (list autoconf bison flex gperf perl tcsh))
+    (inputs (list zlib))
+    (home-page "https://steveicarus.github.io/iverilog/")
+    (synopsis "Verilog/SystemVerilog HDL compiler")
+    (description
+     "Icarus Verilog is a Verilog/SystemVerilog @acronym{EDA, Electronic
+Design Automation} compiler that generates code employed by back-end
+tools.  It operates compiling source code written in Verilog
+(IEEE-1364) and SystemVerilog (IEEE-1800) into some target format.
+For batch simulation, the compiler can generate an intermediate form
+called vvp assembly.  This intermediate form is executed by @command{vvp}.
+For synthesis, the compiler generates netlists in the desired format.")
+    ;; GPL2 only because of:
+    ;; - ./driver/iverilog.man.in
+    ;; - ./iverilog-vpi.man.in
+    ;; - ./tgt-fpga/iverilog-fpga.man
+    ;; - ./vvp/vvp.man.in
+    ;; Otherwise would be GPL2+.
+    ;; You have to accept both GPL2 and LGPL2.1+.
+    (license (list license:gpl2 license:lgpl2.1+))))
+
+(define-public icestorm
+  (package
+    (name "icestorm")
+    (version "1.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/YosysHQ/icestorm/")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0yh36kd23y4sk65g34r1h244ax9fj5c668y6pwqwaq3c0nmb3d28"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? #f               ;no tests
+      #:make-flags
+      #~(list (string-append "CC=" #$(cc-for-target))
+              (string-append "CXX=" #$(cxx-for-target))
+              (string-append "PREFIX=" #$output)
+              "ICEPROG=1")
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'fix-usr-local
+            (lambda _
+              (substitute* "config.mk"
+                (("/usr/local")
+                 #$output))
+              (substitute* "icepack/Makefile"
+                (("/usr/local")
+                 #$output))
+              (substitute* "icebox/Makefile"
+                (("/usr/local")
+                 #$output))
+              (substitute* "icebox/icebox_vlog.py"
+                (("/usr/local")
+                 #$output))))
+          (add-after 'build 'make-info
+            (lambda _
+              (with-directory-excursion "docs"
+                (invoke "make" "info")
+                (install-file "build/texinfo/projecticestorm.info"
+                              (string-append #$output "/share/info"))
+                (copy-recursively
+                 "build/texinfo/projecticestorm-figures"
+                 (string-append #$output
+                                "/share/info/projecticestorm-figures")))))
+          (delete 'configure))))
+    (inputs
+     (list libftdi))
+    (native-inputs
+     (list pkg-config
+           python-minimal
+           python-sphinx-rtd-theme
+           python-sphinxcontrib-svg2pdfconverter
+           texinfo))
+    (home-page "https://prjicestorm.readthedocs.io/")
+    (synopsis "Bitstream tools for Lattice iCE40 FPGAs")
+    (description
+     "Project IceStorm aims at documenting the bitstream format of Lattice
+iCE40 FPGAs and providing simple tools for analyzing and creating bitstream
+files.")
+    (license license:isc)))
+
+(define-public klayout
+  (package
+    (name "klayout")
+    (version "0.30.10")
+    (source
+     (origin (method git-fetch)
+             (uri (git-reference
+                    (url "https://github.com/KLayout/klayout")
+                    (commit (string-append "v" version))))
+             (file-name (git-file-name name version))
+             (sha256
+              (base32
+               "06y1biswhwfc4ar3xkz6d9pmfkmm8v9wq03kli8r94zll3wkvqxf"))))
+    (build-system copy-build-system)
+    (arguments
+     (list
+      #:install-plan
+      #~'(("output/klayout" "bin/")
+          ("output/" "bin/" #:include-regexp ("strm.*"))
+          ("output/" "lib/" #:include-regexp ("lib.*\\.so.*"))
+          ("output/pymod" "lib/"))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-before 'install 'patch-build-script ;; ensure reproducibility
+            (lambda _
+              (substitute* "build.sh"
+                (("KLAYOUT_VERSION_DATE=\"\\$KLAYOUT_VERSION_DATE\"")
+                 "KLAYOUT_VERSION_DATE=1970-01-01"))))
+          (add-after 'patch-build-script 'disable-failing-tests
+            (lambda _
+              (substitute* "src/tl/unit_tests/unit_tests.pro"
+                ;; These need internet connection.
+                (("  tlWebDAVTests\\.cc")
+                 "# tlWebDAVTests.cc \\")
+                (("  tlGitTests\\.cc")
+                 "# tlGitTests.cc \\")
+                (("  tlHttpStreamTests\\.cc")
+                 "# tlHttpStreamTests.cc \\")
+                ;; The threaded tests are reportedly flaky.
+                (("  tlThreadedWorkersTests\\.cc")
+                 "# tlThreadedWorkersTests\\.cc \\"))
+              (substitute* "src/rba/rba.pro"
+                ;; There are issues of non-detereminism involved with Ruby's GC
+                ;; implementation. https://github.com/KLayout/klayout/issues/2251
+                (("SUBDIRS = rba unit_tests")
+                 "SUBDIRS = rba")
+                (("unit_tests.depends += rba")
+                 ""))))
+          (add-after 'disable-failing-tests 'build
+            (lambda _
+              (invoke "bash" "build.sh"
+                      "-prefix" "output"
+                      "-option"
+                      (string-append "-j" (number->string (parallel-job-count))))))
+          (add-after 'install 'patch-elfs
+            (lambda _
+              (let* ((lib (string-append #$output "/lib"))
+                     (layout-lib (string-append lib "/lay_plugins"))
+                     (db-lib (string-append lib "/db_plugins"))
+                     (bin (string-append #$output "/bin"))
+                     (executables (filter executable-file? (find-files #$output)))
+                     (ut-runner "build-release/ut_runner")
+                     (unit-tests (cons* ut-runner
+                                        (find-files "build-release" "\\.ut")))
+                     (patchem (lambda (elf)
+                                (when (not (string-suffix? ".py" elf))
+                                  (invoke "patchelf" "--add-rpath" lib elf)
+                                  (invoke "patchelf" "--add-rpath" layout-lib elf)
+                                  (invoke "patchelf" "--add-rpath" db-lib elf)))))
+                (map patchem executables)
+                (map patchem unit-tests)
+                (patchem ut-runner))))
+          (add-after 'patch-elfs 'check-after-install
+            (lambda* (#:key tests? #:allow-other-keys)
+              (when tests?
+                (with-directory-excursion "build-release"
+                  (mkdir "testtmp")
+                  (setenv "TESTTMP" "testtmp")
+                  (setenv "TESTSRC" "..")
+                  (setenv "LD_LIBRARY_PATH" ".")
+                  (setenv "QT_QPA_PLATFORM" "offscreen")
+                  (setenv "HOME" "/tmp/home") ;; Fontconfig needs a writable cache.
+                  (invoke "./ut_runner"))))))))
+    (native-inputs (list perl python qtsvg ruby tcl))
+    (inputs
+     (list bash-minimal
+           libgit2
+           patchelf
+           qt5compat
+           qtbase
+           qtmultimedia
+           qtsvg
+           qttools))
+    (home-page "https://www.klayout.de")
+    (synopsis "Mask layout editor")
+    (description "KLayout is @acronym{EDA, Electronic Design Automation}
+software.  It is a scriptable @acronym{VLSI, Very Large Scale Integration}
+layout editor used for visualizing and editing mask data, transcoding between
+different file formats (GDSII and OASIS), executing @acronym{DRC, Design rule
+checking}, @acronym{LVS, Layout Versus Schematic} verification, and drawing of
+chip cross-sections basked on mask data.")
+    ;; The license version will be clarified with the next version bump.
+    (license license:gpl3+)))
+
+(define-public lctime
+  (package
+    (name "lctime")
+    (version "0.0.28")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://codeberg.org/librecell/lctime")
+             (commit version)))
+       (sha256
+        (base32 "18s7by4ndxxha1yr6sns389smgrz9df5sgqwvvxcw8wwv8v7mpjd"))
+       (file-name (git-file-name name version))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'patch-ngspice-path
+            (lambda* (#:key inputs #:allow-other-keys)
+              (substitute* "src/lctime/characterization/ngspice_subprocess.py"
+                (("= 'ngspice'")
+                 (format #f "= ~s"
+                         (search-input-file inputs "bin/ngspice"))))))
+          (replace 'check
+            (lambda* (#:key tests? #:allow-other-keys)
+              (when tests?
+                (invoke "bash" "./run_tests.sh")))))))
+    (inputs (list ngspice
+                  pyspice
+                  python-joblib
+                  python-klayout
+                  python-liberty-parser
+                  python-networkx
+                  python-numpy
+                  python-ply
+                  python-requests
+                  python-scipy
+                  python-sympy))
+    (native-inputs (list bash-minimal python-pytest python-setuptools))
+    (home-page "https://codeberg.org/librecell/lctime")
+    (synopsis "CMOS standard-cell characterization tool")
+    (description
+     "lctime extracts timing and power characteristics of CMOS standard-cells.
+It simulates the netlists of the cells with ngspice and writes the
+characterization result in a liberty library file.")
+    (license license:agpl3+)))
+
+(define-public kicad
+  (package
+    (name "kicad")
+    (version "10.0.6")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://gitlab.com/kicad/code/kicad.git")
+                    (commit version)))
+              (sha256
+               (base32
+                "0x9376x4nigqnx4d82qixz41p779svjdsgkxv6l0kmn3snvwbcgk"))
+              ;; See: https://gitlab.com/kicad/code/kicad/-/merge_requests/2659.
+              (patches
+               (search-patches "kicad-disable-updates.patch"))
+              (file-name (git-file-name name version))))
+    (build-system cmake-build-system)
+    (arguments
+     `(#:out-of-source? #t
+       #:tests? #f ;no tests
+       #:build-type "Release"
+       #:configure-flags
+       ,#~(list (string-append "-DOCC_INCLUDE_DIR="
+                               #$(file-append opencascade-occt
+                                              "/include/opencascade"))
+                ;; Guix uses 'wxwidgets-sans-egl' for KiCad because
+                ;; wxWidgets' EGL canvas support breaks with glew-2.2.
+                "-DKICAD_WAYLAND=OFF"
+                "-DCMAKE_BUILD_WITH_INSTALL_RPATH=TRUE"
+                "-DCMAKE_BUILD_TYPE=RelWithDebInfo")
+       #:phases
+       (modify-phases %standard-phases
+         (add-after 'unpack 'fix-ngspice-detection
+           (lambda* (#:key inputs #:allow-other-keys)
+             (substitute* "eeschema/CMakeLists.txt"
+               (("NGSPICE_DLL_FILE=\"\\$\\{NGSPICE_DLL_FILE\\}\"")
+                (string-append "NGSPICE_DLL_FILE=\"libngspice.so\""))
+               (("NGSPICE_DLL_DIR=\"\\$\\{NGSPICE_DLL_DIR\\}\"")
+                (string-append "NGSPICE_DLL_DIR=\""
+                               (dirname
+                                (search-input-file inputs
+                                                   "lib/libngspice.so"))
+                               "\"")))))
+         (add-after 'install 'wrap-program
+           ;; Ensure correct Python at runtime.
+           (lambda* (#:key inputs outputs #:allow-other-keys)
+             (let* ((out (assoc-ref outputs "out"))
+                    (python (assoc-ref inputs "python"))
+                    (file (string-append out "/bin/kicad"))
+                    (path (string-append out "/lib/python"
+                                         ,(version-major+minor (package-version
+                                                                python))
+                                         "/site-packages:"
+                                         (getenv "GUIX_PYTHONPATH"))))
+               (wrap-program file
+                 `("GUIX_PYTHONPATH" ":" prefix
+                   (,path))
+                 `("PATH" ":" prefix
+                   (,(string-append python "/bin:"))))))))))
+    (native-search-paths
+     ;; Currently, KiCad environment variables are single-valued
+     ;; (see https://gitlab.com/kicad/code/kicad/-/issues/14792).
+     (list (search-path-specification
+            (variable "KICAD") ;to find kicad-doc
+            (files '(""))
+            (separator #f))
+           (search-path-specification
+            (variable "KICAD10_TEMPLATE_DIR")
+            (files '("share/kicad/template"))
+            (separator #f))
+           (search-path-specification
+            (variable "KICAD10_SYMBOL_DIR")
+            (files '("share/kicad/symbols"))
+            (separator #f))
+           (search-path-specification
+            (variable "KICAD10_FOOTPRINT_DIR")
+            (files '("share/kicad/footprints"))
+            (separator #f))
+           (search-path-specification
+            (variable "KICAD10_3DMODEL_DIR")
+            (files '("share/kicad/3dmodels"))
+            (separator #f))
+           (search-path-specification
+            (variable "KICAD_STOCK_DATA_HOME")
+            (files '("share/kicad"))
+            (separator #f))))
+    (native-inputs (list boost
+                         desktop-file-utils
+                         gettext-minimal
+                         pkg-config
+                         swig-4.4
+                         unixodbc
+                         zlib))
+    (inputs (list bash-minimal
+                  cairo
+                  curl
+                  gdk-pixbuf
+                  glew
+                  glm
+                  hicolor-icon-theme
+                  gtk+
+                  libgit2
+                  libngspice
+                  libspnav
+                  libsecret
+                  libsm
+                  mesa
+                  nng
+                  opencascade-occt
+                  openssl
+                  poppler
+                  protobuf
+                  python-wrapper
+                  python-wxpython
+                  wxwidgets-sans-egl
+                  (list zstd "lib")))
+    (home-page "https://www.kicad.org/")
+    (synopsis "Electronics Design Automation Suite")
+    (description
+     "Kicad is a program for the formation of printed circuit
+boards and electrical circuits.  The software has a number of programs that
+perform specific functions, for example, pcbnew (Editing PCB), eeschema (editing
+electrical diagrams), gerbview (viewing Gerber files) and others.  To use
+SQLite-backed database libraries, install the optional @code{sqliteodbc}
+package.")
+    (license license:gpl3+)))
+
+(define-public kicad-doc
+  (package
+    (name "kicad-doc")
+    (version (package-version kicad))
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://gitlab.com/kicad/services/kicad-doc.git")
+                    (commit version)))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "0y82qkks3l003d7fka3aicmrx8qa7ch819y8kgghpxc5nqzw8nz8"))))
+    (build-system cmake-build-system)
+    (arguments
+     `(#:configure-flags (list "-DBUILD_FORMATS=html"
+                               "-DLANGUAGES=en")
+       #:tests? #f)) ;no test suite
+    (native-inputs (list asciidoc
+                         gettext-minimal
+                         git-minimal/pinned
+                         perl
+                         perl-unicode-linebreak
+                         perl-yaml-tiny
+                         po4a
+                         ruby-asciidoctor/minimal
+                         source-highlight))
+    (home-page "https://kicad.org")
+    (synopsis "KiCad official documentation")
+    (description "This repository contains the official KiCad documentation.")
+    (license license:gpl3+)))
+
+(define-public kicad-symbols
+  (package
+    (name "kicad-symbols")
+    (version (package-version kicad))
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://gitlab.com/kicad/libraries/kicad-symbols.git")
+                    (commit version)))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "0ynmi6qg5cac37vn0q986vh2a560ab8vb24yg7bfbkyj8b5xk353"))))
+    (build-system cmake-build-system)
+    (native-inputs (list python-wrapper))
+    (arguments
+     `(#:tests? #f))                    ; no tests exist
+    (home-page (package-home-page kicad))
+    (synopsis "Official KiCad schematic symbol libraries")
+    (description "This package contains the official KiCad schematic symbol
+libraries.")
+    ;; TODO: Exception: "To the extent that the creation of electronic designs
+    ;; that use 'Licensed Material' can be considered to be 'Adapted Material',
+    ;; then the copyright holder waives article 3 of the license with respect to
+    ;; these designs and any generated files which use data provided as part of
+    ;; the 'Licensed Material'."
+    ;; See <https://github.com/KiCad/kicad-symbols/blob/master/LICENSE.md>.
+    (license license:cc-by-sa4.0)))
+
+(define-public kicad-footprints
+  (package
+    (inherit kicad-symbols)
+    (name "kicad-footprints")
+    (version (package-version kicad))
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://gitlab.com/kicad/libraries/kicad-footprints.git")
+                    (commit version)))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "11hhdk8g7hsm50817x7204lzm1qpjpfjr82gyrnhdshnnzd0hbf7"))))
+    (synopsis "Official KiCad footprint libraries")
+    (description "This package contains the official KiCad footprint libraries.")))
+
+(define-public kicad-packages3d
+  (package
+    (inherit kicad-symbols)
+    (name "kicad-packages3d")
+    (version (package-version kicad))
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://gitlab.com/kicad/libraries/kicad-packages3D.git")
+                    (commit version)))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "1mkcf6yn64pqjk51srnv5cidcji0hrx8nfh0q5zyc4ca7p7984li"))))
+    (synopsis "Official KiCad 3D model libraries")
+    (description "This package contains the official KiCad 3D model libraries.")))
+
+(define-public kicad-templates
+  (package
+    (inherit kicad-symbols)
+    (name "kicad-templates")
+    (version (package-version kicad))
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://gitlab.com/kicad/libraries/kicad-templates.git")
+                    (commit version)))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "0zs29zn8qjgxv0w1vyr8yxmj02m8752zagn4vcraqgik46dwg2id"))))
+    (synopsis "Official KiCad project and worksheet templates")
+    (description "This package contains the official KiCad project and
+worksheet templates.")))
+
+(define-public kicad-cern-libraries
+  ;; Upstream does not tag releases.
+  (let ((commit "980670fefdf71965aae6c56194d7f2a68c3e6a68")
+        (revision "0"))
+    (package
+      (name "kicad-cern-libraries")
+      (version (git-version "0" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+                (url "https://gitlab.com/ohwr/cern-kicad-libs.git")
+                (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32 "0lr1p28gknbgsr86hbzh87plagcyc040v6141xmha280n78h2l62"))))
+      (build-system copy-build-system)
+      (arguments
+       (list
+        #:install-plan
+        #~'(("SchLib" "share/kicad/cern/")
+            ("PcbLib" "share/kicad/cern/")
+            ("CERN.sqlite" "share/kicad/cern/")
+            ("CERN_Linux.kicad_dbl" "share/kicad/cern/")
+            ("fp-lib-table" "share/kicad/cern/")
+            ("sym-lib-table" "share/kicad/cern/")
+            ("README.md" "share/doc/kicad-cern-libraries/")
+            ("LICENSE" "share/doc/kicad-cern-libraries/")
+            ("LICENSES" "share/doc/kicad-cern-libraries/")
+            ("CHECKSUMS" "share/doc/kicad-cern-libraries/")
+            ("pcblib_conversion_log.txt" "share/doc/kicad-cern-libraries/")
+            ("schlib_conversion_log.txt" "share/doc/kicad-cern-libraries/"))
+        #:phases
+        #~(modify-phases %standard-phases
+            (add-after 'unpack 'adapt-library-tables
+              (lambda _
+                (substitute* "sym-lib-table"
+                  (("\\$\\{KICAD9_SYMBOL_DIR\\}")
+                   "${KICAD10_SYMBOL_DIR}")))))))
+      (propagated-inputs (list sqliteodbc))
+      (native-search-paths
+       (list (search-path-specification
+              (variable "CERN_LIB_DIR")
+              (files '("share/kicad/cern"))
+              (separator #f))))
+      (home-page "https://gitlab.com/ohwr/cern-kicad-libs")
+      (synopsis "CERN component libraries for KiCad")
+      (description
+       "This package provides CERN's KiCad component libraries, including
+schematic symbols, footprints, a SQLite-backed database library, and KiCad
+library tables.  The libraries are generated from CERN's Altium Designer
+libraries.")
+      (license license:ohl2-p))))
+
+(define-public lepton-eda
+  (package
+    (name "lepton-eda")
+    (version "1.9.18-20220529")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://github.com/lepton-eda/lepton-eda/")
+                     (commit version)))
+              (sha256
+               (base32
+                "06plrcab3s2rpyf0qv2gzc1yp33627xi8105niasgixckk6glnc2"))
+              (file-name (git-file-name name version))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:configure-flags
+      #~(list
+         ;; When running "make", the POT files are built with the build time as
+         ;; their "POT-Creation-Date".  Later on, "make" notices that .pot
+         ;; files were updated and goes on to run "msgmerge"; as a result, the
+         ;; non-deterministic POT-Creation-Date finds its way into .po files,
+         ;; and then in .gmo files.  To avoid that, simply make sure 'msgmerge'
+         ;; never runs.  See <https://bugs.debian.org/792687>.
+         "ac_cv_path_MSGMERGE=true"
+         (string-append "--with-pcb-datadir="
+                        #$(this-package-input "pcb")
+                        "/share")
+         (string-append "--with-pcb-lib-path="
+                        #$(this-package-input "pcb")
+                        "/share/pcb/pcblib-newlib:"
+                        #$(this-package-input "pcb")
+                        "/share/pcb/newlib")
+         "--with-gtk3"
+         "CFLAGS=-fcommon"
+         "--enable-guild"
+         "--enable-contrib")
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'fix-tests
+            (lambda _
+              ;; For logs and auto-compilation
+              (setenv "HOME" "/tmp")
+
+              ;; Ensure that readline is found by lepton-shell
+              (substitute* "script.in"
+                (("\\(eval-when \\(expand load eval\\)" m)
+                 (string-append "
+(add-to-load-path \"" #$(this-package-input "guile-readline")
+"/share/guile/site/3.0\")
+(set! %load-compiled-path (cons \""
+#$(this-package-input "guile-readline")
+"/lib/guile/3.0/site-ccache/"
+"\" %load-compiled-path))
+" m)))))
+          (add-before 'build 'fix-dynamic-link
+            (lambda* (#:key inputs #:allow-other-keys)
+              (substitute* "liblepton/scheme/lepton/ffi/lib.scm"
+                (("\"liblepton\"")
+                 (string-append "\"" #$output "/lib/liblepton.so" "\""))
+                (("\"libleptonattrib\"")
+                 (string-append "\"" #$output "/lib/libleptonattrib.so" "\""))
+                (("\"libleptongui\"")
+                 (string-append "\"" #$output "/lib/libleptongui.so" "\""))
+                (("\"libglib-2.0\"")
+                 (string-append
+                  "\"" (search-input-file inputs "/lib/libglib-2.0.so") "\""))
+                (("\"libgobject-2.0\"")
+                 (string-append
+                  "\"" (search-input-file inputs "/lib/libgobject-2.0.so") "\""))
+                (("\"libgtk-3\"")
+                 (string-append
+                  "\"" (search-input-file inputs "/lib/libgtk-3.so") "\"")))
+
+              ;; For finding libraries when running tests before installation.
+              (setenv "LIBLEPTONGUI"
+                      (string-append (getcwd)
+                                     "/libleptongui/src/.libs/libleptongui.so"))
+              (setenv "LIBLEPTON"
+                      (string-append (getcwd)
+                                     "/libleptongui/src/.libs/liblepton.so"))
+              (setenv "LD_LIBRARY_PATH"
+                      (string-append (getcwd)
+                                     "/libleptonattrib/src/.libs/:"
+                                     (getenv "LIBRARY_PATH")))))
+          (add-before 'bootstrap 'prepare
+            (lambda _
+              ;; Some of the scripts there are invoked by autogen.sh.
+              (for-each patch-shebang
+                        (find-files "build-tools"))
+
+              ;; Make sure 'msgmerge' can modify the PO files.
+              (for-each (lambda (po)
+                          (chmod po #o666))
+                        (find-files "." "\\.po$"))
+
+              ;; This would normally be created by invoking 'git', but it
+              ;; doesn't work here.
+              (call-with-output-file "version.h"
+                (lambda (port)
+                  (format port "#define PACKAGE_DATE_VERSION \"~a\"~%"
+                          #$(string-drop version
+                                         (+ 1
+                                            (string-index version #\-))))
+                  (format port
+                          "#define PACKAGE_DOTTED_VERSION \"~a\"~%"
+                          #$(string-take version
+                                         (string-index version #\-)))
+                  (format port
+                          "#define PACKAGE_GIT_COMMIT \"cabbag3\"~%")))))
+          (add-after 'install 'compile-scheme-files
+            (lambda _
+              (unsetenv "LIBLEPTONGUI")
+              (unsetenv "LIBLEPTON")
+              (unsetenv "LD_LIBRARY_PATH")
+              (invoke "make" "precompile"))))))
+    (native-inputs
+     (list autoconf
+           automake
+           desktop-file-utils
+           flex
+           gettext-minimal
+           groff
+           gawk
+           libtool
+           pkg-config
+           m4
+           perl
+           texinfo))
+    (inputs
+     (list glib
+           gtk+
+           gtksheet
+           guile-3.0
+           guile-readline
+           pcb
+           shared-mime-info))
+    (home-page "https://lepton-eda.github.io/")
+    (synopsis
+     "Suite of tools for designing @acronym{PCB, Printed Circuit Boards}")
+    (description
+     "Lepton is an @acronym{EDA, Electronic Design Automation} tool set
+forked from gEDA/gaf in late 2016.  EDA tools are used for electrical circuit
+design, schematic capture, simulation, prototyping, and production.  Lepton
+EDA includes tools for schematic capture, attribute management, bill of
+materials (BOM) generation, netlisting into over 20 netlist formats, analog
+and digital simulation, and PCB layout, and many other features.")
+    (license license:gpl2+)))
+
+(define-public libngspice
+  ;; Note: The ngspice's build system does not allow us to build both the
+  ;; library and the executables in one go.  Thus, we have two packages.
+  ;; See <https://debbugs.gnu.org/cgi/bugreport.cgi?bug=27344#236>.
+  (package
+    (name "libngspice")
+    (version "45.2")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://git.code.sf.net/p/ngspice/ngspice")
+              (commit (string-append "ngspice-" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0k32v64dhnv1abbgxd782qx0gzbwcfg3ijz9549j7bskik6kl2zr"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? #f ;there are no tests for libngspice
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'install 'delete-scripts
+            (lambda _
+              (delete-file-recursively
+               (string-append #$output "/share/ngspice/scripts")))))
+      #:configure-flags
+      #~(list "--enable-openmp"
+              "--enable-cider"
+              "--enable-xspice"
+              "--with-ngshared")))
+    (native-inputs
+     (list autoconf-2.71
+           automake
+           bison
+           flex
+           libtool))
+    (home-page "https://ngspice.sourceforge.io/")
+    (synopsis "Mixed-level/mixed-signal circuit simulator")
+    (description
+     "Ngspice is a mixed-level/mixed-signal circuit simulator.  It includes
+@code{Spice3f5}, a circuit simulator, and @code{Xspice}, an extension that
+provides code modeling support and simulation of digital components through
+an embedded event driven algorithm.")
+    (license (list license:lgpl2.0+ ;code in frontend/numparam
+                   (license:non-copyleft "file:///COPYING") ;spice3 bsd-style
+                   license:bsd-3 ;ciderlib
+                   license:public-domain)))) ;xspice
+
+(define-public librelane
+  (package
+    (name "librelane")
+    (version "3.0.14")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://github.com/librelane/librelane")
+                     (commit version)))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "14mcq2pyafj2b2xidlw1xpykci1f4n79qmi1cgx93x32hi6w177x"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'relax-requirements
+            (lambda _
+              (substitute* "pyproject.toml"
+                (("click>=8,<8.3") "click>=8"))))
+          (add-after 'compress-documentation 'wrap-program
+            (lambda _
+              (wrap-program (string-append #$output "/bin/librelane")
+                `("PATH" ":" prefix
+                  (,(string-append
+                     #$(this-package-input "ciel") "/bin")
+                   ,(string-append
+                     #$(this-package-input "klayout") "/bin")
+                   ,(string-append
+                     #$(this-package-input "magic") "/bin")
+                   ,(string-append
+                     #$(this-package-input "netgen") "/bin")
+                   ,(string-append
+                     #$(this-package-input "openroad") "/bin")
+                   ,(string-append
+                     #$(this-package-input "python") "/bin")
+                   ,(string-append
+                     #$(this-package-input "ruby") "/bin")
+                   ,(string-append
+                     #$(this-package-input "yosys") "/bin")
+                   ,(string-append
+                     #$(this-package-input "verilator") "/bin")))))))))
+    (native-inputs
+     (list python-customtkinter
+           python-poetry-core
+           python-pyfakefs
+           python-pytest
+           python-setuptools))
+    (inputs
+     (list ciel
+           klayout
+           magic
+           netgen
+           openroad
+           python
+           python-click
+           python-cloup
+           python-deprecated
+           python-httpx
+           python-klayout
+           python-lln-libparse
+           python-lxml
+           python-psutil
+           python-pyyaml
+           python-rapidfuzz
+           python-rich
+           python-semver
+           python-yamlcore
+           ruby
+           verilator
+           yosys))
+    (home-page "https://librelane.readthedocs.io/")
+    (synopsis "ASIC implementation flow infrastructure")
+    (description "LibreLane is an @acronym{EDA, Electronic Design Automation}
+ASIC infrastructure library based on several components including OpenROAD,
+Yosys, Magic, Netgen, CVC, KLayout and a number of custom scripts for design
+exploration and optimization.")
+    (license license:asl2.0)))
+
+(define-public librepcb
+  (package
+    (name "librepcb")
+    (version "1.2.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/LibrePCB/LibrePCB")
+              (commit version)
+              (recursive? #t)))
+       (file-name (git-file-name name version))
+       (modules '((guix build utils)
+                  (ice-9 ftw)
+                  (srfi srfi-26)))
+       (snippet
+        #~(begin
+            ;; XXX: 'delete-all-but' is copied from the turbovnc package.
+            (define (delete-all-but directory . preserve)
+              (with-directory-excursion directory
+                (let* ((pred (negate (cut member <>
+                                          (cons* "." ".." preserve))))
+                       (items (scandir "." pred)))
+                  (for-each (cut delete-file-recursively <>) items))))
+            (delete-all-but "libs"
+                            "delaunay-triangulation"
+                            "dxflib"
+                            ;; "fontobene-qt"
+                            ;; "googletest"
+                            ;; "hoedown"
+                            "librepcb"
+                            ;; "muparser"
+                            "optional"
+                            "parseagle"
+                            ;; "polyclipping"
+                            ;; "quazip"
+                            "type_safe")))
+       (sha256
+        (base32 "1g3k2g2p5yy7zk971bg7qh4k38p30aydp27c5bfb02gn7djknz7w"))))
+    (build-system qt-build-system)
+    (arguments
+     (list
+      #:qtbase qtbase                   ;for Qt 6
+      #:configure-flags
+      #~(list "-DUNBUNDLE_FONTOBENE_QT=ON"
+              "-DUNBUNDLE_GTEST=ON"
+              "-DUNBUNDLE_HOEDOWN=ON"
+              "-DUNBUNDLE_MUPARSER=ON"
+              "-DUNBUNDLE_POLYCLIPPING=ON"
+              "-DUNBUNDLE_QUAZIP=ON")
+      #:phases
+      #~(modify-phases %standard-phases
+          (replace 'check
+            (lambda* (#:key tests? #:allow-other-keys)
+              (when tests?
+                (let ((test-include (list "*"))
+                      (test-exclude
+                       (list
+                        "ApplicationTest.testGetCacheDir"
+                        ;; These tests all fail when run by the build
+                        ;; process even though they pass when manually
+                        ;; run as a normal user.
+
+                        ;; TODO: verify that the failing tests don't
+                        ;; point to any actual underlying issues
+                        "SystemInfoTest.testGetUsername"
+                        "OrderPcbDialogTest.testAutoOpenBrowser"
+                        "DxfImportDialogTest.testLayerName"
+                        "DxfImportDialogTest.testCirclesAsDrills"
+                        "DxfImportDialogTest.testJoinTangentPolylines"
+                        "DxfImportDialogTest.testLineWidth"
+                        "DxfImportDialogTest.testScaleFactor"
+                        "DxfImportDialogTest.testPlacementPosition"
+                        "GraphicsExportDialogTest.testPageSize"
+                        "GraphicsExportDialogTest.testOrientation"
+                        "GraphicsExportDialogTest.testMargins"
+                        "GraphicsExportDialogTest.testShowPinNumbers"
+                        "GraphicsExportDialogTest.testRotate"
+                        "GraphicsExportDialogTest.testMirror"
+                        "GraphicsExportDialogTest.testScale"
+                        "GraphicsExportDialogTest.testPixmapDpi"
+                        "GraphicsExportDialogTest.testBlackWhite"
+                        "GraphicsExportDialogTest.testBackgroundColor"
+                        "GraphicsExportDialogTest.testMinLineWidth"
+                        "GraphicsExportDialogTest.testLayerColors"
+                        "GraphicsExportDialogTest.testOpenExportedFiles"
+                        "AddComponentDialogTest.testAddMore")))
+                  (setenv "QT_QPA_PLATFORM" "offscreen")
+                  (setenv "QT_QUICK_BACKEND" "software")
+                  (display "Running unittests...\n")
+                  (invoke "./tests/unittests/librepcb-unittests"
+                          (string-append
+                           "--gtest_filter="
+                           (string-join test-include ":")
+                           "-"
+                           (string-join test-exclude ":"))))))))))
+    (inputs
+     (list clipper
+           fontconfig
+           fontobene-qt
+           glu
+           hoedown
+           muparser
+           opencascade-occt
+           qt5compat
+           qtbase
+           qtdeclarative
+           qtsvg
+           qttools
+           qtwayland
+           quazip
+           zlib))
+    (native-inputs
+     (list googletest
+           pkg-config
+           python-minimal-wrapper
+           qttools-5
+           unzip))
+    (home-page "https://librepcb.org/")
+    (synopsis
+     "@acronym{EDA, Electronic Design Automation} suite for PCB development")
+    (description "LibrePCB is software to develop @acronym{PCB, Printed
+Circuit Boards}.  It features human readable file formats and complete project
+management with library, schematic and board editors.")
+    (license (list license:gpl3+
+                   license:boost1.0 ; libs/optional/tests/catch.hpp,
+                   license:expat ; libs/delaunay-triangulation,
+                                        ; libs/parseagle, libs/type_safe
+                   license:asl2.0 ; libs/parseagle
+                   license:cc0 ; libs/optional
+                   license:bsd-2)))) ; libs/optional/tests/catch.hpp
+
+(define librnd
+  (package
+    (name "librnd")
+    (version "4.5.0")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "http://www.repo.hu/projects/librnd/"
+                                  "releases/librnd-" version ".tar.bz2"))
+              (sha256
+               (base32
+                "197gjd3a0q51ib4s7cfndls0hwc783wrjhqrm49p0kjicx2pxr6s"))))
+    (build-system glib-or-gtk-build-system)
+    (arguments
+     (list
+      #:tests? #false                   ;no check target
+      #:phases
+      #~(modify-phases %standard-phases
+          ;; The configure script doesn't tolerate most of our configure
+          ;; flags.
+          (replace 'configure
+            (lambda _
+              (setenv "CC" #$(cc-for-target))
+              (invoke "./configure" (string-append "--prefix=" #$output)))))))
+    (inputs
+     (list gd glib glu gtk gtkglext libepoxy))
+    (native-inputs
+     (list pkg-config))
+    (home-page "http://repo.hu/projects/librnd/")
+    (synopsis "Two-dimensional CAD engine")
+    (description "This is a flexible, modular two-dimensional CAD engine
+@itemize
+@item with transparent multiple GUI toolkit support;
+@item a flexible, dynamic menu system;
+@item a flexible, dynamic configuration system; and
+@item support for user scripting in a dozen languages.
+@end itemize")
+    (license license:gpl2+)))
+
+(define-public libfst
+  ;; There are no release nor tags.
+  (let ((commit "6a52070cd62ec65c29832bc95e7db493504aa7ac")
+        (revision "0"))
+    (package
+      (name "libfst")
+      (version (git-version "1.0.0" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+                (url "https://github.com/gtkwave/libfst/")
+                (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32 "0b1r660m5aib316jjl4nhs10y7vhhqy2mvxjip3ynahig3hpi46z"))))
+      (build-system meson-build-system)
+      (native-inputs (list gobject-introspection pkg-config))
+      (inputs (list bzip2))
+      (propagated-inputs (list zlib))  ;in Requires.private of libfst.pc
+      (synopsis "Fast Signal Trace (FST) format waveforms library")
+      (description "Libfst is a small library used to read and write
+@acronym{FST, Fast Signal Trace} format waveforms.")
+      (home-page "https://github.com/gtkwave/libfst/")
+      (license (list license:expat      ;libfst and fastlz-derived sources
+                     license:bsd-2))))) ;for lz4-derived sources
+
+(define-public python-lln-libparse
+  (package
+    (name "python-lln-libparse")
+    (version "0.56.0")
+    (source (origin
+              (method url-fetch)
+              (uri (pypi-uri "lln_libparse" version))
+              (sha256
+               (base32
+                "0b6srlpgrfs7hfapnzfhxyy9zzgxlk943s3y78jzq3cf656448kn"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:tests? #f)); There are no tests.
+    (native-inputs
+     (list python-setuptools))
+    (inputs
+     (list pybind11))
+    (home-page "https://www.yosyshq.com/")
+    (synopsis "Wrapper around Yosys' libparse module")
+    (description "lln-libparse is a SWIG-based Python wrapper around Yosys'
+libparse, enabling dotlib file parsing.")
+    (license license:asl2.0)))
+
+(define-public libpsf
+  ;; There are no release nor tags.
+  (let ((commit "001dc734e01725e739847c8cde6480a0cf35a082")
+        (revision "0"))
+    (package
+      (name "libpsf")
+      (version (git-version "0.2" revision commit)) ;0.2 from configure.ac
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+                (url "https://gitlab.com/libpsf/libpsf-core")
+                (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32 "19k03hwwz4pkb98hd7vf15x6dnhfd48iqj62n90s7ycx1y5a378r"))
+         (modules '((guix build utils)))
+         ;; remove broken psftest binary using hardcoded paths
+         (snippet '(substitute* "src/Makefile.am"
+                    (("bin_PROGRAMS = psftest") "bin_PROGRAMS =")))))
+      ;; tests are broken due to missing test/data/tran.tran file
+      (arguments (list #:tests? #f))
+      (build-system gnu-build-system)
+      (native-inputs (list autoconf automake libtool))
+      (inputs (list boost))
+      (synopsis "PSF simulation data c++ library")
+      (description "@code{libpsf} is a c++ library that reads Cadence
+@acronym{PSF, Parameter Storage Format} binary waveform files.")
+      (home-page "https://gitlab.com/libpsf/libpsf-core")
+      (license license:lgpl3))))
+
+(define-public libserialport
+  (package
+    (name "libserialport")
+    (version "0.1.2")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "git://sigrok.org/libserialport")
+                    (commit (string-append name "-" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "0dn10gmm3rwdsiw1psaczb9m52x6cfkfrbywm4f5y8fsmghh7dsy"))))
+    (build-system gnu-build-system)
+    (native-inputs (list autoconf automake libtool))
+    (home-page "https://sigrok.org/wiki/Libserialport")
+    (synopsis "Library for using serial ports")
+    (description "Libserialport is a minimal shared library written in C that is intended
+to take care of the OS-specific details when writing software that uses serial ports.")
+    (license license:lgpl3+)))
+
+(define-public libsigrok
+  (let ((commit "f06f788118191d19fdbbb37046d3bd5cec91adb1")
+        (revision "2"))
+    (package
+      (name "libsigrok")
+      (version (git-version "0.5.2" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+               (url "git://sigrok.org/libsigrok")
+               (commit commit)))
+         (sha256
+          (base32 "1ahgpa0gaa4fl8c6frpgamvgxg0fisfwlqddr5x25456vkk2i9zi"))
+         (file-name (git-file-name name version))))
+      (outputs '("out" "doc"))
+      (arguments
+       (list
+        #:tests? #f                      ; tests need USB access
+        #:phases
+        #~(modify-phases %standard-phases
+            (add-before 'configure 'change-udev-group
+              (lambda _
+                (substitute* (find-files "contrib" "\\.rules$")
+                  (("plugdev") "dialout"))))
+            (add-after 'build 'build-doc
+              (lambda _
+                (invoke "doxygen")))
+            (add-after 'install 'install-doc
+              (lambda _
+                (copy-recursively
+                 "doxy/html-api"
+                 (string-append #$output:doc "/share/doc/libsigrok"))))
+            (add-after 'install-doc 'install-udev-rules
+              (lambda _
+                (for-each
+                 (lambda (file)
+                   (install-file
+                    file
+                    (string-append #$output "/lib/udev/rules.d/")))
+                          (find-files "contrib" "\\.rules$"))))
+            (add-after 'install-udev-rules 'install-fw
+              (lambda* (#:key inputs outputs #:allow-other-keys)
+                (let* ((fx2lafw (assoc-ref inputs "sigrok-firmware-fx2lafw"))
+                       (dir-suffix "/share/sigrok-firmware/")
+                       (input-dir (string-append fx2lafw dir-suffix))
+                       (output-dir (string-append #$output dir-suffix)))
+                  (for-each
+                   (lambda (file)
+                     (install-file file output-dir))
+                   (find-files input-dir "."))))))))
+      (native-inputs
+       (list autoconf automake doxygen graphviz libtool
+             sigrok-firmware-fx2lafw pkg-config))
+      (inputs
+       (list python zlib))
+      ;; libsigrokcxx.pc lists "glibmm" in Requires libsigrok.pc lists
+      ;; "libserialport", "libusb", "libftdi" and "libzip" in Requires.private
+      ;; and "glib" in Requires
+      (propagated-inputs
+       (list glib
+             glibmm-2.66
+             libserialport
+             libusb
+             libftdi
+             libzip))
+      (build-system gnu-build-system)
+      (home-page "https://www.sigrok.org/wiki/Libsigrok")
+      (synopsis "Basic hardware access drivers for logic analyzers")
+      (description "@code{libsigrok} is a shared library written in C which
+provides the basic hardware access drivers for logic analyzers and other
+supported devices, as well as input/output file format support.")
+      (license license:gpl3+))))
+
+(define-public libsigrokdecode
+  (let ((commit "71f451443029322d57376214c330b518efd84f88")
+        (revision "1"))
+    (package
+      (name "libsigrokdecode")
+      (version (git-version "0.5.3" revision commit))
+      (source (origin
+                (method git-fetch)
+                (uri (git-reference
+                      (url "git://sigrok.org/libsigrokdecode")
+                      (commit commit)))
+                (file-name (git-file-name name version))
+                (sha256
+                 (base32
+                  "11l8vnf2khqbaqas7cfnq3f8q5w7am6nbkkd5mqj5kpb3ya2avb9"))))
+      (outputs '("out" "doc"))
+      (arguments
+       (list
+        #:phases
+        #~(modify-phases %standard-phases
+            (add-after 'build 'build-doc
+              (lambda _
+                (invoke "doxygen")))
+            (add-after 'install 'install-doc
+              (lambda _
+                (copy-recursively
+                 "doxy/html-api"
+                 (string-append #$output:doc
+                                "/share/doc/libsigrokdecode")))))))
+      (native-inputs
+       (list check doxygen graphviz pkg-config automake autoconf libtool))
+      ;; libsigrokdecode.pc lists "python" in Requires.private, and "glib" in
+      ;; Requires.
+      (propagated-inputs
+       (list glib python))
+      (build-system gnu-build-system)
+      (home-page "https://www.sigrok.org/wiki/Libsigrokdecode")
+      (synopsis
+       "Library providing (streaming) protocol decoding functionality")
+      (description
+       "Libsigrokdecode is a shared library written in C, which provides
+(streaming) protocol decoding functionality.")
+      (license license:gpl3+))))
+
+(define-public m8c
+  (package
+    (name "m8c")
+    (version "2.2.3")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/laamaa/m8c")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1ib751mfrz6ni6imx0gwbm7zjpw1c5x8l15hrdxm4f69vrm6vgkj"))))
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:tests? #f                       ;no tests
+      #:configure-flags
+      #~(list "-DUSE_LIBUSB=ON")))
+    (native-inputs
+     (list pkg-config))
+    (inputs
+     (list libdecor libusb sdl3))
+    (home-page "https://github.com/laamaa/m8c")
+    (synopsis "Cross-platform M8 tracker headless client - usb backend")
+    (description
+     "The @url{https://dirtywave.com/products/m8-tracker,Dirtywave M8 Tracker}
+is a portable sequencer and synthesizer, featuring 8 tracks of assignable
+instruments such as FM, waveform synthesis, virtual analog, sample playback, and
+MIDI output.  It is powered by a @url{https://www.pjrc.com/teensy/,Teensy}
+micro-controller and inspired by the Gameboy tracker
+@url{https://www.littlesounddj.com/lsd/index.php,Little Sound DJ}.  m8c is a
+client for @url{https://github.com/Dirtywave/M8HeadlessFirmware,M8 Headless}
+which allows one to install the M8 firmware on any Teensy.")
+    (license (list license:cc-by-sa3.0
+                   license:expat
+                   license:public-domain
+                   license:zlib))))
+
+(define-public m8c-serial
+  (package
+    (inherit m8c)
+    (name "m8c-serial")
+    (arguments
+     (substitute-keyword-arguments arguments
+       ((#:configure-flags flags)
+        #~(cons* "-DUSE_LIBSERIAL=ON"
+                 (delete "-DUSE_LIBUSB=ON" #$flags)))))
+    (inputs
+     (modify-inputs inputs
+       (replace "libusb" libserialport)))
+    (synopsis "Cross-platform M8 tracker headless client - serial backend")))
+
+(define-public magic
+  (package
+    (name "magic")
+    (version "8.3.679")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/RTimothyEdwards/magic")
+             (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1sahrvrbbc0x2kz9x93nlra50i4l17b5dva0b0l20gy9w4wvfckc"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? #f ;no tests
+      #:configure-flags
+      #~(list (string-append
+               "--with-tcl=" #$(this-package-input "tcl"))
+              (string-append
+               "--with-tk=" #$(this-package-input "tk")))))
+    (inputs (list cairo
+                  glu
+                  libx11
+                  mesa
+                  python
+                  readline
+                  tcl
+                  tk))
+    (home-page "http://opencircuitdesign.com/magic/index.html")
+    (synopsis "@acronym{VLSI, Very-large-scale integration} layout tool")
+    (description
+     "Magic is an interactive @acronym{EDA, Electronic Design Automation} layout
+tool.  It can run @acronym{DRC, design rule check} and @acronym{LVS, layout
+versus schematic} tests and can assist with automatic routing.")
+    (license license:bsd-0)))
+
+;; TODO: Unbundle scintilla when ScintillaEdit.h is available.
+(define-public mcy
+  (package
+    (name "mcy")
+    (version "0.68")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/YosysHQ/mcy/")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1di2a4hryiwcy4v644lc36yx7wd3ybd6ws0vhardcbxagcc0ahp7"))))
+    (build-system qt-build-system)
+    (arguments
+     (list
+      #:tests? #f                       ;there are no tests
+      #:imported-modules (append %qt-build-system-modules
+                                 %pyproject-build-system-modules)
+      #:modules '((guix build qt-build-system)
+                  ((guix build pyproject-build-system) #:prefix py:)
+                  (guix build utils))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'build-info-documentation
+            (lambda _
+              (invoke "make" "-C" "docs" "info")
+              (install-file "docs/build/texinfo/yosyshqmcy.info"
+                            (string-append #$output "/share/info"))))
+          (add-before 'configure 'chdir
+            (lambda _
+              (chdir "gui")))
+          ;; As per main Makefile install target.
+          (add-after 'install 'make-install
+            (lambda _
+              (chdir "..")
+              (copy-recursively
+               "scripts" (string-append #$output "/share/mcy/scripts"))
+              (copy-recursively
+               "dash" (string-append #$output "/share/mcy/dash"))
+              (define (install-it filename)
+                (let* ((bin (format #f "~a/bin" #$output))
+                       (bin_ (format #f "~a/~a" bin filename)))
+                  (install-file (format #f "~a.py" filename) bin)
+                  (rename-file (format #f "~a/~a.py" bin filename) bin_)
+                  (chmod bin_ #o755)))
+              (install-it "mcy")
+              (install-it "mcy-dash")))
+          (add-after 'make-install 'python:wrap
+            (assoc-ref py:%standard-phases 'wrap)))))
+    (native-inputs
+     (list pkg-config
+           python-sphinx
+           python-minimal-wrapper       ;remove with unbundling of scintilla
+           texinfo))
+    (inputs
+     (list boost python python-click python-flask))
+    (home-page "https://yosyshq.readthedocs.io/projects/mcy/en/latest/")
+    (synopsis "Mutation Cover with Yosys")
+    (description
+     "@command{Mcy} is an @acronym{EDA, Electronic Design Automation} tool to
+help digital designers and project managers understand and improve testbench
+coverage.")
+    (license license:isc)))
+
+(define-public netgen
+  (package
+    (name "netgen")
+    (version "1.5.323")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/RTimothyEdwards/netgen")
+             (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1798bhr3ql60cqcswhn4jdwvbnhcbspn96wihzmbz4b59rvckh1g"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? #f ; no tests
+      #:make-flags #~(list (string-append "CC=" #$(cc-for-target))
+                           (string-append "PREFIX=" #$output))
+      #:configure-flags
+      #~(list (string-append "--with-tcl=" #$(this-package-input "tcl"))
+              (string-append "--with-tk=" #$(this-package-input "tk")))))
+    (inputs (list libx11 libxt readline tcl tk))
+    (native-inputs (list python-minimal-wrapper))
+    (home-page "http://opencircuitdesign.com/netgen/")
+    (synopsis "Netlist system for @acronym{EDA, electronic design automation}")
+    (description
+     "@code{netgen} is a general purpose @acronym{LVS, layout versus
+schematic} management tool.  It compares netlists of SPICE or verilog netlists
+circuits. This is commonly used as a part of toolchains in a process called
+@acronym{LVS, layout versus schematic} with the intent to verify that the
+layout of a circuit corresponds to the desired netlists.")
+    (license license:gpl1)))
+
+(define-public nextpnr
+  (package
+    (name "nextpnr")
+    (version "0.11.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/YosysHQ/nextpnr/")
+              (commit (string-append "nextpnr-" version))
+              ;; XXX: Fetch some bundled libraries such as QtPropertyBrowser,
+              ;; json11 and python-console, which have custom modifications or
+              ;; no longer have their original upstream.
+              (recursive? #t)))
+       (file-name (git-file-name name version))
+       (snippet
+        #~(begin
+            (use-modules (guix build utils)
+                         (ice-9 ftw)
+                         (srfi srfi-26))
+            ;; XXX: 'delete-all-but' is copied from the turbovnc package.
+            (define (delete-all-but directory . preserve)
+              (with-directory-excursion directory
+                (let* ((pred (negate (cut member <>
+                                          (cons* "." ".." preserve))))
+                       (items (scandir "." pred)))
+                  (for-each (cut delete-file-recursively <>) items))))
+            (delete-all-but "3rdparty"
+                            ;; The following sources have all been patched, so
+                            ;; cannot easily be unbundled.
+                            "QtPropertyBrowser"
+                            "json11"
+                            "python-console"
+                            "oourafft"
+                            "imgui"
+                            "qtimgui")))
+       (sha256
+        (base32 "1mb2dywv4gd52vzmml7rlyqdv4psw0l0gfy0mgwsknxblps3aha1"))))
+    (outputs '("out" "bba"))
+    (build-system qt-build-system)
+    (arguments
+     (list
+      #:qtbase qtbase                   ;for Qt 6
+      #:configure-flags
+      #~(list "-DARCH=generic;ice40;ecp5;himbaechel"
+              "-DBUILD_GUI=ON"
+              "-DUSE_OPENMP=ON"
+              "-DBUILD_TESTS=ON"
+              "-DHIMBAECHEL_UARCH=ng-ultra;gowin;gatemate"
+              "-DHIMBAECHEL_NGULTRA_DEVICES=ng-ultra"
+              "-DHIMBAECHEL_SPLIT=ON"
+              (string-append "-DHIMBAECHEL_PRJBEYOND_DB="
+                             (search-input-directory
+                              %build-inputs "share/prjbeyond-db"))
+              (string-append "-DHIMBAECHEL_PEPPERCORN_PATH="
+                             (search-input-directory
+                              %build-inputs "share/prjpeppercorn"))
+              (string-append
+               "-DEXPORT_BBA_FILES=" #$output:bba "/share/nextpnr/bba-files")
+              (string-append "-DCURRENT_GIT_VERSION=nextpnr-" #$version)
+              (string-append "-DICESTORM_INSTALL_PREFIX="
+                             #$(this-package-native-input "icestorm"))
+              (string-append "-DTRELLIS_INSTALL_PREFIX="
+                             #$(this-package-native-input "prjtrellis")))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'fix-test
+            (lambda _
+              (substitute* "himbaechel/uarch/gatemate/tests/lut.cc"
+                (("9LU") "8LU"))))
+          (add-after 'unpack 'unbundle-googletest
+            (lambda _
+              (substitute* "CMakeLists.txt"
+                (("add_subdirectory\\(3rdparty\\/googletest.*")
+                 (string-append "find_package(GTest)\n"
+                                "add_library(gtest_main ALIAS "
+                                "GTest::gtest_main)\n"))
+                (("\\$\\{CMAKE_SOURCE_DIR}/3rdparty/googletest.*")
+                 (string-append
+                  #$(this-package-native-input "googletest") "/include)")))))
+          (add-after 'unpack 'unbundle-sanitizers-cmake
+            (lambda _
+              (substitute* "CMakeLists.txt"
+                ;; Use the system sanitizers-cmake module.  This is made
+                ;; necessary 'sanitizers-cmake' installing a FindPackage
+                ;; module but no CMake config file.
+                (("\\$\\{CMAKE_SOURCE_DIR}/3rdparty/sanitizers-cmake/cmake")
+                 (string-append
+                  #$(this-package-native-input "sanitizers-cmake")
+                  "/share/sanitizers-cmake/cmake")))))
+          (add-after 'install 'run-tests
+            (lambda* (#:key tests? #:allow-other-keys)
+              (when tests?
+                (setenv "PATH"
+                        (string-append #$output "/bin:" (getenv "PATH")))
+                ;; ice40
+                (invoke "./nextpnr-ice40-test")
+                (chdir "../source")
+                (setenv "NEXTPNR" "nextpnr-ice40")
+                (with-directory-excursion "ice40/smoketest/attosoc"
+                  (invoke "./smoketest.sh"))
+                (with-directory-excursion "tests/ice40/regressions"
+                  (invoke "make" (string-append
+                                  "NPNR=" #$output "/bin/nextpnr-ice40")))
+                ;; generic
+                (setenv "NPNR" "nextpnr-generic")
+                (invoke "nextpnr-generic" "--uarch" "example" "--test")
+                (with-directory-excursion "tests/generic/flow/bel-pin"
+                  (invoke "./run.sh"))
+                ;; ecp5
+                (invoke "nextpnr-ecp5"
+                        "--um5g-25k" "--package" "CABGA381" "--test")
+                (with-directory-excursion "tests/ecp5/regressions"
+                  (invoke "make"
+                          (string-append
+                           "NPNR=" #$output "/bin/nextpnr-ecp5")))))))))
+    (native-inputs
+     (list apycula
+           googletest
+           icestorm
+           iverilog
+           gzip
+           prjbeyond-db
+           `(,prjpeppercorn "db")
+           prjtrellis
+           python-minimal-wrapper
+           sanitizers-cmake
+           yosys
+           `(,yosys "config")))
+    (inputs
+     (list boost
+           eigen
+           pybind11))
+    (synopsis
+     "Place-and-Route tool for @acronym{FPGA, Field Programmable Gate Array}")
+    (description "@code{nextpnr} is an @acronym{EDA, Electronic Design
+Automation}, portable and vendor neutral FPGA place and route tool.")
+    (home-page "https://github.com/YosysHQ/nextpnr/")
+    (license license:isc)))
+
+(define-public nextpnr-cli
+  (package
+    (inherit nextpnr)
+    (name "nextpnr-cli")
+    (build-system cmake-build-system)
+    (arguments
+     (delkw
+      #:qtbase
+      (substitute-keyword-arguments arguments
+        ((#:configure-flags flags '())
+         #~(delete! "-DBUILD_GUI=ON" #$flags)))))
+    (synopsis
+     (string-append (package-synopsis nextpnr) " Cli only version."))))
+
+(define-public ngspice
+  ;; The ngspice executables (see libngpsice above.)
+  (package
+    (inherit libngspice)
+    (name "ngspice")
+    (arguments
+     (substitute-keyword-arguments arguments
+       ;; Tests require a X server running, so we keep them disabled
+       ((#:configure-flags flags)
+        #~(cons*  "--enable-rpath" "--with-x" "--with-readline=yes"
+                  (delete "--with-ngshared" #$flags)))
+       ((#:phases phases)
+        #~(modify-phases #$phases
+            (delete 'delete-scripts)))))
+    (native-inputs
+     (modify-inputs native-inputs
+       (append perl)))
+    (inputs (list libngspice readline libxaw libx11))))
+
+(define-public nvc
+  (package
+    (name "nvc")
+    (version "1.22.1")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://github.com/nickg/nvc")
+                     (commit (string-append "r" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "0441fds50hy5klqmxn1ks9bf15pqzj0yfl7270vi4h9czk6lc3ql"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list #:out-of-source? #t
+           #:configure-flags
+           #~(list "--enable-tcl"
+                   "--enable-llvm"
+                   "--enable-vital"
+                   "--enable-server"
+                   "--with-ncurses"
+                   "--enable-parallel-make"
+                   "--enable-vital"
+                   (string-append "--with-bash-completion=" #$output
+                                  "/share/bash-completion/completions"))
+           #:phases #~(modify-phases %standard-phases
+                        (add-after 'unpack 'fix-autogen
+                          (lambda _
+                            (substitute* "autogen.sh"
+                              (("cd") "# cd"))))
+                        ;; This scripts is necessary for testing osvvm.
+                        (add-after 'install 'keep-osvvm-tests
+                          (lambda _
+                            (mkdir-p (string-append #$output "/test"))
+                            (install-file
+                             "../source/test/test-osvvm.tcl"
+                             (string-append #$output "/test")))))))
+    (native-inputs
+     (list automake
+           autoconf
+           check ; for the tests
+           flex
+           gettext-minimal
+           libtool
+           pkg-config
+           python-minimal
+           which))
+    (inputs
+     (list capstone
+           jansson
+           libffi
+           llvm
+           readline
+           tcl
+           `(,zstd "lib")))
+    (synopsis "Mix language HDL compiler and simulator")
+    (description "@code{Nvc} is an @acronym{EDA, electronic design automation}
+HDL compiler, with support for almost all of VHDL-2008 with the exception of
+PSL.  It includes experimental support for Verilog and VHDL-2019.")
+    (home-page "https://www.nickg.me.uk/nvc/")
+    (license license:gpl3+)))
+
+(define-public openboardview
+  (package
+    (name "openboardview")
+    (version "9.95.2")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/OpenBoardView/OpenBoardView")
+                    (commit version)))
+              (file-name (git-file-name name version))
+              (modules '((ice-9 ftw)
+                         (srfi srfi-26)
+                         (guix build utils)))
+              (snippet
+               '(with-directory-excursion "src"
+                  (define keep (list "." ".." "openboardview"))
+                  (for-each (lambda (f)
+                              (when (eq? 'directory (stat:type (lstat f)))
+                                (delete-file-recursively f)))
+                            (scandir "." (negate (cut member <> keep))))))
+              (patches
+               (search-patches "openboardview-use-system-imgui.patch"
+                               "openboardview-use-system-mpc.patch"))
+              (sha256
+               (base32
+                "1gkl91rcbwiapllxw5chwgzjq2p076h9bpp3nbh13mb2v3wc6qwa"))))
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:tests? #f                       ;no test suite
+      #:imported-modules `((guix build glib-or-gtk-build-system)
+                           ,@%cmake-build-system-modules)
+      #:modules '((guix build cmake-build-system)
+                  (guix build utils)
+                  ((guix build glib-or-gtk-build-system) #:prefix gtk:))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-before 'configure 'configure-glad
+            (lambda* (#:key inputs #:allow-other-keys)
+              (substitute* "src/CMakeLists.txt"
+                (("add_subdirectory\\(glad\\)")
+                 (string-append
+                  ;; Configure Glad to use static Khronos XML specifications
+                  ;; instead of attempting to fetch them from the Internet.
+                  "option(GLAD_REPRODUCIBLE \"Reproducible build\" ON)\n"
+                  ;; Use the CMake files from our glad package.
+                  "add_subdirectory("
+                  (search-input-directory inputs "share/glad") ;source_dir
+                  " src/glad)\n")))))                          ;binary dir
+          (add-before 'configure 'dynamically-load-gtk-via-absolute-path
+            ;; The GTK library is not linked thus not present in the RUNPATH of
+            ;; the produced binary; the absolute path of the libraries must to
+            ;; the dynamic loader otherwise they aren't found.
+            (lambda* (#:key inputs #:allow-other-keys)
+              (substitute* "src/openboardview/unix.cpp"
+                (("libgtk-3.so")
+                 (search-input-file inputs "lib/libgtk-3.so")))))
+          ;; Add the two extra phases from `glib-or-gtk-build-system'.
+          (add-after 'install 'glib-or-gtk-compile-schemas
+            (assoc-ref gtk:%standard-phases 'glib-or-gtk-compile-schemas))
+          (add-after 'install 'glib-or-gtk-wrap
+            (assoc-ref gtk:%standard-phases 'glib-or-gtk-wrap)))))
+    (native-inputs
+     (list pkg-config
+           python-minimal-wrapper
+           glad-0.1
+           stb-image
+           utf8-h))
+    (inputs
+     (list fontconfig
+           gtk+
+           imgui
+           orangeduck-mpc
+           sdl2
+           sqlite
+           zlib))
+    (home-page "https://github.com/OpenBoardView/OpenBoardView")
+    (synopsis "Viewer for BoardView files")
+    (description "OpenBoardView is a viewer for BoardView files, which present
+the details of a printed circuit board (PCB).  It comes with features
+such as:
+@itemize
+@item Dynamic part outline rendering, including complex connectors
+@item Annotations, for leaving notes about parts, nets, pins or location
+@item Configurable colour themes
+@item Configurable DPI to facilitate usage on 4K monitors
+@item Configurable for running on slower systems
+@item Reads FZ (with key), BRD, BRD2, BDV and BV* formats.
+@end itemize")
+    (license license:expat)))
+
+(define-public opencircuitx
+  (package
+    (name "opencircuitx")
+    (version "1.1.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/openlab-x/OpenCircuitX")
+             (commit (string-append "v" version))))
+       (sha256
+        (base32 "1h6pgdaa2h056knm9ff1ydvr6lxgjmjp198mi2nzp0rlzvvmkhdv"))
+       (file-name (git-file-name name version))
+       (snippet
+        #~(begin
+            (use-modules (guix build utils)
+                         (ice-9 ftw)
+                         (srfi srfi-26))
+            (for-each (cut delete-file-recursively <>)
+                      (list "installer" "screenshots"))))))
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:tests? #f)) ;no tests
+    (native-inputs (list pkg-config))
+    (inputs (list curl wxwidgets))
+    (home-page "https://github.com/openlab-x/OpenCircuitX")
+    (synopsis "IDE for FPGA development")
+    (description
+     "OpenCircuitX is a @acronym{EDA, Electronic Design Automation} platform
+for @acronym{HDL, Hardware Description Languages} used to design digital
+logic.  It unifies an IDE HDL editor, a visual circuit canvas, an RTL
+schematic viewer, a waveform viewer, and a full FPGA toolchain in one
+window, for hardware engineers, students, and FPGA hobbyists alike.")
+    (license license:expat)))
+
+(define-public pcb-rnd
+  (package
+    (name "pcb-rnd")
+    (version "3.1.8")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "http://repo.hu/projects/pcb-rnd/"
+                                  "releases/pcb-rnd-" version ".tar.gz"))
+              (sha256
+               (base32
+                "1q8zq8w11rjlwddrqz2w5jcq3rmxqv2scgapgfjy6bw2660c9k8z"))))
+    (build-system glib-or-gtk-build-system)
+    (arguments
+     (list
+      #:test-target "test"
+      #:phases
+      #~(modify-phases %standard-phases
+          (replace 'configure
+            ;; The configure script doesn't tolerate most of our configure
+            ;; flags.
+            (lambda _
+              (setenv "CC" #$(cc-for-target))
+              (setenv "LIBRND_PREFIX" #$(this-package-input "librnd"))
+              (invoke "./configure" (string-append "--prefix=" #$output)))))))
+    (inputs (list librnd))
+    (home-page "http://repo.hu/projects/pcb-rnd/")
+    (synopsis "Modular layout editor")
+    (description "@code{Pcb-rnd} is a @acronym{Printed Circuit Board} layout
+editor, part of the RiNgDove EDA suite.")
+    (license license:gpl2+)))
+
+(define prjbeyond-db
+  ;; Projects doesn’t include any tag or release.
+  (let ((commit "f49f66be674d9857c657930353b867ba94bcbdd7")
+        (revision "0"))
+    (package
+      (name "prjbeyond-db")
+      (version (git-version "0" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+                (url "https://github.com/yosyshq-GmbH/prjbeyond-db/")
+                (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32 "1q5dfg0s21q8aw63fz28h0av958g0vcgi179yacgvs9f0cm6dx87"))))
+      (build-system copy-build-system)
+      (arguments
+       (list
+        #:install-plan
+        #~'(("NG-ULTRA" "share/prjbeyond-db/")
+            ("devices.json" "share/prjbeyond-db/"))))
+      (home-page "https://github.com/yosyshq-GmbH/prjbeyond-db/")
+      (synopsis "Chip database for FPGA NG-Ultra architecture")
+      (description "This package includes data needed to create @code{nextpnr}
+chip database for NG-Ultra architecture from NanoXplore.")
+      (license license:expat))))
+
+(define-public prjpeppercorn
+  (package
+    (name "prjpeppercorn")
+    (version "1.13")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/YosysHQ/prjpeppercorn/")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1igdljp70492qm9d0nldd7nrxawf7g7i73wiyx44flcmapz1np5y"))))
+    (outputs (list "out"
+                   "db"))               ;FPGA database files
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:tests? #f                       ;no test suite
+      #:configure-flags
+      #~(list "-DBUILD_SHARED=ON"
+              "-DSTATIC_BUILD=OFF")
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'chdir
+            (lambda _
+              (chdir "libgm")))
+          (add-before 'chdir 'install-db-files
+            (lambda _
+              (let ((datadir
+                     (string-append #$output:db "/share/prjpeppercorn")))
+                (mkdir-p datadir)
+                (copy-recursively "delay" (string-append datadir "/delay"))
+                (copy-recursively "gatemate"
+                                  (string-append datadir "/gatemate"))
+                (copy-recursively "tools"
+                                  (string-append datadir "/tools"))))))))
+    (inputs
+     (list boost))
+    (synopsis "GateMate FPGAs bitstream tools")
+    (description
+     "@code{Prjpeppercorn} includes programming tools for GateMate
+architecture from Cologne Chip.  It also provides data needed to produce a
+@code{nextpnr} chip database Cologne Chip's GateMate architecture.")
+    (home-page "https://github.com/YosysHQ/prjpeppercorn/")
+    (license license:isc)))
+
+(define-public prjtrellis
+  ;; The last release is 2 years old; use the latest commit for now.
+  (let ((commit "73bd411731808d80ead650bbc9840d9e02911e9e")
+        (revision "2"))
+    (package
+      (name "prjtrellis")
+      (version (git-version "1.4" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+               (url "https://github.com/YosysHQ/prjtrellis/")
+               (commit commit)
+               ;; Pull the bitstream database for ECP5 devices; this is useful
+               ;; only by prjtrellis: there is no need to package it separately.
+               (recursive? #t)))
+         (file-name (git-file-name name version))
+         (modules '((guix build utils)))
+         (snippet
+          ;; Remove bundled source code for which Guix has packages.
+          '(with-directory-excursion "libtrellis/3rdparty"
+             (for-each delete-file-recursively
+                       '("pybind11"))))
+         (sha256
+          (base32 "1a425n1kqz1f3ai0n7igfrfmq7xskg70775v88292v3baaiidvx0"))))
+      (build-system cmake-build-system)
+      (arguments
+       (list
+        #:tests? #f                     ;no test suite
+        #:configure-flags
+        #~(list (string-append "-DPYBIND11_INCLUDE_DIR="
+                               (search-input-directory %build-inputs
+                                                       "include/pybind11")))
+        #:phases
+        #~(modify-phases %standard-phases
+            (add-after 'unpack 'chdir
+              (lambda _
+                (chdir "libtrellis"))))))
+      (native-inputs (list python-minimal-wrapper))
+      (inputs (list openocd boost pybind11))
+      (synopsis "Placement and routing for ECP5 FPGAs")
+      (description
+       "Project Trellis is a Nextpnr backend compatible with ECP5 FPGAs.
+The following features are currently available:
+@itemize
+@item logic slice functionality, including carries
+@item distributed RAM inside logic slices
+@item all internal interconnect
+@item basic IO, including tristate
+@item block RAM, using inference or manual instantiation
+@item multipliers using manual instantiation
+@item global networks and PLLs
+@item transcievers (DCUs.)
+@end itemize")
+      (home-page "https://github.com/YosysHQ/prjtrellis/")
+      (license license:expat))))
+
+(define-public opensta
+  ;; There are no releases, we use last commit.
+  (let ((commit "dc5ccd2d6941289a6a7d3c918b10b493f44a7f56")
+        (revision "1"))
+    (package
+      (name "opensta")
+      ;; The version string is taken from the CMakeLists.txt.
+      (version (git-version "3.1.0" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+               (url "https://github.com/parallaxsw/OpenSTA/")
+               (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32 "1fjafwxwknr029z87nq48mzgzhy61aadhd6nkras62f6p2rw6sjr"))))
+      (build-system cmake-build-system)
+      (arguments
+       (list
+        #:phases
+        #~(modify-phases %standard-phases
+            (add-before 'check 'symlink-test-dir
+              (lambda _
+                (symlink "../build" "../source/build")))
+            (replace 'check
+              (lambda* (#:key tests? #:allow-other-keys)
+                (when tests?
+                  (invoke "../source/test/regression")))))
+        #:configure-flags
+        #~(list
+           (string-append "-DCUDD_DIR=" #$(this-package-input "cudd"))
+           (string-append "-DBUILD_SHARED_LIBS=YES"))))
+      (native-inputs (list bison flex swig-4.4))
+      (inputs (list cudd eigen tcl tclreadline zlib))
+      (synopsis "Parallax Static Timing Analyzer")
+      (description
+       "OpenSTA is an @acronym{EDA, electronic design automation} gate level
+static timing verifier.  As a stand-alone executable it can be used to verify
+the timing of a design using standard file formats.")
+      (home-page "https://github.com/parallaxsw/OpenSTA/")
+      (license license:gpl3+))))
+
+(define-public openroad
+  (package
+    (name "openroad")
+    (version "26Q3")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/The-OpenROAD-Project/OpenROAD")
+              (commit version)
+              ;; 26Q3 Uses:
+              ;; - forked, custom opensta
+              ;; - forked, custom (berkeley) abc
+              ;; - magic commit number of yosys-slang
+              (recursive? #t)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1nmklw2mr28p07g5d9zxq9x3n2s2bzilqc5gq535inlcr5pl0jcc"))))
+    (build-system qt-build-system)
+    (arguments
+     (list
+      #:configure-flags
+      #~(list "-DBUILD_GUI=ON"
+              (string-append "-DOPENROAD_VERSION=" #$version)
+              "-DBUILD_PYTHON=ON"
+              "-DBUILD_MAN=ON"
+              "-DUSE_SYSTEM_ABC=OFF"     ;uses a custom fork
+              "-DUSE_SYSTEM_OPENSTA=OFF" ;uses a custom fork
+              "-DUSE_SYSTEM_BOOST=ON")
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-before 'check 'symlink-test-dir
+            (lambda _
+              (symlink "../build" "../source/build"))))))
+    (native-inputs
+     (list bison
+           flex
+           googletest
+           groff-minimal                ;for nroff
+           pandoc
+           pkg-config
+           swig-4.4
+           util-linux))                 ;for col
+    (inputs
+     (list abseil-cpp
+           boost
+           cudd
+           eigen
+           fmt-12
+           glpk
+           gmp
+           lemon-graph
+           libomp
+           mpfr
+           or-tools
+           protobuf-6
+           python
+           qtcharts-5
+           qtimageformats-5
+           qtsvg-5
+           qtwayland-5
+           re2-next
+           scip
+           spdlog
+           tcl
+           yaml-cpp
+           zlib))
+    (home-page "https://theopenroadproject.org/")
+    (synopsis "Collection of tools for semiconductor digital design")
+    (description
+     "OpenROAD is an @acronym{EDA, electronic design automation} toolkit for
+@acronym{RTL, Register Transfert Logic} to GDS design flows.  It provides all
+necessary steps from @acronym{VLSI, Very Large Scale of Integration} designs
+to implement integrated chip physical designs, from RTL design to synthesized
+Verilog and routed layout.  It includes tools for floorplanning, placement,
+clock tree synthesis, routing, parasitic extraction, and timing analysis.")
+    (license license:bsd-3)))
+
+(define-public openroad-cli
+  (package
+    (inherit openroad)
+    (name "openroad-cli")
+    (arguments
+     (delkw
+      #:qtbase
+      (substitute-keyword-arguments arguments
+        ((#:configure-flags flags '())
+         #~(cons* "-DBUILD_GUI=OFF"
+                  (delete! "-DBUILD_GUI=ON" #$flags))))))
+    (inputs
+     (modify-inputs (package-inputs openroad)
+       (delete "qtcharts-5" "qtimageformats-5" "qtsvg-5" "qtwayland-5")))
+    (synopsis
+     "Collection of tools for semiconductor digital design, cli version.")))
+
+(define-public pulseview
+  (package
+    (name "pulseview")
+    (version "0.4.2")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append
+             "https://sigrok.org/download/source/pulseview/pulseview-"
+             version ".tar.gz"))
+       (sha256
+        (base32
+         "1jxbpz1h3m1mgrxw74rnihj8vawgqdpf6c33cqqbyd8v7rxgfhph"))
+       (patches (search-patches "pulseview-qt515-compat.patch"
+                                "pulseview-glib-2.68.patch"))))
+    (build-system qt-build-system)
+    (arguments
+     (list
+      #:tests? #f ;format_time_minutes_test is failing
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'install 'remove-empty-doc-directory
+            (lambda _
+              (with-directory-excursion (string-append #$output "/share")
+                ;; Use RMDIR to never risk silently deleting files.
+                (rmdir "doc/pulseview")
+                (rmdir "doc")))))))
+    (native-inputs
+     (list pkg-config qttools-5))
+    (inputs
+     (list boost-1.83
+           glib
+           glibmm
+           libsigrok
+           libsigrokdecode
+           qtbase-5
+           qtsvg-5
+           qtwayland-5))
+    (home-page "https://www.sigrok.org/wiki/PulseView")
+    (synopsis "Qt based logic analyzer, oscilloscope and MSO GUI for sigrok")
+    (description "PulseView is a Qt based logic analyzer, oscilloscope and MSO
+GUI for sigrok.")
+    (license license:gpl3+)))
+
+(define-public osvvm
+  (package
+    (name "osvvm")
+    (version "2026.05")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/osvvm/OsvvmLibraries/")
+              (commit version)
+              ;; OsvvmLibraries repository gathers all osvvm libraries as
+              ;; submodules.
+              (recursive? #t)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0ga5ly71cgmfibl7636y3c9zm36fw77x78cgb78mh5bv1r10f3kq"))))
+    (outputs
+     '("out" "osvvm"))
+    (properties
+     `((output-synopsis "out" "Instance this design library as work")
+       (output-synopsis "osvvm" "Instance this design library as osvvm")))
+    (build-system copy-build-system)
+    (arguments
+     (list
+      #:install-plan
+      #~'(;; Library work.
+          ("osvvm" "share/osvvm/work/osvvm/"
+           #:include ("vhd" "pro" "md"))
+          ("Common" "share/osvvm/work/Common/"
+           #:include ("vhd" "pro" "md"))
+          ("Scripts" "share/osvvm/work/Scripts/"
+           #:include ("tcl" "md"))
+          ("UART" "share/osvvm/work/UART"
+           #:include ("vhd" "pro" "md")
+           #:exclude-regexp ("GHDL_Debug"))
+          ("AXI4" "share/osvvm/work/AXI4"
+           #:include ("vhd" "pro" "md"))
+          ("Ethernet" "share/osvvm/work/Ethernet"
+           #:include ("vhd" "pro" "md"))
+          ("Wishbone" "share/osvvm/work/Wishbone"
+           #:include ("vhd" "pro" "md"))
+          ;; Library osvvm.
+          ("osvvm" "share/osvvm/osvvm/osvvm/"
+           #:include ("vhd" "pro" "md") #:output "osvvm")
+          ("Common" "share/osvvm/osvvm/Common/"
+           #:include ("vhd" "pro" "md") #:output "osvvm")
+          ("Scripts" "share/osvvm/osvvm/Scripts/"
+           #:include ("tcl" "md") #:output "osvvm")
+          ("UART" "share/osvvm/osvvm/UART"
+           #:include ("vhd" "pro" "md")
+           #:exclude-regexp ("GHDL_Debug")
+           #:output "osvvm")
+          ("AXI4" "share/osvvm/osvvm/AXI4"
+           #:include ("vhd" "pro" "md")
+           #:output "osvvm")
+          ("Ethernet" "share/osvvm/osvvm/Ethernet"
+           #:include ("vhd" "pro" "md")
+           #:output "osvvm")
+          ("Wishbone" "share/osvvm/osvvm/Wishbone"
+           #:include ("vhd" "pro" "md")
+           #:output "osvvm"))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-before 'install 'fix-scripts
+            (lambda _
+              ;; Default conflicts with read-only /gnu/store.
+              (substitute* "osvvm/OsvvmVhdlSettings.pro"
+                (("\\[FindOsvvmSettingsDirectory\\]")
+                 " \"\" "))))
+          (add-after 'fix-scripts 'check
+            (lambda* (#:key tests? #:allow-other-keys)
+              (when tests?
+                (setenv "OSVVM_DIR" (getcwd))
+                (setenv "OSVVM_MUST_BUILD" (getcwd))
+                (invoke "tclsh"
+                        (string-append #$(this-package-native-input "nvc")
+                                       "/test/test-osvvm.tcl")))))
+          (add-after 'install 'build
+            (lambda _
+              (define (_build dir)
+                (chdir dir)
+                (call-with-output-file "build.tcl"
+                  (lambda (port)
+                    (format port "source Scripts/StartNVC.tcl;\n")
+                    (format port "include osvvm/osvvm.pro;\n")
+                    (format port "include Common/build.pro;\n")
+                    (format port "include UART/build.pro\n")
+                    (format port "include AXI4/build.pro\n")
+                    (format port "include Ethernet/build.pro\n")
+                    (format port "include Wishbone/build.pro\n")))
+                (invoke "tclsh" "build.tcl")
+                (rename-file
+                 (string-append "VHDL_LIBS/" "NVC-" #$(package-version nvc))
+                 "Compiled")
+                (for-each delete-file-recursively
+                          (list "OsvvmTemp_NVC" "VHDL_LIBS")))
+              (_build (string-append #$output "/share/osvvm/work"))
+              (_build (string-append #$output:osvvm "/share/osvvm/osvvm")))))))
+    (native-inputs
+     (list nvc tcl tcllib which))
+    (native-search-paths
+     (list (search-path-specification
+             (variable "FW_OSVVM")
+             (separator #f)
+             (files (list "share/osvvm")))))
+    (home-page "https://osvvm.github.io/Overview/Osvvm1About.html/")
+    (synopsis "The OSVVM VHDL Verification Libraries and Scripts")
+    (description "OSVVM is a verification methodology that defines a VHDL
+verification framework, verification utility library, verification component
+library, scripting API, and co-simulation capability for FPGA or ASIC
+verification.")
+    (license license:asl2.0)))
+
+;;; Required by python-vunit.
+(define osvvm-2023.04
+  (package
+    (inherit osvvm)
+    (name "osvvm")
+    (version "2023.04")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/osvvm/OsvvmLibraries/")
+              (commit version)
+              ;; OsvvmLibraries repository gathers all osvvm libraries as
+              ;; submodules.
+              (recursive? #t)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1kn18ibvm7bzdyw2d914284wriravyh5qwfarj06pb052x1yblyx"))))
+    (arguments
+     (substitute-keyword-arguments arguments
+       ((#:tests? _ #t)
+        #f)
+       ((#:install-plan _)
+        #~'(("osvvm" "share/osvvm/work/osvvm/"
+             #:include ("vhd" "pro" "md"))))
+       ((#:phases phases #~%standard-phases)
+        #~(modify-phases #$phases
+            (delete 'build)
+            (delete 'fix-scripts)))))))
+
+(define-public pyspice
+  (package
+    (name "pyspice")
+    (version "1.5")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/PySpice-org/PySpice")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "02z35gyx27npqg7g0m1gdy8wid93iy335pc72j90ycx998xf2r5k"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:test-flags
+      #~(list "unit-test")
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-before 'build 'patch-libngspice
+            (lambda* (#:key inputs #:allow-other-keys)
+              (substitute* "PySpice/Spice/NgSpice/Shared.py"
+                ((" path = .*" _)
+                 (format #f " path = '~a/lib/libngspice.so'"
+                         (search-input-file inputs "lib/libngspice.so")))))))))
+    (native-inputs
+     (list python-pytest
+           python-setuptools))
+    (inputs
+     (list libngspice
+           python-invoke
+           python-matplotlib
+           python-ply
+           python-pyyaml
+           python-requests
+           python-scipy))
+    (home-page "https://pyspice.fabrice-salvaire.fr/")
+    (synopsis "Circuit simulator Python interface")
+    (description "PySpice implements a Ngspice binding and provides an
+oriented object API on top of SPICE, the simulation output is converted to
+Numpy arrays for convenience.")
+    (license license:gpl3+)))
+
+(define-public python-amaranth
+  (package
+    (name "python-amaranth")
+    (version "0.5.9")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/amaranth-lang/amaranth/")
+              (commit (string-append "v" version))))
+       (sha256
+        (base32 "0n7rmppppvhxz17xbwqk517flpyi120adivcfsli5kfkndl6n10p"))
+       (file-name (git-file-name name version))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'relax-requirements
+            (lambda _
+              (substitute* "pyproject.toml"
+                (("pyvcd>=0.2.2,<0.5")"pyvcd>=0.2.2,<=0.5"))))
+          (add-before 'build 'set-version
+            (lambda _
+              (setenv "PDM_BUILD_SCM_VERSION" #$version))))))
+    (native-inputs
+     (list python-pdm-backend
+           python-setuptools
+           python-setuptools-scm
+           sby
+           yices
+           yosys))
+    (propagated-inputs
+     (list python-jinja2 python-jschon python-pyvcd))
+    (home-page "https://amaranth-lang.org/docs/amaranth/latest/")
+    (synopsis "Amaranth hardware definition language")
+    (description "The Amaranth project provides an open-source toolchain for
+developing hardware based on synchronous digital logic using the Python
+programming language, as well as evaluation board definitions and a System on
+Chip toolkit.")
+    (license license:bsd-3)))
+
+(define-public python-gdsfactory
+  (package
+    (name "python-gdsfactory")
+    (version "9.45.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/gdsfactory/gdsfactory")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0bd8i385z83hvgrbbksyqrrrkdwi54rja4bc6kgj7agnh15givq4"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:test-flags
+      #~(list
+         ;; FileNotFoundError: No such file or directory.
+         "--deselect=tests/test_path.py::test_gds[transition]"
+         "--deselect=tests/test_path.py::test_settings[transition]"
+         "--deselect=tests/test_port.py::test_rename_ports[electrical]"
+         "--deselect=tests/test_port.py::test_rename_ports[optical]"
+         "--deselect=tests/test_port.py::test_rename_ports[placement]"
+         "--deselect=tests/test_schematic.py::test_schematic"
+         "--deselect=tests/test_write_cells.py::test_write_cells_recursively"
+         "--deselect=tests/test_write_cells.py::test_write_cells"
+         ;; Failed: File not found in data directory, created.
+         "--deselect=tests/components"
+         "--deselect=tests/read/test_component_from_yaml.py"
+         "--deselect=tests/read/test_component_from_yaml2.py"
+         "--deselect=tests/read/test_import_gds.py"
+         ;; Reference GDS file for 'sample_fiber_array' not found.
+         "--deselect=tests/routing")
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'relax-requirements
+            (lambda _
+              (substitute* "pyproject.toml"
+                (("kfactory\\[ipy\\]~=2.6.1") "kfactory~=2.6.0"))))
+          (add-before 'check 'pre-check
+            (lambda _
+              (setenv "HOME" "/tmp")))
+          (replace 'check
+            (lambda* (#:key tests? test-flags #:allow-other-keys)
+              ;; Running tests together fails with error:
+              ;;
+              ;; import file mismatch:
+              ;; imported module 'conftest' has this __file__ attribute:
+              ;;   /<...>/source/tests/backend/conftest.py
+              ;; which is not the same as the test file we want to collect:
+              ;;   /<...>/source/tests/conftest.py
+              ;;
+              ;; HINT: remove __pycache__ / .pyc files and/or use a unique
+              ;; basename for your test file modules
+              (when tests?
+                (apply invoke "pytest" "-vv" "tests" test-flags)))))))
+    (native-inputs
+     (list python-flit-core
+           python-jsondiff
+           python-pytest
+           python-pytest-regressions))
+    (propagated-inputs
+     (list python-aenum
+           python-attrs
+           python-freetype-py
+           python-graphviz
+           python-ipykernel
+           python-jinja2
+           python-kfactory
+           python-klayout
+           python-loguru
+           python-matplotlib
+           python-natsort
+           python-networkx
+           python-mapbox-earcut
+           python-numpy
+           python-orjson
+           python-pandas
+           python-pydantic
+           python-pydantic-settings
+           python-pygit2
+           python-pyglet
+           python-pyyaml
+           python-qrcode
+           python-rectpack
+           python-rich
+           python-scikit-image
+           python-scipy
+           python-shapely
+           python-toolz
+           python-trimesh
+           python-typer
+           python-types-pyyaml
+           python-typing-extensions
+           python-watchdog))
+    (home-page "https://gdsfactory.github.io/gdsfactory/")
+    (synopsis "Python library for chip design automation")
+    (description
+     "GDSFactory is a Python library for designing chips including
+photonics, analog, quantum, and MEMS devices.  It provides tools for creating,
+manipulating, and validating designs, outputting industry-standard GDSII and
+OASIS formats.  GDSFactory leverages the KLayout library for high-performance
+geometry operations.")
+    (license license:expat)))
+
+(define-public python-gdstk
+  (package
+    (inherit gdstk)
+    (name "python-gdstk")
+    (build-system pyproject-build-system)
+    (arguments (list #:test-flags #~(list ".")))
+    (native-inputs (list cmake-minimal python-pytest python-minimal-wrapper
+                         python-scikit-build-core))
+    (inputs (modify-inputs inputs
+              (prepend python-numpy)))
+    (synopsis "Python module for creation and manipulation of GDSII files")
+    (description
+     "@code{python-gdstk} is a Python library for creation
+and manipulation of GDSII layout files which are commonly used
+for @acronym{EDA, elecronic design automation} and chip design.")))
+
+(define-public python-kfactory
+  (package
+    (name "python-kfactory")
+    (version "2.6.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/gdsfactory/kfactory")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0aa3q638ajrardn0fyp20bwwnz0y2jywfx8hn1irx1bk6dmj5y9g"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:tests? #f ;requires python-kfnetlist, which depends on klayout.
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'relax-requirements
+            (lambda _
+              (substitute* "pyproject.toml"
+                (("cachetools >= 6.2.4") "cachetools >= 6.1.0")
+                (("pydantic-extra-types>=2.11") "pydantic-extra-types>=2.10")
+                (("pygit2 >= 1.19.1, < 2") "pygit2 >= 1.18.2, < 2")
+                (("ruamel.yaml >= 0.19.1, < 0.20") "ruamel.yaml >= 0.18.4, < 0.20")
+                (("typer >= 0.21.1, < 0.25") "typer >= 0.21.1, <= 0.26.4")))))))
+    (native-inputs
+     (list python-setuptools))
+    (propagated-inputs
+     (list python-aenum
+           python-cachetools
+           python-klayout
+           python-loguru
+           python-pydantic
+           python-pydantic-extra-types
+           python-pydantic-settings
+           python-pygit2
+           python-rapidfuzz
+           python-rectangle-packer
+           python-requests
+           python-ruamel.yaml
+           python-ruamel.yaml.string
+           python-scipy
+           python-semver
+           python-toolz
+           python-typer))
+    (home-page "https://gdsfactory.github.io/kfactory")
+    (synopsis "Gdsfactory with a KLayout backend")
+    (description
+     "KFactory is a Python framework for photonic and electronic chip layout,
+built on KLayout's C++ geometry engine.  It provides parametric cells with
+caching, optical and electrical routing, enclosures via Minkowski sums, and
+schematic-driven design with LVS.")
+    (license license:expat)))
+
+(define-public python-klayout
+  (package
+    (name "python-klayout")
+    (version (package-version klayout))
+    (source (package-source klayout))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:phases
+      #~(modify-phases %standard-phases
+          (replace 'check
+            (lambda* (#:key tests? #:allow-other-keys)
+              ;; Run the tests as specified in pyproject.toml.
+              (when tests?
+                (substitute* "pyproject.toml"
+                  ;; Fix failing test
+                  (("TESTSRC=\\{package\\} ")
+                   ""))
+                (setenv "TESTSRC" ".")
+                (invoke "python"
+                        #$(plain-file "python-klayout-test-runner.py"
+                                      "import tomllib, subprocess
+with open(\"pyproject.toml\", \"rb\") as f:
+    config = tomllib.load(f)
+
+commands = config['tool']['cibuildwheel']['test-command']
+
+for command in commands:
+    subprocess.run(command.format(package=\".\").split())"))))))))
+    (native-inputs (list curl
+                         expat
+                         libpng
+                         python-setuptools
+                         python-tomli
+                         python-wrapper)) ;; The test commands invoke "python".
+    (home-page "https://klayout.de")
+    (synopsis "Mask layout library for Python")
+    (description
+     "python-klayout is a standalone Python API of KLayout.
+This library supports OASIS and GDS2 file formats,
+editing of mask layouts, and verification such as
+@acronym{DRC, Design rule checking} and @acronym{LVS, Layout Versus Schematic}.")
+    (license license:gpl3+)))
+
+(define-public python-liberty-parser
+  (package
+    (name "python-liberty-parser")
+    (version "0.0.29")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://codeberg.org/tok/liberty-parser")
+             (commit version)))
+       (sha256
+        (base32 "0x3y1rp0hwcbncgjnkpdjn6gf56qxxp39y2h9p1xm63g3hhikwdc"))
+       (file-name (git-file-name name version))))
+    (build-system pyproject-build-system)
+    (propagated-inputs (list python-lark python-numpy python-sympy))
+    (native-inputs (list python-pytest python-setuptools))
+    (home-page "https://codeberg.org/tok/liberty-parser")
+    (synopsis "Parser for Liberty timing libraries")
+    (description
+     "The @code{liberty-parser} Python library provides a parser
+and data structures for the Liberty format,
+a standard file format used in @acronym{EDA, Electronic Design Automation}
+for example for timing information of digital circuits.")
+    (license license:gpl3+)))
+
+(define-public python-hdlconvertorast
+  (package
+    (name "python-hdlconvertorast")
+    (version "1.2")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/Nic30/hdlConvertorAst")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1zv067imbdihyqwy7f0j80x9a2857vifhky60vc91dffjl1zjg1i"))))
+    (build-system pyproject-build-system)
+    (native-inputs
+     (list python-pytest
+           python-setuptools))
+    (home-page "https://github.com/Nic30/hdlConvertorAst")
+    (synopsis "@acronym{AST, Abstract Syntax Tree} library for VHDL and
+SystemVerilog")
+    (description
+     "This package provides a library of @acronym{AST, Abstract Syntax Tree} nodes
+for @acronym{VHDL, Very high speed integrated circuit Hardware Description Language},
+SystemVerilog, and SystemC, with conversion between languages and to JSON.")
+    (license license:expat)))
+
+;; Yosys source pinned to hdlConvertor v2.3 submodule commit for parsing tests.
+(define yosys-src-for-hdlconvertor-tests
+  (origin
+    (method git-fetch)
+    (uri (git-reference
+           (url "https://github.com/YosysHQ/yosys")
+           (commit "a299e606f864942c7edf90c4ad3998f4f4a346cf")))
+    (file-name "yosys-src-for-hdlconvertor-tests")
+    (sha256
+     (base32 "106bzlljn6843740r8rbaqf5ivkyfcgp25dgzds97j48ypmv6fih"))))
+
+(define-public python-hdlconvertor
+  (package
+    (name "python-hdlconvertor")
+    (version "2.3")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/Nic30/hdlConvertor")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0xa7wm324dwp4wks8l9njpd2bz4gn7dfygdc3a78lxy1prvzbyyz"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:test-flags
+      ;; Ignore tests inside yosys source tree (they're unrelated yosys tests).
+      #~(list "--ignore=tests/yosys")
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-before 'build 'setup-antlr
+            (lambda* (#:key inputs #:allow-other-keys)
+              ;; Build classpath from input jars.
+              (let* ((st4 (search-input-file inputs
+                            "share/java/java-stringtemplate-4.0.8.jar"))
+                     (antlr4 (search-input-file inputs
+                               "share/java/antlr4.jar"))
+                     (antlr4-rt (search-input-file inputs
+                                  "share/java/java-antlr4-runtime.jar"))
+                     (antlr3 (search-input-file inputs
+                               "share/java/antlr3-3.5.2.jar"))
+                     (treelayout (search-input-file inputs
+                                   "share/java/java-treelayout-1.0.3.jar"))
+                     (classpath (string-join (list st4 antlr4 antlr4-rt
+                                                   antlr3 treelayout)
+                                             ":"))
+                     (antlr4cpp-include (search-input-directory
+                                          inputs "include/antlr4-runtime"))
+                     (antlr4cpp-lib (search-input-file
+                                      inputs "lib/libantlr4-runtime.so"))
+                     (python-include
+                      (search-input-directory
+                       inputs
+                       (string-append
+                        "include/python"
+                        #$(version-major+minor (package-version python))))))
+                ;; Patch CMake to use our paths directly.
+                (substitute* "src/CMake_antlr4.txt"
+                  (("set\\(ANTLR_CLASSPATH \"\"\\)")
+                   (string-append "set(ANTLR_CLASSPATH \"" classpath "\")"))
+                  ;; Skip the jar search loop.
+                  (("FOREACH\\(antlr_jar \\$\\{ANTLR_JARS\\}\\)")
+                   "FOREACH(antlr_jar )")
+                  ;; Set C++ runtime paths before find commands.
+                  (("# search for antlr4 include dir and library")
+                   (string-append
+                    "# search for antlr4 include dir and library\n"
+                    "set(ANTLR4CPP_INCLUDE_DIRS \"" antlr4cpp-include "\")\n"
+                    "set(ANTLR4CPP_LIBRARIES \"" antlr4cpp-lib "\")\n")))
+                ;; hdlConvertor/CMakeLists.txt is a sibling subdirectory to src/
+                ;; so variables set in src/CMake_antlr4.txt aren't visible here;
+                ;; inject both ANTLR and Python include paths before
+                ;; include_directories.
+                (substitute* "hdlConvertor/CMakeLists.txt"
+                  (("include_directories\\(")
+                   (string-append
+                    "set(ANTLR4CPP_INCLUDE_DIRS \"" antlr4cpp-include "\")\n"
+                    "set(PYTHON_INCLUDE_DIRS \"" python-include "\")\n"
+                    "include_directories(")))
+                ;; ANTLR4 4.10+ changed from .as<T>() to std::any_cast<T>().
+                ;; Upstream fixed this in commit 8b07c10 using preprocessor
+                ;; conditionals to support both old and new APIs, but that
+                ;; commit also includes unrelated changes (Block statement
+                ;; support).  We apply a simplified fix for ANTLR 4.10+
+                ;; only.
+                (substitute* "src/verilogPreproc/verilogPreproc.cpp"
+                  (("visitMacro_call\\(mc, false\\)\\.as<string>\\(\\)")
+                   "std::any_cast<string>(visitMacro_call(mc, false))")
+                  (("params = visitDefine_args\\(da\\);")
+                   (string-append "params = std::any_cast<"
+                                  "vector<MacroDefVerilog::param_info_t>*"
+                                  ">(visitDefine_args(da));"))))))
+          (add-before 'check 'prepare-tests
+            (lambda* (#:key inputs #:allow-other-keys)
+              ;; Symlink yosys source for yosys testsuite.
+              (delete-file-recursively "tests/yosys")
+              (symlink (assoc-ref inputs "yosys-src-for-hdlconvertor-tests")
+                       "tests/yosys")
+              ;; Remove source hdlConvertor/ which shadows the installed package.
+              (delete-file-recursively "hdlConvertor")
+              ;; Replace tests/__init__.py which imports all.py that requires
+              ;; git submodules; also delete tests requiring external tools.
+              (call-with-output-file "tests/__init__.py"
+                (lambda (port)
+                  (display "" port)))
+              (delete-file "tests/all.py")
+              (for-each delete-file
+                        (find-files "tests" "test_ghdl"))
+              (for-each delete-file
+                        (find-files "tests" "test_icarus"))
+              (for-each delete-file
+                        (find-files "tests" "test_verilator"))
+              (for-each delete-file
+                        (find-files "tests" "test_uvvm"))
+              (for-each delete-file
+                        (find-files "tests" "test_vunit"))
+              (for-each delete-file
+                        (find-files "tests" "test_notebook"))
+              (for-each delete-file
+                        (find-files "tests" "test_basic_hdl_sim")))))))
+    (native-inputs
+     (list antlr4                  ; parser generator tool (antlr4.jar)
+           antlr3                  ; antlr3-runtime.jar required by hdlConvertor build
+           java-antlr4-runtime     ; antlr4-runtime.jar required by hdlConvertor build
+           java-stringtemplate     ; stringtemplate4.jar required by hdlConvertor build
+           java-treelayout         ; treelayout.jar required by hdlConvertor build
+           (list openjdk "jdk")    ; Java runtime to execute ANTLR4
+           ;;; Python build dependencies:
+           python-cython           ; compiles .pyx extension files to C++
+           python-scikit-build     ; CMake-based Python build system
+           python-setuptools
+           python-wrapper          ; Python interpreter for build scripts
+           python                  ; Python headers for C extension building
+           python-pytest
+           ;; Yosys source for parsing tests.
+           yosys-src-for-hdlconvertor-tests))
+    (inputs
+     (list cpp-antlr4-runtime))
+    (propagated-inputs
+     (list python-hdlconvertorast))
+    (home-page "https://github.com/Nic30/hdlConvertor")
+    (synopsis "VHDL and System Verilog parser")
+    (description "This package provides a @acronym{VHDL, Very high speed
+integrated circuit Hardware Description Language} and SystemVerilog
+parser library for Python.")
+    (license license:expat)))
+
+(define-public python-pyrtl
+  (package
+    (name "python-pyrtl")
+    (version "1.0.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/UCSBarchlab/PyRTL")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0r42yh9ncrb6k9z35skw35dba4173lmb7xxka13iwwwghnl935vy"))))
+    (build-system pyproject-build-system)
+    (native-inputs
+     (list python-hatchling python-hatch-vcs python-pytest))
+    (propagated-inputs
+     (list python-graphviz python-pyparsing))
+    (synopsis
+     "@acronym{RTL, Register Transfert Level} hardware design and simulation")
+    (description
+     "PyRTL provides a collection of classes for Pythonic @acronym{RTL,
+Register Transfer Logic}-level design, simulation, tracing, and testing,
+suitable for teaching and research.")
+    (home-page "https://UCSBarchlab.github.io/PyRTL")
+    (license license:bsd-3)))
+
+(define-public python-pyucis
+  (package
+    (name "python-pyucis")
+    (version "0.1.5")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/fvutils/pyucis/")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "19bxmhqkdmhbibkbzcjqvzvcni1kzg28nqz9vh6zj73hl26lf2ij"))))
+    (build-system pyproject-build-system)
+    (native-inputs
+     (list python-pytest
+           python-setuptools))
+    (propagated-inputs
+     (list python-jsonschema-objects
+           python-lxml
+           python-pyyaml))
+    (home-page "https://fvutils.github.io/pyucis//")
+    (synopsis "Python interface to UCIS data")
+    (description
+     "The code{PyUCIS} library provides two APIs for creating and accessing
+coverage data via the @acronym{UCIS, Unified Coverage Interoperability
+Standard} data mode.")
+    (license license:asl2.0)))
+
+(define-public python-pyuvm
+  (package
+    (name "python-pyuvm")
+    (version "4.0.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/pyuvm/pyuvm")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "02ldgkc4srw940xrd00r3q7jxvj5w8q5vblp4z17w04ml862inlf"))))
+    (build-system pyproject-build-system)
+    (native-inputs
+     (list python-pytest python-setuptools))
+    (propagated-inputs
+     (list python-cocotb))
+    (home-page "https://github.com/pyuvm/pyuvm")
+    (synopsis "@acronym{UVM, Universal Verification Methodology} in Python")
+    (description
+     "PyUVM is a Python implementation of the @acronym{UVM, Universal
+Verification Methodology}, as defined in the IEEE 1800.2 standard.  It uses
+@code{cocotb} to interact with simulators and schedule simulation
+events.  It implements the most commonly used sections of the IEEE 1800.2
+standard.")
+    (license license:asl2.0)))
+
+(define-public python-pyvcd
+  (package
+    (name "python-pyvcd")
+    (version "0.5.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/SanDisk-Open-Source/pyvcd")
+             (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0c0i3dvbza481ykp8vvghb1yl23rab9250z0n7b3zf897125chsi"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:build-backend "setuptools.build_meta"))  ;requires uv_build
+    (native-inputs
+     (list python-pytest python-setuptools python-setuptools-scm))
+    (home-page "http://pyvcd.readthedocs.io/")
+    (synopsis "Library to manipulate digital wave files")
+    (description
+     "The code{PyVcd} Python library writes @acronym{VCD, Value Change Dump}
+files as specified in IEEE 1364-2005.")
+    (license license:expat)))
+
+(define-public python-cocotb
+  (package
+    (name "python-cocotb")
+    (version "2.0.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/cocotb/cocotb")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0lyv0q1zqldrzfpyy3k1cxdnsw05gv73x5iid20yagvgb6l0sx1d"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:phases
+      #~(modify-phases %standard-phases
+          (replace 'check
+            (lambda* (#:key tests? #:allow-other-keys)
+              (when tests?
+                (for-each delete-file-recursively
+                          (map
+                           (lambda (test) (string-append "tests/test_cases/" test))
+                           (list "test_log_prefix"
+                                 "test_vhdl_libraries"
+                                 "test_vhdl_libraries_multiple")))
+                (invoke "make" "-k" "-C" "tests")))))))
+    (native-inputs
+     (list iverilog
+           nvc
+           python-pytest
+           python-setuptools
+           verilator))
+    (propagated-inputs
+     (list python-find-libpython))
+    (home-page "https://github.com/cocotb/cocotb")
+    (synopsis "Library for writing HDL test benches in Python")
+    (description
+     "Coroutine based cosimulation test bench environment for verifying VHDL
+and Verilog RTL using Python.")
+    (license license:bsd-3)))
+
+(define-public python-cocotb-bus
+  (package
+    (name "python-cocotb-bus")
+    ;; Version from src/cocotb_bus/_version.py
+    (version "0.3.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/cocotb/cocotb-bus/")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0aqk78w5gg23rwf93gidw8yazmidwgmahqcmm3x0qx380mbdxjl4"))))
+    (build-system pyproject-build-system)
+    ;; TODO: Build documentation from <docs>.
+    (arguments
+     (list
+      #:phases
+      #~(modify-phases %standard-phases
+          (replace 'check
+            (lambda* (#:key tests? #:allow-other-keys)
+              (when tests?
+                (invoke "make" "-k" "-C" "tests")
+                (invoke "make" "-k" "-C" "examples")))))))
+    (native-inputs
+     (list iverilog
+           nvc
+           python-pytest
+           python-setuptools))
+    (propagated-inputs
+     (list python-cocotb
+           python-scapy))
+    (home-page "https://github.com/cocotb/cocotb-bus/")
+    (synopsis "Cocotb reusable tools")
+    (description "@code{Cocotb-bus} provides a set of utilities, test benches
+and reusable bus interfaces to be used with @code{cocotb}.")
+    (license license:bsd-3)))
+
+(define-public python-cocotb-test
+  (package
+    (name "python-cocotb-test")
+    (version "0.2.6")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/themperek/cocotb-test")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0f7hf3wwdz21xyq9mg1pzbk5a5hkzszq4wss1r0ismgmn7i4lq7q"))))
+    (build-system pyproject-build-system)
+    (arguments (list #:tests? #f))      ;requires examples folder from python-cocotb
+    (propagated-inputs
+     (list python-cocotb))
+    (native-inputs
+     (list python-pytest python-setuptools))
+    (home-page "https://github.com/themperek/cocotb-test")
+    (synopsis
+     "Standard python unit testing cababilities for @code{python-cocotb}")
+    (description "This package provides the look and feel of Python unit
+testing to @code{cocotb}, removing the need of manipulating Makefiles.")
+    (license license:bsd-3)))
+
+(define-public python-cocotbext-axi
+  (package
+    (name "python-cocotbext-axi")
+    (version "0.1.28")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/alexforencich/cocotbext-axi/")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0kwdzz0mq134m0kxhwwj0d1nr1cbrzv36844476knna34xi2riyg"))))
+    (build-system pyproject-build-system)
+    (propagated-inputs
+     (list python-cocotb python-cocotb-bus))
+    (native-inputs
+     (list iverilog python-cocotb-test python-pytest python-setuptools))
+    (home-page "https://github.com/alexforencich/cocotbext-axi/")
+    (synopsis
+     "Extra @acronym{AXI, Advanced Extensible Interface} modules for cocotb")
+    (description "This package provides an extension to @code{cocotb} in the
+form of AXI, AXI lite, and AXI stream modules.")
+    (license license:expat)))
+
+(define-public python-forastero
+  (package
+    (name "python-forastero")
+    (version "1.2.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/Intuity/forastero")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0j6mrh435xknx055llzqikh1bcrxjcn0difa6g1bflr4nxd2498g"))))
+    (build-system pyproject-build-system)
+    (arguments (list #:tests? #f))      ; No tests.
+    (propagated-inputs (list python-cocotb python-tabulate python-yappi))
+    (native-inputs (list python-poetry-core))
+    (home-page "https://forastero.intuity.io/")
+    (synopsis "Cocotb verification framework")
+    (description "Forastero is a Python library for writing testbenches with cocotb
+a Python framework for writing testbenches for hardware designs written in a
+@acronym{HDL, Hardware Description Language}, taking inspiration from the
+@acronym{UVM, Unified Verification Methodology}.")
+    (license license:asl2.0)))
+
+(define-public python-edalize
+  (package
+    (name "python-edalize")
+    (version "0.6.8")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/olofk/edalize/")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "04m2lhkclw9fj92k43c06j003qnq9i1yhy2131fvcnkkr0d9438m"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:test-flags
+      #~(list "-k" (string-join
+                    ;; XXX: Tests failing with assertion not equal, find out
+                    ;; why.
+                    (list "not test_gatemate"
+                          "test_vcs_tool_options"
+                          "test_vcs_no_tool_options"
+                          "test_vcs_minimal"
+                          "test_xcelium")
+                    " and not "))
+      #:phases
+      #~(modify-phases %standard-phases
+          ;; Fixes #6530.
+          (add-after 'install 'copy-templates
+            (lambda _
+              (copy-recursively
+               "edalize/templates"
+               (string-append #$output "/lib/python"
+                              #$(version-major+minor (package-version python))
+                              "/site-packages/edalize/templates")))))))
+    (native-inputs
+     (list python-pyparsing
+           python-pytest
+           python-setuptools
+           python-setuptools-scm))
+    (propagated-inputs
+     (list python-importlib-metadata python-jinja2 python-pandas))
+    (home-page "https://github.com/olofk/edalize/")
+    (synopsis "Python Library for interacting with EDA tools")
+    (description
+     "This package can create project files for supported tools and run them in
+batch or GUI mode.  All EDA tools such as Icarus, Yosys, ModelSim, Vivado,
+Verilator, GHDL, Quartus etc get input HDL files (Verilog and VHDL) and some
+tool-specific files (constraint files,memory initialization files, IP
+description files etc).  Together with the files, perhaps a couple of Verilog
+`defines, some top-level parameters/generics or some tool-specific options are
+set.")
+    (license license:bsd-2)))
+
+(define-public fusesoc
+  (package
+    (name "fusesoc")
+    (version "2.4.6")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/olofk/fusesoc/")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "11bmvk10mszv65ws84jmm220ivwn55v8664kkdm9d4m99pryi2kp"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:test-flags
+      ;; These tests require network access.
+      #~(list
+         "--deselect=tests/test_coremanager.py::test_export"
+         "--deselect=tests/test_libraries.py::test_library_add"
+         (string-append
+          "--deselect=tests/test_libraries.py::"
+          "test_library_update_with_initialize")
+         "--deselect=tests/test_libraries.py::test_library_update"
+         "--deselect=tests/test_provider.py::test_git_provider"
+         "--deselect=tests/test_provider.py::test_github_provider"
+         "--deselect=tests/test_signatures.py::test_signature_single_standalone"
+         (string-append
+          "--deselect=tests/test_usecases.py::"
+          "test_git_library_with_default_branch_is_added_and_updated")
+         (string-append
+          "--deselect=tests/test_usecases.py::"
+          "test_update_git_library_with_fixed_version")
+         "--deselect=tests/test_provider.py::test_url_provider")
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-before 'check 'set-home-env
+            (lambda _
+              (setenv "HOME" "/tmp"))))))
+    (propagated-inputs
+     (list python-argcomplete
+           python-edalize
+           python-fastjsonschema
+           python-pyparsing
+           python-pyyaml
+           python-pyaml
+           python-simplesat))
+    (native-inputs
+     (list python-pytest python-setuptools python-setuptools-scm))
+    (home-page "https://fusesoc.net/")
+    (synopsis
+     "Package manager and build abstraction tool for HDL code")
+    (description
+     "Fusesoc allows management and reuse of @acronym{IP, Intellectual
+Property} cores.  It also aids for creating, building and simulating
+@acronym{Soc, System on Chip} solutions in @acronym{EDA, Electronic Design
+Automation}.")
+    (license license:bsd-3)))
+
+(define-public python-hdlmake
+  (package
+    (name "python-hdlmake")
+    (version "4.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://gitlab.com/ohwr/project/hdl-make/")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1mbsm1j058j3wjp0hypd7a9d1xh3xsmy9p3jl9xcpnzjmncm34xr"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:phases #~(modify-phases %standard-phases
+                   (add-before 'check 'chdir
+                     (lambda _
+                       (chdir "testsuite")))
+                   (add-before 'chdir 'build-info
+                     (lambda _
+                       (invoke "make" "-C" "docs" "info")
+                       (install-file
+                        "docs/_build/texinfo/hdlmake.info"
+                        (string-append #$output "/share/info"))
+                       (copy-recursively
+                        "docs/_build/texinfo/hdlmake-figures"
+                        (string-append
+                         #$output "/share/info/hdlmake-figures")))))
+      #:test-flags #~(list "test_all.py")))
+    (native-inputs
+     (list python-pytest python-setuptools python-sphinx texinfo))
+    (propagated-inputs (list python-networkx))
+    (home-page "https://ohwr.gitlab.io/project/hdl-make/")
+    (synopsis "Generate multi-purpose makefiles for HDL projects")
+    (description
+     "Hdlmake helps manage and share @acronym{HDL, hardware description
+language} code by automatically finding file dependencies, writing synthesis
+and simulation Makefiles.")
+    (license license:gpl3+)))
+
+(define-public python-migen
+  ;; XXX: The latest version tag (0.9.2) was placed in 2019, there are latest
+  ;; changes supporting Python 3.11 on master branch, see
+  ;; <https://github.com/m-labs/migen/issues/259>.
+  (let ((commit "3dcfedd0b9e533e073228bb3eb0f973d22074919")
+        (revision "2"))
+    (package
+      (name "python-migen")
+      (version (git-version "0.9.2" revision commit))
+      (source
+       (origin
+         ;; Tests fail in the PyPI tarball due to missing files.
+         (method git-fetch)
+         (uri (git-reference
+                (url "https://git.m-labs.hk/M-Labs/migen")
+                (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32 "1nygx1p468109b2rmfsfqaqqgbgzn9r5d78fnb304fj96brx4b0x"))))
+      (build-system pyproject-build-system)
+      (native-inputs
+       (list python-pytest
+             python-setuptools))
+      (propagated-inputs
+       (list python-colorama))
+      (home-page "https://m-labs.hk/gateware/migen/")
+      (synopsis "Python toolbox for building complex digital hardware")
+      (description
+       "Migen FHDL is a Python library that replaces the event-driven paradigm
+of Verilog and VHDL with the notions of combinatorial and synchronous
+statements, has arithmetic rules that make integers always behave like
+mathematical integers, and allows the design's logic to be constructed by a
+Python program.")
+      (license license:bsd-2))))
+
+(define-public python-myhdl
+  (let ((commit "7dc29c242cd33cb835c336a81ffc3a461eaa92f4")
+        (revision "0"))
+    (package
+      (name "python-myhdl")
+      (version (git-version "0.11" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+                (url "https://github.com/myhdl/myhdl/")
+                (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32
+           "1b91yvr0ksrw3bx61i7914caf8pyks9c242kwmj4l12zjd06mp56"))))
+      (arguments
+       (list
+        #:phases
+        #~(modify-phases %standard-phases
+            (replace 'check
+              (lambda* (#:key tests? #:allow-other-keys)
+                (when tests?
+                  (invoke "make" "iverilog" "core")))))))
+      (build-system pyproject-build-system)
+      (native-inputs
+       (list iverilog python-setuptools python-pytest))
+      (home-page "http://www.myhdl.org/")
+      (synopsis "Python as a Hardware Description Language")
+      (description "This package provides a library to turn Python into
+a hardware description and verification language.")
+      (license license:lgpl2.1+))))
+
+(define-public python-pydigitalwavetools
+  (package
+    (name "python-pydigitalwavetools")
+    (version "1.2")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/Nic30/pyDigitalWaveTools/")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0fll8anz3i1j1nngsij1psp8766kvdfpls655lbxn2ykypv3633m"))))
+    (build-system pyproject-build-system)
+    (native-inputs
+     (list python-pytest
+           python-setuptools
+           python-wheel))
+    (home-page "https://github.com/Nic30/pyDigitalWaveTools/")
+    (synopsis "Library to manipulate digital wave files")
+    (description
+     "Pydigitalwavetools is a Python library to parse, write and format digital
+wave files in @acronym{VCD, Value Change Dump} format, a standardized ASCII
+format used to store simulation data from Verilog and other hardware description
+languages.")
+    (license license:expat)))
+
+(define-public python-surf
+  (package
+    (name "python-surf")
+    (version "2.57.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/slaclab/surf/")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0ncb34mdxaw0m6cnk7kvl7mkhwa6hpcxkc2lgarwcmmnfydr8kg3"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:tests? #f
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'remove-deps
+            (lambda _
+              (invoke "git" "init") ;expects a git repo
+              ;; fix version
+              (substitute* "setup.py"
+                (("rawVer .*")
+                 (string-append "rawVer = \"v"
+                                #$version "\""))))))))
+    (native-inputs
+     (list python-setuptools python-gitpython git-minimal/pinned))
+    (home-page "https://slaclab.github.io/surf/")
+    (synopsis "SLAC Ultimate RTL Framework")
+    (description
+     "Surf is a python library with support functions for VHDL gateware
+digital design.  It provides implementation modules compatible with FPGA and ASIC
+design.")
+    (license (license:non-copyleft "file://LICENSE.txt"
+                                   "See LICENSE.txt in the distribution."))))
+
+(define-public python-vsg
+  (package
+    (name "python-vsg")
+    (version "3.35.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/jeremiah-c-leary/vhdl-style-guide/")
+             (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "01hwida51bdyzv6wy71nby9cllf6nbvin5a0lhl4dizvnp3h4mb4"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:test-flags
+      ;; Tests are expensive and may introduce race condition on systems with
+      ;; high (more than 16) threads count; limit parallel jobs to 8x.
+      #~(list
+         "--numprocesses" (number->string (min 8 (parallel-job-count))))))
+    (native-inputs
+     (list python-pytest
+           python-pytest-xdist
+           python-setuptools))
+    (propagated-inputs
+     (list python-pyyaml))
+    (home-page "https://github.com/jeremiah-c-leary/vhdl-style-guide/")
+    (synopsis "Coding style enforcement for VHDL")
+    (description
+     "VSG lets you define a VHDL coding style and provides a command-line tool
+to enforce it.")
+    (license license:gpl3+)))
+
+(define-public python-pyxhdl
+  (package
+    (name "python-pyxhdl")
+    (version "0.53")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/davidel/pyxhdl")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "16dqqhbg5q6fxlhnfcjimxv1zgziw5g46askjhfg8g2hn7i3vfal"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:test-backend #~'custom
+      #:test-flags #~(list "tests/test_runner.py")))
+    (native-inputs
+     (list python-setuptools))
+    (propagated-inputs
+     (list python-numpy python-misc-utils))
+    (home-page "https://github.com/davidel/pyxhdl")
+    (synopsis
+     "Python frontend for @acronym{HDL, Hardware Description Languages}")
+    (description
+     "PyXHDL replaces HDL code by Python, generating VHDL (>= 2008) and
+Verilog (SystemVerilog >= 2012) code to be used for synthesis and simulation.")
+    (license license:asl2.0)))
+
+(define-public python-vunit
+  (package
+    (name "python-vunit")
+    (version "5.0.0-dev.10") ;v4.7.0 dates back from 2 years ago.
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/VUnit/vunit")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1gr9ghwgqly9zf0sf15ai20sac520rs84b9i5qjxdqpj26ayyl1q"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:modules '((guix build pyproject-build-system)
+                  (guix build utils)
+                  (ice-9 ftw)
+                  (srfi srfi-26))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'fix-ghdl-version
+            (lambda _
+              ;; Guix uses ghdl 6.0.0.
+              (substitute* "tests/unit/test_ghdl_interface.py"
+                (("GHDL 5\\.0\\.1") "GHDL 6.0.0")
+                (("GNAT Version: 14\\.2\\.0") "GNAT Version: 15.2.0"))))
+          (add-after 'install 'unbundle
+            (lambda* (#:key inputs outputs #:allow-other-keys)
+              (let ((site-packages
+                     (string-append (site-packages inputs outputs)
+                                    "/vunit/vhdl/")))
+                (symlink
+                 (search-input-directory inputs "share/osvvm/work/osvvm")
+                 (string-append site-packages "osvvm")))))
+          (add-after 'check 'run-examples
+            ;; Run examples as an extra check.
+            (lambda* (#:key tests? parallel-build? #:allow-other-keys)
+              (when tests?
+                (with-directory-excursion "examples/vhdl"
+                  (for-each
+                   (lambda (dir)
+                     (invoke "python3" (string-append dir "/run.py")
+                             "-p" (if parallel-build?
+                                      (number->string (parallel-job-count))
+                                      "1"))
+                     (delete-file-recursively "vunit_out"))
+                   (scandir "."
+                            (negate
+                             (cut member <>
+                                  '("data_types"  ;no run.py
+                                    "docker_runall.sh"  ;not a test
+                                    "vivado" ;requires external tool
+                                    ;; Fails with nvc
+                                    "array_axis_vcs"
+                                    "osvvm_log_integration"
+                                    "run"
+                                    "third_party_integration"
+                                    "user_guide"
+                                    "." ".."))))))))))
+      #:test-flags
+      ;; Skip lint tests which require python-pycodestyle, python-pylint and
+      ;; python-mypy to reduce closoure size; some lint test fails, see
+      ;; <https://github.com/VUnit/vunit/issues/1111>.
+      ;;
+      ;; XXX: Acceptance tests take 10+ minutes to complete, hang on
+      ;; "test_external_run_scripts.py" and fail eventually, consider to
+      ;; improve them; ignore for now.
+      #~(list "tests/unit")))
+    (native-inputs
+     (list nvc
+           python-pytest
+           python-setuptools
+           python-setuptools-scm))
+    (inputs
+     (list osvvm-2023.04))
+    (propagated-inputs
+     (list python-colorama))
+    (home-page "https://vunit.github.io")
+    (synopsis "Unit testing framework for VHDL/SystemVerilog")
+    (description
+     "VUnit features the functionality needed to realize continuous and
+automated testing of HDL code.")
+    ;; According to 'LICENSE.rst', VUnit itself is under MPL but two
+    ;; subdirectories are under ASL.
+    (license (list license:mpl2.0 license:asl2.0))))
+
+(define-public qrouter
+  (package
+    (name "qrouter")
+    (version "1.4.90")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/RTimothyEdwards/qrouter")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1djqbli6bs0cqmcvrh3m9i94bncm3bvjs2iz5y7yszcagjq51wja"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? #f ;no tests
+      #:make-flags #~(list (string-append "CC=" #$(cc-for-target))
+                           (string-append "PREFIX=" #$output))
+      #:configure-flags
+      #~(list (string-append "--with-tcl=" #$(this-package-input "tcl"))
+              (string-append "--with-tk=" #$(this-package-input "tk")))))
+    (inputs (list libx11 libxt readline tcl tk))
+    (home-page "http://opencircuitdesign.com/qrouter/")
+    (synopsis "Visual @acronym{EDA, electronic design automation} router")
+    (description
+     "@code{qrouter} is an @acronym{ASIC, application specific integrated
+circuits}s tool intended for digital chip design.  It creates the detailed
+routes for layouts of digital circuits and generates metal layers and vias.")
+    (license license:gpl2)))
+
+(define-public qucsrflayout-cli
+  (package
+    (name "qucsrflayout-cli")
+    (version "2.1.2")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/thomaslepoix/Qucs-RFlayout/")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "1nhqhb5x5giv8ck9y9aib6vh6kvnfrycsbdzh6fnzng046aq67aq"))))
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:tests? #f                       ;no tests
+      #:configure-flags
+      #~(list "-DQRFL_MINIMAL=ON"
+              "-DCMAKE_BUILD_TYPE=Release")))
+    (home-page "https://github.com/thomaslepoix/Qucs-RFlayout/")
+    (synopsis "Produce layouts from Qucs RF schematics")
+    (description
+     "@code{qucsrflayout} command exports @acronym{RF, Radio Frequency}
+schematics to KiCad layouts and OpenEMS scripts.")
+    (license license:gpl3+)))
+
+(define-public qucsator-rf
+  (package
+    (name "qucsator-rf")
+    (version "1.0.7")                   ;required by qucs-s, keep in sync
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/ra3xdh/qucsator_rf/")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "1qyih418r0jcrpk1ja4p7v9v5iqvri8iszg7s3vaf1d2agwblzb4"))))
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:tests? #f                       ;no tests
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'install 'run-tests
+            (lambda* (#:key tests? #:allow-other-keys)
+              (when tests?
+                ;; Qucs-test is a collection of python scripts and data test
+                ;; cases. Its purpose is to test Qucs (GUI) and Qucsator;
+                ;; tests are under `testsuite` directory.
+                (copy-recursively
+                 #$(origin
+                     (method git-fetch)
+                     (uri
+                      ;; Using latest revision; refer to
+                      ;; .github/workflows/cmake.yml to keep up to date.
+                      (git-reference
+                        (url "https://github.com/ra3xdh/qucs-test/")
+                        (commit "ce69e05ceecab910175e6ea36b6e021a6d279947")))
+                     (sha256
+                      (base32
+                       (string-append "1r3hx43wvd0s11mzsvj1chylzv"
+                                      "0lk9qhaw7205j9x316ly03bl08"))))
+                 "qucs-test")
+                (with-directory-excursion "qucs-test"
+                  (invoke "python3" "run.py" "--qucsator"
+                          (format #f "--prefix=~a/bin" #$output)
+                          "--exclude=skip.txt"))))))
+      #:configure-flags
+      #~(list (format #f "-DBISON_DIR=~a/bin"
+                      #$(this-package-native-input "bison"))
+              (format #f "-DADMSXML_DIR=~a/bin"
+                      #$(this-package-native-input "adms")))))
+    (native-inputs
+     (list adms bison dos2unix flex gperf python python-looseversion
+           python-numpy python-matplotlib))
+    (synopsis "RF and microwave circuits simulator")
+    (description
+     "@code{Qucsator-rf} is a command line driven circuit simulator targeted
+for RF and microwave circuits.  It takes a network list in a certain format as
+input and outputs an XML dataset.")
+    (home-page "https://ra3xdh.github.io//")
+    (license license:gpl2+)))
+
+(define-public qucs-s
+  (package
+    (name "qucs-s")
+    (version "26.1.1")                  ;update qucsator-rf accordingly
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/ra3xdh/qucs_s")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "009siqmn76r2l17hnjqmr6ap8nw969hd5fyqigb4p3i8cvjq7gmx"))))
+    (build-system qt-build-system)
+    (arguments
+     (list
+      #:qtbase qtbase                   ;for Qt 6
+      #:tests? #f                       ;no tests
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'adjust-default-settings
+            (lambda* (#:key inputs #:allow-other-keys)
+              (substitute* "qucs/settings.cpp"
+                (("\"Xyce\"")
+                 (format #f "~s" (search-input-file inputs "bin/Xyce")))
+                (("\"qucsrflayout\"")
+                 (format #f "~s" (search-input-file inputs "bin/qucsrflayout")))
+                (("\"ngspice\"")
+                 (format #f "~s" (search-input-file inputs "bin/ngspice")))
+                (("\"octave\"")
+                 (format #f "~s" (search-input-file inputs "bin/octave"))))))
+          (add-after 'install 'wrap-program
+            (lambda _
+              (wrap-program (string-append #$output "/bin/qucs-s")
+                `("PATH" ":" prefix
+                  (,(string-append #$(this-package-input "ngspice") "/bin")
+                   ,(string-append
+                     #$(this-package-input "qucsator-rf") "/bin")
+                   ,(string-append
+                     #$(this-package-input "qucsrflayout-cli") "/bin")
+                   ,(string-append
+                     #$(this-package-input "xyce-serial") "/bin")))))))))
+    (native-inputs (list qttools))
+    (inputs
+     (list bash-minimal
+           ngspice
+           octave-cli
+           qtbase
+           qtcharts
+           qtsvg
+           qtwayland
+           qucsator-rf
+           qucsrflayout-cli
+           xyce-serial))
+    (synopsis "GUI for different circuit simulation kernels")
+    (description
+     "@acronym{Qucs-S, Quite universal circuit simulator with SPICE} provides
+a fancy graphical user interface for a number of popular circuit simulation
+engines.  The package contains libraries for schematic capture, visualization
+and components.  The following simulation kernels are supported:
+@itemize
+@item Ngspice (recommended)
+@item Xyce
+@item SpiceOpus
+@item Qucsator (non-SPICE)
+@end itemize\n")
+    (home-page "https://ra3xdh.github.io/")
+    (license license:gpl2+)))
+
+(define-public xschem
+  (package
+    (name "xschem")
+    (version "3.4.7")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://codeberg.org/stef_xschem/xschem/")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "0g9qrzm2mjd7nfg8iyc5az2bs8n5gjv1mrjjdja5vn1yjia7pvy9"))))
+    (native-inputs (list flex bison pkg-config))
+    (inputs (list gawk
+                  tcl
+                  tk
+                  libxpm
+                  cairo
+                  libjpeg-turbo
+                  libxrender
+                  libxcb)) ; Last 4 are optional, but good to have.
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? #f
+      #:phases
+      #~(modify-phases %standard-phases
+          (replace 'configure
+            (lambda _
+              (setenv "CC" #$(cc-for-target))
+              (invoke "./configure" (string-append "--prefix=" #$output)))))))
+    (synopsis "Hierarchical schematic editor")
+    (description
+     "Xschem is an X11 schematic editor written in C and focused on
+hierarchical and parametric design.  It can generate VHDL, Verilog or Spice
+netlists from the drawn schematic, allowing the simulation of the circuit.")
+    (home-page "http://repo.hu/projects/xschem/")
+    (license license:gpl2+)))
+
+(define-public route-rnd
+  (package
+    (name "route-rnd")
+    (version "0.9.3")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "http://repo.hu/projects/route-rnd/"
+                           "releases/route-rnd-" version ".tar.gz"))
+       (sha256
+        (base32
+         "0fy3b48s72lpicyap3y6jr9fyvb2ri42jb0gqxk6s927a278bfhc"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? #f
+      #:make-flags #~(list (string-append "PREFIX=" #$output))
+      #:phases
+      #~(modify-phases %standard-phases
+          (replace 'configure
+            ;; The configure script doesn't tolerate most of our configure
+            ;; flags.
+            (lambda _
+              (setenv "CC" #$(cc-for-target))
+              (setenv "LIBRND_PREFIX" #$(this-package-input "librnd"))
+              (invoke "./configure" (string-append "--prefix=" #$output)))))))
+    (inputs (list librnd))
+    (home-page "http://repo.hu/projects/route-rnd/")
+    (synopsis "Automatic routing for electronics boards")
+    (description
+     "@code{Route-rnd} is a generic external autorouter for @acronym{PCB,
+Printed Circuit Board} using tEDAx file format, part of the RiNgDove EDA
+suite.")
+    (license license:gpl2+)))
+
+(define-public sch-rnd
+  (package
+    (name "sch-rnd")
+    (version "1.0.11")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append "http://repo.hu/projects/sch-rnd/"
+                           "releases/sch-rnd-" version ".tar.gz"))
+       (sha256
+        (base32
+         "1zckj0if1kfdqagama55zcp9nlvkppnfcqh7r99a1wlcc5s921y1"))))
+    (build-system glib-or-gtk-build-system)
+    (arguments
+     (list
+      #:test-target "test"
+      #:phases
+      #~(modify-phases %standard-phases
+          (replace 'configure
+            ;; The configure script doesn't tolerate most of our configure
+            ;; flags.
+            (lambda _
+              (setenv "CC" #$(cc-for-target))
+              (setenv "LIBRND_PREFIX" #$(this-package-input "librnd"))
+              (invoke "./configure" (string-append "--prefix=" #$output)))))))
+    (inputs (list librnd))
+    (home-page "http://repo.hu/projects/sch-rnd/")
+    (synopsis "Scriptable editor of schematics for electronics boards")
+    (description
+     "@code{Sch-rnd} is a standalone and workflow agnostic schematics capture
+tool for @acronym{PCB, Printed Circuit Board}, part of the RiNgDove EDA
+suite.")
+    (license license:gpl2+)))
+
+(define-public sigrok-cli
+  (package
+    (name "sigrok-cli")
+    (version "0.7.2")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "http://sigrok.org/download/source/sigrok-cli/sigrok-cli-"
+                    version ".tar.gz"))
+              (sha256
+               (base32
+                "1f0a2k8qdcin0pqiqq5ni4khzsnv61l21v1dfdjzayw96qzl9l3i"))))
+    (native-inputs
+     (list pkg-config))
+    (inputs
+     (list glib libsigrok libsigrokdecode))
+    (build-system gnu-build-system)
+    (home-page "https://sigrok.org/wiki/Sigrok-cli")
+    (synopsis "Command-line frontend for sigrok")
+    (description "Sigrok-cli is a command-line frontend for sigrok.")
+    (license license:gpl3+)))
+
+(define-public sigrok-firmware-fx2lafw
+  ;; The project's last formal release was in 2019.
+  ;;
+  ;; The changes since then allow it to build with the latest version of SDCC,
+  ;; 4.3.0.
+  (let ((commit "96b0b476522c3f93a47ff8f479ec08105ba6a2a5")
+        (revision "1"))
+    (package
+      (name "sigrok-firmware-fx2lafw")
+      (version (git-version "0.1.7" revision commit))
+      (source (origin
+                (method git-fetch)
+                (uri (git-reference
+                      (url "git://sigrok.org/sigrok-firmware-fx2lafw")
+                      (commit commit)))
+                (file-name (git-file-name name version))
+                (sha256
+                 (base32
+                  "1n5nj2g2m5ih59591ny2drrv25zviqcwyx1cfdhy8ijl82yxjkmb"))))
+      (build-system gnu-build-system)
+      (arguments
+       (list #:tests? #f))              ; no test suite
+      (native-inputs
+       (list autoconf automake sdcc))
+      (home-page "https://www.sigrok.org/wiki/Fx2lafw")
+      (synopsis "Firmware for Cypress FX2 chips")
+      (description "Fx2lafw is free firmware for Cypress FX2 chips which makes
+them usable as simple logic analyzer and/or oscilloscope hardware.")
+      (license license:gpl2+))))
+
+(define-public sby
+  (package
+    (name "sby")
+    (version "0.68")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/YosysHQ/sby/")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "153mhnbrxkk9zam758j20xjkc85bhd9hbzcga34snbrlfvqzpp7k"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:parallel-tests? #f
+      #:test-target "test"
+      #:imported-modules %pyproject-build-system-modules
+      #:modules `((guix build gnu-build-system)
+                  ((guix build pyproject-build-system) #:prefix python:)
+                  (guix build utils))
+      #:make-flags #~(list (string-append "PREFIX=" #$output))
+      #:phases
+      #~(modify-phases %standard-phases
+          (delete 'configure)
+          (delete 'build)
+          ;; TODO: build docs, after furo-ys is packaged.
+          ;; (add-after 'install 'build-info
+          ;; (lambda _
+          ;; (invoke "make" "-C" "docs" "info")))
+          (add-after 'unpack 'patch-/usr/bin/env
+            (lambda* (#:key inputs #:allow-other-keys)
+              (substitute* "sbysrc/sby_core.py"
+                (("\"/usr/bin/env\", ")
+                 ""))
+              (substitute* "sbysrc/sby.py"
+                (("/usr/bin/env python3")
+                 (search-input-file inputs "bin/python3")))))
+          (add-after 'install 'python:wrap
+            (assoc-ref python:%standard-phases 'wrap)))))
+    (inputs (list abc-yosyshq
+                  python
+                  python-click
+                  python-xmlschema
+                  z3
+                  yices
+                  yosys))
+    ;; TODO: see above build-info phase comment.
+    ;; (native-inputs (list
+    ;;                 python-sphinx python-sphinx-argparse texinfo))
+    (home-page "https://yosyshq.readthedocs.io/projects/sby/en/latest/")
+    (synopsis "Formal hardware verification with Yosys")
+    (description
+     "@command{sby} is an @acronym{EDA, Electronic Design Automation}
+front-end program for Yosys-based formal hardware verification flows.")
+    (license license:isc)))
+
+(define-public sby-gui
+  (let ((commit "0a89301bf347c9f42932186e49ba2c0014ff3661")
+        (revision "1"))
+    (package
+      (name "sby-gui")
+      (version (git-version "0" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+                (url "https://github.com/YosysHQ/sby-gui/")
+                (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32 "1zp2c7zqclsfvl5xhb8zlc1dclp2s36w2nd0x80fazsxp7ksw5gr"))))
+      (build-system qt-build-system)
+      (arguments
+       (list
+        #:qtbase qtbase                 ;for Qt 6
+        #:tests? #f))                   ;no tests
+      (native-inputs (list python-minimal-wrapper))
+      (propagated-inputs (list sby))
+      (home-page "https://github.com/YosysHQ/sby-gui/")
+      (synopsis "Graphical user interface for code{sby}")
+      (description
+       "@code{sby-gui} is a GUI for front-end driver program for
+code{yosys}-based formal hardware verification flows.")
+      (license license:isc))))
+
+(define-public surelog
+  (package
+    (name "surelog")
+    (version "1.86")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/chipsalliance/Surelog/")
+              (commit (string-append "v" version))
+              ;; Custom verion of the antlr4; see third_party/README.
+              (recursive? #t)))
+       (file-name (git-file-name name version))
+       (snippet
+        #~(begin
+            (use-modules (guix build utils)
+                         (ice-9 ftw)
+                         (srfi srfi-26))
+            (define (delete-all-but directory . preserve)
+              (with-directory-excursion directory
+                (let* ((pred (negate (cut member <>
+                                          (cons* "." ".." preserve))))
+                       (items (scandir "." pred)))
+                  (for-each (cut delete-file-recursively <>) items))))
+            (delete-all-but "third_party"
+                            "antlr4" "antlr4_bin" "tests" "UVM")))
+       (sha256
+        (base32 "0pj84bb3iyhrq09ggwfbhdhzb5c3d9ifga87pn0rjw9ym17ns1vh"))))
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:configure-flags
+      #~(list "-DBUILD_SHARED_LIBS=ON"
+              "-DSURELOG_BUILD_TESTS=ON"
+              "-DSURELOG_USE_HOST_JSON=ON"
+              "-DSURELOG_USE_HOST_GTEST=ON"
+              "-DSURELOG_USE_HOST_UHDM=ON"
+              "-DSURELOG_USE_HOST_ANTLR=OFF"
+              "-DSURELOG_WITH_ZLIB=ON"
+              "-DSURELOG_WITH_TCMALLOC=ON")
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-before 'check 'check-setup
+            (lambda* (#:key tests? #:allow-other-keys)
+              (when tests?
+                (invoke "cmake" "--build" "." "--target" "UnitTests")))))))
+    (native-inputs
+     (list googletest
+           nlohmann-json
+           perl
+           pkg-config
+           python-minimal-wrapper
+           python-psutil
+           swig-4.4
+           tcl
+           tcsh
+           uhdm))
+    (inputs
+     (list capnproto openjdk python-orderedmultidict zlib))
+    (home-page "https://github.com/chipsalliance/Surelog/")
+    (synopsis "Pre-procesor and parser for SystemVerilog 2017")
+    (description
+     "Surelog is a pre-processor, parser, elaborator and @acronym{UHDM,
+Universal Hardware Data Model} compiler.  It provides IEEE design, a C/C++
+@acronym{VPI, Verilog Procedural Interface} and a Python @acronym{AST,
+Abstract Syntax Trees} API.")
+    (license license:asl2.0)))
+
+(define-public surfer
+  (package
+    (name "surfer")
+    (version "0.7.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://gitlab.com/surfer-project/surfer")
+             (commit (string-append "v" version))
+             ;; needed for f128 which seems bundled in later rust versions
+             ;; and instruction-decoder
+             (recursive? #t)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "146dah9j3rgwwkc331srvibphv3by5xf9yraz0hsaahscmd17vaq"))
+       (modules '((guix build utils)))
+       (snippet
+        '(begin
+           ;; The dependency is not available through crates.io.
+           ;; Add it manually.
+           (substitute* "libsurfer/Cargo.toml"
+             (("^egui_skia_renderer = .*$")
+              ""))))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+      #:install-source? #f
+      #:tests? #f ;No tests.
+      #:cargo-package-crates ''("surfer" "surver")
+      #:cargo-install-paths ''("surfer" "surver")
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'install 'wrap-graphical-libraries
+            (lambda* (#:key inputs #:allow-other-keys)
+              (for-each (lambda (lib)
+                          (wrap-program (string-append #$output "/bin/surfer")
+                            `("LD_LIBRARY_PATH" ":" prefix
+                              (,lib))))
+                        (map (lambda (pkg)
+                               (string-append (assoc-ref inputs pkg) "/lib"))
+                             '("libx11" "libxcursor" "libxi" "libxkbcommon"
+                               "mesa" "wayland"))))))))
+    (native-inputs (list pkg-config
+                         (list zstd "lib")))
+    (inputs (cons* bash-minimal
+                   libx11
+                   libxcursor
+                   libxi
+                   libxkbcommon
+                   mesa
+                   rust-egui-skia-renderer-source
+                   python
+                   wayland
+                   (cargo-inputs 'surfer)))
+    (home-page "https://surfer-project.org")
+    (synopsis "Waveform viewer")
+    (description
+     "Surfer is a waveform viewer used in @acronym{EDA, Electronic Design
+Automation} with a focus on usability and extensibility.")
+    (license license:eupl1.2)))
+
+(define-deprecated-package symbiyosys
+  sby)
+
+(define-public sv-lang
+  (package
+    (name "sv-lang")
+    (version "11.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/MikePopoloski/slang")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "1362w0scxiqdm7nwv8366bgbcgwv1iz2svkd9whl0wmlhqmky362"))))
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:configure-flags
+      #~(list "-DBUILD_SHARED_LIBS=ON"
+              "-DSLANG_INCLUDE_TOOLS=ON"
+              "-DSLANG_INCLUDE_TESTS=ON"
+              "-DSLANG_INCLUDE_INSTALL=ON"
+              "-DSLANG_USE_THREADS=ON"
+              "-DSLANG_INCLUDE_PYLIB=ON"
+              "-DSLANG_INCLUDE_DOCS=OFF"))) ;requires author’s m.css repository
+    (native-inputs
+     (list pkg-config python-minimal-wrapper))
+    (inputs
+     (list boost catch2 cpptrace fmt-12 mimalloc pybind11))
+    (synopsis "SystemVerilog compiler and language services")
+    (description "Slang is a software library that provides various components
+for lexing, parsing, type checking, and elaborating SystemVerilog code.  It
+comes with an executable tool that can compile and lint any SystemVerilog
+project, but it is also intended to be usable as a front end for synthesis
+tools, simulators, linters, code editors, and refactoring tools.")
+    (home-page "https://sv-lang.com/")
+    (license license:expat)))
+
+(define sv-lang-for-yosys-slang
+  (let ((commit "f04e81565793c768b747a8fd058f3e7aeceee1b5") ;sync with yosys-slang
+        (revision "0"))
+    (package
+      (inherit sv-lang)
+      (name "sv-lang")
+      (version (git-version "10.0" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+                (url "https://github.com/MikePopoloski/slang")
+                (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32
+           "135ghdw7wm9544mpnq91vsjag2r1sk81shd3r1cw513jsjhjvim4")))))))
+
+(define-public systemc
+  (package
+    (name "systemc")
+    (version "3.0.2")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/accellera-official/systemc")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0gbk8ma0nhaf02alcxk808isvk74b5wadaazdvzwbmj0ybx06ml1"))))
+    (native-inputs (list perl))
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:modules '((guix build cmake-build-system)
+                  ((guix build gnu-build-system) #:prefix gnu:)
+                  (guix build utils))
+      #:phases
+      #~(modify-phases %standard-phases
+          (replace 'check (assoc-ref gnu:%standard-phases 'check)))))
+    (home-page "https://systemc.org/")
+    (synopsis "Library for event-driven simulation")
+    (description
+     "SystemC is a C++ library for modeling concurrent systems, and the
+reference implementation of IEEE 1666-2011.  It provides a notion of timing as
+well as an event-driven simulations environment.  Due to its concurrent and
+sequential nature, SystemC allows the description and integration of complex
+hardware and software components.  To some extent, SystemC can be seen as
+a Hardware Description Language.  However, unlike VHDL or Verilog, SystemC
+provides sophisticated mechanisms that offer high abstraction levels on
+components interfaces.  This, in turn, facilitates the integration of systems
+using different abstraction levels.")
+    ;; homepages.cae.wisc.edu/~ece734/SystemC/Esperan_SystemC_tutorial.pdf
+    (license license:asl2.0)))
+
+(define-public uhdm
+  (package
+    (name "uhdm")
+    (version "1.86")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/chipsalliance/UHDM/")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0nsy385frxz5v7i757h1x59xkl21asz3h2fk1nyvx37z8cj0kd3z"))))
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:configure-flags
+      #~(list "-DUHDM_USE_HOST_CAPNP=ON"
+              "-DCMAKE_CXX_FLAGS=-fPIC"
+              "-DCMAKE_C_FLAGS=-fPIC"
+              "-DUHDM_USE_HOST_GTEST=ON")))
+    (native-inputs
+     (list googletest python-minimal-wrapper))
+    (inputs
+     (list capnproto python-orderedmultidict))
+    (home-page "https://github.com/chipsalliance/UHDM/")
+    (synopsis "Universal Hardware Data Model")
+    (description
+     "UHDM is a complete modeling of the IEEE SystemVerilog Object Model with
+VPI Interface, Elaborator, Serialization, Visitor and Listener.")
+    (license license:asl2.0)))
+
+(define trilinos-serial-xyce
+  ;; Note: This is a Trilinos containing only the packages Xyce needs, so we
+  ;; keep it private.  See
+  ;; <https://debbugs.gnu.org/cgi/bugreport.cgi?bug=27344#248>.
+  ;; TODO: Remove when we have modular Trilinos packages?
+  (package
+    (name "trilinos-serial-xyce")
+    (version "14.4.0")                  ;version used by xyce, sync updates
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/trilinos/Trilinos")
+             (commit (string-append "trilinos-release-"
+                                    (string-map (lambda (chr)
+                                                  (case chr
+                                                    ((#\.) #\-)
+                                                    (else chr)))
+                                                version)))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "19ny75z1x2sfa9jv20prq4wqxznkzqryxj4gv12rzzlz9ihd1dcd"))))
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:configure-flags
+      #~(list "-DCMAKE_CXX_FLAGS=-O3 -fPIC"
+              "-DCMAKE_C_FLAGS=-O3 -fPIC"
+              "-DCMAKE_Fortran_FLAGS=-O3 -fPIC"
+              "-DBUILD_SHARED_LIBS=ON"
+              "-DTrilinos_ENABLE_TESTS=ON"
+              (string-append "-DBLAS_LIBRARY_DIRS="
+                             #$(this-package-input "openblas") "/lib")
+              (string-append "-DLAPACK_LIBRARY_DIRS="
+                             #$(this-package-input "lapack") "/lib")
+              ;; From xyce configure phase:
+              ;; ...
+              ;; -- Looking for Trilinos
+              ;; Required packages:
+              ;; Amesos Epetra EpetraExt Ifpack NOX Teuchos Sacado
+              ;; Triutils AztecOO Belos TrilinosCouplings
+              ;; Optional packages:
+              ;; Isorropia Zoltan ShyLU ShyLU_DDCore Amesos2 Stokhos ROL MKL
+              ;; ...
+              ;; List from TRILINOS_SERIAL_ARGS in XyceSuperBuild.cmake.
+              "-DTrilinos_ENABLE_NOX=ON"
+              "-DNOX_ENABLE_LOCA=ON"
+              "-DTrilinos_ENABLE_EpetraExt=ON"
+              "-DEpetraExt_BUILD_BTF=ON"
+              "-DEpetraExt_BUILD_EXPERIMENTAL=ON"
+              "-DEpetraExt_BUILD_GRAPH_REORDERINGS=ON"
+              "-DTrilinos_ENABLE_TrilinosCouplings=ON"
+              "-DTrilinos_ENABLE_Ifpack=ON"
+              ;; "-DTrilinos_ENABLE_Isorropia=OFF"
+              "-DTrilinos_ENABLE_AztecOO=ON"
+              "-DTrilinos_ENABLE_Belos=ON"
+              "-DTrilinos_ENABLE_Teuchos=ON"
+              "-DTeuchos_ENABLE_COMPLEX=ON"
+              "-DTrilinos_ENABLE_Amesos=ON"
+              "-DAmesos_ENABLE_KLU=ON"
+              "-DTrilinos_ENABLE_Sacado=ON"
+              ;; "-DTrilinos_ENABLE_Kokkos=OFF"
+              "-DTrilinos_ENABLE_ALL_OPTIONAL_PACKAGES=OFF"
+              "-DTrilinos_ENABLE_CXX11=ON"
+              "-DTPL_ENABLE_AMD=ON"
+              "-DTPL_ENABLE_BLAS=ON"
+              "-DTPL_ENABLE_LAPACK=ON"
+              "-DTPL_ENABLE_DLlib:BOOL=OFF")))
+    (native-inputs (list gfortran perl python-minimal-wrapper swig-4.4 tcsh))
+    (inputs (list boost lapack openblas suitesparse-amd))
+    (home-page "https://trilinos.github.io/")
+    (synopsis "Engineering and scientific problems algorithms")
+    (description
+     "The Trilinos Project is an effort to develop algorithms and enabling
+technologies within an object-oriented software framework for the solution of
+large-scale, complex multi-physics engineering and scientific problems.  A
+unique design feature of Trilinos is its focus on packages.")
+    ;; The Trilinos project is a collection of open-source packages licensed
+    ;; individually under multiple open-source licenses. Licensing terms are
+    ;; available at the Trilinos website:
+    ;; https://trilinos.github.io/license.html
+    ;; For information about the software license for a particular package,
+    ;; see package-specific documentation (e.g., Trilinos/packages/<package
+    ;; name>/LICENSE).
+    ;; Only found these two licenses:
+    (license (list license:lgpl2.1+
+                   license:bsd-3))))
+
+(define trilinos-parallel-xyce
+  (package
+    (inherit trilinos-serial-xyce)
+    (name "trilinos-parallel-xyce")
+    (arguments
+     (substitute-keyword-arguments
+         (package-arguments trilinos-serial-xyce)
+       ((#:configure-flags flags)
+        ;; List from TRILINOS_PARALLEL_ARGS in XyceSuperBuild.cmake.
+        #~(cons* "-DTrilinos_ENABLE_ShyLU=ON"
+                 "-DTrilinos_ENABLE_Zoltan=ON"
+                 "-DTrilinos_ENABLE_Isorropia=ON"
+                 "-DTPL_ENABLE_MPI=ON"
+                 "-DCMAKE_C_COMPILER=mpicc"
+                 "-DCMAKE_CXX_COMPILER=mpicxx"
+                 "-DCMAKE_Fortran_COMPILER=mpifort"
+                 "-DCMAKE_CXX_FLAGS=-O3 -fPIC -lmpi"
+                 "-DCMAKE_C_FLAGS=-O3 -fPIC -lmpi"
+                 (delete "-DCMAKE_C_FLAGS=-O3 -fPIC"
+                         (delete
+                          "-DCMAKE_CXX_FLAGS=-O3 -fPIC" #$flags))))))
+    (inputs
+     (modify-inputs inputs
+       (prepend openmpi)))))
+
+(define-public verilator
+  (package
+    (name "verilator")
+    (version "5.050")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/verilator/verilator/")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1zwc1qvnl8kh0iy85s4rjdykrvssvgdqvssbc7d46gsdnl2h3v34"))))
+    (native-inputs
+     (list autoconf
+           automake
+           bison
+           cmake-minimal
+           flex
+           gdb/pinned
+           gettext-minimal
+           help2man
+           python-distro
+           python-minimal
+           which
+           z3))
+    (inputs
+     (list perl python systemc))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:phases
+      #~(modify-phases %standard-phases
+          (replace 'bootstrap
+            (lambda _ (invoke "autoconf")))
+          (add-after 'unpack 'adjust-source
+            (lambda _
+              (substitute* "bin/verilator"
+                (("/bin/echo") "echo"))))
+          (add-before 'check 'set-SYSTEMC_ROOT
+            (lambda _
+              (setenv "SYSTEMC_ROOT" #$(this-package-input systemc))))
+          (add-before 'check 'disable-gdb-safe-path
+            (lambda _
+              (setenv "HOME" (getcwd))
+              (mkdir-p (string-append (getcwd) "/.config/gdb"))
+              (with-output-to-file
+                  (string-append (getcwd) "/.config/gdb/gdbinit")
+                (lambda ()
+                  (display "set auto-load safe-path /"))))))
+      #:test-target "test"))
+    (home-page "https://www.veripool.org/verilator/")
+    (synopsis "Verilog/SystemVerilog HDL simulator and lint system")
+    (description
+     "Verilator is an @acronym{EDA, Electronic Design Automation} tool
+intended to transform the specified Verilog or SystemVerilog HDL code by
+reading it, performing lint checks, and optionally inserting assertion checks
+and coverage-analysis points.  It outputs single or multi-threaded
+@file{.cpp} and @file{.h} files.")
+    (license license:lgpl3)))
+
+(define-public xoscope
+  (let ((revision "0.0.0")
+        (commit "d97b9b186a4137582ae27fce1da73f51c06f852e"))
+  (package
+    (name "xoscope")
+    (version (git-version "2.3" revision commit))
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://git.code.sf.net/p/xoscope/code")
+                     (commit commit)))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "1jaz14pb8lx1y34f979v507dmkrq3wdczi0hkqzb64zg76cdkwya"))))
+    (build-system gnu-build-system)
+    (native-inputs
+     (list m4 pkg-config automake libtool autoconf))
+    (inputs
+     (list alsa-lib comedilib fftw gtk+ gtkdatabox))
+    (synopsis "Digital oscilloscope")
+    (description "Xoscope is a digital oscilloscope that can acquire signals
+from ALSA, ESD, and COMEDI sources.  This package currently does not include
+support for ESD or COMEDI sources.")
+    (home-page "https://xoscope.sourceforge.net/")
+    (license license:gpl2+))))
+
+(define-public xyce-serial
+  (package
+    (name "xyce-serial")
+    (version "7.10.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/Xyce/Xyce")
+              (commit (string-append "Release-" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "05wlrk554ajsl8n1q4608ckxy9df6x8yshvhjd89b4dj22af1jzi"))))
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:configure-flags
+      #~(list
+         (string-append
+          "-DTrilinos_ROOT=" #$(this-package-input "trilinos-serial-xyce"))
+         "-DXyce_PLUGIN_SUPPORT=ON"
+         "-DCMAKE_CXX_FLAGS=-O3 -fPIC"
+         "-DCMAKE_C_FLAGS=-O3 -fPIC"
+         "-DCMAKE_Fortran_FLAGS=-O3 -fPIC")))
+    (native-inputs
+     (list bison
+           flex
+           gfortran))
+    (inputs
+     (list adms fftw lapack openblas suitesparse-amd trilinos-serial-xyce))
+    (home-page "https://xyce.sandia.gov/")
+    (synopsis "High-performance analog circuit simulator")
+    (description
+     "Xyce is a SPICE-compatible, high-performance analog circuit simulator,
+capable of solving extremely large circuit problems by supporting large-scale
+parallel computing platforms.  It also supports serial execution.")
+    (license license:gpl3+)))
+
+(define-public xyce-parallel
+  (package
+    (inherit xyce-serial)
+    (name "xyce-parallel")
+    (arguments
+     (substitute-keyword-arguments
+         (package-arguments xyce-serial)
+       ((#:configure-flags flags)
+        #~(cons* "-DTPL_ENABLE_MPI=ON"
+                 "-DCMAKE_C_COMPILER=mpicc"
+                 "-DCMAKE_CXX_COMPILER=mpicxx"
+                 "-DCMAKE_Fortran_COMPILER=mpifort"
+                 "-DCMAKE_CXX_FLAGS=-O3 -fPIC -lmpi"
+                 "-DCMAKE_C_FLAGS=-O3 -fPIC -lmpi"
+                 (delete "-DCMAKE_C_FLAGS=-O3 -fPIC"
+                         (delete
+                          "-DCMAKE_CXX_FLAGS=-O3 -fPIC" #$flags))))))
+    (inputs
+     (modify-inputs inputs
+       (prepend openmpi)
+       (replace "trilinos-serial-xyce" trilinos-parallel-xyce)))))
+
+(define-public yosys
+  (package
+    (name "yosys")
+    (version "0.69")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/YosysHQ/yosys")
+              (commit (string-append "v" version))
+              ;; Deeply related vendored dependencies.
+              (recursive? #t)))
+       (sha256
+        (base32 "1gi07v3py1zfpdl2b933kiy1f1sri9246vbf2d275hhalgls8g2n"))
+       (file-name (git-file-name name version))
+       (snippet
+        #~(begin
+            (use-modules (guix build utils)
+                         (srfi srfi-26))
+            (delete-file-recursively "abc")
+            (delete-file-recursively "libs/dlfcn-win32")
+            (substitute* "libs/CMakeLists.txt"
+              (("add_subdirectory\\(dlfcn-win32\\)") ""))))))
+    (build-system cmake-build-system)
+    (outputs '("out" "doc" "config"))
+    (properties
+     `((output-synopsis "config" "Yosys configuration file")))
+    (arguments
+     (list
+      #:configure-flags
+      #~(list "-DYOSYS_ENABLE_FUNCTIONAL_TESTS=ON"
+              (string-append "-DYOSYS_CHECKOUT_INFO=" #$version)
+              "-DYOSYS_WITHOUT_EDITLINE=ON"
+              "-DYOSYS_ENABLE_READLINE=ON"
+              "-DCMAKE_C_COMPILER=clang"
+              "-DCMAKE_CXX_COMPILER=clang++"
+              (string-append "-DYOSYS_ABC_EXECUTABLE="
+                             #$(this-package-input "abc-yosyshq") "/bin/abc")
+              "-DYOSYS_INSTALL_DRIVER=ON"
+              "-DYOSYS_INSTALL_LIBRARY=ON"
+              "-DYOSYS_INSTALL_PYTHON=ON"
+              ;; Python
+              "-DYOSYS_ENABLE_PYTHON=ON"
+              "-DYOSYS_WITH_PYTHON=ON"
+              "-DYOSYS_INSTALL_PYTHON=ON"
+              (string-append "-DYOSYS_INSTALL_PYTHON_SITEDIR="
+                             #$output "/lib/python"
+                             #$(version-major+minor (package-version python))
+                             "/site-packages"))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'reduce-closure
+            (lambda _
+              (substitute* "cmake/YosysVersion.cmake"
+                (("\\$\\{CMAKE_CXX_COMPILER\\}") "clang++"))))
+          ;; TODO: Remove when fixed.
+          (add-after 'unpack 'remove-aiger
+            (lambda _
+              (substitute* "tests/Makefile"
+                ((".*aiger.*") ""))))
+          (add-before 'configure 'fix-paths
+            (lambda* (#:key inputs #:allow-other-keys)
+              (substitute* "backends/smt2/smtio.py"
+                (("\\['yices-smt2")
+                 (string-append
+                  "['" (search-input-file inputs "bin/yices-smt2")))
+                (("\\['z3")
+                 (string-append
+                  "['" (search-input-file inputs "bin/z3"))))
+              (substitute* '("passes/cmds/show.cc" "passes/cmds/viz.cc")
+                (("fuser")
+                 (search-input-file inputs "bin/fuser")))))
+          (add-after 'install 'add-symbolic-link
+            (lambda* (#:key inputs #:allow-other-keys)
+              ;; Previously this package provided a copy of the "abc"
+              ;; executable in its output, named "yosys-abc".  Create a
+              ;; symbolic link so any external uses of that name continue to
+              ;; work.
+              (symlink (search-input-file inputs "/bin/abc")
+                       (string-append #$output "/bin/yosys-abc"))))
+          (add-after 'install 'wrap
+            (lambda* (#:key inputs #:allow-other-keys)
+              (wrap-program (string-append #$output "/bin/yosys-witness")
+                `("GUIX_PYTHONPATH" ":" prefix
+                  (,(getenv "GUIX_PYTHONPATH"))))))
+          (add-after 'install 'build-config
+            (lambda _
+              (mkdir-p (string-append #$output:config "/bin"))
+              (rename-file
+               (string-append #$output "/bin/yosys-config")
+               (string-append #$output:config "/bin/yosys-config"))))
+          (add-before 'build 'build-info
+            (lambda _
+              (with-directory-excursion "../source/docs"
+                (substitute* "Makefile"
+                  (("SPHINXOPTS    = -W --keep-going")
+                   "SPHINXOPTS    = --keep-going"))
+                (invoke "make" "info")
+                (install-file "build/texinfo/yosyshqyosys.info"
+                              (string-append #$output:doc "/share/info"))
+                (copy-recursively
+                 "build/texinfo/yosyshqyosys-figures"
+                 (string-append
+                  #$output:doc "/share/info/yosyshqyosys-figures")))))
+          (replace 'check
+            (lambda* (#:key tests? (parallel-tests? #t) #:allow-other-keys)
+              (when tests?
+                (apply invoke "cmake" "--build" "." "-t" "test"
+                       `(,@(if parallel-tests?
+                               `("-j" ,(number->string (parallel-job-count)))
+                               '("-j" "1"))))))))))
+    (native-inputs
+     (list bison
+           clang
+           flex
+           gawk ;for the tests and "make" progress pretty-printing
+           googletest
+           gtkwave        ;for the tests
+           iverilog ;for the tests
+           perl
+           pkg-config
+           python-pytest
+           python-sphinxcontrib-bibtex
+           python-sphinx-inline-tabs
+           texinfo))
+    ;; Optional dependencies increase considerably package closure.
+    ;; - gtkwave: required only for vcd2fst binary, used by ‘sim’ command.
+    ;; - graphviz, xdot: used by ‘show’ command to display schematics.
+    (inputs
+     (list abc-yosyshq
+           bash-minimal
+           libffi
+           psmisc
+           pybind11
+           python-wrapper
+           python-click
+           python-cxxheaderparser
+           readline
+           tcl
+           yices
+           z3
+           zlib))
+    (home-page "https://yosyshq.net/yosys/")
+    (synopsis "Open synthesis suite for RTL code")
+    (description "Yosys consist on a framework of RTL synthesis tools.  It
+currently has extensive Verilog-2005 support, and performs synthesis of VHDL
+code using external plugins.  It provides a basic set of synthesis algorithms
+for various application domains, including FPGAs and ASICs.")
+    (license license:isc)))
+
+(define-deprecated-package yosys-clang yosys)
+
+(define-public yosys-slang
+  ;; No tags or releases.
+  (let ((commit "3251530961e0e8a8054098c9bb8376474958944a")
+        (revision "0"))
+    (package
+      (name "yosys-slang")
+      (version (git-version "0.0.0" revision commit)) ;from MODULE.bazel
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+                (url "https://github.com/povik/yosys-slang")
+                (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32 "11p8i6ja0da0j3a64pa3h69pqfkcsibmia82kf9y7z9vjj2c20ck"))))
+      (build-system cmake-build-system)
+      (arguments
+       (list
+        #:configure-flags
+        #~(list (string-append "-DYOSYS_SLANG_REVISION=" #$version)
+                (string-append "-DSLANG_REVISION="
+                               #$(package-version sv-lang-for-yosys-slang))
+                "-DUSE_EXTERNAL_FMT=ON")
+        #:phases
+        #~(modify-phases %standard-phases
+            (add-after 'unpack 'unbundle-sv-lang
+              (lambda _
+                (substitute* "CMakeLists.txt"
+                  (("add_subdirectory\\(third_party\\/slang\\)")
+                   "find_package(slang CONFIG QUIET)")
+                  (("slang_slang") ""))))
+            (replace 'install
+              (lambda _
+                (let ((install-dir
+                       (string-append #$output "/share/yosys/plugins")))
+                  (mkdir-p install-dir)
+                  (install-file "slang.so" install-dir)))))))
+      (native-inputs
+       (list boost
+             fmt-11                     ;11.2.0 required
+             sv-lang-for-yosys-slang
+             yosys))
+      (native-search-paths
+       (list (search-path-specification
+               (variable "YOSYS_PLUGIN_PATH")
+               (files (list "share/yosys/plugins")))))
+      (synopsis "SystemVerilog plugin for code@{Yosys}")
+      (description
+       "code@{Yosys-slang} is a code@{Yosys} plugin providing a new command
+(@code{read_slang}) for elaborating SystemVerilog designs.  It builds on top
+of the @{slang} library to provide comprehensive SystemVerilog support.  The
+plugin supports an (informally defined) synthesizable subset of SystemVerilog
+in version IEEE 1800-2017 or IEEE 1800-2023.")
+      (home-page "https://github.com/povik/yosys-slang")
+      (license
+       (list license:expat           ;third_party/slang
+             license:bsd-2 license:bsd-3 license:psfl ;third_party/fmt
+             license:isc)))))        ;yosys-slang

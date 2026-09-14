@@ -1,0 +1,70 @@
+Remove dependencies on xwin and zig.  We're not offering cross-compilation
+options using these crates.
+
+diff --git a/Cargo.toml b/Cargo.toml
+index 24305db..c7641f9 100644
+--- b/Cargo.toml
++++ a/Cargo.toml
+@@ -60,10 +60,6 @@
+ 
+ [features]
+ cli-completion = ["dep:clap_complete_command"]
+-cross-compile = [
+-    "zig",
+-    "xwin",
+-]
+ default = [
+     "full",
+     "rustls",
+@@ -71,7 +67,6 @@
+ faster-tests = []
+ full = [
+     "cli-completion",
+-    "cross-compile",
+     "scaffolding",
+     "upload",
+ ]
+@@ -80,7 +75,6 @@
+ native-tls = [
+     "dep:native-tls",
+     "ureq?/native-tls",
+-    "cargo-xwin?/native-tls",
+     "dep:rustls-pemfile",
+ ]
+ password-storage = [
+@@ -90,7 +84,6 @@
+ rustls = [
+     "dep:rustls",
+     "ureq?/tls",
+-    "cargo-xwin?/rustls-tls",
+     "dep:rustls-pemfile",
+ ]
+ scaffolding = [
+@@ -112,11 +105,6 @@
+     "wild",
+     "dep:dirs",
+ ]
+-xwin = [
+-    "cargo-xwin",
+-    "xz2",
+-]
+-zig = ["cargo-zigbuild"]
+ 
+ [lib]
+ name = "maturin"
+@@ -139,15 +130,5 @@
+ [dependencies.cargo-options]
+ version = "0.7.2"
+ 
+-[dependencies.cargo-xwin]
+-version = "0.18.6"
+-optional = true
+-default-features = false
+-
+-[dependencies.cargo-zigbuild]
+-version = "0.20.0"
+-optional = true
+-default-features = false
+-
+ [dependencies.cargo_metadata]
+ version = "0.19.0"

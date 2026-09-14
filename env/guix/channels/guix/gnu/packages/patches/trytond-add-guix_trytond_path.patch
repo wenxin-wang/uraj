@@ -1,0 +1,23 @@
+Make trytond add all paths listed in GUIX_TRYTOND_MODULES_PATH to sys.path.
+
+*** a/trytond/modules/__init__.py
+--- b/trytond/modules/__init__.py
+***************
+*** 31,36 ****
+--- 31,45 ----
+  
+  EGG_MODULES = {}
+  
++ def __extend_python_path__():
++     trytond_modules_path = os.environ.get("GUIX_TRYTOND_MODULES_PATH")
++     if trytond_modules_path:
++         # make tryton.module behave like a namespace package
++         __path__.extend(trytond_modules_path.split(os.pathsep))
++ 
++ __extend_python_path__()
++ del __extend_python_path__
++ 
+  
+  def update_egg_modules():
+      global EGG_MODULES
+l

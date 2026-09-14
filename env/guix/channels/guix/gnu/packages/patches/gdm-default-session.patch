@@ -1,0 +1,88 @@
+This patch ensures '.desktop' files are picked up in the system profile
+and not in the directories listed in $XDG_DATA_DIRS.  The latter includes
+'gnome-session.desktop', which should be used if it's in
+/run/current-system/profile, and only then.
+
+Fixes <https://bugs.gnu.org/37831>.
+diff --git a/daemon/gdm-session.c b/daemon/gdm-session.c
+index 644aad022..d54406e93 100644
+--- a/daemon/gdm-session.c
++++ b/daemon/gdm-session.c
+@@ -378,16 +378,15 @@ get_system_session_dirs (GdmSession *self,
+         GArray *search_array = NULL;
+         char **search_dirs;
+         int i, j;
+-        const gchar * const *system_data_dirs = g_get_system_data_dirs ();
+ 
+         static const char *x_search_dirs[] = {
+                 "/etc/X11/sessions/",
+                 DMCONFDIR "/Sessions/",
+                 DATADIR "/gdm/BuiltInSessions/",
+-                DATADIR "/xsessions/",
++                "/run/current-system/profile/share/xsessions/",
+         };
+ 
+-        static const char *wayland_search_dir = DATADIR "/wayland-sessions/";
++        static const char *wayland_search_dir = "/run/current-system/profile/share/wayland-sessions/";
+ 
+         search_array = g_array_new (TRUE, TRUE, sizeof (char *));
+ 
+@@ -396,11 +395,6 @@ get_system_session_dirs (GdmSession *self,
+ 
+                 if (g_str_equal (supported_type, "x11") &&
+                     (type == NULL || g_str_equal (type, supported_type))) {
+-                        for (i = 0; system_data_dirs[i]; i++) {
+-                                gchar *dir = g_build_filename (system_data_dirs[i], "xsessions", NULL);
+-                                g_array_append_val (search_array, dir);
+-                        }
+-
+                         g_array_append_vals (search_array, x_search_dirs, G_N_ELEMENTS (x_search_dirs));
+                 }
+ 
+@@ -408,11 +402,6 @@ get_system_session_dirs (GdmSession *self,
+ #ifdef ENABLE_WAYLAND_SUPPORT
+                 if (g_str_equal (supported_type, "wayland") &&
+                     (type == NULL || g_str_equal (type, supported_type))) {
+-                        for (i = 0; system_data_dirs[i]; i++) {
+-                                gchar *dir = g_build_filename (system_data_dirs[i], "wayland-sessions", NULL);
+-                                g_array_append_val (search_array, dir);
+-                        }
+-
+                         g_array_append_val (search_array, wayland_search_dir);
+                 }
+ #endif
+diff --git a/libgdm/gdm-sessions.c b/libgdm/gdm-sessions.c
+index df8e377b7..e80acf7e4 100644
+--- a/libgdm/gdm-sessions.c
++++ b/libgdm/gdm-sessions.c
+@@ -347,27 +347,21 @@ collect_sessions (void)
+                 "/etc/X11/sessions/",
+                 DMCONFDIR "/Sessions/",
+                 DATADIR "/gdm/BuiltInSessions/",
++                "/run/current-system/profile/share/xsessions/",
+         };
+ 
+         if (!supported_session_types || g_strv_contains ((const char * const *) supported_session_types, "x11")) {
+                 for (i = 0; i < G_N_ELEMENTS (xorg_search_dirs); i++) {
+                         g_ptr_array_add (dirs_search_array, g_strdup (xorg_search_dirs[i]));
+                 }
+-
+-                for (i = 0; system_data_dirs[i]; i++) {
+-                        session_dir = g_build_filename (system_data_dirs[i], "xsessions", NULL);
+-                        g_ptr_array_add (dirs_search_array, session_dir);
+-                }
+         }
+ #endif
+ 
+ #ifdef ENABLE_WAYLAND_SUPPORT
+ #ifdef ENABLE_USER_DISPLAY_SERVER
+         if (!supported_session_types  || g_strv_contains ((const char * const *) supported_session_types, "wayland")) {
+-                for (i = 0; system_data_dirs[i]; i++) {
+-                        session_dir = g_build_filename (system_data_dirs[i], "wayland-sessions", NULL);
+-                        g_ptr_array_add (dirs_search_array, session_dir);
+-                }
++                g_ptr_array_add (dirs_search_array,
++                                 g_strdup ("/run/current-system/profile/share/wayland-sessions/"));
+         }
+ #endif
+ #endif

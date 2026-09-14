@@ -1,0 +1,42 @@
+The angr test suite performs analysis on several pre-compiled binaries
+to ensure its binary analysis capabilities are working as intended.
+Some of these binaries are also executed as part of the test suite to
+test if the simulation engine provided by angr results in the same
+output as native execution of the binary.
+
+For Guix, this files as the glibc shared objects cannot be found.
+Additionally, we don't really want to execute pre-compiled binaries
+on Guix, hence we disable those tests.
+
+diff --git a/tests/procedures/glibc/test_ctype_locale.py b/tests/procedures/glib>
+index 005a1444e..c5649a54d 100755
+--- a/tests/procedures/glibc/test_ctype_locale.py
++++ b/tests/procedures/glibc/test_ctype_locale.py
+@@ -15,7 +15,7 @@ test_location = os.path.join(bin_location, "tests")
+
+
+ class TestCtypeLocale(unittest.TestCase):
+-    @skip_if_not_linux
++    @unittest.skip("test executes pre-compiled binaries")
+     def test_ctype_b_loc(self):
+         """
+         test_ctype_locale.test_ctype_b_loc
+@@ -61,7 +61,7 @@ class TestCtypeLocale(unittest.TestCase):
+         output = subprocess.check_output(bin_path, shell=True)
+         assert result == output
+
+-    @skip_if_not_linux
++    @unittest.skip("test executes pre-compiled binaries")
+     def test_ctype_tolower_loc(self):
+         """
+         test_ctype_locale.test_ctype_tolower_loc
+@@ -110,7 +110,7 @@ class TestCtypeLocale(unittest.TestCase):
+         output = subprocess.check_output(bin_path, shell=True)
+         assert result == output
+
+-    @skip_if_not_linux
++    @unittest.skip("test executes pre-compiled binaries")
+     def test_ctype_toupper_loc(self):
+         """
+         test_ctype_locale.test_ctype_toupper_loc
+

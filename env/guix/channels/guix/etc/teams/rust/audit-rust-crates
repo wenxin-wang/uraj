@@ -1,0 +1,109 @@
+#!/usr/bin/env -S gawk -f
+# GNU Guix --- Functional package management for GNU
+# Copyright © 2025, 2026 Efraim Flashner <efraim@flashner.co.il>
+#
+# This file is part of GNU Guix.
+#
+# GNU Guix is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or (at
+# your option) any later version.
+#
+# GNU Guix is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+# To run:
+# ./etc/teams/rust/audit-rust-crates ./path/to/file.scm
+# Prints the output of cargo-audit to the shell.
+
+BEGIN {
+    "which cargo-audit" | getline cargoAudit
+    close("which cargo-audit")
+    cargoAudit = cargoAudit " audit --file -"
+
+    # Parse a record at a time.
+    RS = "\n\n"
+}
+
+# Check the crate-source origin-only inputs, like in rust-crates.scm
+/crate-source/ {
+    for(i=3; i <= NF-2; i++) {
+        if($i == "(crate-source") {
+            crateName = $(i+1)
+            crateVersion = $(i+2)
+            cargoLock = cargoLock "[[package]]\nname = " crateName "\nversion = " crateVersion "\n"
+            next
+        }
+    }
+}
+
+# Check the crates packaged from crates.io tarballs
+/crate-uri/ {
+    for(i=3; i <= NF; i++) {
+        if($i == "(version")
+            crateVersion = $(i+1)
+        if($i == "(crate-uri")
+            crateName = $(i+1)
+    }
+    gsub(/)/, "", crateVersion)
+    cargoLock = cargoLock "[[package]]\nname = " crateName "\nversion = " crateVersion "\n"
+    next
+}
+
+# Parse the crates created from packages using 'cargo package'
+/package:rust/ {
+    pkg = $2
+    split(pkg, name_version, "-")
+    crateVersion = name_version[length(name_version)]
+    crateName = substr(pkg, 6, (length(pkg) - length(crateVersion) - 6))
+    split(crateVersion, versionDots, ".")
+    if(crateVersion && (crateVersion != "(git-version") && (length(versionDots) == 3) && crateName) {
+        cargoLock = cargoLock "[[package]]\nname = \"" crateName "\"\nversion = \"" crateVersion "\"\n"
+    } else {
+        untested++
+        #print("Unable to test " $0)
+    }
+    next
+}
+
+# We make an attempt to create the crate name from the package name otherwise
+/git-reference/ {
+    for(i=3; i <= NF; i++) {
+        if($i == "(version")
+            crateVersion = $(i+1)
+        if($i == "(name")
+            crateName = $(i+1)
+        if($i == "(git-file-name") {
+            crateName = $(i+1)
+            crateVersion = $(i+2)
+        }
+    }
+    gsub(/)/, "", crateVersion)
+    gsub(/)/, "", crateName)
+    sub(/rust-/, "", crateName)
+    # The crate version MUST be major.minor.patch
+    split(crateVersion, versionParts, ".")
+    if(crateVersion && (crateVersion != "(git-version") && (length(versionParts) == 3) && crateName) {
+        cargoLock = cargoLock "[[package]]\nname = " crateName "\nversion = " crateVersion "\n"
+    } else {
+        untested++
+        #print("Unable to test " $0)
+    }
+    next
+}
+
+# Note those which we were unable to parse
+/define rust/ {
+    if($3 == "#f)")
+        next
+    print("Unable to parse " $0)
+    }
+
+{ untested++ }
+
+END { print("Number of crates untested: " untested); print cargoLock | cargoAudit }

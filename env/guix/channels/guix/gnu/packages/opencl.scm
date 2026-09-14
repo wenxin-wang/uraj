@@ -1,0 +1,392 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2018 Fis Trivial <ybbs.daans@hotmail.com>
+;;; Copyright © 2018, 2020 Tobias Geerinckx-Rice <me@tobias.gr>
+;;; Copyright © 2023 Andy Tai <atai@atai.org>
+;;; Copyright © 2026 Sharlatan Hellseher <sharlatanus@gmail.com>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (gnu packages opencl)
+  #:use-module ((guix licenses) #:prefix license:)
+  #:use-module (guix build-system cmake)
+  #:use-module (guix build-system gnu)
+  #:use-module (guix build-system pyproject)
+  #:use-module (guix download)
+  #:use-module (guix gexp)
+  #:use-module (guix git-download)
+  #:use-module (guix packages)
+  #:use-module (guix utils)
+  #:use-module (gnu packages)
+  #:use-module (gnu packages autotools)
+  #:use-module (gnu packages check)
+  #:use-module (gnu packages cmake)
+  #:use-module (gnu packages compression)
+  #:use-module (gnu packages gl)
+  #:use-module (gnu packages gnupg)
+  #:use-module (gnu packages libedit)
+  #:use-module (gnu packages llvm)
+  #:use-module (gnu packages mpi)
+  #:use-module (gnu packages ncurses)
+  #:use-module (gnu packages pkg-config)
+  #:use-module (gnu packages python)
+  #:use-module (gnu packages python-build)
+  #:use-module (gnu packages python-science)
+  #:use-module (gnu packages python-xyz)
+  #:use-module (gnu packages ruby)
+  #:use-module (gnu packages video)
+  #:use-module (gnu packages vulkan)
+  #:use-module (gnu packages xdisorg)
+  #:use-module (gnu packages xorg))
+
+;; This file adds OpenCL implementation related packages. Due to the fact that
+;; OpenCL devices like GPU are not available during build (store environment),
+;; tests that require such devices are all disabled.
+;; Check https://lists.gnu.org/archive/html/guix-devel/2018-04/msg00293.html
+
+;; If you update either of opencl-headers, opencl-clhpp or opencl-icd-loader
+;; note that they are released together (lockstep) and must be updated
+;; together. Bump this version number and update hashes below
+(define %opencl-version "2025.07.22")
+
+(define-public opencl-headers
+  (package
+    (name "opencl-headers")
+    (version %opencl-version)
+    (source
+      (origin
+        (method git-fetch)
+        (uri (git-reference
+              (url "https://github.com/KhronosGroup/OpenCL-Headers")
+              (commit (string-append "v" version))))
+        (file-name (git-file-name name version))
+        (sha256
+         (base32 "1rir72cdigwkj3a0k8l066fgzvh41yf6vrczzflwh0h4vq3g7h2x"))))
+    (build-system cmake-build-system)
+    (arguments `(#:tests? #f)) ; Not enabled during build.
+    (synopsis "The Khronos OpenCL headers")
+    (description
+     "This package provides the C headers by Khronos for OpenCL programming.")
+    (home-page "https://registry.khronos.org/OpenCL/")
+    (license license:asl2.0)))
+
+(define-public opencl-headers-2022
+  (package
+    (inherit opencl-headers)
+    (name "opencl-headers")
+    (version "2022.09.30")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/KhronosGroup/OpenCL-Headers")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0vzzkj5kd0invm5pvzlnhdl21n00jci6131a2cjviyz0vxp7xf2m"))))))
+
+(define-public opencl-clhpp
+  (package
+    (name "opencl-clhpp")
+    (version %opencl-version)
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/KhronosGroup/OpenCL-CLHPP")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1d7zyf2s2xpa002c36a081gyldai0mph3pjnyvswhx34c2b8yi44"))))
+    (build-system cmake-build-system)
+    (arguments
+     (list #:tests? #f  ;The regression tests require a lot more dependencies.
+           #:configure-flags
+           #~(list "-DBUILD_EXAMPLES=OFF" "-DBUILD_TESTS=OFF")))
+    (native-inputs (list python-wrapper))
+    (propagated-inputs (list opencl-headers))
+    (home-page "https://github.khronos.org/OpenCL-CLHPP/")
+    (synopsis "Khronos OpenCL-CLHPP")
+    (description
+     "This package provides the @dfn{host API} C++ headers for OpenCL.")
+    (license license:expat)))
+
+(define-public opencl-icd-loader
+  (package
+    (name "opencl-icd-loader")
+    (version %opencl-version)
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/KhronosGroup/OpenCL-ICD-Loader")
+                    (commit (string-append "v" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "12y5v3ri9dqm3zbhg6axy02hbcb0g23f44m2jvyvc2zv0lvy42wg"))))
+    (build-system cmake-build-system)
+    (arguments `(#:tests? #f)) ; Tests need stub loader setup.
+    (native-search-paths
+     (list (search-path-specification
+            (variable "OCL_ICD_VENDORS")
+            (files '("etc/OpenCL/vendors"))
+            ;; Only supports a single directory.
+            (separator #f))))
+    (home-page "https://github.com/KhronosGroup/OpenCL-ICD-Loader")
+    (inputs (list opencl-headers))
+    (synopsis "OpenCL Installable Client Driver")
+    (description
+     "OpenCL defines an Installable Client Driver (ICD) mechanism to allow
+developers to build applications against an Installable Client Driver loader
+(ICD loader) rather than linking their applications against a specific OpenCL
+implementation.  The ICD Loader is responsible for:
+
+@itemize
+@item Exporting OpenCL API entry points
+@item Enumerating OpenCL implementations
+@item Forwarding OpenCL API calls to the correct implementation
+@end itemize
+
+This package contains the Khronos official OpenCL ICD Loader.")
+    (license license:asl2.0)))
+
+(define-public clinfo
+  (package
+    (name "clinfo")
+    (version "3.0.25.02.14")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/Oblomov/clinfo")
+             (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "136fx14hcxfk3dab6jhk78j9l0f43zb3qap19mnzdrlqk532njaj"))))
+    (build-system gnu-build-system)
+    (native-inputs
+     (list opencl-headers))
+    (inputs
+     (list opencl-icd-loader))
+    (arguments
+     (list
+      #:make-flags
+      #~(list (string-append "CC=" #$(cc-for-target))
+              (string-append "CXX=" #$(cxx-for-target))
+              (string-append "PREFIX=" #$output))
+      #:phases
+      #~(modify-phases %standard-phases (delete 'configure))
+      #:tests? #f))
+    (home-page "https://github.com/Oblomov/clinfo")
+    (synopsis "Print information about OpenCL platforms and devices")
+    ;; Only the implementation installed via Guix will be detected.
+    (description
+     "This package provides the @command{clinfo} command that enumerates all
+possible (known) properties of the OpenCL platform and devices available on
+the system.")
+    (license license:cc0)))
+
+(define-public ocl-icd
+  (package
+    (name "ocl-icd")
+    (version "2.3.4")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/OCL-dev/ocl-icd")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "119xr73anh1kqj3mndlplx65bq1cpq06pypc837hyc0ngbgpxbpf"))))
+    (build-system gnu-build-system)
+    (native-inputs
+     (list autoconf automake libtool ruby))
+    (home-page "https://github.com/OCL-dev/ocl-icd")
+    (synopsis "Generic OpenCL @acronym{ICD, Installable Client Driver} loader")
+    (description
+     "This package provides an OpenCL @acronym{ICD, Installable Client Driver}
+loader.  It maintains a YAML database of all known and guessed function pointers
+from vendor-specific drivers.  It also delivers a skeleton of bindings to
+incorporate inside an OpenCL implementation to give it ICD functionalities.")
+    (license license:bsd-2)))
+
+(define-public pocl
+  (package
+    (name "pocl")
+    (version "6.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/pocl/pocl")
+              (commit (string-append "v" version))))
+       (sha256
+        (base32
+         "0darr71kj21scavikbm7if1d4nz5vca77y0q5hw6nf9f1c4axlkp"))
+       (file-name (git-file-name name version))
+       (modules '((guix build utils)))
+       (snippet
+        #~(begin
+            ;; "kernel/test_printf_vectors" and
+            ;; "kernel/test_printf_vectors_ulongn"
+            ;; fail on aarch5 and likely other platforms
+            ;; as commented in CMakeLists.txt
+            ;; thus disable the block in CMakeList.txt adding
+            ;; these two tests
+            (substitute* "tests/kernel/CMakeLists.txt"
+              (("NOT ENABLE_POCL_FLOAT_CONVERSION") "false"))))))
+    (build-system cmake-build-system)
+    (arguments
+     (list
+      #:configure-flags
+      #~(let* ((libdir (string-append #$output "/lib")))
+          (list "-DENABLE_ICD=ON"
+                "-DENABLE_TESTSUITES=ON"
+                ;; We are not developers, don't run conformance suite.
+                "-DENABLE_CONFORMANCE=OFF"
+                (string-append "-DEXTRA_HOST_LD_FLAGS=-L"
+                               (assoc-ref %build-inputs "libc") "/lib")
+                ;; We need both libdir and libdir/pocl in RUNPATH.
+                (string-append "-DCMAKE_INSTALL_RPATH="
+                               libdir ";" libdir "/pocl")))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-before 'check 'set-HOME
+            (lambda _
+              (setenv "HOME" "/tmp")
+              ;; Since 2.9.0, hwloc fails when /sys is missing, so provide a
+              ;; fake topology.
+              (setenv "HWLOC_SYNTHETIC" "4"))))))
+    (inputs
+     (list clang-toolchain-18       ;otherwise, clang executable not found
+           `(,hwloc "lib")
+           opencl-icd-loader))
+    (native-inputs
+     (list pkg-config
+           spirv-llvm-translator
+           spirv-tools
+           python-minimal-wrapper))
+    (home-page "http://portablecl.org/")
+    (synopsis "Portable Computing Language (pocl), an OpenCL implementation")
+    (description
+     "Pocl is a portable implementation of the OpenCL standard (1.2 with some
+2.0 features supported).  This project seeks to improve performance
+portability of OpenCL programs with the kernel compiler and the task run-time,
+reducing the need for target-dependent manual optimizations.
+
+pocl uses Clang as an OpenCL C frontend and LLVM for kernel compiler
+implementation, and as a portability layer.  Thus, if your desired target has
+an LLVM backend, it should be able to get OpenCL support easily by using
+pocl.")
+    (license license:expat)))
+
+(define-public python-pytools
+  (package
+    (name "python-pytools")
+    (version "2025.2.5")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/inducer/pytools")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1sym2vbkw068ldkjqi3qj1dkbvd047bk5ir028qqbv0g7z3dwk31"))))
+    (build-system pyproject-build-system)
+    ;; tests: 79 passed, 19 skipped
+    (native-inputs
+     (list python-hatchling
+           python-pytest))
+    (propagated-inputs
+     (list python-platformdirs
+           python-siphash24
+           python-typing-extensions))
+    (home-page "https://github.com/inducer/pytools")
+    (synopsis "Assorted tools for Python")
+    (description
+     "Pytools is a bag of things that are ``missing'' from the Python standard
+library:
+
+@itemize
+@item
+small helper functions such as @code{len_iterable}, @code{argmin},
+tuple generation, permutation generation, ASCII table pretty printing,
+GvR's @code{monkeypatch_xxx} hack, the elusive @code{flatten}, and much more.
+@item
+Michele Simionato's decorator module
+@item
+A time-series logging module, @code{pytools.log}.
+@item
+Batch job submission, @code{pytools.batchjob}.
+@item
+A lexer, @code{pytools.lex}.
+@end itemize\n")
+    (license license:expat)))
+
+(define-public python-pyopencl
+  (package
+    (name "python-pyopencl")
+    (version "2026.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/inducer/pyopencl")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "11r7rbqnaqf9hwzzmqilsnf45x461mikkrrq0ybc2869cdb6rvqm"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      ;; TODO: tests cannot find/load pyopencl module, adding missing test
+      ;; inputs did not help to resolve the issue, see:
+      ;; <https://github.com/inducer/pyopencl/issues/784>.
+      #:tests? #f
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-before 'build 'pre-build
+            (lambda* (#:key inputs #:allow-other-keys)
+              (setenv "CL_INC_DIR"
+                      (string-append #$(this-package-input "opencl-headers")
+                                     "/include"))
+              (setenv "CL_LIB_DIR"
+                      (string-append #$(this-package-input "ocl-icd") "/lib"))
+              (setenv "CL_LIBNAME"
+                      "libOpenCL.so"))))))
+    (native-inputs
+     (list cmake-minimal
+           pocl
+           pybind11-2
+           python-mako
+           python-nanobind
+           python-pytest
+           python-scikit-build-core))
+    (inputs
+     (list opencl-headers
+           ocl-icd))
+    (propagated-inputs
+     (list python-numpy
+           python-platformdirs
+           python-pytools
+           python-typing-extensions))
+    (home-page "https://mathema.tician.de/software/pyopencl/")
+    (synopsis "Python wrapper for OpenCL")
+    (description
+     "PyOpenCL lets you access parallel computing devices such as GPUs from
+Python @i{via} OpenCL.")
+    (license license:expat)))

@@ -1,0 +1,345 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2019, 2020, 2021 Hartmut Goebel <h.goebel@crazy-compilers.com>
+;;; Copyright © 2021, 2023-2026 Efraim Flashner <efraim@flashner.co.il>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (gnu packages sequoia)
+  #:use-module (guix build-system cargo)
+  #:use-module (guix build-system copy)
+  #:use-module (guix build-system trivial)
+  #:use-module (guix download)
+  #:use-module (guix git-download)
+  #:use-module ((guix licenses) #:prefix license:)
+  #:use-module (guix packages)
+  #:use-module (guix gexp)
+  #:use-module (guix utils)
+  #:use-module (gnu packages)
+  #:use-module (gnu packages base)  ; glibc
+  #:use-module (gnu packages compression)
+  #:use-module (gnu packages gnupg)
+  #:use-module (gnu packages hardware)
+  #:use-module (gnu packages llvm)
+  #:use-module (gnu packages multiprecision)
+  #:use-module (gnu packages nettle)
+  #:use-module (gnu packages pkg-config)
+  #:use-module (gnu packages security-token)
+  #:use-module (gnu packages serialization)
+  #:use-module (gnu packages sqlite)
+  #:use-module (gnu packages tls))
+
+(define-public sequoia-chameleon-gnupg
+  (package
+    (name "sequoia-chameleon-gnupg")
+    (version "0.13.1")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "sequoia-chameleon-gnupg" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "1qpanr7ydsr79adbn4bxwgqmhhq4wn7y90lw42a0g6p71x2cg73h"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+       #:imported-modules (append %copy-build-system-modules
+                                  %cargo-build-system-modules)
+       #:modules '((guix build cargo-build-system)
+                   ((guix build copy-build-system) #:prefix copy:)
+                   (guix build utils))
+       #:install-source? #f
+       #:features '(list "crypto-nettle")
+       #:cargo-test-flags
+       '(list "--"
+              ;; Some tests overly depend on specific versions of input crates.
+              "--skip=gpg::generate_key"
+              "--skip=gpg::list_keys"
+              "--skip=gpg::migrate::migration_from_secring"
+              "--skip=gpg::print_mds"
+              "--skip=gpg::quick::add_key_default_default_iso_date"
+              "--skip=gpg::quick::generate_key_default_default_iso_date"
+              "--skip=gpg::sign"
+              "--skip=gpg::verify"
+              ;; These tests fail a certain amount of time after the release.
+              "--skip=gpg::decrypt::general_purpose_cv25519"
+              "--skip=gpg::decrypt::general_purpose_p256"
+              "--skip=gpg::decrypt::general_purpose_p384"
+              "--skip=gpg::decrypt::general_purpose_p521"
+              "--skip=gpg::decrypt::general_purpose_rsa2k"
+              "--skip=gpg::decrypt::general_purpose_rsa3k"
+              "--skip=gpg::decrypt::general_purpose_rsa4k"
+              "--skip=gpg::decrypt::restricted_agent")
+       #:phases
+       #~(modify-phases %standard-phases
+           (add-after 'unpack 'set-asset-out-dir
+             (lambda _
+               (setenv "ASSET_OUT_DIR" "target/assets")))
+           (add-after 'install 'install-more
+             (lambda args
+               (apply (assoc-ref copy:%standard-phases 'install)
+                      #:install-plan
+                      '(("target/assets/man-pages" "share/man/man1"
+                         #:include-regexp ("\\.1$"))
+                        ("target/assets/shell-completions/gpg-sq.bash"
+                         "share/bash-completion/completions/gpg-sq")
+                        ("target/assets/shell-completions/gpgv-sq.bash"
+                         "share/bash-completion/completions/gpgv-sq")
+                        ("target/assets/shell-completions/gpg-sq.elv"
+                         "share/elvish/lib/gpg-sq")
+                        ("target/assets/shell-completions/gpgv-sq.elv"
+                         "share/elvish/lib/gpgv-sq")
+                        ("target/assets/shell-completions"
+                         "share/fish/vendor_completions.d"
+                         #:include-regexp ("\\.fish$"))
+                        ("target/assets/shell-completions"
+                         "share/zsh/site-functions"
+                         #:include-regexp ("^_gpg")))
+                      args))))))
+    (inputs
+     (cons* nettle openssl sqlite (cargo-inputs 'sequoia-chameleon-gnupg)))
+    (native-inputs
+     (list capnproto clang gnupg pkg-config sequoia-sq))
+    (home-page "https://sequoia-pgp.org/")
+    (synopsis "Sequoia's reimplementation of the GnuPG interface")
+    (description "This package provides Sequoia's reimplementation of the
+@code{GnuPG} interface.
+
+@code{gpg-sq} is Sequoia's alternative implementation of a tool following the
+GnuPG command line interface.  It provides a drop-in but not feature-complete
+replacement for the GnuPG project's @code{gpg}.
+
+This Guix package is built to use the nettle cryptographic library.")
+    (license license:gpl3+)))
+
+(define-public sequoia-sq
+  (package
+    (name "sequoia-sq")
+    (version "1.4.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (crate-uri "sequoia-sq" version))
+       (file-name (string-append name "-" version ".tar.gz"))
+       (sha256
+        (base32 "0s9vr1aszwp1p2c2x7cq06q7niwn0bn9pfawq09jf4p0gph85dlh"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:imported-modules ((guix build copy-build-system)
+                           ,@%cargo-build-system-modules)
+       #:modules ((guix build cargo-build-system)
+                  ((guix build copy-build-system) #:prefix copy:)
+                  (guix build utils))
+       #:install-source? #f
+       #:features '("crypto-nettle"
+                    "sequoia-keystore/gpg-agent"
+                    "sequoia-keystore/openpgp-card"
+                    "sequoia-keystore/softkeys")
+       #:cargo-test-flags
+       (list "--"
+             ;; The certificate has an expiration date.
+             "--skip=sq_autocrypt_import")
+       #:phases
+       (modify-phases %standard-phases
+         (add-after 'unpack 'set-asset-out-dir
+           (lambda _
+             (setenv "ASSET_OUT_DIR" "target/assets")))
+          ;; The 'install phase doesn't currently work with multiple features.
+          (replace 'install
+            (lambda* (#:key outputs features #:allow-other-keys)
+              (invoke "cargo" "install" "--offline" "--no-track"
+                      "--path" "." "--root" (assoc-ref outputs "out")
+                      "--features" (string-join features))))
+         (add-after 'install 'install-more
+           (lambda args
+             (apply (assoc-ref copy:%standard-phases 'install)
+                    #:install-plan
+                    '(("target/assets/man-pages" "share/man/man1"
+                       #:include-regexp ("\\.1$"))
+                      ("target/assets/shell-completions/sq.bash"
+                       "share/bash-completion/completions/sq")
+                      ("target/assets/shell-completions/sq.elv"
+                       "share/elvish/lib/sq")
+                      ("target/assets/shell-completions/sq.fish"
+                       "share/fish/vendor_completions.d/")
+                      ("target/assets/shell-completions/_sq"
+                       "share/zsh/site-functions/"))
+                    args))))))
+    (inputs
+     (cons* nettle openssl pcsc-lite sqlite (cargo-inputs 'sequoia-sq)))
+    (native-inputs
+     (list capnproto clang pkg-config))
+    (home-page "https://sequoia-pgp.org/")
+    (synopsis "Command-line frontend for Sequoia OpenPGP")
+    (description "This package provides the command-line frontend for Sequoia
+OpenPGP.
+
+This Guix package is built to use the nettle cryptographic library and the
+gpg-agent, openpgp-card and softkeys keystore backends.")
+    (license license:lgpl2.0+)))
+
+(define-public sequoia-sqv
+  (package
+    (name "sequoia-sqv")
+    (version "1.5.0")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (crate-uri "sequoia-sqv" version))
+        (file-name (string-append name "-" version ".tar.gz"))
+        (sha256
+         (base32 "1j0v6lyjdgky3lv2mbp1w06py10d41v0b9cg99jxv538fhi1zsyl"))))
+    (build-system cargo-build-system)
+    (arguments
+     `(#:imported-modules ((guix build copy-build-system)
+                           ,@%cargo-build-system-modules)
+       #:modules ((guix build cargo-build-system)
+                  ((guix build copy-build-system) #:prefix copy:)
+                  (guix build utils))
+       #:install-source? #f
+       #:phases
+       (modify-phases %standard-phases
+         (add-after 'unpack 'set-asset-out-dir
+           (lambda _
+             (setenv "ASSET_OUT_DIR" "target/assets")))
+         (add-after 'install 'install-more
+           (lambda args
+             (apply (assoc-ref copy:%standard-phases 'install)
+                    #:install-plan
+                    '(("target/assets/man-pages" "share/man/man1"
+                       #:include-regexp ("\\.1$"))
+                      ("target/assets/shell-completions/sqv.bash"
+                       "share/bash-completion/completions/sqv")
+                      ("target/assets/shell-completions/sqv.elv"
+                       "share/elvish/lib/sqv")
+                      ("target/assets/shell-completions/sqv.fish"
+                       "share/fish/vendor_completions.d/")
+                      ("target/assets/shell-completions/_sqv"
+                       "share/zsh/site-functions/"))
+                    args))))))
+    (inputs
+     (cons* nettle (cargo-inputs 'sequoia-sqv)))
+    (native-inputs
+     (list clang pkg-config))
+    (home-page "https://sequoia-pgp.org/")
+    (synopsis "Simple OpenPGP signature verification program")
+    (description "@code{sqv} verifies detached OpenPGP signatures.  It is a
+replacement for @code{gpgv}.  Unlike @code{gpgv}, it can take additional
+constraints on the signature into account.
+
+This Guix package is built to use the nettle cryptographic library.")
+    (license license:lgpl2.0+)))
+
+(define-public sequoia-wot-tools
+  (package
+    (name "sequoia-wot-tools")
+    (version "0.15.2")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://gitlab.com/sequoia-pgp/sequoia-wot.git/")
+              (commit (string-append "sequoia-wot/v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "18v713n36sq5pvd1pbs34v7dly1bi614kwra09qxpsxk0ffp225z"))))
+    (build-system cargo-build-system)
+    (arguments
+     (list
+       #:features '(list "sequoia-openpgp/crypto-nettle")
+       #:cargo-package-crates ''("tools")
+       #:install-source? #f
+       #:cargo-install-paths ''("tools")
+       #:phases
+       #~(modify-phases %standard-phases
+           (add-after 'install 'install-more
+             (lambda* (#:key outputs #:allow-other-keys)
+               (let* ((out   (assoc-ref outputs "out"))
+                      (share (string-append out "/share"))
+                      (man1  (string-append share "/man/man1")))
+                 (for-each (lambda (file)
+                             (install-file file man1))
+                           (find-files "target/release" "\\.1$"))
+                 (mkdir-p (string-append out "/share/bash-completion/completions"))
+                 (mkdir-p (string-append share "/fish/vendor_completions.d"))
+                 (mkdir-p (string-append share "/elvish/lib"))
+                 (copy-file (car (find-files "target/release" "sq-wot.bash"))
+                            (string-append
+                              out "/share/bash-completion/completions/sq-wot"))
+                 (copy-file (car (find-files "target/release" "sq-wot.fish"))
+                            (string-append
+                              share "/fish/vendor_completions.d/sq-wot.fish"))
+                 (copy-file (car (find-files "target/release" "sq-wot.elv"))
+                            (string-append share "/elvish/lib/sq-wot"))
+                 (install-file (car (find-files "target/release" "_sq-wot"))
+                               (string-append
+                                 share "/zsh/site-functions"))))))))
+    (inputs
+     (cons* nettle openssl sqlite (cargo-inputs 'sequoia-wot-tools)))
+    (native-inputs
+     (list clang gnupg pkg-config))
+    (home-page "https://sequoia-pgp.org/")
+    (synopsis "Implementation of OpenPGP's web of trust")
+    (description
+     "This package provides an implementation of @code{OpenPGP's} web of trust.
+
+This Guix package is built to use the nettle cryptographic library.")
+    (license license:lgpl2.0+)))
+
+;;
+
+;; This package follows the version of the sequoia-openpgp crate.
+(define-public sequoia
+  (package
+    (name "sequoia")
+    (version "2.4.1")
+    (source #f)
+    (build-system trivial-build-system)
+    (arguments
+     (list
+      #:modules '((guix build utils)
+                  (guix build union)
+                  (guix build gnu-build-system)
+                  (guix build gremlin)
+                  (guix elf))
+      #:builder
+      #~(begin
+          (use-modules (guix build utils)
+                       (guix build union)
+                       (guix build gnu-build-system)
+                       (ice-9 match))
+          (let ((make-dynamic-linker-cache
+                 (assoc-ref %standard-phases 'make-dynamic-linker-cache))
+                (ld.so.cache
+                 (string-append #$output "/etc/ld.so.cache")))
+            (match %build-inputs
+                   (((names . directories) ...)
+                    (union-build #$output directories)))
+            (delete-file ld.so.cache)
+            (setenv "PATH"
+                    (string-append (getenv "PATH") ":" #$glibc "/sbin"))
+            (make-dynamic-linker-cache #:outputs %outputs)))))
+    (inputs
+     (list ;glibc ;; for ldconfig in make-dynamic-linker-cache
+           sequoia-sq
+           sequoia-sqv
+           sequoia-wot-tools))
+    (home-page "https://sequoia-pgp.org")
+    (synopsis "New OpenPGP implementation (meta-package)")
+    (description "Sequoia is a new OpenPGP implementation, written in Rust,
+consisting of several Rust crates/packages.  This Guix meta-package combines
+these packages into a single one for convenience.  Anyhow, you should not
+depend other packages on this one avoid excessive compile-times for users.")
+    (license license:lgpl2.0+)))

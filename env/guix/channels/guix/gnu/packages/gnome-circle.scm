@@ -1,0 +1,1159 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2019-2025 Maxim Cournoyer <maxim@guixotic.coop>
+;;; Copyright © 2019 David Wilson <david@daviwil.com>
+;;; Copyright © 2019-2022 Liliana Marie Prikler <liliana.prikler@gmail.com>
+;;; Copyright © 2019, 2020, 2022 Marius Bakke <marius@gnu.org>
+;;; Copyright © 2019, 2024, 2025 Giacomo Leidi <goodoldpaul@autistici.org>
+;;; Copyright © 2020 raingloom <raingloom@riseup.net>
+;;; Copyright © 2020, 2021, 2022, 2023 Vinicius Monego <monego@posteo.net>
+;;; Copyright © 2020, 2021 Brice Waegeneire <brice@waegenei.re>
+;;; Copyright © 2023 Dominik Delgado Steuter <d@delgado.nrw>
+;;; Copyright © 2025 Noé Lopez <noelopez@free.fr>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+;;; Comment:
+
+;;; This module is for packages that are part of GNOME Circle
+;;; <https://circle.gnome.org/>.
+
+;;; Code:
+
+(define-module (gnu packages gnome-circle)
+  #:use-module (gnu packages admin)
+  #:use-module (gnu packages aidc)
+  #:use-module (gnu packages backup)
+  #:use-module (gnu packages bash)
+  #:use-module (gnu packages check)
+  #:use-module (gnu packages cmake)
+  #:use-module (gnu packages ebook)
+  #:use-module (gnu packages enchant)
+  #:use-module (gnu packages fonts)
+  #:use-module (gnu packages freedesktop)
+  #:use-module (gnu packages gettext)
+  #:use-module (gnu packages glib)
+  #:use-module (gnu packages gnome)
+  #:use-module (gnu packages gnupg)
+  #:use-module (gnu packages gstreamer)
+  #:use-module (gnu packages gtk)
+  #:use-module (gnu packages haskell-xyz)
+  #:use-module (gnu packages linux)
+  #:use-module (gnu packages password-utils)
+  #:use-module (gnu packages pdf)
+  #:use-module (gnu packages pkg-config)
+  #:use-module (gnu packages protobuf)
+  #:use-module (gnu packages python)
+  #:use-module (gnu packages python-compression)
+  #:use-module (gnu packages python-crypto)
+  #:use-module (gnu packages python-web)
+  #:use-module (gnu packages python-xyz)
+  #:use-module (gnu packages rust)
+  #:use-module (gnu packages security-token)
+  #:use-module (gnu packages sqlite)
+  #:use-module (gnu packages tls)
+  #:use-module (gnu packages web)
+  #:use-module (gnu packages webkit)
+  #:use-module (gnu packages xml)
+  #:use-module (gnu packages)
+  #:use-module (guix build-system cargo)
+  #:use-module (guix build-system copy)
+  #:use-module (guix build-system meson)
+  #:use-module (guix build-system pyproject)
+  #:use-module (guix download)
+  #:use-module (guix gexp)
+  #:use-module (guix git-download)
+  #:use-module (guix utils)
+  #:use-module ((guix licenses) #:prefix license:)
+  #:use-module (guix packages))
+
+(define-public apostrophe
+  (package
+    (name "apostrophe")
+    (version "3.4")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://gitlab.gnome.org/World/apostrophe")
+                    (commit (string-append "v" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "1qndv40vvlzgyybhg30130v8b8zazddqjgmmbpfsnqfc0ghmhgja"))))
+    (build-system meson-build-system)
+    (arguments
+     (list
+      #:glib-or-gtk? #t
+      #:imported-modules (append %meson-build-system-modules
+                                 %pyproject-build-system-modules)
+      #:modules '((guix build meson-build-system)
+                  ((guix build pyproject-build-system) #:prefix py:)
+                  (guix build utils))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'patch-meson
+            (lambda _
+              (substitute* "build-aux/meson_post_install.py"
+                (("gtk-update-icon-cache") "true"))))
+          (replace 'check
+            (lambda* (#:key tests? #:allow-other-keys)
+              (when tests?
+                (with-directory-excursion "../source"
+                  (setenv "PYTHONPATH" (getcwd))
+                  (invoke "pytest" "tests/")))))
+          (add-after 'glib-or-gtk-wrap 'python-and-gi-wrap
+            (lambda* (#:key inputs outputs #:allow-other-keys)
+              (wrap-program (search-input-file outputs "bin/apostrophe")
+                `("GUIX_PYTHONPATH" = (,(getenv "GUIX_PYTHONPATH")
+                                       ,(py:site-packages inputs outputs)))
+                `("GI_TYPELIB_PATH" = (,(getenv "GI_TYPELIB_PATH")))
+                `("PATH" prefix (,(dirname
+                                   (search-input-file inputs
+                                                      "/bin/pandoc"))))))))))
+    (inputs
+     (list adwaita-icon-theme
+           bash-minimal
+           gtk
+           gtksourceview
+           libadwaita
+           libspelling
+           pandoc
+           python
+           python-chardet
+           python-pycairo
+           python-pyenchant
+           python-pygobject
+           python-pypandoc
+           python-regex
+           webkitgtk))
+    (native-inputs
+     (list gettext-minimal
+           `(,glib "bin")
+           gobject-introspection
+           pkg-config
+           python
+           python-pytest
+           python-pylint))
+    (home-page "https://gitlab.gnome.org/World/apostrophe")
+    (synopsis "Markdown editor written in Python with GTK+")
+    (description "Apostrophe is a GTK+ based distraction-free Markdown editor.
+It uses pandoc as back-end for parsing Markdown.")
+    (license license:gpl3)))
+
+(define-public amberol
+  (package
+    (name "amberol")
+    (version "2026.1")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://gitlab.gnome.org/World/amberol.git")
+                     (commit version)))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "14isynfil7d5111vmxfwinlap1gfj9qr1xb2big4ds50d9yn32bp"))
+              (patches
+               (search-patches "amberol-port-to-gtk-rs-0.11.patch"))))
+    (build-system meson-build-system)
+    (arguments
+     (list
+      #:glib-or-gtk? #t
+      #:tests? #f                       ;no tests
+      #:imported-modules `(,@%meson-build-system-modules
+                           ,@%cargo-build-system-modules)
+      #:modules `(((guix build cargo-build-system) #:prefix cargo:)
+                  (guix build meson-build-system)
+                  (guix build utils))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'prepare-for-build
+            (lambda _
+              (substitute* "meson.build"
+                (("gtk_update_icon_cache: true")
+                 "gtk_update_icon_cache: false")
+                (("update_desktop_database: true")
+                 "update_desktop_database: false"))
+              (substitute* "meson.build"
+                (("'Cargo.lock',")
+                  ""))
+              (delete-file "Cargo.lock")))
+          (add-after 'configure 'prepare-cargo-build-system
+            (lambda args
+              (for-each
+               (lambda (phase)
+                 (format #t "Running cargo phase: ~a~%" phase)
+                 (apply (assoc-ref cargo:%standard-phases phase)
+                        #:vendor-dir "vendor"
+                        #:cargo-target #$(cargo-triplet)
+                        args))
+               '(unpack-rust-crates
+                 configure
+                 check-for-pregenerated-files
+                 patch-cargo-checksums))))
+          (add-after 'install 'wrap-program
+            (lambda _
+              (wrap-program (string-append #$output "/bin/amberol")
+                `("GST_PLUGIN_SYSTEM_PATH" ":" suffix
+                  (,(getenv "GST_PLUGIN_SYSTEM_PATH")))))))))
+    (native-inputs
+     (cons* bash-minimal
+            blueprint-compiler
+            gettext-minimal
+            `(,glib "bin")
+            pkg-config
+            rust
+            `(,rust "cargo")
+            (or (and=> (%current-target-system)
+                       (compose list make-rust-sysroot))
+                '())))
+    (inputs
+     (cons* bash-minimal
+            gstreamer
+            gst-plugins-bad
+            gtk
+            libadwaita
+            (cargo-inputs 'amberol)))
+    (home-page "https://apps.gnome.org/Amberol/")
+    (synopsis "Music player for GNOME")
+    (description "Amberol is a minimalistic music player for GNOME.  It works
+with one playlist in which you can add local audio files and directories.")
+    (license license:gpl3+)))
+
+(define-public blanket
+  (package
+    (name "blanket")
+    (version "0.8.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/rafaelmardojai/blanket/")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1inqb8z2vbmfybcrqbla76sny7cg2qz932agynqj4pn9a3zwnw9f"))))
+    (build-system meson-build-system)
+    (arguments
+     (list
+      #:glib-or-gtk? #t
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'glib-or-gtk-wrap 'wrap-libs
+            (lambda* (#:key outputs #:allow-other-keys)
+              (let ((gi-typelib-path   (getenv "GI_TYPELIB_PATH"))
+                    (gst-plugin-path   (getenv "GST_PLUGIN_SYSTEM_PATH"))
+                    (python-path       (getenv "GUIX_PYTHONPATH")))
+                (wrap-program (search-input-file outputs "/bin/blanket")
+                  `("GI_TYPELIB_PATH" ":" prefix (,gi-typelib-path))
+                  `("GST_PLUGIN_SYSTEM_PATH" ":" prefix (,gst-plugin-path))
+                  `("GUIX_PYTHONPATH" ":" prefix (,python-path)))))))))
+    (native-inputs
+     (list blueprint-compiler
+           desktop-file-utils
+           gettext-minimal
+           `(,glib "bin")
+           gobject-introspection
+           `(,gtk+ "bin")
+           pkg-config))
+    (inputs
+     (list appstream-glib
+           bash-minimal
+           gsettings-desktop-schemas
+           gst-plugins-bad
+           gst-plugins-good             ;for ScaleTempo plugin
+           gtk
+           libhandy
+           libadwaita
+           python
+           python-gst
+           python-pygobject))
+    (home-page "https://github.com/rafaelmardojai/blanket")
+    (synopsis "Ambient sound and noise player")
+    (description
+     "Blanket provides different ambient sounds and types of noise to listen
+to with the goal of improving your focus and enhancing your productivity.
+You can also use it to fall asleep in a noisy environment.")
+    (license license:gpl3+)))
+
+(define-public cartridges
+  (package
+    (name "cartridges")
+    (version "2.13.1")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://codeberg.org/kramo/cartridges.git")
+                     (commit (string-append "v" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "1vykylz4wm8zvccqsfvfy02hrnm2lygv8yrwmkhdj0l44fqqlqsm"))
+              (patches
+               ;; See <https://codeberg.org/kramo/cartridges/pulls/433>.
+               (search-patches "cartridges-fix-non-parallel-build.patch"))))
+    (build-system meson-build-system)
+    (arguments
+     (list
+      #:configure-flags
+      #~(list "-Dtiff_compression=jpeg") ;webp compression leads to error
+      #:glib-or-gtk? #t
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'skip-gnome-post-install
+            (lambda _
+              (substitute* "meson.build"
+                (("gtk_update_icon_cache: true")
+                 "gtk_update_icon_cache: false")
+                (("update_desktop_database: true")
+                 "update_desktop_database: false"))))
+          (add-after 'install 'wrap-program
+            (lambda* (#:key inputs #:allow-other-keys)
+              (wrap-program (string-append #$output "/bin/cartridges")
+                `("GUIX_PYTHONPATH" =
+                  (,(string-append #$output
+                                   "/lib/python"
+                                   #$(version-major+minor
+                                      (package-version python))
+                                   "/site-packages:"
+                                   (getenv "GUIX_PYTHONPATH"))))
+                `("GI_TYPELIB_PATH" = (,(getenv "GI_TYPELIB_PATH")))
+                `("GDK_PIXBUF_MODULE_FILE" =
+                  (,(getenv "GDK_PIXBUF_MODULE_FILE")))
+                `("PATH" ":" prefix
+                  (,(dirname (search-input-file inputs "/bin/gtk4-launch"))
+                   ,(dirname (search-input-file inputs "/bin/xdg-open"))))))))))
+    (native-inputs
+     (list blueprint-compiler
+           gettext-minimal
+           gobject-introspection
+           `(,glib "bin")
+           pkg-config))
+    (inputs
+     (list adwaita-icon-theme
+           bash-minimal
+           gtk
+           `(,gtk "bin")                ;for gtk-launch
+           libadwaita
+           python
+           python-pillow
+           python-pygobject
+           python-pyyaml
+           python-requests
+           xdg-utils))                  ;for xdg-open
+    (home-page "https://apps.gnome.org/Cartridges/")
+    (synopsis "Game launcher for GNOME")
+    (description "Cartridges is a game launcher for multiple game libraries.
+It can import and launch games from Steam, Lutris, Heroic, Bottles, itch,
+Legendary, RetroArch, Flatpak and desktop files.")
+    (license license:gpl3+)))
+
+(define-public deja-dup
+  (package
+    (name "deja-dup")
+    (version "50.1")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "https://gitlab.gnome.org/World/deja-dup/-/archive/"
+                                  version "/deja-dup-" version ".tar.bz2"))
+              (sha256
+               (base32
+                "1jm20ccpcg3zagv0806cw888y8ygfdxzn411cijd13jfpbdr5cff"))))
+    (build-system meson-build-system)
+    (arguments
+     (list
+      #:glib-or-gtk? #t
+      #:configure-flags
+      #~(list
+         ;; Otherwise, the RUNPATH will lack the final path component.
+         (string-append "-Dc_link_args=-Wl,-rpath="
+                        (assoc-ref %outputs "out") "/lib/deja-dup")
+         (string-append "-Dduplicity_command="
+                        (search-input-file %build-inputs "/bin/duplicity"))
+         (string-append "-Drestic_command="
+                        (search-input-file %build-inputs "/bin/restic")))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'patch-paths
+            (lambda* (#:key inputs #:allow-other-keys)
+              (let ((python (assoc-ref inputs "python")))
+                (substitute* '("libdeja/duplicity/DuplicityInstance.vala"
+                               "libdeja/tests/scripts/instance-error.test")
+                  (("/bin/rm")
+                   (which "rm")))
+                (substitute* "libdeja/tests/runner.vala"
+                  (("/bin/sh")
+                   (which "sh")))
+                (substitute* "libdeja/tests/scripts/instance-error.test"
+                  (("`which python3`")
+                   (string-append python "/bin/python3"))))))
+          (add-after 'unpack 'patch-libgpg-error
+            (lambda* (#:key inputs #:allow-other-keys)
+              (let ((libgpg-error (assoc-ref inputs "libgpg-error")))
+                (substitute* "meson.build"
+                  (("(gpgerror_libs = ).*" _ var)
+                   (format #f "~a '-L~a/lib -lgpg-error'\n" var libgpg-error)))))))))
+    (inputs
+     (list bash-minimal
+           duplicity
+           gsettings-desktop-schemas
+           gtk
+           json-glib
+           libadwaita
+           libgpg-error
+           libnotify
+           libsecret
+           libsoup
+           libhandy
+           packagekit
+           python
+           python-pygobject
+           restic))
+    (native-inputs
+     (list appstream-glib
+           blueprint-compiler
+           desktop-file-utils
+           gettext-minimal
+           `(,glib "bin")               ;for glib-compile-schemas
+           gobject-introspection
+           `(,gtk "bin")                ;for gtk-update-icon-cache
+           itstool
+           pkg-config
+           vala))
+    (home-page "https://apps.gnome.org/DejaDup")
+    (synopsis "Simple backup tool, for regular encrypted backups")
+    (description
+     "Déjà Dup is a simple backup tool, for regular encrypted backups.  It
+uses duplicity as the backend, which supports incremental backups and storage
+either on a local, or remote machine via a number of methods.")
+    (license license:gpl3+)))
+
+(define-public dialect
+  (package
+    (name "dialect")
+    (version "2.1.1")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/dialect-app/dialect")
+                    (commit version)
+                    (recursive? #t))) ;po module
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "0wac9r33zslyhvadyj7iaapskk7f9pfvia7zlqfksfhkaji6gmna"))))
+    (build-system meson-build-system)
+    (arguments
+     `(#:glib-or-gtk? #t))
+    (native-inputs (list blueprint-compiler
+                         desktop-file-utils
+                         `(,glib "bin")
+                         gettext-minimal
+                         gobject-introspection
+                         `(,gtk "bin")
+                         pkg-config))
+    (propagated-inputs (list gstreamer
+                             libadwaita
+                             libsoup
+                             python
+                             python-gtts
+                             python-pygobject
+                             python-requests))
+    (home-page "https://apps.gnome.org/app/app.drey.Dialect")
+    (synopsis "Translation application for GNOME")
+    (description
+     "Dialect is a simple translation application that uses Google Translate
+(default), LibreTranslate or Lingva Translate.  It includes features
+like automatic language detection, text-to-speech and clipboard buttons.")
+    (license license:gpl3+)))
+
+(define-public fragments
+  ;; Last release on May 30th, 2024.
+  (let ((commit "8e35eb799bda65e691691a5c7732aa8e93650b8f")
+        (revision "0"))
+    (package
+      (name "fragments")
+      (version (git-version "3.0.1" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+                (url "https://gitlab.gnome.org/World/Fragments")
+                (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32 "02m6r12znvjb31yfb477747ydwz267mzb2m0zny27z18b22a3z0v"))))
+      (build-system meson-build-system)
+      (arguments
+       (list
+        #:imported-modules `(,@%meson-build-system-modules
+                             ,@%cargo-build-system-modules)
+        #:modules `(((guix build cargo-build-system) #:prefix cargo:)
+                    (guix build meson-build-system)
+                    (guix build utils))
+        #:phases
+        (with-extensions (list (cargo-guile-json))
+          #~(modify-phases %standard-phases
+              (add-after 'unpack 'prepare-for-build
+                (lambda _
+                  (substitute* "meson.build"
+                    (("(vcs_tag *)=[^\n]*" all prefix)
+                     (string-append prefix "= '" #$commit "'")))
+                  (substitute* "Cargo.toml"
+                    (("ashpd = \\{ git = \"[^\"]*\"")
+                     "ashpd = { version = \"0.12\""))
+                  (substitute* "data/meson.build"
+                    (("gtk_update_icon_cache: true")
+                     "gtk_update_icon_cache: false")
+                    (("update_desktop_database: true")
+                     "update_desktop_database: false"))
+                  (delete-file "Cargo.lock")))
+              ;; The meson 'configure phase changes to a different directory and
+              ;; we need it created before unpacking the crates.
+              (add-after 'configure 'prepare-cargo-build-system
+                (lambda args
+                  (for-each
+                   (lambda (phase)
+                     (format #t "Running cargo phase: ~a~%" phase)
+                     (apply (assoc-ref cargo:%standard-phases phase)
+                            #:vendor-dir "vendor"
+                            #:cargo-target #$(cargo-triplet)
+                            args))
+                   '(prepare-rust-crates
+                     unpack-rust-crates
+                     configure
+                     check-for-pregenerated-files
+                     patch-cargo-checksums))))))))
+      (native-inputs
+       (append
+        (list gettext-minimal
+              `(,glib "bin") ; for glib-compile-schemas
+              pkg-config
+              rust
+              `(,rust "cargo"))
+        (or (and=> (%current-target-system)
+                   (compose list make-rust-sysroot))
+            '())))
+      (inputs (cons* dbus
+                     glib
+                     gtk
+                     libadwaita
+                     openssl
+                     (cargo-inputs 'fragments)))
+      (home-page "https://apps.gnome.org/de/Fragments/")
+      (synopsis "Manage torrents")
+      (description "Fragments is a graphical bittorrent client built on top of
+Transmission, and can be used to control remote Transmission instances.")
+      (license license:gpl3+))))
+
+(define-public gnome-authenticator
+  (package
+    (name "gnome-authenticator")
+    (version "4.4.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://gitlab.gnome.org/World/Authenticator.git/")
+             (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0zavax35n048spx097ymiq31s8b879qwbg8xmcxcx73r6m823mic"))))
+    (build-system meson-build-system)
+    (arguments
+     (list
+      #:imported-modules `(,@%meson-build-system-modules
+                           ,@%cargo-build-system-modules)
+      #:modules `(((guix build cargo-build-system) #:prefix cargo:)
+                  (guix build meson-build-system)
+                  (guix build utils))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'prepare-for-build
+            (lambda _
+              (substitute* "meson.build"
+                (("gtk_update_icon_cache: true")
+                 "gtk_update_icon_cache: false")
+                (("update_desktop_database: true")
+                 "update_desktop_database: false"))
+              ;; Help the tests find the Cargo.toml in the sources.
+              (substitute* "src/meson.build"
+                (("'test'") "'test', cargo_options"))
+              (delete-file "Cargo.lock")))
+          ;; The meson 'configure phase changes to a different directory and
+          ;; we need it created before unpacking the crates.
+          (add-after 'configure 'prepare-cargo-build-system
+            (lambda args
+              (for-each
+               (lambda (phase)
+                 (format #t "Running cargo phase: ~a~%" phase)
+                 (apply (assoc-ref cargo:%standard-phases phase)
+                        #:vendor-dir "vendor"
+                        #:cargo-target #$(cargo-triplet)
+                        args))
+               '(prepare-rust-crates
+                 unpack-rust-crates
+                 configure
+                 check-for-pregenerated-files
+                 patch-cargo-checksums)))))))
+    (native-inputs
+     (append
+      (list gettext-minimal
+            `(,glib "bin") ; for glib-compile-schemas
+            pkg-config
+            rust
+            `(,rust "cargo"))
+      (or (and=> (%current-target-system)
+                 (compose list make-rust-sysroot))
+          '())))
+    (inputs (cons* bash-minimal
+                   glib
+                   gstreamer
+                   gst-plugins-base
+                   gst-plugins-bad
+                   gtk
+                   libadwaita
+                   openssl
+                   pipewire             ; Needed but not listed
+                   sqlite
+                   zbar
+                   (cargo-inputs 'gnome-authenticator)))
+    (home-page "https://apps.gnome.org/Authenticator")
+    (synopsis "Generate two-factor codes")
+    (description "Simple application for generating Two-Factor Authentication
+Codes:
+
+It features:
+
+@itemize
+@item Time-based/Counter-based/Steam methods support
+@item SHA-1/SHA-256/SHA-512 algorithms support
+@item QR code scanner using a camera or from a screenshot
+@item Lock the application with a password
+@item Beautiful UI
+@item GNOME Shell search provider
+@item Backup/Restore from/into known applications like FreeOTP+,
+Aegis (encrypted / plain-text), andOTP, Google Authenticator
+@end itemize")
+    (license license:gpl3+)))
+
+(define-public gnome-mahjongg
+  (package
+    (name "gnome-mahjongg")
+    (version "3.40.1")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://gitlab.gnome.org/GNOME/gnome-mahjongg")
+                    (commit version)))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "0mc9379lmkcn08gr1wdny8gdwgdadkv11vxmgsiazcdy8bsj5860"))))
+    (build-system meson-build-system)
+    (arguments (list #:glib-or-gtk? #t))
+    (native-inputs
+     (list appstream-glib
+           gettext-minimal
+           `(,glib "bin")             ;for glib-compile-resources
+           `(,gtk "bin")              ;for gtk-update-icon-cache
+           itstool
+           pkg-config
+           vala))
+    (propagated-inputs
+     (list dconf))
+    (inputs
+     (list glib
+           gtk
+           libadwaita
+           librsvg))
+    (synopsis "Mahjongg tile-matching game")
+    (description "GNOME Mahjongg is a game based on the classic Chinese
+tile-matching game Mahjongg.  It features multiple board layouts, tile themes,
+and a high score table.")
+    (home-page "https://wiki.gnome.org/Apps/Mahjongg")
+    (license license:gpl2+)))
+
+(define-public komikku
+  (package
+    (name "komikku")
+    (version "50.11.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://codeberg.org/valos/Komikku/")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "062ibm23i5i4m2f8g8knxgcg83dmbj16xa0xxhgb5sjg6sl31vaq"))))
+    (build-system meson-build-system)
+    (arguments
+     (list
+      #:glib-or-gtk? #t
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'patch-sources
+            (lambda _
+              (substitute* "komikku/utils.py"
+                (("from komikku\\.servers import get_servers_list")
+                 ;; code following that line should migrate old databases
+                 ;; but the line itself results in an import error
+                 "return data_dir_path"))))
+          (add-after 'unpack 'unpack-fonts
+            (lambda* (#:key inputs #:allow-other-keys)
+              (mkdir-p "data/fonts")
+              (copy-file (search-input-file
+                          inputs
+                          "share/fonts/opentype/0xPropo-Medium.otf")
+                         "data/fonts/0xPropo-Medium.otf")))
+          (add-after 'unpack 'skip-gtk-update-icon-cache
+            (lambda _
+              (substitute* "meson.build"
+                (("([a-z_]*): true" all option)
+                 (cond                ; cond rather than match saves an import
+                  ((string=? option "gtk_update_icon_cache")
+                   (string-append option ": false"))
+                  (else all))))))
+          (add-after 'glib-or-gtk-wrap 'python-and-gi-wrap
+            (lambda* (#:key outputs #:allow-other-keys)
+              (wrap-program (search-input-file outputs "bin/komikku")
+                `("GUIX_PYTHONPATH" = (,(getenv "GUIX_PYTHONPATH")))
+                `("GI_TYPELIB_PATH" = (,(getenv "GI_TYPELIB_PATH")))
+                `("GDK_PIXBUF_MODULE_FILE" =
+                  (,(getenv "GDK_PIXBUF_MODULE_FILE")))))))))
+    (inputs
+     (list bash-minimal
+           font-0xpropo
+           gtk
+           libadwaita
+           libnotify
+           libsecret
+           python
+           python-beautifulsoup4
+           python-brotli
+           python-colorthief
+           ;; python-curl-cffi          ;not packaged yet in Guix
+           python-dateparser
+           python-ebooklib
+           python-emoji
+           python-jxlpy
+           python-keyring
+           python-lxml
+           python-magic
+           python-natsort
+           python-piexif
+           python-pillow
+           python-pygobject
+           python-pyjwt
+           python-pypdf
+           python-rarfile
+           python-requests
+           python-unidecode
+           webkitgtk
+           webp-pixbuf-loader))
+    (native-inputs
+     (list blueprint-compiler
+           desktop-file-utils
+           gettext-minimal
+           `(,glib "bin")
+           gobject-introspection
+           pkg-config))
+    (home-page "https://apps.gnome.org/Komikku")
+    (synopsis "Manga reader for GNOME")
+    (description "Komikku is an online/offline manga reader for GNOME,
+developed with the aim of being used with the Librem 5 phone.")
+    (license license:gpl3+)
+    (native-search-paths (list (search-path-specification
+                                 (variable "KOMIKKU_SERVERS_PATH")
+                                 (files '("lib/komikku/servers")))))))
+
+(define-public komikku-servers
+  (package
+    (name "komikku-servers")
+    (version "50.11.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://codeberg.org/valos/Komikku/")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "062ibm23i5i4m2f8g8knxgcg83dmbj16xa0xxhgb5sjg6sl31vaq"))))
+    (build-system copy-build-system)
+    (arguments
+     (list
+      #:install-plan
+      #~'(("komikku/servers" "lib/komikku/servers"))
+      #:modules '((guix build copy-build-system)
+                  (guix build utils)
+                  (ice-9 ftw))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'delete-conflicting-files
+            (lambda _
+              (with-directory-excursion "komikku/servers"
+                (for-each delete-file
+                          (scandir "."
+                                   (lambda (f) (string-suffix? ".py" f)))))))
+          (add-after 'install 'compile
+            (lambda* (#:key outputs #:allow-other-keys)
+              (let ((site-dir (string-append (assoc-ref outputs "out")
+                                             "/lib/komikku/servers")))
+                (invoke "python" "-m" "compileall"
+                        "--invalidation-mode=unchecked-hash" site-dir)))))))
+    (native-inputs (list python-wrapper))
+    (home-page "https://apps.gnome.org/Komikku")
+    (synopsis "Servers for Komikku")
+    (description "This package provides more recent servers for Komikku.")
+    (license license:gpl3+)))
+
+(define-public polari
+  (package
+    (name "polari")
+    (version "50.0")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "mirror://gnome/sources/polari/"
+                                  (version-major version)
+                                  "/polari-" version ".tar.xz"))
+              (sha256
+               (base32
+                "1nv7wlvfsz5r23v76gpnwhs4m9mgfjfn53nhb9yzs9a74swrca55"))))
+    (build-system meson-build-system)
+    (arguments
+     (list
+      #:glib-or-gtk? #t
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'skip-gtk-update-icon-cache
+            (lambda _
+              (substitute* "meson.build"
+                (("gtk_update_icon_cache: true")
+                 "gtk_update_icon_cache: false"))))
+          (add-after 'install 'fix-desktop-file
+            ;; Hard-code launcher to be on the safe side.
+            (lambda* (#:key outputs #:allow-other-keys)
+              (substitute* (search-input-file
+                            outputs
+                            "share/applications/org.gnome.Polari.desktop")
+                (("Exec=.*")
+                 (string-append "Exec=" (search-input-file outputs "bin/polari")
+                                "\n")))))
+          (add-after 'glib-or-gtk-wrap 'wrap-typelib
+            (lambda* (#:key outputs #:allow-other-keys)
+              (wrap-program (search-input-file outputs "bin/polari")
+                `("GI_TYPELIB_PATH" = (,(getenv "GI_TYPELIB_PATH")))))))))
+    (native-inputs
+     (list desktop-file-utils
+           gettext-minimal
+           `(,glib "bin")
+           gobject-introspection
+           pkg-config
+           yelp-tools))
+    (inputs
+     (list bash-minimal
+           glib
+           gsettings-desktop-schemas
+           gspell
+           gtk
+           gjs
+           libadwaita
+           libsecret
+           libsoup
+           telepathy-glib
+           telepathy-logger
+           tinysparql))
+    (propagated-inputs
+     (list telepathy-idle
+           telepathy-mission-control))
+    (synopsis "Simple IRC Client")
+    (description
+     "Polari is a simple Internet Relay Chat (IRC) client that is designed to
+integrate seamlessly with the GNOME desktop.")
+    (home-page "https://wiki.gnome.org/Apps/Polari")
+    (license license:gpl2+)))
+
+(define-public raider
+  (package
+    (name "raider")
+    (version "1.3.1")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/ADBeveridge/raider/")
+                    (commit (string-append "v" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "0ll9220d6qf9m7wdi5xhq69p8h8whs7l5h5nzdhlbn99qh5388bz"))))
+    (build-system meson-build-system)
+    (arguments
+     (list #:phases
+           #~(modify-phases %standard-phases
+               (add-after 'unpack 'patch-paths
+                 (lambda* (#:key inputs #:allow-other-keys)
+                   (substitute* "data/com.github.ADBeveridge.Raider.gschema.xml"
+                     (("/usr/bin/shred")
+                      (which "shred")))))
+               (add-after 'install 'wrap-program
+                 (lambda* (#:key inputs outputs #:allow-other-keys)
+                   (wrap-program (string-append (assoc-ref outputs "out")
+                                                "/bin/raider")
+                     `("GSETTINGS_SCHEMA_DIR" =
+                       (,(string-append (assoc-ref outputs "out")
+                                        "/share/glib-2.0/schemas")))))))))
+    (native-inputs
+     (list gettext-minimal
+           pkg-config
+           cmake-minimal
+           `(,glib "bin")
+           desktop-file-utils
+           itstool
+           gobject-introspection
+           blueprint-compiler
+           `(,gtk "bin")))
+    (inputs
+     (list libadwaita
+           gtk))
+    (home-page "https://github.com/ADBeveridge/raider")
+    (synopsis "Securely delete your files")
+    (description
+     "Raider is a simple shredding program built for GNOME.  Also known as
+File Shredder, it uses the GNU Core Utility called shred to securely delete
+files.")
+    (license license:gpl3+)))
+
+(define-public resources
+  (package
+    (name "resources")
+    (version "1.10.1")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://github.com/nokyan/resources")
+                     (commit (string-append "v" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "0472532a9cr83841g220lpylh7a9bddq2z72pw12428gkngk72dn"))))
+    (build-system meson-build-system)
+    (arguments
+     (list
+      #:glib-or-gtk? #t
+      #:imported-modules `(,@%meson-build-system-modules
+                           ,@%cargo-build-system-modules)
+      #:modules `(((guix build cargo-build-system) #:prefix cargo:)
+                  (guix build meson-build-system)
+                  (guix build utils))
+      #:configure-flags #~(list "-Dprofile=default")
+      #:phases
+      (with-extensions (list (cargo-guile-json))
+        #~(modify-phases %standard-phases
+            (add-after 'unpack 'replace-commands
+              (lambda* (#:key inputs #:allow-other-keys)
+                (let ((PATH (search-path-as-list '("bin" "sbin")
+                                                 (map cdr inputs))))
+                  (substitute* '("src/utils/cpu.rs"
+                                 "src/utils/memory.rs")
+                    (("Command::new\\(\"(.*)\"\\)" all command)
+                     (format #f "Command::new(\"~a\")"
+                             (search-path PATH command)))))))
+            (add-after 'unpack 'prepare-for-build
+              (lambda _
+                (substitute* "meson.build"
+                  (("gtk_update_icon_cache: true")
+                   "gtk_update_icon_cache: false")
+                  (("update_desktop_database: true")
+                   "update_desktop_database: false")
+                  (("glib_compile_schemas: true")
+                   "glib_compile_schemas: false"))
+                (delete-file "Cargo.lock")
+                (delete-file "lib/process_data/Cargo.lock")))
+            (add-after 'configure 'prepare-cargo-build-system
+              (lambda args
+                (for-each
+                 (lambda (phase)
+                   (format #t "Running cargo phase: ~a~%" phase)
+                   (apply (assoc-ref cargo:%standard-phases phase)
+                          #:vendor-dir "vendor"
+                          #:cargo-target #$(cargo-triplet)
+                          args))
+                 '(unpack-rust-crates
+                   configure
+                   check-for-pregenerated-files
+                   patch-cargo-checksums))))))))
+    (native-inputs
+     (list gettext-minimal
+           `(,glib "bin")
+           pkg-config
+           rust
+           `(,rust "cargo")))
+    (inputs
+     (cons* dmidecode                   ;for dmidecode
+            eudev                       ;for udevadm
+            gtk
+            libadwaita
+            util-linux                  ;for lscpu
+            (cargo-inputs 'resources)))
+    (home-page "https://apps.gnome.org/Resources/")
+    (synopsis "System resource and process monitor")
+    (description "Resources is a monitor for system resources and processes for
+GNOME.  It can display usage and details of your CPU, memory, GPUs, NPUs,
+network interfaces and block devices.  It can also list and terminate running
+graphical applications and processes.")
+    (license license:gpl3+)))
+
+(define-public secrets
+  (package
+    (name "secrets")
+    (version "11.1.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://gitlab.gnome.org/World/secrets")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1lhj19zqwb12grrbh5xhgiilmr394s86vl1cqn4ix70zfd40wsy3"))))
+    (build-system meson-build-system)
+    (arguments
+     (list
+      #:glib-or-gtk? #t
+      #:imported-modules (append %meson-build-system-modules
+                                 %pyproject-build-system-modules)
+      #:modules '((guix build meson-build-system)
+                  ((guix build pyproject-build-system) #:prefix py:)
+                  (guix build utils))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'disable-postinstall-script
+            (lambda _
+              (substitute* "meson.build"
+                (("gtk_update_icon_cache: true")
+                 "gtk_update_icon_cache: false"))
+              (setenv "DESTDIR" "/")))
+          (add-after 'glib-or-gtk-wrap 'wrap-binaries
+            (lambda* (#:key inputs outputs #:allow-other-keys)
+              (wrap-program (search-input-file outputs "bin/secrets")
+                `("GUIX_PYTHONPATH" = (,(getenv "GUIX_PYTHONPATH")
+                                       ,(py:site-packages inputs outputs)))
+                `("GI_TYPELIB_PATH" = (,(getenv "GI_TYPELIB_PATH")))
+                `("GSETTINGS_SCHEMA_DIR" =
+                  (,(string-append #$output "/share/glib-2.0/schemas"))))))
+          (add-after 'install 'add-install-to-pythonpath
+            (assoc-ref py:%standard-phases 'add-install-to-pythonpath))
+          (delete 'check)
+          (add-after 'glib-or-gtk-compile-schemas 'check
+            (assoc-ref %standard-phases 'check))
+          (add-before 'check 'set-search-path
+            (lambda _
+              (setenv "GSETTINGS_SCHEMA_DIR" (string-append #$output "/share/glib-2.0/schemas/")))))))
+    (native-inputs
+     (list desktop-file-utils
+           gettext-minimal
+           `(,glib "bin")
+           gobject-introspection
+           pkg-config
+           python
+           python-pytest))
+    (inputs
+     (list adwaita-icon-theme
+           bash-minimal
+           glib
+           gsettings-desktop-schemas
+           gtk
+           gtksourceview
+           libadwaita
+           libhandy
+           libpwquality
+           python
+           python-pycairo
+           python-pygobject
+           python-pykcs11
+           python-pykeepass
+           python-pyotp
+           python-validators
+           python-yubico
+           python-zxcvbn-rs-py))
+    (home-page "https://gitlab.gnome.org/World/secrets")
+    (synopsis "Password manager for the GNOME desktop")
+    (description
+     "Secrets is a password manager which makes use of the KeePass v4
+format.  It integrates perfectly with the GNOME desktop and provides an easy
+and uncluttered interface for the management of password databases.")
+    (license license:gpl3+)))
+
+(define-public textpieces
+  (package
+    (name "textpieces")
+    (version "3.2.0")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/liferooter/textpieces")
+                    (commit (string-append "v" version))))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "14zq2c7js80m4cq8wpdb3kyz5sw96l8znbz027w8s94gqhm632ff"))))
+    (arguments
+     '(;; The test suite fails to validate appstream file due to lack of
+       ;; network access
+       #:tests? #f
+       #:glib-or-gtk? #t))
+    (build-system meson-build-system)
+    (native-inputs
+     (list appstream-glib
+           blueprint-compiler-0.4
+           desktop-file-utils
+           gettext-minimal
+           `(,glib "bin")
+           `(,gtk "bin")
+           pkg-config
+           vala))
+    (inputs
+     (list gtk
+           gtksourceview
+           json-glib
+           libadwaita
+           libgee
+           python
+           python-pygobject
+           python-pyyaml))
+    (home-page "https://github.com/liferooter/textpieces")
+    (synopsis "Quick text processor")
+    (description
+     "Text Pieces is a tool for quick text transformations such as checksums,
+encoding, decoding, etc.
+
+The basic features of Text Pieces are:
+@itemize
+@item Base64 encoding and decoding
+@item SHA-1, SHA-2 and MD5 checksums
+@item Prettify and minify JSON
+@item Convert JSON to YAML and vice versa
+@item Count lines, symbols and words
+@item Escape and unescape string, URL and HTML
+@item Remove leading and trailing whitespaces
+@item Sort and reverse sort lines
+@item Reverse lines and whole text
+@item You can write your own scripts and create custom tools
+@end itemize")
+    (license license:gpl3)))

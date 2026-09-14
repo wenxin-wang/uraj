@@ -1,0 +1,1126 @@
+;;; GNU Guix --- Functional package management for GNU
+;;; Copyright © 2016 David Thompson <davet@gnu.org>
+;;; Copyright © 2016, 2019, 2020 Marius Bakke <mbakke@fastmail.com>
+;;; Copyright © 2017 Leo Famulari <leo@famulari.name>
+;;; Copyright © 2018, 2020–2022 Tobias Geerinckx-Rice <me@tobias.gr>
+;;; Copyright © 2016 Kei Kebreau <kkebreau@posteo.net>
+;;; Copyright © 2019, 2021, 2022, 2023 Ricardo Wurmus <rekado@elephly.net>
+;;; Copyright © 2020, 2025 Nicolas Goaziou <mail@nicolasgoaziou.fr>
+;;; Copyright © 2020 Efraim Flashner <efraim@flashner.co.il>
+;;; Copyright © 2021 qblade <qblade@protonmail.com>
+;;; Copyright © 2024 Sébastien Lerique <sl@eauchat.org>
+;;; Copyright © 2026 Anderson Torres <anderson.torres.8519@gmail.com>
+;;;
+;;; This file is part of GNU Guix.
+;;;
+;;; GNU Guix is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guix is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with GNU Guix.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (gnu packages speech)
+  #:use-module ((guix licenses) #:prefix license:)
+  #:use-module (guix packages)
+  #:use-module (guix download)
+  #:use-module (guix gexp)
+  #:use-module (guix git-download)
+  #:use-module (guix utils)
+  #:use-module (guix build-system cmake)
+  #:use-module (guix build-system gnu)
+  #:use-module (guix build-system meson)
+  #:use-module (guix build-system pyproject)
+  #:use-module (gnu packages)
+  #:use-module (gnu packages audio)
+  #:use-module (gnu packages autotools)
+  #:use-module (gnu packages bash)
+  #:use-module (gnu packages base)            ;for 'which'
+  #:use-module (gnu packages bison)
+  #:use-module (gnu packages build-tools)
+  #:use-module (gnu packages nss)
+  #:use-module (gnu packages compression)
+  #:use-module (gnu packages documentation)
+  #:use-module (gnu packages emacs)
+  #:use-module (gnu packages freedesktop)
+  #:use-module (gnu packages gcc)
+  #:use-module (gnu packages gettext)
+  #:use-module (gnu packages glib)
+  #:use-module (gnu packages gstreamer)
+  #:use-module (gnu packages linux)
+  #:use-module (gnu packages machine-learning)
+  #:use-module (gnu packages ncurses)
+  #:use-module (gnu packages perl)
+  #:use-module (gnu packages pkg-config)
+  #:use-module (gnu packages pulseaudio)
+  #:use-module (gnu packages python)
+  #:use-module (gnu packages python-build)
+  #:use-module (gnu packages python-science)
+  #:use-module (gnu packages python-web)
+  #:use-module (gnu packages python-xyz)
+  #:use-module (gnu packages python-check)
+  #:use-module (gnu packages check)
+  #:use-module (gnu packages swig)
+  #:use-module (gnu packages texinfo)
+  #:use-module (gnu packages textutils)
+  #:use-module (gnu packages version-control)
+  #:use-module (gnu packages video))
+
+(define-public flite
+  (package
+    (name "flite")
+    (version "2.2")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/festvox/flite")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1n0p81jzndzc1rzgm66kw9ls189ricy5v1ps11y0p2fk1p56kbjf"))))
+    (build-system gnu-build-system)
+    (arguments
+     ;; XXX:
+     ;; There numerous issues with the testsuite.
+     ;; Enable all of them once they are fixed in upstream.
+     (list
+      #:tests? #f
+      #:parallel-build? #f
+      #:configure-flags
+      #~(list "--enable-shared"
+              (string-append "LDFLAGS=-Wl,-rpath=" #$output "/lib"))
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'patch-rpath
+            (lambda _
+              (substitute* "main/Makefile"
+                (("flite_LIBS_flags \\+= -Wl,-rpath [^ ]*")
+                 "flite_LIBS_flags +="))))
+          (delete 'check)
+          ;; Modifying testsuite/Makefile is not done in favor of
+          ;; overriding 'check.
+          ;; The path not taken would be:
+          ;; test:\n\t$(foreach x,$(subst tris1,,$(subst dcoffset_wave,,$(subst flite_test,,$(subst by_word,,$(subst bin2ascii,,$(subst lpc_resynth,,$(subst rfc,,$(subst compare_wave,,$(subst record_in_noise,,$(subst combine_waves,,$(patsubst play_%,,$(subst record_wave,,$(subst lex_lookup,,$(patsubst lpc_test%,,$(patsubst asciiS2U%,,$(patsubst asciiU2S%,,$(ALL))))))))))))))))),echo TEST $x && ./$x data.one && ) true
+          (add-after 'install 'check
+            (lambda _
+              (invoke "make" "-C" "testsuite")
+              (with-directory-excursion "testsuite"
+                (invoke "./token_test")
+                (invoke "./hrg_test")
+                (invoke "./regex_test")
+                (invoke "./nums_test")
+                (invoke "./lex_test")
+                (invoke "./utt_test")
+                (invoke "./multi_thread"))))
+          (add-after 'install 'remove-static-libs
+            (lambda _
+              (for-each delete-file
+                        (find-files #$output "\\.a$")))))))
+    (native-inputs
+     (list perl))
+    (inputs
+     (list alsa-lib))
+    (synopsis "Speech synthesis system")
+    (description "Flite (festival-lite) is a small, fast run-time text to speech
+synthesis engine developed at CMU and primarily designed for small embedded
+machines and/or large servers.  It is designed as an alternative text to speech
+synthesis engine to Festival for voices built using the FestVox suite of voice
+building tools.")
+    (home-page "http://www.festvox.org/flite/index.html")
+    (license (license:non-copyleft "file:///COPYING"))))
+
+(define-public espeak
+  (package
+    (name "espeak")
+    (version "1.48.04")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "mirror://sourceforge/espeak/espeak/"
+                                  "espeak-" (version-major+minor version)
+                                  "/espeak-" version "-source.zip"))
+              (sha256
+               (base32
+                "0n86gwh9pw0jqqpdz7mxggllfr8k0r7pc67ayy7w5z6z79kig6mz"))
+              (modules '((guix build utils)))
+              (snippet
+               ;; remove prebuilt binaries
+               '(begin
+                  (delete-file-recursively "linux_32bit")
+                  #t))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:make-flags (list (string-append "PREFIX=" (assoc-ref %outputs "out"))
+                          (string-append "DATADIR="
+                                         (assoc-ref %outputs "out")
+                                         "/share/espeak-data")
+                          (string-append "LDFLAGS=-Wl,-rpath="
+                                         (assoc-ref %outputs "out")
+                                         "/lib")
+                          ;; The package fails to build with newer C++ standards.
+                          "CXXFLAGS=-std=c++98"
+                          "AUDIO=pulseaudio")
+       #:tests? #f ; no check target
+       #:phases
+       (modify-phases %standard-phases
+         (replace 'configure
+           (lambda _
+             (chdir "src")
+             ;; We use version 19 of the PortAudio library, so we must copy the
+             ;; corresponding file to be sure that espeak compiles correctly.
+             (copy-file "portaudio19.h" "portaudio.h")
+             (substitute* "Makefile"
+               (("/bin/ln") "ln")
+               (("\\$\\(INSTALL\\).*\\$\\(STATIC_LIB.*") "")))))))
+       (inputs
+        (list portaudio pulseaudio))
+       (native-inputs (list unzip))
+       (home-page "https://espeak.sourceforge.net/")
+       (synopsis "Software speech synthesizer")
+       (description "eSpeak is a software speech synthesizer for English and
+other languages.  eSpeak uses a \"formant synthesis\" method.  This allows many
+languages to be provided in a small size.  The speech is clear, and can be used
+at high speeds, but is not as natural or smooth as larger synthesizers which are
+based on human speech recordings.")
+       (license license:gpl3+)))
+
+(define-public espeak-ng
+  (let ((commit "0d451f8c1c6ae837418b823bd9c4cbc574ea9ff5")
+        (revision "1"))
+    (package
+      (name "espeak-ng")
+      (version (git-version "1.52.0" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+                (url "https://github.com/espeak-ng/espeak-ng")
+                (commit commit)))
+         (file-name (git-file-name name version))
+         (sha256
+          (base32 "0s1kiq8y7vlz8p5xgkxdrbiyh3p0rd32hdzib421nbnji3wy54y2"))))
+      (build-system cmake-build-system)
+      (arguments
+       `(#:configure-flags '("-DBUILD_SHARED_LIBS=ON")
+         ;; Building in parallel triggers a race condition in 1.49.2.
+         #:parallel-build? #f
+         ;; XXX: Some tests require an audio device.
+         #:tests? #f))
+      (native-inputs
+       (list which))
+      (inputs
+       (list libcap pcaudiolib sonic))
+      (home-page "https://github.com/espeak-ng/espeak-ng")
+      (synopsis "Software speech synthesizer")
+      (description
+       "eSpeak NG is a software speech synthesizer for more than 100 languages.
+It is based on the eSpeak engine and supports spectral and Klatt formant
+synthesis, and the ability to use MBROLA voices.")
+      (license license:gpl3+))))
+
+(define-public mitlm
+  (package
+    (name "mitlm")
+    (version "0.4.2")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "https://github.com/mitlm/mitlm/releases/"
+                                  "download/v" version "/"
+                                  name "-" version ".tar.xz"))
+              (sha256
+               (base32
+                "09fv4fcpmw9g1j0zml0k5kk1lgjw2spr8gn51llbkaaph6v8d62a"))))
+    (build-system gnu-build-system)
+    (native-inputs
+     (list gfortran))
+    (synopsis "The MIT Language Modeling toolkit")
+    (description "The MIT Language Modeling (MITLM) toolkit is a set of
+tools designed for the efficient estimation of statistical n-gram language
+models involving iterative parameter estimation.  It achieves much of its
+efficiency through the use of a compact vector representation of n-grams.")
+    (home-page "https://github.com/mitlm/mitlm")
+    (license license:expat)))
+
+(define-public speech-dispatcher
+  (package
+    (name "speech-dispatcher")
+    (version "0.12.1")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/brailcom/speechd")
+                    (commit version)))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "0f1mqs80b4fbnpii5mn82xn54nbxy229hwjfqbir26zqk4pinf7q"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:configure-flags '("--disable-static"
+
+                           ;; Disable support for proprietary TTS engines.
+                           "--with-voxin=no" "--with-ibmtts=no"
+                           "--with-kali=no" "--with-baratinoo=no")
+       #:imported-modules ,%pyproject-build-system-modules
+       #:modules ((guix build gnu-build-system)
+                  ((guix build pyproject-build-system)
+                   #:prefix python:)
+                  (guix build utils))
+       #:phases
+       (modify-phases %standard-phases
+         (add-after 'unpack 'patch-bin-bash
+           (lambda* (#:key inputs #:allow-other-keys)
+             (substitute* "src/modules/generic.c"
+               (("/bin/bash")
+                (search-input-file inputs "/bin/bash")))))
+         (add-after 'install 'wrap-spd-conf
+           (lambda* (#:key inputs outputs #:allow-other-keys)
+             (wrap-program (search-input-file outputs "bin/spd-conf")
+               `("GUIX_PYTHONPATH" =
+                 (,(getenv "GUIX_PYTHONPATH")
+                  ,(python:site-packages inputs outputs)))))))))
+    (native-inputs
+     (list autoconf
+           automake
+           gettext-minimal
+           libtool
+           pkg-config
+           texinfo))
+    (inputs
+     (list bash-minimal
+           dotconf
+           espeak-ng
+           flite
+           glib
+           libltdl
+           libsndfile
+           pipewire
+           pulseaudio
+           python
+           python-pyxdg))
+    (synopsis "Common interface to speech synthesizers")
+    (description "The Speech Dispatcher project provides a high-level
+device independent layer for access to speech synthesis through a simple,
+stable and well documented interface.")
+    (home-page "https://devel.freebsoft.org/speechd")
+    ;; The software is distributed under GPL2+, but includes a number
+    ;; of files covered by other licenses.  Note: in practice, this
+    ;; is linked against dotconf, which is LGPL 2.1 only.
+    (license (list license:gpl2+
+                   license:fdl1.2+ ; Most files in doc/ are dual gpl2+/fdl1.2+.
+                   license:lgpl2.1+
+                   (license:non-copyleft
+                    ;; festival_client.{c,h} carries an expat-style license.
+                    "See src/modules/festival_client.c in the distribution.")
+                   license:gpl3+)))) ; doc/texinfo.tex -- with TeX exception.
+
+(define-public sonic
+  (package
+    (name "sonic")
+    (version "0.2.0")
+    (source (origin
+             (method git-fetch)
+             (uri (git-reference
+                    (url "https://github.com/waywardgeek/sonic")
+                    (commit (string-append "release-" version))))
+             (file-name (git-file-name name version))
+             (sha256
+              (base32
+               "08xwnpw9cnaix1n1i7gvpq5hrfrqc2z1snjhjapfam506hrc77g4"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:tests? #f                      ; no test suite
+       #:make-flags
+       (list (string-append "PREFIX=" (assoc-ref %outputs "out"))
+             (string-append "LDFLAGS=-Wl,-rpath="
+                            (assoc-ref %outputs "out") "/lib"))
+       #:phases
+       (modify-phases %standard-phases
+         (add-after 'unpack 'respect-LDFLAGS
+           (lambda _
+             (substitute* "Makefile"
+               ((" -o sonic " match)
+                (string-append " $(LDFLAGS)" match)))
+             #t))
+         (delete 'configure))))        ; no ./configure script
+    (synopsis "Speed up or slow down speech")
+    (description "Sonic implements a simple algorithm for speeding up or slowing
+down speech.  However, it's optimized for speed ups of over 2X, unlike previous
+algorithms for changing speech rate.  Sonic is a C library designed to be easily
+integrated into streaming voice applications such as text-to-speech (TTS) back
+ends.
+
+The primary motivation behind Sonic is to enable the blind and visually impaired
+to improve their productivity with speech engines, like eSpeak.  Sonic can also
+be used by the sighted.")
+    (home-page "https://github.com/waywardgeek/sonic")
+    (license license:asl2.0)))
+
+(define-public festival
+  (package
+    (name "festival")
+    (version "2.5.0")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "http://festvox.org/packed/festival/"
+                                  (version-major+minor version)
+                                  "/festival-" version "-release.tar.gz"))
+              (sha256
+               (base32
+                "1d5415nckiv19adxisxfm1l1xxfyw88g87ckkmcr0lhjdd10g42c"))))
+    (build-system gnu-build-system)
+    (arguments
+     `(#:tests? #f ; there is no test target
+       #:make-flags
+       (list (string-append "RM="
+                            (assoc-ref %build-inputs "coreutils")
+                            "/bin/rm")
+             (string-append "ECHO_N="
+                            (assoc-ref %build-inputs "coreutils")
+                            "/bin/printf \"%s\"")
+             "LINUXAUDIO=alsa")
+       #:parallel-build? #f ; not supported
+       #:modules ((guix build gnu-build-system)
+                  (guix build utils)
+                  (guix build emacs-utils))
+       #:imported-modules (,@%default-gnu-imported-modules
+                           (guix build emacs-utils))
+       #:phases
+       (modify-phases %standard-phases
+         (add-after 'unpack 'unpack-and-patch-speech-tools
+           (lambda* (#:key inputs #:allow-other-keys)
+             (invoke "tar" "-C" ".."
+                     "-xf" (assoc-ref inputs "speech-tools"))
+             (with-directory-excursion "../speech_tools"
+               (substitute* '("config/rules/modules.mak"
+                              "config/rules/test_make_rules.mak"
+                              "config/make_system.mak")
+                 (("/bin/sh") (which "sh"))))
+             #t))
+         (add-after 'unpack-and-patch-speech-tools 'set-fcommon
+           (lambda _
+             (substitute* "../speech_tools/config/rules/defaults.mak"
+               (("\\(CFLAGS\\)") "(CFLAGS) -fcommon")
+               (("\\(CXXFLAGS\\)") "(CXXFLAGS) -fcommon"))))
+         (add-after 'unpack 'patch-/bin/sh
+           (lambda _
+             (substitute* '("config/test_make_rules"
+                            "config/make_system.mak")
+               (("/bin/sh") (which "sh")))
+             #t))
+         (add-before 'build 'build-speech-tools
+           (lambda* (#:key configure-flags make-flags #:allow-other-keys)
+             (with-directory-excursion "../speech_tools"
+               (apply invoke "sh" "configure"
+                      (string-append "CONFIG_SHELL=" (which "sh"))
+                      (string-append "SHELL=" (which "sh"))
+                      configure-flags)
+               (apply invoke "make" make-flags))))
+         (add-after 'build 'build-documentation
+           (lambda _
+             (with-directory-excursion "doc"
+               (invoke "make" "festival.info"))))
+         (add-after 'unpack 'set-installation-directories
+           (lambda* (#:key outputs #:allow-other-keys)
+             (let ((out (assoc-ref outputs "out")))
+               (substitute* "config/project.mak"
+                 (("^FTLIBDIR.*")
+                  (string-append "FTLIBDIR=" out "/share/festival/lib")))
+               (substitute* "config/systems/default.mak"
+                 (("^INSTALL_PREFIX.*")
+                  (string-append "INSTALL_PREFIX=" out)))
+               #t)))
+         (add-after 'install 'actually-install
+           (lambda* (#:key inputs outputs #:allow-other-keys)
+             (let ((out (assoc-ref outputs "out")))
+               ;; Install Speech Tools first
+               (with-directory-excursion "../speech_tools"
+                 ;; Target directories
+                 (for-each (lambda (dir)
+                             (mkdir-p (string-append out dir)))
+                           '("/bin"
+                             "/lib"
+                             "/include/speech_tools/"
+                             "/include/speech_tools/instantiate"
+                             "/include/speech_tools/ling_class"
+                             "/include/speech_tools/rxp"
+                             "/include/speech_tools/sigpr"
+                             "/include/speech_tools/unix"))
+                 ;; Install binaries
+                 (for-each (lambda (file)
+                             (install-file file (string-append out "/bin")))
+                           (find-files "bin" ".*"))
+                 (for-each (lambda (file)
+                             (delete-file (string-append out "/bin/" file)))
+                           '("est_gdb" "est_examples" "est_program"))
+                 ;; Install libraries
+                 (for-each (lambda (file)
+                             (install-file file (string-append out "/lib")))
+                           (find-files "lib" "lib.*\\.so.*"))
+
+                 ;; Install headers
+                 (for-each
+                  (lambda (dir)
+                    (for-each
+                     (lambda (header)
+                       (install-file header
+                                     (string-append out "/include/speech_tools/" dir)))
+                     (find-files (string-append "include/" dir)
+                                 "\\.h$")))
+                  '("." "instantiate" "ling_class" "rxp" "sigpr" "unix")))
+
+               ;; Unpack files that will be installed together with the
+               ;; Festival libraries.
+               (invoke "tar" "--strip-components=1"
+                       "-xvf" (assoc-ref inputs "festvox-cmu"))
+               (invoke "tar" "--strip-components=1"
+                       "-xvf" (assoc-ref inputs "festvox-poslex"))
+               (invoke "tar" "--strip-components=1"
+                       "-xvf" (assoc-ref inputs "default-voice"))
+
+               ;; Install Festival
+               (let ((bin (string-append out "/bin"))
+                     (incdir (string-append out "/include/festival"))
+                     (share (string-append out "/share/festival"))
+                     (info (string-append out "/share/info")))
+                 (for-each (lambda (executable)
+                             (install-file executable bin))
+                           '("src/main/festival"
+                             "src/main/festival_client"
+                             "examples/benchmark"))
+                 (let ((scripts '("examples/dumpfeats"
+                                  "examples/durmeanstd"
+                                  "examples/latest"
+                                  "examples/make_utts"
+                                  "examples/powmeanstd"
+                                  "examples/run-festival-script"
+                                  "examples/saytime"
+                                  "examples/scfg_parse_text"
+                                  "examples/text2pos"
+                                  "examples/text2wave")))
+                   (substitute* scripts
+                     (("exec /tmp/guix-build.*/bin/festival")
+                      (string-append "exec " bin "/festival")))
+                   (for-each (lambda (script)
+                               (install-file script bin))
+                             scripts))
+
+                 ;; Documentation
+                 (for-each (lambda (file)
+                             (install-file file info))
+                           (find-files "doc/info/" "festival.info.*"))
+
+                 ;; Headers
+                 (mkdir-p incdir)
+                 (for-each (lambda (header)
+                             (install-file header
+                                           (string-append incdir "/"
+                                                          (dirname header))))
+                           (find-files "src/include" "\\.h$"))
+
+                 ;; Data
+                 (mkdir-p share)
+                 (for-each (lambda (file)
+                             (install-file file
+                                           (string-append share "/"
+                                                          (dirname file))))
+                           (find-files "lib" ".*"))
+                 (for-each delete-file
+                           (append (find-files share "Makefile")
+                                   (find-files bin "Makefile")))))
+             #t))
+         (add-after 'actually-install 'install-emacs-mode
+           (lambda* (#:key outputs #:allow-other-keys)
+             (let ((emacs-dir (string-append (assoc-ref outputs "out")
+                                             "/share/emacs/site-lisp")))
+               (install-file "lib/festival.el" emacs-dir)
+               (emacs-generate-autoloads ,name emacs-dir)
+               #t)))
+         ;; Rebuild the very old configure script that is confused by extra
+         ;; arguments.
+         (add-before 'configure 'bootstrap
+           (lambda _ (invoke "autoreconf" "-vif"))))))
+    (inputs
+     (list alsa-lib
+           ncurses))
+    (native-inputs
+     `(("autoconf" ,autoconf)
+       ("automake" ,automake)
+       ("texinfo" ,texinfo)
+       ("emacs" ,emacs-minimal)
+       ("festvox-cmu"
+        ,(origin
+           (method url-fetch)
+           (uri (string-append "http://festvox.org/packed/festival/"
+                               (version-major+minor version)
+                               "/festlex_CMU.tar.gz"))
+           (sha256
+            (base32
+             "01vwidqhhg2zifvk1gby91mckg1z2pv2mj6lihvdaifakf8k1561"))))
+       ("festvox-poslex"
+        ,(origin
+           (method url-fetch)
+           (uri (string-append "http://festvox.org/packed/festival/"
+                               (version-major+minor version)
+                               "/festlex_POSLEX.tar.gz"))
+           (sha256
+            (base32
+             "18wywilxaqwy63lc47p5g5529mpxhslibh1bjij0snxx5mjf7ip7"))))
+       ("default-voice"
+        ,(origin
+           (method url-fetch)
+           (uri (string-append "http://festvox.org/packed/festival/"
+                               (version-major+minor version)
+                               "/voices/festvox_kallpc16k.tar.gz"))
+           (sha256
+            (base32
+             "136hmsyiwnlg2qwa508dy0imf19mzrb5r3dmb2kg8kcyxnslm740"))))
+       ("speech-tools"
+        ,(origin
+           (method url-fetch)
+           (uri (string-append "http://festvox.org/packed/festival/"
+                               (version-major+minor version)
+                               "/speech_tools-" version "-release.tar.gz"))
+           (sha256
+            (base32
+             "1k2xh13miyv48gh06rgsq2vj25xwj7z6vwq9ilsn8i7ig3nrgzg4"))))))
+    (home-page "https://www.cstr.ed.ac.uk/projects/festival/")
+    (synopsis "Speech synthesis system")
+    (description "Festival offers a general framework for building speech
+synthesis systems as well as including examples of various modules.  As a
+whole it offers full text to speech through a number APIs: from shell level,
+though a Scheme command interpreter, as a C++ library, from Java, and an Emacs
+interface.  Festival is multi-lingual though English is the most advanced.
+The system is written in C++ and uses the Edinburgh Speech Tools Library for
+low level architecture and has a Scheme (SIOD) based command interpreter for
+control.")
+    (license (license:non-copyleft "file://COPYING"))))
+
+(define-public gst-vosk
+  (package
+    (name "gst-vosk")
+    (version "0.3.1")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                    (url "https://github.com/PhilippeRo/gst-vosk")
+                    (commit version)))
+              (file-name (git-file-name name version))
+              (sha256
+               (base32
+                "1zxifssh57a251af9x4ahglcipvmkgc1pmc67l59s805za9yvq3p"))
+              (modules '((guix build utils)))
+              (snippet
+               ;; Do not use prebuilt vosk library
+               '(begin
+                  (delete-file-recursively "vosk")
+                  (substitute* "meson.build"
+                    (("subdir\\('vosk'\\)") ""))
+                  (substitute* "src/meson.build"
+                    (("vosk_libdir =.*") "")
+                    ((", dirs : vosk_libdir") "")
+                    (("include_directories : include_directories.*") ""))
+                  (substitute* '("src/gstvosk.h"
+                                 "src/gstvosk.c")
+                    (("vosk-api.h") "vosk_api.h"))))))
+    (build-system meson-build-system)
+    (arguments
+     (list
+      #:phases
+      '(modify-phases %standard-phases
+         (add-after 'unpack 'install-vosk-api-header
+           (lambda* (#:key inputs #:allow-other-keys)
+             (install-file (search-input-file inputs "src/vosk_api.h")
+                           "src"))))))
+    (inputs
+     (list vosk-api gstreamer gobject-introspection))
+    (native-inputs (list pkg-config gettext-minimal))
+    (home-page "https://github.com/PhilippeRo/gst-vosk")
+    (synopsis "Gstreamer plugin for VOSK voice recognition engine")
+    (description "This package provides a Gstreamer plugin for the VOSK voice
+recognition engine.")
+    (license license:gpl2+)))
+
+(define-public ekho
+  (package
+    (name "ekho")
+    (version "9.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri
+        (string-append "mirror://sourceforge/e-guidedog/Ekho/"
+                       version "/ekho-" version ".tar.xz"))
+       (sha256
+        (base32 "04wcz9g8cbpq3x0ymxwg2kyd82pjbk620b6hm11285283k1z13px"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'remove-configure-script
+            ;; Trigger the rebuild of configure script
+            (lambda _
+              (delete-file "configure")))
+          (add-before 'configure 'set-cxxflag-utf8cpp
+            (lambda _
+              (setenv "CXXFLAGS"
+                      (string-append "-I"
+                                     #$(this-package-input "utfcpp")
+                                     "/include/utf8cpp")))))))
+    (inputs
+     (list alsa-lib
+           espeak-ng
+           libsndfile
+           pulseaudio
+           sonic
+           utfcpp))
+    (native-inputs
+     (list autoconf
+           automake
+           libtool
+           pkg-config))
+    (native-search-paths
+     (list (search-path-specification
+            (variable "EKHO_DATA_PATH")
+            (files '("share/ekho-data")))))
+    (home-page "https://eguidedog.net/ekho.php")
+    (synopsis "Chinese text-to-speech software")
+    (description
+     "Ehko is a @acronym{TTS, Text-To-Speak} software.  It supports Cantonese,
+Mandarin, Toisanese, Zhaoan Hakka, Tibetan, Ngangien and Korean (in trial).
+It can also speak English through eSpeak or Festival.")
+    (license (list license:gpl2+
+                   ;; libmusicxml
+                   license:mpl2.0))))
+
+(define-public pocketsphinx
+  (package
+    (name "pocketsphinx")
+    (version "5.0.4")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/cmusphinx/pocketsphinx")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32
+         "16andx54333rdyf6c33s8pfns2wvqfapqp9dhh8fpgzdyg6bfhhd"))))
+    (build-system cmake-build-system)
+    (arguments
+     (list #:tests? #false              ;XXX: test binaries are missing
+           #:configure-flags #~(list "-DBUILD_SHARED_LIBS=ON"
+                                     "-DBUILD_GSTREAMER=ON")))
+    (native-inputs
+     (list pkg-config
+           perl                         ;for tests
+           python
+           swig-4.0))
+    (inputs
+     (list alsa-lib
+           ffmpeg
+           gstreamer
+           libcap
+           pulseaudio
+           portaudio
+           sox))
+    (home-page "https://cmusphinx.github.io/")
+    (synopsis "Recognizer library written in C")
+    (description "PocketSphinx is one of Carnegie Mellon University's
+large vocabulary, speaker-independent continuous speech recognition
+engine.")
+    (license license:bsd-2)))
+
+(define-deprecated-package sphinxbase
+  pocketsphinx)
+
+(define-public python-onnx-ir
+  (package
+    (name "python-onnx-ir")
+    (version "0.2.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/onnx/ir-py")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "145frvf8cpyvvwc5dz8z6y9g55qdqv1q2bcrvhmx96rv4433rnmx"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:test-flags
+      #~(list "--ignore=tools/model_zoo_test"
+              ;; This test imports onnxscript which is not available (circular
+              ;; dependency: python-onnx-ir -> python-onnxscript -> python-onnx-ir).
+              "--ignore=src/onnx_ir/passes/common/common_subexpression_elimination_test.py"
+              ;; These tests require safetensors >= 0.7.0, Guix has 0.4.3.
+              "--ignore=src/onnx_ir/_safetensors/"
+              ;; This test imports all onnx_ir modules including
+              ;; common_subexpression_elimination_test.py which imports onnxscript.
+              ;; Cannot add onnxscript to native-inputs: circular dependency
+              ;; (python-onnx-ir -> python-onnxscript -> python-onnx-ir).
+              "--ignore=tests/public_api_test.py"
+              ;; These tests use [node_name] syntax in ONNX text format, which
+              ;; was added in onnx 1.18.0 (PR #6349).  Guix has onnx 1.17.0.
+              "-k" (string-join
+                    '("not test_from_to_onnx_text"
+                      "not test_to_onnx_text_excluding_initializers"
+                      "not test_deserialize_builds_correct_value_connections_for_subgraphs")
+                    " and "))))
+    (propagated-inputs
+     (list python-numpy
+           onnx
+           python-typing-extensions
+           python-ml-dtypes))
+    (native-inputs
+     (list python-setuptools
+           python-pytest
+           python-parameterized
+           python-hypothesis
+           python-pyyaml
+           python-pytorch
+           python-torchvision
+           python-transformers
+           python-safetensors
+           (list onnxruntime "python")))
+    (home-page "https://github.com/onnx/ir-py")
+    (synopsis "ONNX IR Python library")
+    (description "This package provides a Python library for ONNX
+intermediate representation.")
+    (license license:asl2.0)))
+
+(define-public python-onnxscript
+  (package
+    (name "python-onnxscript")
+    (version "0.6.2")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/microsoft/onnxscript")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0sqkp3sjj6immvqgyc8s5kx6661g3lhcbka1z8hczxcqydmqv9xd"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-before 'check 'delete-build-lib
+            (lambda _
+              ;; Pytest gets confused when test modules exist in both
+              ;; build/lib and source tree.
+              (delete-file-recursively "build/lib"))))
+      #:test-flags
+      #~(list
+         ;; These tests require 2.1 GB of test fixtures stored in Git LFS
+         ;; (testdata/unittest_models/, testdata/e2e_models/).
+         "--ignore=tests/ir/serde_roundtrip_test.py"
+         "--ignore=tests/ir/graph_view_test.py"
+         "--ignore=tests/optimizer/test_models.py"
+         "--ignore=tests/version_converter/version_conversion_test.py"
+         ;; Uses onnx.hub to download models from the internet.
+         "--ignore=tools/ir/model_zoo_test/"
+         ;; 2.2e-5 relative error is above the 2e-5 threshold, but it
+         ;; looks acceptable here.
+         (string-append
+          "--deselect=tests/function_libs/torch_lib/ops_test.py"
+          "::TestOutputConsistencyFullGraphCPU"
+          "::test_complex_output_match_opinfo__matmul_cpu_complex64"))))
+    (propagated-inputs
+     (list onnx
+           python-ml-dtypes
+           python-numpy
+           python-onnx-ir
+           python-packaging
+           python-typing-extensions))
+    (native-inputs
+     (list git-minimal
+           python-setuptools
+           python-pytest
+           python-parameterized
+           python-expecttest
+           python-pytorch
+           python-torchvision
+           (list onnxruntime "python")))
+    (home-page "https://github.com/microsoft/onnxscript")
+    (synopsis "ONNX Script enables authoring ONNX models in Python")
+    (description "This package enables developers to author ONNX models
+using a Python-based domain-specific language.")
+    (license license:expat)))
+
+;;; Parakeet TDT V3 ONNX model weights from istupakov/parakeet-tdt-0.6b-v3-onnx
+;;; (HuggingFace, revision abd2878d52a678ce380088ef9d9b1d9664404565).
+;;; License: CC-BY-4.0 (NVIDIA).
+;;; Int8 quantized variant (~670 MB total).
+
+(define %parakeet-hf-base
+  "https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/abd2878d52a678ce380088ef9d9b1d9664404565")
+
+(define parakeet-tdt-config
+  (origin
+    (method url-fetch)
+    (uri (string-append %parakeet-hf-base "/config.json"))
+    (file-name "config.json")
+    (sha256
+     (base32 "0rn4i8ad5h1vga6yq04qpy6qmc30rpvd9bqhqbrcm64pdg3h6sb6"))))
+
+(define parakeet-tdt-vocab
+  (origin
+    (method url-fetch)
+    (uri (string-append %parakeet-hf-base "/vocab.txt"))
+    (file-name "vocab.txt")
+    (sha256
+     (base32 "0pf3wcvps76wq7iadw37lk7xcjs7gpmlbxficg2nmg54krkl91fm"))))
+
+(define parakeet-tdt-encoder-int8
+  (origin
+    (method url-fetch)
+    (uri (string-append %parakeet-hf-base "/encoder-model.int8.onnx"))
+    (file-name "encoder-model.int8.onnx")
+    (sha256
+     (base32 "02gzb82y86vl7jr69bn7qyfbifpd4nbi9ivpnabn020vgvxd4fb1"))))
+
+(define parakeet-tdt-decoder-joint-int8
+  (origin
+    (method url-fetch)
+    (uri (string-append %parakeet-hf-base "/decoder_joint-model.int8.onnx"))
+    (file-name "decoder_joint-model.int8.onnx")
+    (sha256
+     (base32 "0w3scrvqj74xv6h2f8c1k2q9234nwf1yvj7dv9sh78yiwcz4i9zf"))))
+
+(define-public python-onnx-asr
+  (package
+    (name "python-onnx-asr")
+    (version "0.10.2")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (pypi-uri "onnx_asr" version))
+       (sha256
+        (base32 "0d5vmkavcqjf7b2aa0nc118b2pf34mc7yzjkaw92rl42rwwijf3h"))
+       (patches
+        (search-patches "python-onnx-asr-0.10.2-bundled-parakeet-model.patch"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:test-flags
+      #~(list ;; These tests try to download models from HuggingFace Hub.
+              "--ignore=tests/onnx_asr/test_recognize.py"
+              "--ignore=tests/onnx_asr/test_cli.py"
+              "--ignore=tests/onnx_asr/test_load_model_errors.py"
+              ;;; These tests would compare preprocessor output against
+              ;;; reference implementations that are not in Guix:
+              ;;; - kaldi_native_fbank (C++ lib, not packaged)
+              ;;; - nemo (NVIDIA NeMo framework, not packaged)
+              ;;; - openai-whisper (Python package, not packaged;
+              ;;;   whisper-cpp exists but is C++ only, no Python module)
+              "--ignore=tests/preprocessors/test_kaldi.py"
+              "--ignore=tests/preprocessors/test_nemo.py"
+              "--ignore=tests/preprocessors/test_whisper_preprocessor.py")
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'install 'install-parakeet-model
+            (lambda* (#:key inputs outputs #:allow-other-keys)
+              (let* ((out (assoc-ref outputs "out"))
+                     (site (string-append out "/lib/python"
+                                          #$(version-major+minor
+                                             (package-version python))
+                                          "/site-packages/onnx_asr"))
+                     (model-dir (string-append site
+                                               "/models-data"
+                                               "/parakeet-tdt-0.6b-v3")))
+                (mkdir-p model-dir)
+                (symlink (assoc-ref inputs "config.json")
+                         (string-append model-dir "/config.json"))
+                (symlink (assoc-ref inputs "vocab.txt")
+                         (string-append model-dir "/vocab.txt"))
+                (symlink (assoc-ref inputs "encoder-model.int8.onnx")
+                         (string-append model-dir
+                                        "/encoder-model.int8.onnx"))
+                (symlink (assoc-ref inputs
+                            "decoder_joint-model.int8.onnx")
+                         (string-append model-dir
+                                          "/decoder_joint-model.int8.onnx")))))
+          (add-after 'install-parakeet-model 'patch-model-paths
+            (lambda* (#:key outputs #:allow-other-keys)
+              (let* ((out (assoc-ref outputs "out"))
+                     (site (string-append out "/lib/python"
+                                          #$(version-major+minor
+                                             (package-version python))
+                                          "/site-packages/onnx_asr"))
+                     (model-dir (string-append site
+                                               "/models-data"
+                                               "/parakeet-tdt-0.6b-v3")))
+                (substitute* (string-append site "/loader.py")
+                  (("@PARAKEET_MODEL_DIR@") model-dir))))))))
+    (propagated-inputs
+     (list python-numpy
+           python-huggingface-hub
+           (list onnxruntime "python")))
+    (native-inputs
+     (list nss-certs-for-test
+           onnx
+           parakeet-tdt-config
+           parakeet-tdt-vocab
+           parakeet-tdt-encoder-int8
+           parakeet-tdt-decoder-joint-int8
+           python-hatchling
+           python-onnxscript
+           python-pytorch
+           python-pytest
+           python-torchaudio))
+    (home-page "https://github.com/istupakov/onnx-asr")
+    (synopsis "Speech recognition using ONNX models")
+    (description
+     "ONNX ASR is a Python library for automatic speech recognition using
+ONNX Runtime.  It supports models including Whisper and NeMo Parakeet.
+Includes bundled Parakeet TDT V3 model weights (int8, CC-BY-4.0, NVIDIA).")
+    (license license:expat)))
+
+(define-public python-piper-tts
+  (package
+    (name "python-piper-tts")
+    (version "1.5.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/OHF-Voice/piper1-gpl")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0a043ra92dm2i20861xj1l55zz8i3rry8j576a2mqqab20ajd4as"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'no-embedded-git-fetch
+            ;; This project compiles a recent version of espeak-ng using
+            ;; an "ExternalProject_Add(...)" in the CMakeLists file that
+            ;; lets `CMake` use `git` to fetch and build espeak-ng, see:
+            ;; https://github.com/OHF-Voice/piper1-gpl/blob/main/docs/BUILDING.md#design-decisions
+            ;; It will work just fine with the version of espeak-ng we have
+            ;; so we will edit the CMakeLists file in-place.
+            (lambda* (#:key inputs #:allow-other-keys)
+              (use-modules (ice-9 regex)
+                           (ice-9 rdelim))
+              (let ((pattern (make-regexp
+                              "ExternalProject_Add\\(espeak_ng_external[^)]+\\)"
+                              regexp/extended))
+                    (replacement "add_library(espeak_ng_external INTERFACE)"))
+                ;; Delete the multi-line "ExternalProject_Add(...)" block
+                ;; replacing it with a stub so cmake doesn't complain.
+                (with-atomic-file-replacement "CMakeLists.txt"
+                                              (lambda (in out)
+                                                (display (regexp-substitute/global
+                                                          #f
+                                                          pattern
+                                                          (read-string in)
+                                                          'pre
+                                                          replacement
+                                                          'post) out))))
+              (let ((espeak (assoc-ref inputs "espeak-ng"))
+                    (espeak-lib (search-input-file inputs
+                                                   "lib/libespeak-ng.so.1"))
+                    (espeak-data (search-input-directory inputs
+                                  "share/espeak-ng-data"))
+                    (cmake-setter (lambda (k v)
+                                    (string-append "set(" k " \"" v "\")\n"))))
+                ;; set paths to find dependencies in our guix env
+                (substitute* "CMakeLists.txt"
+                  (("set\\(ESPEAKNG_INSTALL_DIR .*")
+                   (cmake-setter "ESPEAKNG_INSTALL_DIR" espeak))
+                  (("set\\(ESPEAKNG_STATIC_LIB .*")
+                   (cmake-setter "ESPEAKNG_STATIC_LIB" espeak-lib))
+                  ;; espeak-ng in guix does not have UCD in its outputs
+                  ;; but piper finds all it needs from linked .so library
+                  (("set\\(UCD_STATIC_LIB .*")
+                   (cmake-setter "UCD_STATIC_LIB" ""))
+                  (("set\\(DATA_SRC .*")
+                   (cmake-setter "DATA_SRC" espeak-data)))))))))
+    (native-inputs (list ninja python-scikit-build python-setuptools
+                         python-pytest))
+    (propagated-inputs (list espeak-ng python-flask python-pathvalidate
+                             python-numpy
+                             (list onnxruntime "python")))
+    (home-page "https://github.com/OHF-Voice/piper1-gpl")
+    (synopsis "Fast and local neural text-to-speech engine")
+    (description
+     "Piper is a fast and local neural TTS (text-to-speech) engine that embeds
+espeak-ng for phonemization.  It is available as a library, a CLI (command-line
+interface) tool and a web-server.
+
+@example
+piper -m en_US-lessac-medium -f spoken.wav -- 'Hello, World.'
+@end example
+
+It comes with an HTTP server for repeated usage:
+
+@example
+python3 -m piper.http_server -m en_US-lessac-medium
+curl -X POST -H 'Content-Type: application/json' \\
+     -d '@{\"text\":\"This is a test.\"@}' -o spoken.wav localhost:5000/synthesize
+@end example
+
+It does not come with voices installed.  Visit the project home-page to sample
+or download them.  Alternatively use: @code{python -m piper.download_voices}.")
+    (license license:gpl3+)))
+
+(define-public python-pocket-tts
+  (package
+    (name "python-pocket-tts")
+    (version "1.1.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/kyutai-labs/pocket-tts")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0b9xxyrwa8vsz6r6fi7p47z8rd7q2gjjnwq47br89zp2lkzym3zm"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:test-flags
+      #~(list ;;; These tests try to download models from HuggingFace Hub.
+              "--ignore=tests/test_cli_generate.py"
+              "--ignore=tests/test_documentation_examples.py")))
+    (propagated-inputs
+     (list python-beartype
+           python-einops
+           python-fastapi
+           python-huggingface-hub
+           python-numpy
+           python-pydantic
+           python-pytorch
+           python-safetensors
+           python-scipy
+           python-sentencepiece
+           python-soundfile
+           python-typer
+           python-typing-extensions
+           python-uvicorn))
+    (native-inputs
+     (list nss-certs-for-test
+           python-hatchling
+           python-pytest))
+    (home-page "https://github.com/kyutai-labs/pocket-tts")
+    (synopsis "Fast neural text-to-speech")
+    (description
+     "Pocket TTS is a fast neural text-to-speech engine with ~100M parameters,
+running at approximately 6x realtime on CPU.  English only.")
+    (license license:expat)))

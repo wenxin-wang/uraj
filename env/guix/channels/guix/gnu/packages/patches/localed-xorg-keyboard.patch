@@ -1,0 +1,322 @@
+Normally localed would do an approximate parsing of the Xorg config file
+to determine the XKB keyboard layout.  This doesn't make sense on Guix
+where there's no such file in /etc, and where the keyboard layout is
+known statically at configuration time.
+
+This patch removes the XOrg configuration parsing and expects to read the
+configuration from environment variables instead.  It also removes the
+stateful bits that would write configuration to /etc/vconsole.conf
+and /etc/X11, which are unused in Guix anyway.
+
+Patch by Ludovic Courtès <ludo@gnu.org>.
+Ported from v241 to v257 by Maxim Cournoyer <maxim.cournoyer@gmail.com>        
+
+diff --git a/src/locale/localed-util.c b/src/locale/localed-util.c
+index 6413288ea3..c2a1c70e9e 100644
+--- a/src/locale/localed-util.c
++++ b/src/locale/localed-util.c
+@@ -349,47 +349,18 @@ int vconsole_read_data(Context *c, sd_bus_message *m) {
+                 c->vc_cache = sd_bus_message_ref(m);
+         }
+ 
+-        fd = RET_NERRNO(open("/etc/vconsole.conf", O_CLOEXEC | O_PATH));
+-        if (fd == -ENOENT) {
+-                c->vc_stat = (struct stat) {};
+-                vc_context_clear(&c->vc);
+-                x11_context_clear(&c->x11_from_vc);
+-                return 0;
+-        }
+-        if (fd < 0)
+-                return fd;
+-
+-        if (fstat(fd, &st) < 0)
+-                return -errno;
+-
+-        /* If the file is not changed, then we do not need to re-read */
+-        if (stat_inode_unmodified(&c->vc_stat, &st))
+-                return 0;
+-
+-        c->vc_stat = st;
++        c->vc_stat = (struct stat) {};
+         vc_context_clear(&c->vc);
+         x11_context_clear(&c->x11_from_vc);
+ 
+-        r = parse_env_file_fd(
+-                        fd, "/etc/vconsole.conf",
+-                        "KEYMAP",        &c->vc.keymap,
+-                        "KEYMAP_TOGGLE", &c->vc.toggle,
+-                        "XKBLAYOUT",     &c->x11_from_vc.layout,
+-                        "XKBMODEL",      &c->x11_from_vc.model,
+-                        "XKBVARIANT",    &c->x11_from_vc.variant,
+-                        "XKBOPTIONS",    &c->x11_from_vc.options);
+-        if (r < 0)
+-                return r;
+-
+-        if (vc_context_verify(&c->vc) < 0)
+-                vc_context_clear(&c->vc);
+-
+-        if (x11_context_verify(&c->x11_from_vc) < 0)
+-                x11_context_clear(&c->x11_from_vc);
+-
+         return 0;
+ }
+ 
++static char *getenv_strdup(const char *variable) {
++        const char *value = getenv(variable);
++        return value == NULL ? NULL : strdup(value);
++}
++
+ int x11_read_data(Context *c, sd_bus_message *m) {
+         _cleanup_close_ int fd = -EBADF;
+         _cleanup_fclose_ FILE *f = NULL;
+@@ -408,195 +379,23 @@ int x11_read_data(Context *c, sd_bus_message *m) {
+                 c->x11_cache = sd_bus_message_ref(m);
+         }
+ 
+-        fd = RET_NERRNO(open("/etc/X11/xorg.conf.d/00-keyboard.conf", O_CLOEXEC | O_PATH));
+-        if (fd == -ENOENT) {
+-                c->x11_stat = (struct stat) {};
+-                x11_context_clear(&c->x11_from_xorg);
+-                return 0;
+-        }
+-        if (fd < 0)
+-                return fd;
+-
+-        if (fstat(fd, &st) < 0)
+-                return -errno;
+-
+-        /* If the file is not changed, then we do not need to re-read */
+-        if (stat_inode_unmodified(&c->x11_stat, &st))
+-                return 0;
+-
+-        c->x11_stat = st;
++        c->x11_stat = (struct stat) {};
+         x11_context_clear(&c->x11_from_xorg);
+ 
+-        r = fdopen_independent(fd, "re", &f);
+-        if (r < 0)
+-                return r;
+-
+-        for (;;) {
+-                _cleanup_free_ char *line = NULL;
+-
+-                r = read_stripped_line(f, LONG_LINE_MAX, &line);
+-                if (r < 0)
+-                        return r;
+-                if (r == 0)
+-                        break;
+-
+-                if (IN_SET(line[0], 0, '#'))
+-                        continue;
+-
+-                if (in_section && first_word(line, "Option")) {
+-                        _cleanup_strv_free_ char **a = NULL;
+-
+-                        r = strv_split_full(&a, line, WHITESPACE, EXTRACT_UNQUOTE);
+-                        if (r < 0)
+-                                return r;
+-
+-                        if (strv_length(a) == 3) {
+-                                char **p = NULL;
+-
+-                                if (streq(a[1], "XkbLayout"))
+-                                        p = &c->x11_from_xorg.layout;
+-                                else if (streq(a[1], "XkbModel"))
+-                                        p = &c->x11_from_xorg.model;
+-                                else if (streq(a[1], "XkbVariant"))
+-                                        p = &c->x11_from_xorg.variant;
+-                                else if (streq(a[1], "XkbOptions"))
+-                                        p = &c->x11_from_xorg.options;
+-
+-                                if (p)
+-                                        free_and_replace(*p, a[2]);
+-                        }
+-
+-                } else if (!in_section && first_word(line, "Section")) {
+-                        _cleanup_strv_free_ char **a = NULL;
+-
+-                        r = strv_split_full(&a, line, WHITESPACE, EXTRACT_UNQUOTE);
+-                        if (r < 0)
+-                                return -ENOMEM;
+-
+-                        if (strv_length(a) == 2 && streq(a[1], "InputClass"))
+-                                in_section = true;
+-
+-                } else if (in_section && first_word(line, "EndSection"))
+-                        in_section = false;
+-        }
+-
+-        if (x11_context_verify(&c->x11_from_xorg) < 0)
+-                x11_context_clear(&c->x11_from_xorg);
++        c->x11_from_xorg.layout = getenv_strdup("GUIX_XKB_LAYOUT");
++        c->x11_from_xorg.model = getenv_strdup("GUIX_XKB_MODEL");
++        c->x11_from_xorg.variant = getenv_strdup("GUIX_XKB_VARIANT");
++        c->x11_from_xorg.options = getenv_strdup("GUIX_XKB_OPTIONS");
+ 
+         return 0;
+ }
+ 
+ int vconsole_write_data(Context *c) {
+-        _cleanup_strv_free_ char **l = NULL;
+-        const X11Context *xc;
+-        int r;
+-
+-        assert(c);
+-
+-        xc = context_get_x11_context(c);
+-
+-        r = load_env_file(NULL, "/etc/vconsole.conf", &l);
+-        if (r < 0 && r != -ENOENT)
+-                return r;
+-
+-        r = strv_env_assign(&l, "KEYMAP", empty_to_null(c->vc.keymap));
+-        if (r < 0)
+-                return r;
+-
+-        r = strv_env_assign(&l, "KEYMAP_TOGGLE", empty_to_null(c->vc.toggle));
+-        if (r < 0)
+-                return r;
+-
+-        r = strv_env_assign(&l, "XKBLAYOUT", empty_to_null(xc->layout));
+-        if (r < 0)
+-                return r;
+-
+-        r = strv_env_assign(&l, "XKBMODEL", empty_to_null(xc->model));
+-        if (r < 0)
+-                return r;
+-
+-        r = strv_env_assign(&l, "XKBVARIANT", empty_to_null(xc->variant));
+-        if (r < 0)
+-                return r;
+-
+-        r = strv_env_assign(&l, "XKBOPTIONS", empty_to_null(xc->options));
+-        if (r < 0)
+-                return r;
+-
+-        if (strv_isempty(l)) {
+-                if (unlink("/etc/vconsole.conf") < 0)
+-                        return errno == ENOENT ? 0 : -errno;
+-
+-                c->vc_stat = (struct stat) {};
+-                return 0;
+-        }
+-
+-        r = write_vconsole_conf_label(l);
+-        if (r < 0)
+-                return r;
+-
+-        if (stat("/etc/vconsole.conf", &c->vc_stat) < 0)
+-                return -errno;
+-
+-        return 0;
++        return -ENOSYS;
+ }
+ 
+ int x11_write_data(Context *c) {
+-        _cleanup_fclose_ FILE *f = NULL;
+-        _cleanup_(unlink_and_freep) char *temp_path = NULL;
+-        const X11Context *xc;
+-        int r;
+-
+-        assert(c);
+-
+-        xc = context_get_x11_context(c);
+-        if (x11_context_isempty(xc)) {
+-                if (unlink("/etc/X11/xorg.conf.d/00-keyboard.conf") < 0)
+-                        return errno == ENOENT ? 0 : -errno;
+-
+-                c->x11_stat = (struct stat) {};
+-                return 0;
+-        }
+-
+-        (void) mkdir_p_label("/etc/X11/xorg.conf.d", 0755);
+-        r = fopen_temporary("/etc/X11/xorg.conf.d/00-keyboard.conf", &f, &temp_path);
+-        if (r < 0)
+-                return r;
+-
+-        (void) fchmod(fileno(f), 0644);
+-
+-        fputs("# Written by systemd-localed(8), read by systemd-localed and Xorg. It's\n"
+-              "# probably wise not to edit this file manually. Use localectl(1) to\n"
+-              "# update this file.\n"
+-              "Section \"InputClass\"\n"
+-              "        Identifier \"system-keyboard\"\n"
+-              "        MatchIsKeyboard \"on\"\n", f);
+-
+-        if (!isempty(xc->layout))
+-                fprintf(f, "        Option \"XkbLayout\" \"%s\"\n", xc->layout);
+-
+-        if (!isempty(xc->model))
+-                fprintf(f, "        Option \"XkbModel\" \"%s\"\n", xc->model);
+-
+-        if (!isempty(xc->variant))
+-                fprintf(f, "        Option \"XkbVariant\" \"%s\"\n", xc->variant);
+-
+-        if (!isempty(xc->options))
+-                fprintf(f, "        Option \"XkbOptions\" \"%s\"\n", xc->options);
+-
+-        fputs("EndSection\n", f);
+-
+-        r = fflush_sync_and_check(f);
+-        if (r < 0)
+-                return r;
+-
+-        if (rename(temp_path, "/etc/X11/xorg.conf.d/00-keyboard.conf") < 0)
+-                return -errno;
+-
+-        if (stat("/etc/X11/xorg.conf.d/00-keyboard.conf", &c->x11_stat) < 0)
+-                return -errno;
+-
+-        return 0;
++        return -ENOSYS;
+ }
+ 
+ static int read_next_mapping(
+diff --git a/src/shared/locale-setup.c b/src/shared/locale-setup.c
+index 5c4580cfff..b181e24c78 100644
+--- a/src/shared/locale-setup.c
++++ b/src/shared/locale-setup.c
+@@ -184,42 +184,7 @@ int locale_context_build_env(const LocaleContext *c, char ***ret_set, char ***re
+ }
+ 
+ int locale_context_save(LocaleContext *c, char ***ret_set, char ***ret_unset) {
+-        _cleanup_strv_free_ char **set = NULL, **unset = NULL;
+-        int r;
+-
+-        assert(c);
+-
+-        /* Set values will be returned as strv in *ret on success. */
+-
+-        r = locale_context_build_env(c, &set, ret_unset ? &unset : NULL);
+-        if (r < 0)
+-                return r;
+-
+-        if (strv_isempty(set)) {
+-                if (unlink("/etc/locale.conf") < 0)
+-                        return errno == ENOENT ? 0 : -errno;
+-
+-                c->st = (struct stat) {};
+-
+-                if (ret_set)
+-                        *ret_set = NULL;
+-                if (ret_unset)
+-                        *ret_unset = NULL;
+-                return 0;
+-        }
+-
+-        r = write_env_file_label(AT_FDCWD, "/etc/locale.conf", NULL, set);
+-        if (r < 0)
+-                return r;
+-
+-        if (stat("/etc/locale.conf", &c->st) < 0)
+-                return -errno;
+-
+-        if (ret_set)
+-                *ret_set = TAKE_PTR(set);
+-        if (ret_unset)
+-                *ret_unset = TAKE_PTR(unset);
+-        return 0;
++        return -ENOSYS;
+ }
+ 
+ int locale_context_merge(const LocaleContext *c, char *l[_VARIABLE_LC_MAX]) {
