@@ -1,5 +1,7 @@
 (use-modules (gnu)
-             (gnu system nss))
+             (gnu system nss)
+             (nongnu packages linux)
+             (nongnu system linux-initrd))
 
 (use-service-modules networking)
 
@@ -8,6 +10,10 @@
   (timezone "Asia/Shanghai")
   (locale "en_US.utf8")
   (name-service-switch %mdns-host-lookup-nss)
+ 
+  (kernel linux)
+  (initrd microcode-initrd)
+  (firmware (list linux-firmware))
 
   (bootloader
    (bootloader-configuration
