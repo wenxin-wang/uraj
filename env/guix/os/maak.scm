@@ -12,6 +12,7 @@
   #:use-module (srfi srfi-26)
   #:use-module (uraj desktop env)
   #:use-module (uraj maak guix)
+  #:use-module (uraj utils file path)
   #:re-export (guix)
   #:export (update-channels-lock compile-guix system-vm home-container home-reconfigure))
 
