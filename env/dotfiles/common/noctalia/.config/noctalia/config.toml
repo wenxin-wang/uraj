@@ -1,0 +1,20 @@
+# Noctalia v5 configuration (TOML, hot-reloaded via inotify).
+# All settings below are at their defaults; see the full reference at
+# https://raw.githubusercontent.com/noctalia-dev/noctalia-shell/v5.0.0-beta.8/example.toml
+
+[shell]
+font_family           = "sans-serif"
+telemetry_enabled     = false
+
+[wallpaper]
+enabled               = true
+fill_mode             = "crop"
+
+[bar.main]
+position              = "top"
+start                 = ["launcher", "wallpaper", "workspaces"]
+center                = ["clock"]
+end                   = ["media", "tray", "notifications", "clipboard", "network", "bluetooth", "volume", "brightness", "battery", "control-center", "session"]
+
+[dock]
+enabled               = false
