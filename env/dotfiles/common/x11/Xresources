@@ -1,0 +1,6 @@
+! X11 resources for the niri session.
+! xwayland-satellite reports the panel's real physical size to Xwayland
+! (~190 DPI), so X11 apps render much larger than under GNOME. GNOME ran
+! this panel at 125% scale with X11 DPI = 96 x 1.25 = 120; match that.
+! Keep in sync with the `output` scale in niri/config.kdl.
+Xft.dpi: 120
