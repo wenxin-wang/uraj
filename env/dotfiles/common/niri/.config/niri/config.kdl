@@ -53,10 +53,21 @@ environment {
     DISPLAY ":0"
 }
 
+// The HP monitor sits above the built-in one, center-aligned, and is
+// focused at startup (niri opens new windows on the focused output).
+// Positions are in logical pixels: the built-in panel is 2240x1400 at
+// scale 1.25, i.e. 1792x1120, so below the 2560x1440 HP its position is
+// x = (2560 - 1792) / 2 = 384, y = 1440.
+output "HP Inc. HP P27q G4 CNC0441QRP" {
+    position x=0 y=0
+    focus-at-startup
+}
+
 // GNOME ran this panel at 125% (see ~/.config/monitors.xml); niri's
 // auto-detected 1.5 made everything larger than before. Keep in sync with
 // env/dotfiles/common/x11/Xresources (Xft.dpi = 96 x scale).
 output "AU Optronics 0xA195 Unknown" {
+    position x=384 y=1440
     scale 1.25
 }
 
