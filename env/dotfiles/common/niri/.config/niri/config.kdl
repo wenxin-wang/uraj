@@ -51,6 +51,9 @@ environment {
     // is up; shepherd (spawn-at-startup) may race ahead, and apps launched
     // via noctalia inherit shepherd's env, so set it explicitly.
     DISPLAY ":0"
+    // Qt apps need this to find qtwayland's platform plugin
+    // and run as native Wayland clients; without it they fall back to X11.
+    QT_PLUGIN_PATH "/home/wenxin/.guix-home/profile/lib/qt6/plugins"
 }
 
 // The HP monitor sits above the built-in one, center-aligned, and is
@@ -93,6 +96,14 @@ screenshot-path "~/Pictures/Screenshots/%Y%m%d-%H%M%S.png"
 window-rule {
     geometry-corner-radius 20
     clip-to-geometry true
+}
+
+// The swappy annotation window floats above the layout untilled.
+window-rule {
+    match app-id="me.jtheoof.swappy"
+    open-floating true
+    geometry-corner-radius 0
+    clip-to-geometry false
 }
 
 debug {
@@ -223,7 +234,14 @@ binds {
 
     Mod+W { toggle-column-tabbed-display; }
 
-    Print { screenshot; }
+    // Focused-screen annotation: grim captures the focused output, swappy
+    // opens it for annotation (Ctrl+S saves, Ctrl+C copies to clipboard).
+    Print { spawn "sh" "/home/wenxin/.config/niri/screenshot-focused.sh"; }
+    // Interactive region select (niri's screenshot UI), then swappy opens
+    // the result for annotation.
+    Mod+Print { spawn "sh" "/home/wenxin/.config/niri/screenshot-region.sh"; }
+    // Whole focused screen to file, no editor.
+    Shift+Print { screenshot-screen; }
     Ctrl+Print { screenshot-screen; }
     Alt+Print { screenshot-window; }
 

@@ -4,4 +4,4 @@
 
 (home-environment
  (packages (specifications->packages
-            (list "flameshot"))))
+            (list "swappy"))))
