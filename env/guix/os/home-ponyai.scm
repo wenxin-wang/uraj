@@ -20,12 +20,11 @@
  ;; Home profile, under ~/.guix-home/profile.
  (packages (append
             (list
-             glibc-common-locales
-             ;; ~/.config/gtk-3.0/settings.ini 全局设置 gtk-im-module=fcitx，
-             ;; guix 侧也要有这个 immodule 供 guix GTK3 应用加载
-             (list fcitx5-gtk "gtk3"))
+             glibc-common-locales)
             (specifications->packages
-             (list "flameshot"
+             (list "swappy"
+                   "grim"             ;screenshot capture (Print/Mod+Print flow)
+                   "qtwayland"        ;Qt Wayland platform plugin
                    "niri"
                    "wezterm"          ;terminal emulator
                    "wl-clipboard"
@@ -48,9 +47,12 @@
    (list
     (service home-fcitx5-service-type
              (home-fcitx5-configuration
-              ;; 纯 Wayland 会话（niri）：不导出 GTK_IM_MODULE，避免 fcitx5
-              ;; 每次登录弹 wayland-diagnose-other 通知
-              (wayland-frontend? #t)
+              ;; 全局导出 GTK_IM_MODULE=fcitx：XWayland 下的 GTK/Chromium
+              ;; 应用（飞书、Cursor 等）需要它加载 fcitx5 immodule，这是
+              ;; fcitx5 官方 wiki 对 XWayland 应用的推荐配置。由此产生的
+              ;; wayland-diagnose-other 登录通知已在 fcitx5 的
+              ;; notifications.conf 里静音（见 dotfiles 模板）
+              (wayland-frontend? #f)
               (themes (list fcitx5-material-color-theme))
               (input-method-editors (list fcitx5-rime)))))
    %base-home-services)))
