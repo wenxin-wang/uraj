@@ -66,6 +66,12 @@ output "HP Inc. HP P27q G4 CNC0441QRP" {
     focus-at-startup
 }
 
+// Same as above.
+output "Philips Consumer Electronics Company PHL 245E1 0x00000693" {
+    position x=0 y=0
+    focus-at-startup
+}
+
 // GNOME ran this panel at 125% (see ~/.config/monitors.xml); niri's
 // auto-detected 1.5 made everything larger than before. Keep in sync with
 // env/dotfiles/common/x11/Xresources (Xft.dpi = 96 x scale).
