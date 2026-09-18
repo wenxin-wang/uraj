@@ -6,6 +6,7 @@
 
 (use-modules (gnu home)
              (gnu home services)
+             (gnu home services sound)
              (gnu packages)
              (gnu packages fcitx5)
              (gnu services)
@@ -45,6 +46,13 @@
    ;; patch details.
    (home-niri-noctalia-services)
    (list
+    ;; The session's audio stack: PipeWire + WirePlumber + PipeWire's
+    ;; PulseAudio compatibility layer.  Versions match the client
+    ;; libraries noctalia links against.  The host (Ubuntu 22.04) runs
+    ;; PulseAudio for audio and a video-only PipeWire; the niri-session
+    ;; wrapper stops those user units before starting niri so the
+    ;; sockets in XDG_RUNTIME_DIR are free for these services.
+    (service home-pipewire-service-type)
     (service home-fcitx5-service-type
              (home-fcitx5-configuration
               ;; 全局导出 GTK_IM_MODULE=fcitx：XWayland 下的 GTK/Chromium

@@ -119,13 +119,23 @@ or #f if the host is not Ubuntu 22.04/24.04."
 ;;
 ;; Host-side wrapper (/usr/local/bin/niri-session):
 ;;   #!/bin/sh
-;;   # setup-environment needs HOME_ENVIRONMENT set first (as ~/.profile
-;;   # does); without it PATH never gains ~/.guix-home/profile/bin and
-;;   # "niri" is not found under GDM's minimal environment.
+;;   # setup-environment requires HOME_ENVIRONMENT to be set first (as
+;;   # ~/.profile does).  Self-contained on purpose: GDM imports the
+;;   # systemd user-manager environment only on hosts that have a
+;;   # user-environment-generator; on hosts without one this source is
+;;   # the only thing that puts the Guix Home profile on PATH.
 ;;   HOME_ENVIRONMENT="$HOME/.guix-home"
 ;;   [ -f "$HOME_ENVIRONMENT/setup-environment" ] && \
 ;;       . "$HOME_ENVIRONMENT/setup-environment"
 ;;   unset HOME_ENVIRONMENT
+;;   # Ubuntu 22.04's user session runs PulseAudio (audio) and a
+;;   # video-only PipeWire; the session Shepherd starts its own
+;;   # PipeWire + WirePlumber + pipewire-pulse instead.  Stop the host
+;;   # units (sockets included, so they cannot reactivate) to free the
+;;   # pipewire-0 and pulse/native sockets in XDG_RUNTIME_DIR.
+;;   systemctl --user stop pipewire.socket pipewire.service \
+;;       pipewire-media-session.service pulseaudio.socket pulseaudio.service \
+;;       2>/dev/null || true
 ;;   if [ -n "$DBUS_SESSION_BUS_ADDRESS" ]; then
 ;;       niri --session
 ;;   else
