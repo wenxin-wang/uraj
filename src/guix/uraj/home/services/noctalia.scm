@@ -2,83 +2,31 @@
   #:use-module (gnu home services)
   #:use-module (gnu home services shepherd)
   #:use-module (gnu services)
-  #:use-module (gnu services configuration)
   #:use-module (gnu services shepherd)
   #:use-module (guix gexp)
-  #:use-module (guix records)
   #:use-module (ice-9 rdelim)
-  #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-13)
   #:use-module ((rosenthal home services desktop) #:prefix rosenthal:)
   #:autoload (rosenthal packages wm) (noctalia)
-  #:export (home-noctalia-configuration
-            home-noctalia-service-type
-            home-niri-noctalia-services))
+  #:use-module (uraj packages noctalia)
+  #:export (home-niri-noctalia-services))
 
-;;; Like the Rosenthal channel's home-noctalia-service-type, but with
-;;; support for extra environment variables (e.g. to LD_PRELOAD the
-;;; host's PAM stack into noctalia's screen locker).  It inherits the
-;;; upstream service type and replaces its Shepherd extension; drop this
-;;; module if upstream ever gains an 'environment-variables' field.
+;;; Noctalia's screen locker verifies passwords with the host's PAM
+;;; stack, in-process.  Guix's libpam silently skips Ubuntu's "@include"
+;;; directives (so pam_authenticate can never succeed) and its loader
+;;; cannot reach the multiarch libraries the host's PAM modules need, so
+;;; on Ubuntu hosts noctalia runs as a patched variant whose DT_NEEDED
+;;; list prepends the host PAM closure -- see (uraj packages noctalia).
+;;; The closure differs per release, so pick it by the host's
+;;; /etc/os-release.
 
-(define-configuration/no-serialization home-noctalia-configuration
-  (noctalia
-   (file-like noctalia)
-   "File-like object to provide @command{/bin/noctalia}.")
-  (environment-variables
-   (list-of-strings '())
-   "Environment variables to pass to noctalia, as a list of
-@code{NAME=VALUE} strings."))
+(define (ubuntu-pam-libs libs)
+  (map (lambda (lib)
+         (string-append "/usr/lib/x86_64-linux-gnu/" lib))
+       libs))
 
-(define (home-noctalia-shepherd-service config)
-  (match-record config <home-noctalia-configuration>
-      (noctalia environment-variables)
-    (list (shepherd-service
-            (documentation "Start noctalia.")
-            (provision '(noctalia))
-            (requirement '(dbus graphical-session))
-            (modules '((shepherd support)))
-            (start
-             #~(lambda args
-                 ((make-forkexec-constructor
-                   (list #$(file-append noctalia "/bin/noctalia"))
-                   #:log-file (in-vicinity %user-log-dir "noctalia.log")
-                   ;; Inherit graphical session environment plus extras.
-                   #:environment-variables
-                   (append (list #$@environment-variables) (environ)))
-                  args)))
-            (stop #~(make-kill-destructor))))))
-
-(define home-noctalia-service-type
-  (service-type
-    (inherit rosenthal:home-noctalia-service-type)
-    (extensions
-     (list (service-extension home-profile-service-type
-                              (compose list home-noctalia-configuration-noctalia))
-           (service-extension home-shepherd-service-type
-                              home-noctalia-shepherd-service)
-           (service-extension rosenthal:home-graphical-session-service-type
-                              (const 'wayland))))
-    ;; The inherited default value is an instance of the upstream
-    ;; configuration record type; replace it with ours.
-    (default-value (home-noctalia-configuration))))
-
-;; Guix's libpam cannot parse Ubuntu's "@include" PAM files, and Guix's
-;; loader cannot reach multiarch libraries, so noctalia's screen locker
-;; preloads Ubuntu's libpam and its modules' dependency closure (the
-;; 'ldd' closure of the modules reachable from /etc/pam.d/login).  No
-;; libc is preloaded; the host's /sbin/unix_chkpwd still verifies the
-;; password against /etc/shadow.  The closure differs per release, so
-;; pick it by the host's /etc/os-release.
-
-(define (ubuntu-pam-preload libs)
-  (string-join (map (lambda (lib)
-                      (string-append "/usr/lib/x86_64-linux-gnu/" lib))
-                    libs)
-               ":"))
-
-(define %ubuntu-pam-preload-22.04
-  (ubuntu-pam-preload
+(define %ubuntu-pam-libs-22.04
+  (ubuntu-pam-libs
    '("libpam.so.0"
      "libaudit.so.1"
      "libcap-ng.so.0"
@@ -104,9 +52,9 @@
      "libselinux.so.1"
      "libtirpc.so.3")))
 
-(define %ubuntu-pam-preload-24.04
+(define %ubuntu-pam-libs-24.04
   ;; 24.04's login chain no longer pulls in krb5/nsl/tirpc.
-  (ubuntu-pam-preload
+  (ubuntu-pam-libs
    '("libpam.so.0"
      "libaudit.so.1"
      "libcap-ng.so.0"
@@ -143,25 +91,23 @@
                      value)))
               (else (loop (read-line port)))))))))
 
-(define (ubuntu-pam-preload-for-version version)
-  (cond ((string=? "22.04" version) %ubuntu-pam-preload-22.04)
-        ((string=? "24.04" version) %ubuntu-pam-preload-24.04)
+(define (ubuntu-pam-libs-for-version version)
+  (cond ((string=? "22.04" version) %ubuntu-pam-libs-22.04)
+        ((string=? "24.04" version) %ubuntu-pam-libs-24.04)
         (else #f)))
 
-(define (host-ubuntu-pam-preload)
-  "Return the LD_PRELOAD string for the host's Ubuntu PAM stack, or #f
-if the host is not Ubuntu 22.04/24.04."
+(define (host-ubuntu-pam-libs)
+  "Return the host PAM closure as a list of absolute library file names,
+or #f if the host is not Ubuntu 22.04/24.04."
   (and (string=? "ubuntu" (or (%os-release-field "ID") ""))
-       (ubuntu-pam-preload-for-version (%os-release-field "VERSION_ID"))))
+       (ubuntu-pam-libs-for-version (%os-release-field "VERSION_ID"))))
 
-(define (host-pam-preload-variables)
-  "Return the noctalia environment variables that LD_PRELOAD the host's
-PAM stack for the screen locker, or '() if the host is unsupported."
-  (let ((preload (host-ubuntu-pam-preload)))
-    (if (and preload
+(define (noctalia-for-host)
+  (let ((libs (host-ubuntu-pam-libs)))
+    (if (and libs
              (file-exists? "/usr/lib/x86_64-linux-gnu/libpam.so.0"))
-        (list (string-append "LD_PRELOAD=" preload))
-        '())))
+        (noctalia-with-host-pam noctalia libs)
+        noctalia)))
 
 ;; The session is managed by the host display manager (GDM on Ubuntu).
 ;; GDM runs /usr/local/bin/niri-session (host-side wrapper, see below),
@@ -196,8 +142,8 @@ PAM stack for the screen locker, or '() if the host is unsupported."
   "Return the list of Home services that run noctalia under a niri
 session managed by the host display manager: a session Shepherd (started
 by niri, not at login), a stub @code{dbus} service (the session bus is
-provided by the host system) and noctalia itself, with the host's PAM
-stack preloaded for its screen locker on supported Ubuntu hosts."
+provided by the host system) and noctalia itself, patched with the
+host's PAM stack for its screen locker on supported Ubuntu hosts."
   (list
    (service home-shepherd-service-type
             (home-shepherd-configuration
@@ -212,6 +158,6 @@ stack preloaded for its screen locker on supported Ubuntu hosts."
                           (start #~(const #t))
                           (stop #~(const #f)))))
 
-   (service home-noctalia-service-type
-            (home-noctalia-configuration
-             (environment-variables (host-pam-preload-variables))))))
+   (service rosenthal:home-noctalia-service-type
+            (rosenthal:home-noctalia-configuration
+             (noctalia (noctalia-for-host))))))

@@ -40,7 +40,7 @@
    ;; "niri --session", which spawns the session Shepherd these services
    ;; extend.  See (uraj home services noctalia) for the host-side
    ;; contract (the niri-session wrapper) and the screen-locker PAM
-   ;; preload details.
+   ;; patch details.
    (home-niri-noctalia-services)
    (list
     (service home-fcitx5-service-type
