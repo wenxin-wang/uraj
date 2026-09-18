@@ -20,7 +20,10 @@
  ;; Home profile, under ~/.guix-home/profile.
  (packages (append
             (list
-             glibc-common-locales)
+             glibc-common-locales
+             ;; ~/.config/gtk-3.0/settings.ini 全局设置 gtk-im-module=fcitx，
+             ;; guix 侧也要有这个 immodule 供 guix GTK3 应用加载
+             (list fcitx5-gtk "gtk3"))
             (specifications->packages
              (list "flameshot"
                    "niri"
@@ -45,6 +48,9 @@
    (list
     (service home-fcitx5-service-type
              (home-fcitx5-configuration
+              ;; 纯 Wayland 会话（niri）：不导出 GTK_IM_MODULE，避免 fcitx5
+              ;; 每次登录弹 wayland-diagnose-other 通知
+              (wayland-frontend? #t)
               (themes (list fcitx5-material-color-theme))
               (input-method-editors (list fcitx5-rime)))))
    %base-home-services)))

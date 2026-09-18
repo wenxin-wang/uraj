@@ -18,3 +18,8 @@ end                   = ["media", "tray", "notifications", "clipboard", "network
 
 [dock]
 enabled               = false
+
+# fcitx5 切换输入法时，fcitx 的托盘状态变化会触发 noctalia 自绘的
+# keyboard-layout OSD（屏幕中央/角落弹当前输入法名），非桌面通知，关掉
+[osd.kinds]
+keyboard_layout       = false
