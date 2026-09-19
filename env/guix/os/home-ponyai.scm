@@ -5,65 +5,10 @@
 ;; See the "Replicating Guix" section in the manual.
 
 (use-modules (gnu home)
-             (gnu home services)
-             (gnu home services sound)
-             (gnu packages)
-             (gnu packages fcitx5)
-             (gnu services)
-             (rosenthal services desktop)
-             (uraj common basic-packages)
-             (uraj common basic-services)
-             (uraj home services noctalia)
-             (uraj utils file path))
+             (uraj home config niri))
 
 (home-environment
- ;; Below is the list of packages that will show up in your
- ;; Home profile, under ~/.guix-home/profile.
- (packages (append
-            (list
-             glibc-common-locales)
-            (specifications->packages
-             (list "swappy"
-                   "grim"             ;screenshot capture (Print/Mod+Print flow)
-                   "qtwayland"        ;Qt Wayland platform plugin
-                   "niri"
-                   "wezterm"          ;terminal emulator
-                   "wl-clipboard"
-                   "xdg-desktop-portal-gnome" ;screencast/screenshots
-                   "xdg-desktop-portal-gtk"
-                   "xorg-server-xwayland" ;X11 apps (fcitx5 XIM)
-                   "xwayland-satellite")))) ;niri spawns it for X11 support
-
- ;; Below is the list of Home services.  To search for available
- ;; services, run 'guix home search KEYWORD' in a terminal.
- (services
-  (append
-   (my-dotfiles-services (list (project-path "env/dotfiles/common")))
-   ;; The niri + noctalia session; the host display manager (GDM) runs
-   ;; "niri --session", which spawns the session Shepherd these services
-   ;; extend.  See (uraj home services noctalia) for the host-side
-   ;; contract (the niri-session wrapper) and the screen-locker PAM
-   ;; patch details.
-   (home-niri-noctalia-services)
-   (list
-    ;; The session's audio stack: PipeWire + WirePlumber + PipeWire's
-    ;; PulseAudio compatibility layer.  Versions match the client
-    ;; libraries noctalia links against.  The host (Ubuntu 22.04) runs
-    ;; PulseAudio for audio and a video-only PipeWire; the niri-session
-    ;; wrapper stops those user units before starting niri so the
-    ;; sockets in XDG_RUNTIME_DIR are free for these services.
-    (service home-pipewire-service-type)
-    (service home-fcitx5-service-type
-             (home-fcitx5-configuration
-              ;; 全局导出 GTK_IM_MODULE=fcitx：XWayland 下的 GTK/Chromium
-              ;; 应用（飞书、Cursor 等）需要它加载 fcitx5 immodule，这是
-              ;; fcitx5 官方 wiki 对 XWayland 应用的推荐配置。由此产生的
-              ;; wayland-diagnose-other 登录通知已在 fcitx5 的
-              ;; notifications.conf 里静音（见 dotfiles 模板）
-              (wayland-frontend? #f)
-              (themes (list fcitx5-material-color-theme))
-              (input-method-editors (list fcitx5-rime)))))
-   %base-home-services)))
+ (services (niri-desktop-home-services)))
 ;; (services
 ;;  (append (list (service home-bash-service-type
 ;;                         (home-bash-configuration
