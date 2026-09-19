@@ -18,10 +18,12 @@
 
 (define (update-channels-lock)
   (let ((tmp-output-filename (guix-env-path "channels-lock.scm.tmp")))
-    (with-output-to-file tmp-output-filename
-      (lambda ()
-        (time-machine '("describe" "-f" "channels")
-                      #:channels (guix-env-path "channels.scm"))))
+    ;; `$` runs commands via `system`, so the redirect must happen in the
+    ;; shell: `with-output-to-file` only rebinds Guile's output port and
+    ;; would capture maak's "Executing:" log instead of guix's output.
+    ($ (list (~ "guix time-machine --channels=~a -- describe -f channels > ~a"
+                (guix-env-path "channels.scm")
+                tmp-output-filename)))
     (unless (dry-run?)
       (rename-file tmp-output-filename (guix-env-path "channels-lock.scm")))))
 
