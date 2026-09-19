@@ -1,5 +1,6 @@
 # Noctalia v5 configuration (TOML, hot-reloaded via inotify).
-# All settings below are at their defaults; see the full reference at
+# All settings below are at their defaults except the [idle.behavior.*]
+# overrides at the end; see the full reference at
 # https://raw.githubusercontent.com/noctalia-dev/noctalia-shell/v5.0.0-beta.8/example.toml
 
 [shell]
@@ -23,3 +24,26 @@ enabled               = false
 # keyboard-layout OSD（屏幕中央/角落弹当前输入法名），非桌面通知，关掉
 [osd.kinds]
 keyboard_layout       = false
+
+# 空闲行为（noctalia 内置 idle manager，经 ext-idle-notify-v1 从 niri
+# 拿输入空闲状态）。两个超时都从最后一次输入算起：先锁屏，一分钟后
+# 关屏（wlr-output-power-management，等同 niri 的 power-off-monitors）；
+# 移动鼠标/按键即恢复供电，回到锁屏界面。
+[idle.behavior.lock]
+timeout = 600
+action = "lock"
+enabled = true
+
+[idle.behavior.screen-off]
+timeout = 660
+action = "screen_off"
+enabled = true
+
+# 仅在电池供电时空闲 15 分钟自动挂起（接电源时什么都不做，命令直接
+# exit 0）。/sys/class/power_supply/*/online 为 1 表示有外部电源（AC、
+# USB-C PD 等都会暴露）。此前 lock(600s)/screen-off(660s) 已先锁屏关屏，
+# 唤醒后仍停留在锁屏界面；播放视频等持有 inhibit 的应用会阻止触发。
+[idle.behavior.suspend-on-battery]
+timeout = 900
+command = 'for f in /sys/class/power_supply/*/online; do [ "$(cat "$f" 2>/dev/null)" = 1 ] && exit 0; done; systemctl suspend'
+enabled = true
