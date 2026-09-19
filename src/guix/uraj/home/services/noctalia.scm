@@ -1,7 +1,9 @@
 (define-module (uraj home services noctalia)
   #:use-module (gnu home services)
   #:use-module (gnu home services shepherd)
+  #:use-module (gnu packages bash)
   #:use-module (gnu services)
+  #:use-module ((gnu services base) #:select (greetd-user-session))
   #:use-module (gnu services shepherd)
   #:use-module (guix gexp)
   #:use-module (ice-9 rdelim)
@@ -9,7 +11,8 @@
   #:use-module ((rosenthal home services desktop) #:prefix rosenthal:)
   #:autoload (rosenthal packages wm) (noctalia)
   #:use-module (uraj packages noctalia)
-  #:export (home-niri-noctalia-services))
+  #:export (home-niri-noctalia-services
+            niri-greetd-user-session))
 
 ;;; Noctalia's screen locker verifies passwords with the host's PAM
 ;;; stack, in-process.  Guix's libpam silently skips Ubuntu's "@include"
@@ -171,3 +174,18 @@ host's PAM stack for its screen locker on supported Ubuntu hosts."
    (service rosenthal:home-noctalia-service-type
             (rosenthal:home-noctalia-configuration
              (noctalia (noctalia-for-host))))))
+
+;; The Guix System counterpart of the host-side wrapper above, for
+;; greetd-based systems (see env/guix/os/lappie.scm): the session
+;; command passed to tuigreet's --cmd.  Guix compiles the record into a
+;; wrapper that sets XDG_SESSION_TYPE and XDG_RUNTIME_DIR (greetd's PAM
+;; stack has no pam_elogind, so the worker does not set them itself;
+;; passing a raw string to --cmd skips that wrapper).  bash -l then
+;; sources /etc/profile and ~/.bash_profile, which pull in the Guix
+;; Home environment and ~/.profile.d, and dbus-run-session provides
+;; the session bus.
+(define (niri-greetd-user-session)
+  (greetd-user-session
+   (command (file-append bash "/bin/bash"))
+   (command-args '("-l" "-c" "exec dbus-run-session -- niri --session"))
+   (xdg-session-type "wayland")))
