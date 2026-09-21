@@ -2,7 +2,7 @@
        (name 'guix)
        (url "https://mirror.nju.edu.cn/git/guix.git")
        (branch "master")
-       (commit "afa6b28cd1957a55817b5da10bf2555a5511a979")
+       (commit "90d978cb9a60a3ea5bf676c9637ae2f718304a31")
        (introduction
         (make-channel-introduction
          "9edb3f66fd807b096b48283debdcddccfea34bad"
@@ -28,6 +28,16 @@
          "7677db76330121a901604dfbad19077893865f35"
          (openpgp-fingerprint
           "13E7 6CD6 E649 C28C 3385  4DF5 5E5A A665 6149 17F7"))))
+      (channel
+       (name 'pantherx)
+       (url "https://codeberg.org/gofranz/panther.git")
+       (branch "master")
+       (commit "cf52b811d82e8d3e6bd2581f3dda39b0c6b153bd")
+       (introduction
+        (make-channel-introduction
+         "54b4056ac571611892c743b65f4c47dc298c49da"
+         (openpgp-fingerprint
+          "A36A D41E ECC7 A871 1003  5D24 524F EB1A 9D33 C9CB"))))
       (channel
        (name 'sops-guix)
        (url "https://github.com/fishinthecalculator/sops-guix.git")
