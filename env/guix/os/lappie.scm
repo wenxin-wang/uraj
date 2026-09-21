@@ -17,7 +17,7 @@
 ;;; Partitioning recipe (sgdisk):
 ;;;   sgdisk --zap-all /dev/nvme0n1
 ;;;   sgdisk -n 1:0:+1G  -t 1:ef00 -c 1:EFI    /dev/nvme0n1
-;;;   sgdisk -n 2:0:+32G -t 2:8200 -c 2:swap   /dev/nvme0n1   ; >= RAM
+;;;   sgdisk -n 2:0:+16G -t 2:8200 -c 2:swap   /dev/nvme0n1   ; >= 2/5RAM
 ;;;   sgdisk -n 3:0:0    -t 3:8300 -c 3:lappie /dev/nvme0n1
 ;;;   mkfs.fat -F32 -n EFI /dev/nvme0n1p1
 ;;;   mkswap -L swap /dev/nvme0n1p2
@@ -27,6 +27,20 @@
 ;;;     btrfs subvolume create /mnt/@$s
 ;;;   done
 ;;;   umount /mnt
+;;;
+;;; Mount everything under /mnt before "guix system init": init writes
+;;; into /mnt blindly, so the store must land on @gnu (an empty @gnu
+;;; would hide it at boot) and the ESP must be reachable for the
+;;; bootloader.
+;;;   mount -o subvol=@root,compress=zstd /dev/nvme0n1p3 /mnt
+;;;   mkdir -p /mnt/boot/efi /mnt/home /mnt/var /mnt/gnu/store \
+;;;            /mnt/data /mnt/snapshots
+;;;   mount -o subvol=@home,compress=zstd /dev/nvme0n1p3 /mnt/home
+;;;   mount -o subvol=@var,compress=zstd  /dev/nvme0n1p3 /mnt/var
+;;;   mount -o subvol=@gnu,compress=zstd  /dev/nvme0n1p3 /mnt/gnu/store
+;;;   mount -o subvol=@data,compress=zstd /dev/nvme0n1p3 /mnt/data
+;;;   mount -o subvol=@snapshots          /dev/nvme0n1p3 /mnt/snapshots
+;;;   mount /dev/nvme0n1p1 /mnt/boot/efi
 ;;;
 ;;; The Home environment is embedded via guix-home-service-type: one
 ;;; "guix system reconfigure" builds and activates both system and home
