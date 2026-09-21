@@ -14,7 +14,7 @@
   #:use-module (uraj maak guix)
   #:use-module (uraj utils file path)
   #:re-export (guix)
-  #:export (update-channels-lock compile-guix system-vm home-container home-reconfigure))
+  #:export (update-channels-lock compile-guix system-vm build-iso home-container home-reconfigure))
 
 (define (update-channels-lock)
   (let ((tmp-output-filename (guix-env-path "channels-lock.scm.tmp")))
@@ -40,6 +40,9 @@
 
 (define* (system-vm #:optional (config-path (guix-env-path "os/qemu-example.scm")))
   ($guix `("system" "vm" ,@extra-guix-args ,config-path)))
+
+(define* (build-iso #:optional (config-path (guix-env-path "os/desktop-iso.scm")))
+  ($guix `("system" "image" "-t" "iso9660" ,@extra-guix-args ,config-path)))
 
 (define* (home-container #:optional (config-path (guix-env-path "os/home-example.scm"))
 	                 #:key (fork? (my-fork?))
