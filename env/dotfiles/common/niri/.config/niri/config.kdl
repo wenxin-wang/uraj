@@ -120,7 +120,7 @@ binds {
     Mod+Shift+Slash { show-hotkey-overlay; }
 
     // Applications.
-    Mod+Return { spawn "wezterm"; }
+    Mod+Return { spawn "ghostty"; }
 
     // Noctalia.
     Mod+A           { spawn "noctalia" "msg" "panel-toggle" "control-center"; }

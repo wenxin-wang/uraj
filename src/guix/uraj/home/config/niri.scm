@@ -29,7 +29,7 @@
             "grim"                      ;screenshot capture (Print/Mod+Print flow)
             "qtwayland"                 ;Qt Wayland platform plugin
             "niri"
-            "wezterm"                   ;terminal emulator
+            "ghostty"                   ;terminal emulator
             "wl-clipboard"
             "xdg-desktop-portal-gnome"  ;screencast/screenshots
             "xdg-desktop-portal-gtk"
