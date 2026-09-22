@@ -7,7 +7,7 @@
 ;;;   sudo dd if=<image.iso> of=/dev/<usb> bs=4M conv=fsync status=progress
 ;;;
 ;;; Access:
-;;;   ssh wenxin@<host>            (authorized key only)
+;;;   ssh -p 23333 wenxin@<host>   (authorized key only)
 ;;;   local login: wenxin, empty password (VT1 starts the niri session
 ;;;   after login, VT2-6 are plain shells); "sudo" works with a bare
 ;;;   RET at the prompt.

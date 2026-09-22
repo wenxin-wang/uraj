@@ -29,6 +29,7 @@
   #:use-module (uraj home niri)
   #:use-module (uraj packages window-managers)
   #:export (%desktop-base-os
+            %desktop-openssh-configuration
             desktop-home-environment))
 
 ;;; The Home environment is embedded via guix-home-service-type: one
@@ -41,6 +42,18 @@
 (define desktop-home-environment
   (home-environment
    (services (niri-desktop-home-services))))
+
+;;; SSH with key auth for wenxin; root login stays disabled
+;;; (permit-root-login defaults to #f and root's shadow entry is
+;;; locked).  Port 23333 everywhere: never the default 22.
+(define %desktop-openssh-configuration
+  (openssh-configuration
+   (port-number 23333)
+   (authorized-keys
+    (list (list "wenxin"
+                (plain-file
+                 "wenxin-authorized-keys"
+                 "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCaK0O50zlTIaIUeaAmfOXTYpansMf7wjQsZCprTIkp8OhgB7XvDwqzLP9xJ3yzKsej8Am4v02d1RHQgCFi2KDmSTAjBFScRAkb5gDXtchPxc0XH4EFNGT1MqmNubDFNsJdMIUyHiPw5iEjsH+pV9qEuWry+1YVNMefjbKz38XTO3r7Ti+Oxq62HErypslYbHUG2wP2c5mS6n+3Ty+Nq3UG8zqhGgd6iIqrNPYC0u6JLiYe/HD6yd3bGuFDAPwJvgKFeDp9R67ScK7BEY9Z5yv6BPKgwGeJ4UvUASpWNdIszIzR/e5qvYa3uBZPgR/6I4J7X8sk3UGtP6VRe2EgclYb simple\n"))))))
 
 (define %desktop-base-os
   (operating-system
@@ -103,16 +116,10 @@
             (service guix-home-service-type
                      (list (list "wenxin" desktop-home-environment)))
 
-            ;; SSH with key auth for wenxin; root login stays disabled
-            ;; (permit-root-login defaults to #f and root's shadow entry
-            ;; is locked).
+            ;; SSH config lives in %desktop-openssh-configuration above
+            ;; (port 23333, wenxin key auth).
             (service openssh-service-type
-                     (openssh-configuration
-                      (authorized-keys
-                       (list (list "wenxin"
-                                   (plain-file
-                                    "wenxin-authorized-keys"
-                                    "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCaK0O50zlTIaIUeaAmfOXTYpansMf7wjQsZCprTIkp8OhgB7XvDwqzLP9xJ3yzKsej8Am4v02d1RHQgCFi2KDmSTAjBFScRAkb5gDXtchPxc0XH4EFNGT1MqmNubDFNsJdMIUyHiPw5iEjsH+pV9qEuWry+1YVNMefjbKz38XTO3r7Ti+Oxq62HErypslYbHUG2wP2c5mS6n+3Ty+Nq3UG8zqhGgd6iIqrNPYC0u6JLiYe/HD6yd3bGuFDAPwJvgKFeDp9R67ScK7BEY9Z5yv6BPKgwGeJ4UvUASpWNdIszIzR/e5qvYa3uBZPgR/6I4J7X8sk3UGtP6VRe2EgclYb simple\n"))))))
+                     %desktop-openssh-configuration)
 
             ;; VT1: login through tuigreet, then start the niri session;
             ;; VT2-6: plain shell logins (agreety), like the
