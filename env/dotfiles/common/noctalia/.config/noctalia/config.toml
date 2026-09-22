@@ -12,10 +12,15 @@ enabled               = true
 fill_mode             = "crop"
 
 [bar.main]
-position              = "top"
+position              = "left"
 start                 = ["launcher", "wallpaper", "workspaces"]
 center                = ["clock"]
 end                   = ["media", "tray", "notifications", "clipboard", "network", "bluetooth", "volume", "brightness", "battery", "control-center", "session"]
+concave_edge_corners  = false
+auto_hide             = true       # slide out after pointer leaves; reveal from edge trigger strip
+smart_auto_hide       = true       # show when the active workspace is empty; hide when it has windows
+show_on_workspace_switch = true  # with auto_hide: briefly reveal when the active workspace changes
+reserve_space         = false        # reserve compositor exclusive zone / push windows away
 
 [dock]
 enabled               = false
