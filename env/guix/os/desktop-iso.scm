@@ -31,11 +31,30 @@
              (gnu bootloader)
              (gnu bootloader grub)
              (gnu packages version-control)  ;git
+             (guix gexp)
+             (nongnu system linux-initrd)    ;microcode-initrd
              (uraj system base))
+
+;;; nonguix's combined-initrd names its output "initrd.img"; the iso9660
+;;; zisofs filter in (gnu build image) only excludes "*.gz" among
+;;; initrd-ish names, so the ISO's initrd.img would be zisofs-compressed
+;;; and GRUB would feed the raw compressed bytes to the kernel ("rootfs
+;;; image is not initramfs ... looks like an initrd" panic).  Copying it
+;;; to a ".gz"-named output makes the filter leave it uncompressed.
+(define desktop-initrd
+  (lambda (file-systems . rest)
+    (computed-file "combined-initrd.gz"
+      (with-imported-modules '((guix build utils))
+        #~(begin
+            (use-modules (guix build utils))
+            (copy-file #$(apply microcode-initrd file-systems rest)
+                       #$output))))))
 
 (operating-system
   (inherit %desktop-base-os)
   (host-name "guix-installer")
+
+  (initrd desktop-initrd)
 
   ;; The image machinery swaps in grub-mkrescue for iso9660; this
   ;; declaration only provides defaults, it targets no real disk.
