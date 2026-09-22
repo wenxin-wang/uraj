@@ -7,6 +7,7 @@
   #:use-module (rosenthal services desktop)
   #:use-module (uraj common basic-services)
   #:use-module (uraj home basic-dev)
+  #:use-module (uraj home emacs)
   #:use-module (uraj packages basic-packages)
   #:use-module (uraj packages input-methods)
   #:use-module (uraj utils file path)
@@ -46,4 +47,5 @@ services."
               (input-method-editors (list fcitx5-rime)))))
    (my-dotfiles-services (list (project-path "env/dotfiles/common")))
    (basic-dev-home-services)
+   (emacs-home-services)
    %base-home-services))
