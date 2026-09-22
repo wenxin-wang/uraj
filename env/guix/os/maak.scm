@@ -6,14 +6,11 @@
   #:use-module (uraj utils file path)
   #:export (system-vm build-iso home-container home-reconfigure))
 
-(define extra-guix-args
-  `("-L" ,(project-path "src/guix")))
-
 (define* (system-vm #:optional (config-path (guix-env-path "os/qemu-example.scm")))
-  ($guix `("system" "vm" ,@extra-guix-args ,config-path)))
+  ($guix `("system" "vm" ,config-path)))
 
 (define* (build-iso #:optional (config-path (guix-env-path "os/desktop-iso.scm")))
-  ($guix `("system" "image" "-t" "iso9660" ,@extra-guix-args ,config-path)))
+  ($guix `("system" "image" "-t" "iso9660" ,config-path)))
 
 (define* (home-container #:optional (config-path (guix-env-path "os/home-example.scm"))
 	                 #:key (fork? (my-fork?))
@@ -27,7 +24,7 @@
                            (string-append "'"
                                           (string-join (map (cut string-append "export " <>) env) ";")
                                           (if (null? command*) ";exec /proc/self/exe'" ";'"))))
-              (head `("home" "container" ,@extra-guix-args ,config-path
+              (head `("home" "container" ,config-path
                       ;; Only the fork supports this option.
                       ,@(if fork? '("--keep-host-uid-gid") '())
                       ,@shares))
@@ -37,4 +34,4 @@
          ($guix (append head tail) #:fork? fork?))))))
 
 (define* (home-reconfigure #:optional (config-path (guix-env-path "os/home-example.scm")))
-  ($guix `("home" "reconfigure" ,@extra-guix-args ,config-path)))
+  ($guix `("home" "reconfigure" ,config-path)))
