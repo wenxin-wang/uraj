@@ -6,6 +6,7 @@
   #:use-module (gnu services)
   #:use-module (rosenthal services desktop)
   #:use-module (uraj common basic-services)
+  #:use-module (uraj home basic-dev)
   #:use-module (uraj packages basic-packages)
   #:use-module (uraj packages input-methods)
   #:use-module (uraj utils file path)
@@ -14,7 +15,11 @@
 (define basic-desktop-packages
   (cons* glibc-common-locales
          (specifications->packages
-          '("ghostty"))))               ;terminal emulator
+          '("font-jigmo"
+            "font-jetbrains-mono"
+            "font-sarasa-gothic"
+            "font-nerd-symbols"
+            "ghostty"))))               ;terminal emulator
 
 (define (basic-desktop-home-services)
   "Return the Home services shared by all desktop sessions: the
@@ -40,4 +45,5 @@ services."
               (themes (list fcitx5-material-color-theme))
               (input-method-editors (list fcitx5-rime)))))
    (my-dotfiles-services (list (project-path "env/dotfiles/common")))
+   (basic-dev-home-services)
    %base-home-services))
