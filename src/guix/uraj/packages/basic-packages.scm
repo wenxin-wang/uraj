@@ -1,4 +1,4 @@
-(define-module (uraj common basic-packages)
+(define-module (uraj packages basic-packages)
   #:use-module (gnu packages base)
   #:export (glibc-common-locales))
 

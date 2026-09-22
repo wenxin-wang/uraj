@@ -1,4 +1,4 @@
-;;; base.scm -- shared base operating-system for personal machines.
+;;; desktop.scm -- shared base operating-system for personal machines.
 ;;;
 ;;; %desktop-base-os carries everything that does not depend on a
 ;;; specific machine's storage or role: the wenxin user account (empty
@@ -8,7 +8,7 @@
 ;;; live images (env/guix/os/desktop-iso.scm) inherit from it and
 ;;; override only their differences.
 
-(define-module (uraj system base)
+(define-module (uraj system desktop)
   #:use-module (gnu)
   #:use-module (gnu bootloader)
   #:use-module (gnu bootloader grub)
@@ -26,8 +26,8 @@
   #:use-module (rosenthal services base)
   #:use-module (rosenthal services desktop)
   #:use-module (srfi srfi-1)
-  #:use-module (uraj home config niri)
-  #:use-module (uraj home services noctalia)
+  #:use-module (uraj home niri)
+  #:use-module (uraj packages window-managers)
   #:export (%desktop-base-os
             desktop-home-environment))
 

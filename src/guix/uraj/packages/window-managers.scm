@@ -1,27 +1,63 @@
-(define-module (uraj home services noctalia)
+(define-module (uraj packages window-managers)
   #:use-module (gnu home services)
   #:use-module (gnu home services shepherd)
   #:use-module (gnu packages bash)
+  #:use-module (gnu packages elf)
   #:use-module (gnu services)
   #:use-module ((gnu services base) #:select (greetd-user-session))
   #:use-module (gnu services shepherd)
+  #:use-module (guix build-system trivial)
   #:use-module (guix gexp)
+  #:use-module (guix packages)
   #:use-module (ice-9 rdelim)
   #:use-module (srfi srfi-13)
   #:use-module ((rosenthal home services desktop) #:prefix rosenthal:)
   #:autoload (rosenthal packages wm) (noctalia)
-  #:use-module (uraj packages noctalia)
-  #:export (home-niri-noctalia-services
+  #:export (noctalia-with-host-pam
+            home-niri-noctalia-services
             niri-greetd-user-session))
+
+(define (noctalia-with-host-pam noctalia pam-libs)
+  "Return NOCTALIA with PAM-LIBS, a list of absolute file names of the
+host's PAM stack and its dependency closure, added as DT_NEEDED entries.
+
+Noctalia's in-process screen locker parses the host's /etc/pam.d files
+and loads the host's PAM modules; those modules live in the multiarch
+directory, which the Guix loader cannot reach.  patchelf --add-needed
+prepends the closure to the binary's DT_NEEDED list, so the host
+libraries load first and the original @code{libpam.so.0} entry is
+satisfied by the host's copy -- the same load order an LD_PRELOAD of the
+closure produces, but without any environment variable that could leak
+into programs noctalia spawns."
+  (package
+    (inherit noctalia)
+    (name "noctalia-with-host-pam")
+    (source #f)
+    (build-system trivial-build-system)
+    (arguments
+     (list
+      #:modules '((guix build utils))
+      #:builder
+      #~(begin
+          (use-modules (guix build utils))
+          (copy-recursively #$noctalia #$output)
+          (let ((bin (string-append #$output "/bin/noctalia")))
+            ;; The copy keeps the store's read-only permissions.
+            (chmod bin #o755)
+            (for-each (lambda (lib)
+                        (invoke #$(file-append patchelf "/bin/patchelf")
+                                "--add-needed" lib bin))
+                      '#$pam-libs)))))
+    (inputs (list noctalia))
+    (native-inputs (list patchelf))))
 
 ;;; Noctalia's screen locker verifies passwords with the host's PAM
 ;;; stack, in-process.  Guix's libpam silently skips Ubuntu's "@include"
 ;;; directives (so pam_authenticate can never succeed) and its loader
 ;;; cannot reach the multiarch libraries the host's PAM modules need, so
-;;; on Ubuntu hosts noctalia runs as a patched variant whose DT_NEEDED
-;;; list prepends the host PAM closure -- see (uraj packages noctalia).
-;;; The closure differs per release, so pick it by the host's
-;;; /etc/os-release.
+;;; on Ubuntu hosts noctalia runs as the patched variant above whose
+;;; DT_NEEDED list prepends the host PAM closure.  The closure differs
+;;; per release, so pick it by the host's /etc/os-release.
 
 (define (ubuntu-pam-libs libs)
   (map (lambda (lib)

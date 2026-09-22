@@ -1,7 +1,7 @@
 ;;; lappie.scm -- Guix System configuration for the development laptop.
 ;;;
 ;;; Everything shared with other personal machines (user, SSH, greetd,
-;;; Guix Home, desktop services) lives in (uraj system base); this file
+;;; Guix Home, desktop services) lives in (uraj system desktop); this file
 ;;; only adds lappie's disk layout and boot specifics.
 ;;;
 ;;; Disk layout (btrfs + EFI + swap).  All file systems are referenced
@@ -50,7 +50,7 @@
              (gnu bootloader)
              (gnu bootloader grub)
              (srfi srfi-1)
-             (uraj system base))
+             (uraj system desktop))
 
 (define %btrfs-mount-options "compress=zstd")
 

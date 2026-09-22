@@ -33,7 +33,7 @@
              (gnu packages version-control)  ;git
              (guix gexp)
              (nongnu system linux-initrd)    ;microcode-initrd
-             (uraj system base))
+             (uraj system desktop))
 
 ;;; nonguix's combined-initrd names its output "initrd.img"; the iso9660
 ;;; zisofs filter in (gnu build image) only excludes "*.gz" among
