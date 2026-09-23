@@ -3,6 +3,8 @@
   #:use-module (gnu home services)
   #:use-module (gnu packages)
   #:use-module (gnu services)
+  #:use-module (uraj common basic-services)
+  #:use-module (uraj utils file path)
   #:export (basic-dev-home-services))
 
 (define basic-dev-packages
@@ -21,7 +23,9 @@
      "uv")))
 
 (define (basic-dev-home-services)
-  (list
-   (simple-service 'basic-dev-packages
-                   home-profile-service-type
-                   basic-dev-packages)))
+  (append
+   (list
+    (simple-service 'basic-dev-packages
+                    home-profile-service-type
+                    basic-dev-packages))
+   (my-dotfiles-services (list (project-path "env/dotfiles/common")))))
