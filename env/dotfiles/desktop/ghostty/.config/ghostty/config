@@ -1,0 +1,5 @@
+# ssh integration: the "ssh" wrapper installs the xterm-ghostty terminfo on
+# the remote host (first connect to a host, then cached) and forwards
+# COLORTERM/TERM_PROGRAM, so remote sessions keep truecolor detection instead
+# of falling back to TERM=xterm-256color.
+shell-integration-features = cursor,no-sudo,title,ssh-env,ssh-terminfo,path

@@ -4,6 +4,7 @@
   #:use-module (gnu packages)
   #:use-module (gnu packages fcitx5)
   #:use-module (gnu services)
+  #:use-module (guix gexp)
   #:use-module (rosenthal services desktop)
   #:use-module (uraj common basic-services)
   #:use-module (uraj home basic-dev)
@@ -23,6 +24,18 @@
             "font-sarasa-gothic"
             "font-nerd-symbols"))))
 
+(define (merged-terminfo-directory packages)
+  "Return a directory merging the `share/terminfo' trees of PACKAGES, each
+of which must install one.  The system ncurses on a foreign distro only
+searches ~/.terminfo and its own database, not Guix profiles, so terminal
+entries such as xterm-ghostty must be linked there to be usable in ssh
+sessions.  Merging (rather than linking a single package's directory) keeps
+the link extensible: add another terminal package to the list when needed."
+  (directory-union "terminfo"
+                   (map (lambda (package)
+                          (file-append package "/share/terminfo"))
+                        packages)))
+
 (define (basic-desktop-home-services)
   "Return the Home services shared by all desktop sessions: the
 basic-desktop packages, fcitx5, the shared dotfiles and the base
@@ -32,6 +45,12 @@ services."
     (simple-service 'basic-desktop-packages
                     home-profile-service-type
                     basic-desktop-packages)
+
+    ;; 见 merged-terminfo-directory：其它终端包也可以加进这个列表。
+    (simple-service 'terminfo
+                    home-files-service-type
+                    `((".terminfo"
+                       ,(merged-terminfo-directory (list ghostty)))))
 
     (service home-fcitx5-service-type
              (home-fcitx5-configuration
@@ -46,7 +65,7 @@ services."
               (wayland-frontend? #f)
               (themes (list fcitx5-material-color-theme))
               (input-method-editors (list fcitx5-rime)))))
-   (my-dotfiles-services (list (project-path "env/dotfiles/common")))
+   (my-dotfiles-services (list (project-path "env/dotfiles/desktop")))
    (basic-dev-home-services)
    (emacs-home-services)
    %base-home-services))
