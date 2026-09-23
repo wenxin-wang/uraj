@@ -1,0 +1,35 @@
+#!/bin/sh
+# Launch Feishu with native Wayland, IME support and a device scale factor that
+# matches the current niri output scale. The bundled Chromium (131) does not
+# apply niri's fractional output scale itself, so without this it rasterizes at
+# 1x and the compositor upscales the window, which makes all text look blurry.
+
+set -u
+
+FEISHU=/usr/bin/bytedance-feishu-stable
+DEFAULT_SCALE=1.5
+
+if [ -e /etc/os-release ]; then
+    . /etc/os-release
+fi
+
+flags=""
+if [ -n "${WAYLAND_DISPLAY:-}" ] && [ "$NAME" = "Ubuntu" ] && \
+        [ "$(echo "$VERSION_ID > 22.04" | bc -l )" = 1 ] ; then
+    scale=$(niri msg --json workspaces 2>/dev/null | python3 -c '
+import json, subprocess, sys
+try:
+    focused = next(w["output"] for w in json.load(sys.stdin)
+                   if w.get("is_focused") and w.get("output"))
+    outputs = json.loads(subprocess.check_output(
+        ["niri", "msg", "--json", "outputs"], text=True))
+    print(outputs[focused]["logical"]["scale"])
+except Exception:
+    pass
+')
+    [ -n "$scale" ] || scale=$DEFAULT_SCALE
+    flags="--ozone-platform=wayland --force-device-scale-factor=$scale --enable-wayland-ime --wayland-text-input-version=3"
+fi
+
+# shellcheck disable=SC2086
+exec "$FEISHU" $flags "$@"
