@@ -1,0 +1,6 @@
+# 默认方案为「明月拼音·简化字」(luna_pinyin_simp)，输出简体中文；
+# F4 可在方案列表中切换到 luna_pinyin（繁体）等其它方案。
+patch:
+  schema_list:
+    - schema: luna_pinyin_simp
+    - schema: luna_pinyin
