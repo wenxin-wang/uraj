@@ -10,17 +10,18 @@
   #:use-module (uraj home emacs)
   #:use-module (uraj packages basic-packages)
   #:use-module (uraj packages input-methods)
+  #:use-module (uraj packages terminals)
   #:use-module (uraj utils file path)
   #:export (basic-desktop-home-services))
 
 (define basic-desktop-packages
   (cons* glibc-common-locales
+         ghostty                        ;terminal emulator
          (specifications->packages
           '("font-jigmo"
             "font-jetbrains-mono"
             "font-sarasa-gothic"
-            "font-nerd-symbols"
-            "ghostty"))))               ;terminal emulator
+            "font-nerd-symbols"))))
 
 (define (basic-desktop-home-services)
   "Return the Home services shared by all desktop sessions: the
