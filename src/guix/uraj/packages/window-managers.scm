@@ -12,9 +12,13 @@
   #:use-module (ice-9 rdelim)
   #:use-module (srfi srfi-13)
   #:use-module ((rosenthal home services desktop) #:prefix rosenthal:)
+  #:autoload (gnu packages freedesktop) (xdg-desktop-portal
+                                        xdg-desktop-portal-gtk)
+  #:autoload (gnu packages gnome) (xdg-desktop-portal-gnome)
   #:autoload (rosenthal packages wm) (noctalia)
   #:export (noctalia-with-host-pam
             home-niri-noctalia-services
+            home-niri-portal-services
             niri-greetd-user-session))
 
 (define (noctalia-with-host-pam noctalia pam-libs)
@@ -210,6 +214,54 @@ host's PAM stack for its screen locker on supported Ubuntu hosts."
    (service rosenthal:home-noctalia-service-type
             (rosenthal:home-noctalia-configuration
              (noctalia (noctalia-for-host))))))
+
+;;; D-Bus activation cannot start the session's portals in this
+;;; setup: every portal D-Bus service file -- the host's and the
+;;; profile's alike -- carries SystemdService=<name>.service, so
+;;; activation goes through the user systemd manager, and a session
+;;; started by the niri-session wrapper is not a systemd graphical
+;;; session.  On Ubuntu hosts xdg-desktop-portal-gnome.service fails
+;;; its Requisite=graphical-session.target instantly, and
+;;; xdg-desktop-portal.service is then killed when the backend it
+;;; awaits never arrives; the names stay unowned until dbus-daemon
+;;; gives up on the activation.  Every client that reads portal
+;;; settings while starting -- GTK4 applications such as ghostty,
+;;; Chromium and Electron ones such as Feishu -- blocks on that failed
+;;; activation for ~90s (until the frontend unit hits its start
+;;; timeout) before it can open a window.  Owning the bus names from
+;;; the session Shepherd means no <name>.service is ever started.  The
+;;; niri package ships niri-portals.conf (in the profile, hence in
+;;; XDG_DATA_DIRS), which selects the GNOME backend by default and the
+;;; GTK one for the interfaces the former does not implement.
+
+(define (home-niri-portal-services)
+  "Return the Home services that run the niri session's
+xdg-desktop-portal stack from the Guix profile: the portal frontend
+and its GNOME and GTK backends (see the comment above)."
+  (list
+   (simple-service 'niri-portals home-shepherd-service-type
+                   (list
+                    (shepherd-service
+                     (provision '(xdg-desktop-portal))
+                     (requirement '(graphical-session))
+                     (start #~(make-forkexec-constructor
+                               (list #$(file-append xdg-desktop-portal
+                                                    "/libexec/xdg-desktop-portal"))))
+                     (stop #~(make-kill-destructor)))
+                    (shepherd-service
+                     (provision '(xdg-desktop-portal-gnome))
+                     (requirement '(graphical-session))
+                     (start #~(make-forkexec-constructor
+                               (list #$(file-append xdg-desktop-portal-gnome
+                                                    "/libexec/xdg-desktop-portal-gnome"))))
+                     (stop #~(make-kill-destructor)))
+                    (shepherd-service
+                     (provision '(xdg-desktop-portal-gtk))
+                     (requirement '(graphical-session))
+                     (start #~(make-forkexec-constructor
+                               (list #$(file-append xdg-desktop-portal-gtk
+                                                    "/libexec/xdg-desktop-portal-gtk"))))
+                     (stop #~(make-kill-destructor)))))))
 
 ;; The Guix System counterpart of the host-side wrapper above, for
 ;; greetd-based systems (see env/guix/os/lappie.scm): the session

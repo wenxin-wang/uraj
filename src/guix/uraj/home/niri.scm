@@ -33,8 +33,8 @@
 
 (define (niri-desktop-home-services)
   "Return the Home services for a niri desktop: the niri + noctalia
-session services, PipeWire audio, fcitx5, the shared dotfiles and the
-base services."
+session services, the xdg-desktop-portal stack, PipeWire audio, fcitx5,
+the shared dotfiles and the base services."
   (append
    (list
     (simple-service 'niri-desktop-packages
@@ -52,4 +52,9 @@ base services."
    ;; bus comes from the host system or dbus-run-session) and noctalia
    ;; itself, patched with the host's PAM stack where needed.
    (home-niri-noctalia-services)
+   ;; The xdg-desktop-portal stack, started by the session Shepherd:
+   ;; D-Bus activation would go through the host's systemd units, which
+   ;; cannot start in this session (see (uraj packages
+   ;; window-managers)).
+   (home-niri-portal-services)
    (basic-desktop-home-services)))
