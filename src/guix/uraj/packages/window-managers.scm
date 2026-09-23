@@ -11,14 +11,15 @@
   #:use-module (guix packages)
   #:use-module (ice-9 rdelim)
   #:use-module (srfi srfi-13)
-  #:use-module ((rosenthal home services desktop) #:prefix rosenthal:)
   #:autoload (gnu packages freedesktop) (xdg-desktop-portal
                                         xdg-desktop-portal-gtk)
   #:autoload (gnu packages gnome) (xdg-desktop-portal-gnome)
+  #:autoload (gnu packages xorg) (xwayland-satellite)
   #:autoload (rosenthal packages wm) (noctalia)
   #:export (noctalia-with-host-pam
             home-niri-noctalia-services
             home-niri-portal-services
+            home-niri-session-services
             niri-greetd-user-session))
 
 (define (noctalia-with-host-pam noctalia pam-libs)
@@ -154,13 +155,15 @@ or #f if the host is not Ubuntu 22.04/24.04."
 
 ;; The session is managed by the host display manager (GDM on Ubuntu).
 ;; GDM runs /usr/local/bin/niri-session (host-side wrapper, see below),
-;; which sources the Guix Home environment and execs:
+;; which sources the Guix Home environment, waits for the greeter's
+;; Xwayland to release :0, and then runs:
 ;;   niri --session
 ;; niri then spawns the user Shepherd (spawn-at-startup "shepherd"),
 ;; which starts noctalia and the other graphical services inside the
 ;; graphical session.
 ;;
-;; Host-side wrapper (/usr/local/bin/niri-session):
+;; Host-side wrapper (/usr/local/bin/niri-session); copied verbatim --
+;; keep in sync when the host file changes:
 ;;   #!/bin/sh
 ;;   # setup-environment requires HOME_ENVIRONMENT to be set first (as
 ;;   # ~/.profile does).  Self-contained on purpose: GDM imports the
@@ -191,29 +194,58 @@ or #f if the host is not Ubuntu 22.04/24.04."
 ;;   # NOT be exec'd here, otherwise this cleanup never runs.
 ;;   herd stop root 2>/dev/null || true
 
+(define (niri-noctalia-shepherd-service noctalia)
+  "Return the Shepherd service that runs NOCTALIA (see
+@code{noctalia-for-host})."
+  (shepherd-service
+   (documentation "Start noctalia.")
+   (provision '(noctalia))
+   (requirement '(dbus graphical-session))
+   (modules '((shepherd support)))
+   (start
+    #~(lambda args
+        ((make-forkexec-constructor
+          (list #$(file-append noctalia "/bin/noctalia"))
+          #:log-file (in-vicinity %user-log-dir "noctalia.log")
+          ;; Inherit the graphical session environment.
+          #:environment-variables (environ))
+         args)))
+   (stop #~(make-kill-destructor))))
+
 (define (home-niri-noctalia-services)
   "Return the list of Home services that run noctalia under a niri
 session managed by the host display manager: a session Shepherd (started
 by niri, not at login), a stub @code{dbus} service (the session bus is
 provided by the host system) and noctalia itself, patched with the
 host's PAM stack for its screen locker on supported Ubuntu hosts."
-  (list
-   (service home-shepherd-service-type
-            (home-shepherd-configuration
-             (auto-start? #f)
-             (daemonize? #f)))
+  (let ((noctalia (noctalia-for-host)))
+    (list
+     (service home-shepherd-service-type
+              (home-shepherd-configuration
+               (auto-start? #f)
+               (daemonize? #f)))
 
-   ;; The session bus is provided by the host system (systemd/logind),
-   ;; hence the stub instead of home-dbus-service-type.
-   (simple-service 'dbus home-shepherd-service-type
-                   (list (shepherd-service
-                          (provision '(dbus))
-                          (start #~(const #t))
-                          (stop #~(const #f)))))
+     ;; The session bus is provided by the host system (systemd/logind),
+     ;; hence the stub instead of home-dbus-service-type.
+     (simple-service 'dbus home-shepherd-service-type
+                     (list (shepherd-service
+                            (provision '(dbus))
+                            (start #~(const #t))
+                            (stop #~(const #f)))))
 
-   (service rosenthal:home-noctalia-service-type
-            (rosenthal:home-noctalia-configuration
-             (noctalia (noctalia-for-host))))))
+     ;; noctalia's home service, written out here rather than using
+     ;; rosenthal's: that service type extends
+     ;; home-graphical-session-service-type with 'wayland, and guix home
+     ;; instantiates extension targets missing from its service list
+     ;; (instantiate-missing-services in (gnu services)) -- keeping it
+     ;; would materialize rosenthal's graphical-session and
+     ;; wayland-display services alongside the ones from
+     ;; home-niri-session-services.  The extension has no use here: the
+     ;; wayland session plainly exists, niri is the compositor.
+     (simple-service 'noctalia-profile home-profile-service-type
+                     (list noctalia))
+     (simple-service 'noctalia home-shepherd-service-type
+                     (list (niri-noctalia-shepherd-service noctalia))))))
 
 ;;; D-Bus activation cannot start the session's portals in this
 ;;; setup: every portal D-Bus service file -- the host's and the
@@ -262,6 +294,117 @@ and its GNOME and GTK backends (see the comment above)."
                                (list #$(file-append xdg-desktop-portal-gtk
                                                     "/libexec/xdg-desktop-portal-gtk"))))
                      (stop #~(make-kill-destructor)))))))
+
+;;; XWayland and the session's display targets are session Shepherd
+;;; services, provided here instead of by rosenthal's
+;;; home-graphical-session-service-type.
+;;;
+;;; niri's built-in Xwayland integration spawns xwayland-satellite on
+;;; demand, on the first X client connection.  That is too late for
+;;; fcitx5: its XIM frontend connects to X once at startup and does not
+;;; retry, so X must already be up when fcitx5 starts, or X11 apps get
+;;; no input method.  The satellite therefore runs as a Shepherd service
+;;; -- kept alive by respawn, with a start method that re-spawns it
+;;; until it survives.  The retry matters right after login: the display
+;;; manager's greeter may still own :0 with its own Xwayland, which
+;;; makes the satellite exit at once, and five quick respawns would trip
+;;; the respawn limit and disable the service.  niri's own spawner is
+;;; disabled with "xwayland-satellite { off }" (see the niri dotfiles),
+;;; so there is exactly one satellite and the display number stays :0.
+;;;
+;;; x11-display reports ready only once the satellite is running -- that
+;;; is, once the session's Xwayland holds :0 -- and exports DISPLAY=:0.
+;;; rosenthal's x11-display instead scans /tmp/.X11-unix for the first
+;;; X[0-9]+ with (access? name O_RDWR), which the greeter's socket
+;;; satisfies during login: fcitx5 (requirement '(dbus
+;;; graphical-session), not configurable) would then connect to the
+;;; greeter's X, fail authorization and never retry.  Providing the
+;;; display targets here makes the chain
+;;;   fcitx5 -> graphical-session -> x11-display -> xwayland-satellite
+;;; wait for the session's own X to exist.
+
+(define (niri-xwayland-satellite-service)
+  "Return the Shepherd service that runs xwayland-satellite on display
+:0.  Its start method retries the spawn until the satellite survives,
+which takes the display from a display manager's greeter when that is
+still shutting down after login."
+  (shepherd-service
+   (documentation "Run xwayland-satellite on display :0.")
+   (provision '(xwayland-satellite))
+   (requirement '(wayland-display))
+   (respawn? #t)
+   (start
+    #~(lambda args
+        (define spawn
+          (make-forkexec-constructor
+           (list #$(file-append xwayland-satellite
+                                "/bin/xwayland-satellite")
+                 ":0")
+           ;; Inherit the session environment; the satellite needs
+           ;; WAYLAND_DISPLAY and finds Xwayland on PATH.
+           #:environment-variables (environ)))
+        (define (alive? process)
+          (catch 'system-error
+            (lambda () (kill (process-id process) 0) #t)
+            (lambda _ #f)))
+        ;; Xwayland exits as soon as it is denied the display, so give
+        ;; each attempt a moment, then retry until the satellite stays.
+        (let retry ((attempt 0))
+          (let ((process (spawn args)))
+            (sleep 1.5)
+            (cond ((alive? process) process)
+                  ((< attempt 20) (retry (+ attempt 1)))
+                  (else #f))))))
+   (stop #~(make-kill-destructor))))
+
+(define (niri-session-display-services)
+  "Return the Shepherd services that provide the session's display
+targets: wayland-display (a marker for the compositor's socket, taken
+from WAYLAND_DISPLAY), x11-display (ready only once the session's
+XWayland is up, see niri-xwayland-satellite-service) and
+graphical-session, which requires both and is in turn required by
+fcitx5, noctalia and the portals."
+  (list
+   (shepherd-service
+    (documentation "Wayland display of the session's compositor.")
+    (provision '(wayland-display))
+    (start #~(lambda args (getenv "WAYLAND_DISPLAY")))
+    (stop #~(lambda (_)
+              (unsetenv "WAYLAND_DISPLAY")
+              #f)))
+   (shepherd-service
+    (documentation "X11 display of the session, from xwayland-satellite.")
+    (provision '(x11-display))
+    ;; The satellite's start method returns only once its Xwayland
+    ;; survives on :0, so that completion is the readiness signal -- not
+    ;; a socket scan, which any accessible socket satisfies, be it the
+    ;; greeter's or a stale one.
+    (requirement '(wayland-display xwayland-satellite))
+    (start #~(lambda args
+               (setenv "DISPLAY" ":0")
+               ":0"))
+    (stop #~(lambda (_)
+              (unsetenv "DISPLAY")
+              #f)))
+   (shepherd-service
+    (documentation
+     "Service target to indicate a graphical session is ready.")
+    (provision '(graphical-session))
+    (requirement '(wayland-display x11-display))
+    (start #~(const #t))
+    (stop #~(const #f)))))
+
+(define (home-niri-session-services)
+  "Return the Home services that provide the niri session's display
+targets and its XWayland: the @command{xwayland-satellite} Shepherd
+service, run on display :0, and the wayland-display, x11-display and
+graphical-session services that report the session ready only once that
+X server is up (see the comment above)."
+  (list
+   (simple-service 'niri-xwayland home-shepherd-service-type
+                   (list (niri-xwayland-satellite-service)))
+   (simple-service 'niri-session-display home-shepherd-service-type
+                   (niri-session-display-services))))
 
 ;; The Guix System counterpart of the host-side wrapper above, for
 ;; greetd-based systems (see env/guix/os/lappie.scm): the session

@@ -47,9 +47,10 @@ layout {
 environment {
     XDG_CURRENT_DESKTOP "niri"
     XDG_SESSION_TYPE "wayland"
-    // niri sets DISPLAY=:0 for its spawns only after xwayland-satellite
-    // is up; shepherd (spawn-at-startup) may race ahead, and apps launched
-    // via noctalia inherit shepherd's env, so set it explicitly.
+    // X11 apps run on Xwayland :0, which the session Shepherd keeps up
+    // (see (uraj packages window-managers)).  This covers niri's direct
+    // spawns -- terminals and their children; apps launched via noctalia
+    // inherit shepherd's env instead.
     DISPLAY ":0"
     // Qt apps need this to find qtwayland's platform plugin
     // and run as native Wayland clients; without it they fall back to X11.
@@ -80,7 +81,8 @@ output "AU Optronics 0xA195 Unknown" {
     scale 1.25
 }
 
-// Start user Shepherd for Guix Home; noctalia and fcitx5 are its services.
+// Start user Shepherd for Guix Home; noctalia, fcitx5, the portals,
+// Xwayland and the display targets are its services.
 spawn-at-startup "shepherd"
 
 // Load ~/.Xresources once Xwayland (xwayland-satellite) is up: satellite
@@ -88,6 +90,16 @@ spawn-at-startup "shepherd"
 // apps (Feishu, emacs, ...) render far larger than under GNOME. Xft.dpi
 // brings them back to 96 x scale = 120 DPI.
 spawn-at-startup "sh" "-c" "while ! xrdb -merge ~/.Xresources 2>/dev/null; do sleep 1; done"
+
+// Xwayland is provided by the session Shepherd on :0 (see (uraj packages
+// window-managers)).  niri's own spawner starts xwayland-satellite on
+// demand -- on the first X client connection -- which is too late for
+// fcitx5's XIM frontend: it connects to X at startup and does not retry,
+// so X must be up before the graphical-session services start.  Keep
+// exactly one X server: the Shepherd's.
+xwayland-satellite {
+    off
+}
 
 hotkey-overlay {
     skip-at-startup

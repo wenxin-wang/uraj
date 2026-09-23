@@ -22,8 +22,8 @@
      "wl-clipboard"
      "xdg-desktop-portal-gnome"  ;screencast/screenshots
      "xdg-desktop-portal-gtk"
-     "xorg-server-xwayland"      ;X11 apps (fcitx5 XIM)
-     "xwayland-satellite")))     ;niri spawns it for X11 support
+     "xorg-server-xwayland"      ;Xwayland, exec'd by xwayland-satellite
+     "xwayland-satellite")))     ;X11 support, run by the session Shepherd
 
 ;;; noctalia <= 5.0.0-beta.8 registered the session lock screen with
 ;;; text-input-v3, which could leave fcitx5 without input for apps
@@ -57,4 +57,10 @@ the shared dotfiles and the base services."
    ;; cannot start in this session (see (uraj packages
    ;; window-managers)).
    (home-niri-portal-services)
+   ;; XWayland on :0 as a session Shepherd service, plus the session's
+   ;; display targets (wayland-display, x11-display, graphical-session)
+   ;; that report the session ready only once that X server is up:
+   ;; X11 apps need a live X, and fcitx5's XIM frontend connects to X
+   ;; only at startup (see (uraj packages window-managers)).
+   (home-niri-session-services)
    (basic-desktop-home-services)))
