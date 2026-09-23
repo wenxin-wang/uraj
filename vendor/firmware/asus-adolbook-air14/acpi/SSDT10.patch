@@ -1,0 +1,38 @@
+--- a/SSDT10.dsl
++++ b/SSDT10.dsl
+@@ -18,7 +18,7 @@
+  *     Compiler ID      "INTL"
+  *     Compiler Version 0x20230331 (539165489)
+  */
+-DefinitionBlock ("", "SSDT", 2, "AMD", "AOD     ", 0x00000001)
++DefinitionBlock ("", "SSDT", 2, "AMD", "AOD     ", 0x00000002)
+ {
+     External (OBID, PkgObj)
+     External (OBIE, PkgObj)
+@@ -959,8 +959,6 @@
+     Scope (\)
+     {
+         Name (GF01, Zero)
+-        Name (ASMI, 0x00B2)
+-        Name (ISMI, 0xB9)
+         Name (AODV, 0x06)
+         OperationRegion (AODE, SystemMemory, 0x71616018, 0x24AC)
+         Field (AODE, AnyAcc, NoLock, Preserve)
+@@ -1035,7 +1033,7 @@
+                 Return (LODT) /* \AOD_.AM04.LODT */
+             }
+ 
+-            OperationRegion (PSMI, SystemIO, ASMI, 0x02)
++            OperationRegion (PSMI, SystemIO, 0x00B2, 0x02)
+             Field (PSMI, AnyAcc, NoLock, Preserve)
+             {
+                 ASMO,   8
+@@ -1052,7 +1050,7 @@
+                 CreateDWordField (Arg0, 0x04, DCMD)
+                 SCMI = DCMI /* \AOD_.AM05.DCMI */
+                 SCMD = DCMD /* \AOD_.AM05.DCMD */
+-                ASMO = ISMI /* \ISMI */
++                ASMO = 0xB9
+                 LODT = OUTB /* \OUTB */
+                 Return (LODT) /* \AOD_.AM05.LODT */
+             }

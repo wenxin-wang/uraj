@@ -2,7 +2,8 @@
 ;;;
 ;;; Everything shared with other personal machines (user, SSH, greetd,
 ;;; Guix Home, desktop services) lives in (uraj system desktop); this file
-;;; only adds lappie's disk layout and boot specifics.
+;;; only adds lappie's disk layout, its boot specifics and the ACPI table
+;;; override its firmware needs to boot at all (see (uraj hardware asus)).
 ;;;
 ;;; Disk layout (btrfs + EFI + swap).  All file systems are referenced
 ;;; by label, so /dev/nvme0n1 can be anything.
@@ -50,6 +51,7 @@
              (gnu bootloader)
              (gnu bootloader grub)
              (srfi srfi-1)
+             (uraj hardware asus)
              (uraj system desktop))
 
 (define %btrfs-mount-options "compress=zstd")
@@ -67,6 +69,12 @@
 (operating-system
   (inherit %desktop-base-os)
   (host-name "lappie")
+
+  ;; The firmware's SSDT10 would panic acpi_init (see (uraj hardware
+  ;; asus)); the patched table must travel in the initrd for the kernel's
+  ;; ACPI table override to pick it up.
+  (initrd (asus-adolbook-air14-acpi-hack
+           (operating-system-initrd %desktop-base-os)))
 
   ;; Guix does not add the resume argument itself; the initrd resumes
   ;; from a device given as path, UUID, or bare label.
