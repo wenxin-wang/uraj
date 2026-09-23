@@ -14,7 +14,11 @@
      "age"
      "inotify-tools"
      "git"
-     "vim")))
+     "vim"
+     ;; System status.
+     "htop"
+     ;; Python
+     "uv")))
 
 (define (basic-dev-home-services)
   (list
