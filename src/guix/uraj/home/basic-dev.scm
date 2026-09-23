@@ -7,7 +7,8 @@
 
 (define basic-dev-packages
   (specifications->packages
-   '("direnv"
+   '("bash-completion"          ;completions for git, fd, ... (see .bashrc.d)
+     "direnv"
      "fd"
      "ripgrep"
      "age"

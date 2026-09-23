@@ -1,5 +1,5 @@
-[[ -f ~/.profile ]] && . ~/.profile
 if [ ! -n "$HAS_MY_PROFILE" ]; then
+    [[ -f ~/.profile ]] && . ~/.profile
     for dir in ~/.profile.d; do
         if [ -d $dir ]
         then
@@ -9,6 +9,8 @@ if [ ! -n "$HAS_MY_PROFILE" ]; then
             done
         fi
     done
+    # Export before sourcing ~/.bashrc: the same guard there must not load
+    # the profile a second time.
+    export HAS_MY_PROFILE=1
 fi
 [[ -f ~/.bashrc ]] && . ~/.bashrc
-export HAS_MY_PROFILE=1
