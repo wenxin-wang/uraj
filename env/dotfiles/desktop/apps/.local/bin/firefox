@@ -1,0 +1,11 @@
+#!/bin/sh
+# Ubuntu's GTK3 cannot see the fcitx5 immodules behind GUIX_GTK3_IM_MODULE_FILE,
+# so GTK_IM_MODULE=fcitx resolves to the fcitx4 module (fcitx-frontend-gtk3) in
+# Firefox.  fcitx5 then renders candidates and input-method notices over X11,
+# where niri + xwayland-satellite tile them instead of showing them at the
+# cursor.  Drop the variable so GTK3 uses the native Wayland text-input
+# protocol, like ghostty does; GTK_IM_MODULE stays exported globally for real
+# XWayland apps (Feishu, Cursor, ...).
+
+unset GTK_IM_MODULE
+exec /usr/bin/firefox "$@"
