@@ -71,6 +71,7 @@
     (locale "en_US.utf8")
     (name-service-switch %mdns-host-lookup-nss)
 
+    ;; (kernel linux-lts)
     (kernel linux)
     (initrd microcode-initrd)
     (firmware (list linux-firmware))

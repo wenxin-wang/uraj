@@ -27,5 +27,15 @@
 
 (operating-system
   (inherit desktop-iso-os)
+  ;; Guix does not add the resume argument itself; the initrd resumes
+  ;; from a device given as path, UUID, or bare label.
+  (kernel-arguments
+   (append %default-kernel-arguments
+           (list ;; Stability mitigations found while running the live
+                 ;; ISO off the USB stick (see desktop-iso.scm): keep
+                 ;; the hardware out of its aggressive power states.
+                 "usbcore.autosuspend=-1"
+                 "nvme_core.default_ps_max_latency_us=0"
+                 "pcie_aspm=off")))
   (initrd (asus-adolbook-air14-acpi-hack
            (operating-system-initrd desktop-iso-os))))

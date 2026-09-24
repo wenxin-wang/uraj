@@ -86,7 +86,13 @@
                  ;; if the kernel lacks zstd support.
                  "zswap.enabled=1"
                  "zswap.compressor=zstd"
-                 "zswap.max_pool_percent=20")))
+                 "zswap.max_pool_percent=20"
+                 ;; Stability mitigations found while running the live
+                 ;; ISO off the USB stick (see desktop-iso.scm): keep
+                 ;; the hardware out of its aggressive power states.
+                 "usbcore.autosuspend=-1"
+                 "nvme_core.default_ps_max_latency_us=0"
+                 "pcie_aspm=off")))
 
   (bootloader
    (bootloader-configuration
