@@ -13,6 +13,14 @@
 ;;;   dmesg | grep "Table Upgrade"    -> override [SSDT-AMD    -AOD     ]
 ;;;   dmesg | grep "ACPI: SSDT.*AOD"  -> OEM revision 00000002
 ;;;
+;;; amdgpu is not blacklisted here: the image carries
+;;; %asus-adolbook-air14-panel-replay-service, which disables Panel
+;;; Replay early enough that the internal panel keeps updating.  Without
+;;; it the screen freezes on the first frame rendered after the driver
+;;; loads -- the system then looks hung or the keyboard dead -- and a
+;;; manual "modprobe.blacklist=amdgpu,radeon" at the GRUB prompt used to
+;;; be the only way to get a usable console.
+;;;
 ;;; The override is ignored while the kernel is locked down, so do not
 ;;; enable Secure Boot for this image.
 
@@ -38,4 +46,10 @@
                  "nvme_core.default_ps_max_latency_us=0"
                  "pcie_aspm=off")))
   (initrd (asus-adolbook-air14-acpi-hack
-           (operating-system-initrd desktop-iso-os))))
+           (operating-system-initrd desktop-iso-os)))
+
+  ;; Naming (services ...) replaces the list inherited from
+  ;; desktop-iso-os, so its services are appended back explicitly.
+  (services
+   (append (operating-system-user-services desktop-iso-os)
+           (list %asus-adolbook-air14-panel-replay-service))))

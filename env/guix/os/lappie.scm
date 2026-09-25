@@ -2,8 +2,10 @@
 ;;;
 ;;; Everything shared with other personal machines (user, SSH, greetd,
 ;;; Guix Home, desktop services) lives in (uraj system desktop); this file
-;;; only adds lappie's disk layout, its boot specifics and the ACPI table
-;;; override its firmware needs to boot at all (see (uraj hardware asus)).
+;;; only adds lappie's disk layout, its boot specifics, and the hardware
+;;; workarounds of the Adol Book Air 14 (see (uraj hardware asus)): the
+;;; ACPI table override its firmware needs to boot at all, and the Panel
+;;; Replay workaround its eDP panel needs to stay alive under amdgpu.
 ;;;
 ;;; Disk layout (btrfs + EFI + swap).  All file systems are referenced
 ;;; by label, so /dev/nvme0n1 can be anything.
@@ -115,4 +117,10 @@
   (swap-devices
    (list (swap-space
           (target (file-system-label "swap"))
-          (discard? #t)))))
+          (discard? #t))))
+
+  ;; Naming (services ...) replaces the list inherited from
+  ;; %desktop-base-os, so its services are appended back explicitly.
+  (services
+   (append (operating-system-user-services %desktop-base-os)
+           (list %asus-adolbook-air14-panel-replay-service))))

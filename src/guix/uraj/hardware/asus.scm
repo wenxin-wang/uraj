@@ -1,8 +1,12 @@
 (define-module (uraj hardware asus)
+  #:use-module (gnu services)
+  #:use-module (gnu services shepherd)
   #:use-module (guix gexp)
   #:use-module (guix modules)
   #:use-module (uraj packages asus)
-  #:export (asus-adolbook-air14-acpi-hack))
+  #:export (asus-adolbook-air14-acpi-hack
+            %asus-adolbook-air14-kernel-cmdlines
+            %asus-adolbook-air14-panel-replay-service))
 
 ;;; The kernel takes ACPI table overrides from the initrd
 ;;; (Documentation/admin-guide/acpi/initrd_table_override.rst): an
@@ -56,3 +60,67 @@
                                   (dump-port input port))))
                             (list "acpi_override" #$base)))
                 #:binary #t)))))))
+
+;;; amdgpu brings up Panel Replay on this machine's internal eDP panel,
+;;; and the panel then stops showing updates: the kernel keeps drawing
+;;; (fbcon writes reach /dev/fb0, atomic commits keep flowing) while the
+;;; physical display freezes on the frame rendered when amdgpu loaded --
+;;; appearing as a boot hang or a dead keyboard, most visibly right
+;;; after the driver takes over the console.  Writing 1 to the
+;;; connector's disallow_edp_enter_replay knob clears replay_supported,
+;;; and a blank/unblank of the fbdev then makes the display core
+;;; re-evaluate the link and fall back to plain streaming; the same
+;;; applies to PSR, which is disabled for good measure.
+
+(define (asus-adolbook-air14-panel-replay-script)
+  "Return a script that disables Panel Replay on the eDP connector once
+amdgpu is up.  The debugfs knob appears when the driver registers the
+connector, so the script polls for it before writing.  (%debug-file-system
+in (gnu system file-systems) mounts debugfs at /sys/kernel/debug, so the
+script does not need to mount it.)"
+  (program-file "asus-adolbook-air14-panel-replay-fix"
+    #~(begin
+        (define debugfs "/sys/kernel/debug")
+        (define replay-knob
+          (string-append debugfs "/dri/0/eDP-1/disallow_edp_enter_replay"))
+        (define (write-value file value)
+          (call-with-output-file file
+            (lambda (port)
+              (display value port))))
+        (define (wait-for-driver)
+          (let loop ((tries 0))
+            (cond ((file-exists? replay-knob) #t)
+                  ((>= tries 90)
+                   (format (current-error-port)
+                           "asus-adolbook-air14-panel-replay: ~a never appeared~%"
+                           replay-knob)
+                   #f)
+                  (else
+                   (sleep 1)
+                   (loop (+ tries 1))))))
+        ;; The knob appears while amdgpu is still initializing, around
+        ;; the driver's first atomic commit to the panel; whether the
+        ;; write beats that commit or not, the blank/unblank below makes
+        ;; the link fall back to plain streaming, so the panel ends up
+        ;; live either way.
+        (when (wait-for-driver)
+          (write-value replay-knob "1")
+          (write-value (string-append debugfs "/dri/0/eDP-1/disallow_edp_enter_psr")
+                       "1")
+          (write-value "/sys/class/graphics/fb0/blank" "4")
+          (sleep 2)
+          (write-value "/sys/class/graphics/fb0/blank" "0")))))
+
+;;; A one-shot shepherd service: the script itself polls for the driver,
+;;; so no boot ordering requirements are needed.
+(define %asus-adolbook-air14-panel-replay-service
+  (simple-service 'asus-adolbook-air14-panel-replay
+                  shepherd-root-service-type
+                  (list (shepherd-service
+                         (provision '(asus-adolbook-air14-panel-replay))
+                         (one-shot? #t)
+                         (start #~(make-forkexec-constructor
+                                   (list #$(asus-adolbook-air14-panel-replay-script))))
+                         (documentation
+                          "Disable Panel Replay on the Adol Book Air 14's eDP
+panel, which freezes when replay engages after amdgpu loads.")))))
