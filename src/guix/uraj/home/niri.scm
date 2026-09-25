@@ -31,10 +31,23 @@
 ;;; v5.0.0-beta.9).  Should it ever regress, the workaround is a brief
 ;;; focus round trip to the launcher (Mod+D).
 
-(define (niri-desktop-home-services)
+(define* (niri-desktop-home-services
+          #:key (noctalia (noctalia-for-host))
+                (portals (if (host-uses-systemd-activation?)
+                             'shepherd
+                             'activation)))
   "Return the Home services for a niri desktop: the niri + noctalia
 session services, the xdg-desktop-portal stack, PipeWire audio, fcitx5,
-the shared dotfiles and the base services."
+the shared dotfiles and the base services.
+
+NOCTALIA and PORTALS both default to the choice for the machine this
+home environment is evaluated on -- @code{noctalia-for-host} and
+@code{host-uses-systemd-activation?} -- which is right for configs that
+run on the machine they are evaluated on (@command{guix home
+reconfigure} ones).  Guix System configs build their home environment on
+some other machine and must pin both: plain noctalia and
+@code{#:portals 'activation} (see (uraj packages window-managers) and
+(uraj system desktop))."
   (append
    (list
     (simple-service 'niri-desktop-packages
@@ -50,13 +63,15 @@ the shared dotfiles and the base services."
    ;; The niri + noctalia session: a session Shepherd (started by
    ;; "niri --session", not at login), a stub dbus service (the session
    ;; bus comes from the host system or dbus-run-session) and noctalia
-   ;; itself, patched with the host's PAM stack where needed.
-   (home-niri-noctalia-services)
-   ;; The xdg-desktop-portal stack, started by the session Shepherd:
-   ;; D-Bus activation would go through the host's systemd units, which
-   ;; cannot start in this session (see (uraj packages
+   ;; itself, as noctalia-for-host selects it.
+   (home-niri-noctalia-services #:noctalia noctalia)
+   ;; The xdg-desktop-portal stack, session-Shepherd-managed on hosts
+   ;; where systemd activation cannot start it; elsewhere the session
+   ;; bus activates the portals itself (see (uraj packages
    ;; window-managers)).
-   (home-niri-portal-services)
+   (if (eq? portals 'shepherd)
+       (home-niri-portal-services)
+       '())
    ;; XWayland on :0 as a session Shepherd service, plus the session's
    ;; display targets (wayland-display, x11-display, graphical-session)
    ;; that report the session ready only once that X server is up:

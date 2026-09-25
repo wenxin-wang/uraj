@@ -28,6 +28,7 @@
   #:use-module (srfi srfi-1)
   #:use-module (uraj home niri)
   #:use-module (uraj packages window-managers)
+  #:autoload (rosenthal packages wm) (noctalia)
   #:export (%desktop-base-os
             %desktop-openssh-configuration
             desktop-home-environment))
@@ -38,10 +39,20 @@
 ;;; together -- no separate "guix home reconfigure" step.  The greetd
 ;;; session commands below start login shells that source the Guix Home
 ;;; environment.
+;;;
+;;; Unlike a "guix home reconfigure" config, this one is evaluated on
+;;; the machine that *builds* the system -- the installers are built on
+;;; an Ubuntu host -- while the target is Guix System.  The niri
+;;; services' host detection (noctalia-for-host,
+;;; host-uses-systemd-activation?) would therefore look at the wrong
+;;; machine, so both choices are pinned to what a Guix System target
+;;; needs: plain noctalia, whose locker uses Guix's own PAM, and portal
+;;; activation by the session bus instead of the session Shepherd.
 
 (define desktop-home-environment
   (home-environment
-   (services (niri-desktop-home-services))))
+   (services (niri-desktop-home-services #:noctalia noctalia
+                                         #:portals 'activation))))
 
 ;;; SSH with key auth for wenxin; root login stays disabled
 ;;; (permit-root-login defaults to #f and root's shadow entry is

@@ -13,10 +13,12 @@
   #:use-module (srfi srfi-13)
   #:autoload (gnu packages freedesktop) (xdg-desktop-portal
                                         xdg-desktop-portal-gtk)
+  #:autoload (gnu packages glib) (dbus)
   #:autoload (gnu packages gnome) (xdg-desktop-portal-gnome)
   #:autoload (gnu packages xorg) (xwayland-satellite)
   #:autoload (rosenthal packages wm) (noctalia)
-  #:export (noctalia-with-host-pam
+  #:export (noctalia-for-host
+            host-uses-systemd-activation?
             home-niri-noctalia-services
             home-niri-portal-services
             home-niri-session-services
@@ -63,6 +65,21 @@ into programs noctalia spawns."
 ;;; on Ubuntu hosts noctalia runs as the patched variant above whose
 ;;; DT_NEEDED list prepends the host PAM closure.  The closure differs
 ;;; per release, so pick it by the host's /etc/os-release.
+;;;
+;;; "The host" is the machine the home environment runs on, and the
+;;; detection only holds for configs that are evaluated on that same
+;;; machine -- "guix home reconfigure" ones like
+;;; env/guix/os/home-ponyai.scm, which work unchanged on any Ubuntu
+;;; release and fall back to plain noctalia everywhere else
+;;; (noctalia-for-host is also the services' default).  A Guix System
+;;; config must pin the package instead: its home environment is built
+;;; *on* whatever machine runs the build -- a developer's Ubuntu box for
+;;; the installers -- while the target is Guix System, where the patch's
+;;; absolute /usr/lib/x86_64-linux-gnu paths do not exist and the loader
+;;; refuses to run the binary at all.  Guix System's own PAM is what
+;;; plain noctalia uses there (see the unix_chkpwd privileged program in
+;;; (uraj system desktop)); (uraj system desktop) passes plain noctalia
+;;; explicitly for this reason.
 
 (define (ubuntu-pam-libs libs)
   (map (lambda (lib)
@@ -147,11 +164,26 @@ or #f if the host is not Ubuntu 22.04/24.04."
        (ubuntu-pam-libs-for-version (%os-release-field "VERSION_ID"))))
 
 (define (noctalia-for-host)
+  "Return the noctalia package for the machine this home environment is
+being evaluated on: noctalia patched with the host's PAM closure on
+Ubuntu releases with a known closure, plain noctalia anywhere else (see
+the comment above).  Only for configs evaluated on the machine they run
+on; Guix System configs pin the package instead."
   (let ((libs (host-ubuntu-pam-libs)))
     (if (and libs
              (file-exists? "/usr/lib/x86_64-linux-gnu/libpam.so.0"))
         (noctalia-with-host-pam noctalia libs)
         noctalia)))
+
+(define (host-uses-systemd-activation?)
+  "Return #t if D-Bus activation on this machine goes through the user
+systemd manager -- that is, if systemd is the init.  The portals'
+.service files carry SystemdService=, so on such a host activation
+cannot start them inside the niri session and the session Shepherd has
+to own their bus names instead (see home-niri-portal-services).  Like
+noctalia-for-host, only meaningful for configs evaluated on the machine
+they run on; Guix System configs pin @code{#:portals} instead."
+  (file-exists? "/run/systemd/system"))
 
 ;; The session is managed by the host display manager (GDM on Ubuntu).
 ;; GDM runs /usr/local/bin/niri-session (host-side wrapper, see below),
@@ -195,8 +227,7 @@ or #f if the host is not Ubuntu 22.04/24.04."
 ;;   herd stop root 2>/dev/null || true
 
 (define (niri-noctalia-shepherd-service noctalia)
-  "Return the Shepherd service that runs NOCTALIA (see
-@code{noctalia-for-host})."
+  "Return the Shepherd service that runs NOCTALIA."
   (shepherd-service
    (documentation "Start noctalia.")
    (provision '(noctalia))
@@ -212,64 +243,87 @@ or #f if the host is not Ubuntu 22.04/24.04."
          args)))
    (stop #~(make-kill-destructor))))
 
-(define (home-niri-noctalia-services)
-  "Return the list of Home services that run noctalia under a niri
+(define* (home-niri-noctalia-services #:key (noctalia (noctalia-for-host)))
+  "Return the list of Home services that run NOCTALIA under a niri
 session managed by the host display manager: a session Shepherd (started
 by niri, not at login), a stub @code{dbus} service (the session bus is
-provided by the host system) and noctalia itself, patched with the
-host's PAM stack for its screen locker on supported Ubuntu hosts."
-  (let ((noctalia (noctalia-for-host)))
-    (list
-     (service home-shepherd-service-type
-              (home-shepherd-configuration
-               (auto-start? #f)
-               (daemonize? #f)))
+provided by the host system) and noctalia itself.
 
-     ;; The session bus is provided by the host system (systemd/logind),
-     ;; hence the stub instead of home-dbus-service-type.
-     (simple-service 'dbus home-shepherd-service-type
-                     (list (shepherd-service
-                            (provision '(dbus))
-                            (start #~(const #t))
-                            (stop #~(const #f)))))
+NOCTALIA defaults to @code{noctalia-for-host}, the package for the
+machine this home environment is evaluated on; that is only right for
+configs evaluated on the machine they run on, so Guix System configs
+pass plain noctalia instead (see the comment above)."
+  (list
+   (service home-shepherd-service-type
+            (home-shepherd-configuration
+             (auto-start? #f)
+             (daemonize? #f)))
 
-     ;; noctalia's home service, written out here rather than using
-     ;; rosenthal's: that service type extends
-     ;; home-graphical-session-service-type with 'wayland, and guix home
-     ;; instantiates extension targets missing from its service list
-     ;; (instantiate-missing-services in (gnu services)) -- keeping it
-     ;; would materialize rosenthal's graphical-session and
-     ;; wayland-display services alongside the ones from
-     ;; home-niri-session-services.  The extension has no use here: the
-     ;; wayland session plainly exists, niri is the compositor.
-     (simple-service 'noctalia-profile home-profile-service-type
-                     (list noctalia))
-     (simple-service 'noctalia home-shepherd-service-type
-                     (list (niri-noctalia-shepherd-service noctalia))))))
+   ;; The session bus is provided by the host system (systemd/logind),
+   ;; hence the stub instead of home-dbus-service-type.
+   (simple-service 'dbus home-shepherd-service-type
+                   (list (shepherd-service
+                          (provision '(dbus))
+                          (start #~(const #t))
+                          (stop #~(const #f)))))
 
-;;; D-Bus activation cannot start the session's portals in this
-;;; setup: every portal D-Bus service file -- the host's and the
-;;; profile's alike -- carries SystemdService=<name>.service, so
-;;; activation goes through the user systemd manager, and a session
-;;; started by the niri-session wrapper is not a systemd graphical
-;;; session.  On Ubuntu hosts xdg-desktop-portal-gnome.service fails
-;;; its Requisite=graphical-session.target instantly, and
-;;; xdg-desktop-portal.service is then killed when the backend it
-;;; awaits never arrives; the names stay unowned until dbus-daemon
-;;; gives up on the activation.  Every client that reads portal
-;;; settings while starting -- GTK4 applications such as ghostty,
-;;; Chromium and Electron ones such as Feishu -- blocks on that failed
-;;; activation for ~90s (until the frontend unit hits its start
-;;; timeout) before it can open a window.  Owning the bus names from
-;;; the session Shepherd means no <name>.service is ever started.  The
-;;; niri package ships niri-portals.conf (in the profile, hence in
-;;; XDG_DATA_DIRS), which selects the GNOME backend by default and the
-;;; GTK one for the interfaces the former does not implement.
+   ;; noctalia's home service, written out here rather than using
+   ;; rosenthal's: that service type extends
+   ;; home-graphical-session-service-type with 'wayland, and guix home
+   ;; instantiates extension targets missing from its service list
+   ;; (instantiate-missing-services in (gnu services)) -- keeping it
+   ;; would materialize rosenthal's graphical-session and
+   ;; wayland-display services alongside the ones from
+   ;; home-niri-session-services.  The extension has no use here: the
+   ;; wayland session plainly exists, niri is the compositor.
+   (simple-service 'noctalia-profile home-profile-service-type
+                   (list noctalia))
+   (simple-service 'noctalia home-shepherd-service-type
+                   (list (niri-noctalia-shepherd-service noctalia)))))
+
+;;; Who owns the session's xdg-desktop-portal bus names depends on the
+;;; host:
+;;;
+;;; On Guix System the session bus is a plain dbus-run-session daemon,
+;;; which activates services from their Exec= lines, so the portals
+;;; start on demand -- nothing to manage here.  Shepherd-managing them
+;;; instead is actively harmful: a client that asks for the portal name
+;;; before the Shepherd service got to it starts the activated instance,
+;;; and the two frontends then race over the org.freedesktop.background
+;;; Monitor name (xdg-desktop-portal's extra connection, requested with
+;;; DO_NOT_QUEUE; the loser exits cleanly).  The Shepherd re-spawns its
+;;; instance, blows past the respawn limit and gives up.
+;;;
+;;; On Ubuntu hosts D-Bus activation cannot start the session's portals:
+;;; every portal D-Bus service file -- the host's and the profile's
+;;; alike -- carries SystemdService=<name>.service, so activation goes
+;;; through the user systemd manager, and a session started by the
+;;; niri-session wrapper is not a systemd graphical session.
+;;; xdg-desktop-portal-gnome.service fails its
+;;; Requisite=graphical-session.target instantly, and
+;;; xdg-desktop-portal.service is then killed when the backend it awaits
+;;; never arrives; the names stay unowned until dbus-daemon gives up on
+;;; the activation.  Every client that reads portal settings while
+;;; starting -- GTK4 applications such as ghostty, Chromium and Electron
+;;; ones such as Feishu -- blocks on that failed activation for ~90s
+;;; (until the frontend unit hits its start timeout) before it can open
+;;; a window.  Owning the bus names from the session Shepherd means no
+;;; <name>.service is ever started.  niri-desktop-home-services picks
+;;; this flavour automatically on hosts where systemd is the init (see
+;;; host-uses-systemd-activation?), and Guix System configs pin
+;;; @code{#:portals 'activation} for the reason given above
+;;; noctalia-for-host.
+;;;
+;;; Either way the niri package ships niri-portals.conf (in the profile,
+;;; hence in XDG_DATA_DIRS), which selects the GNOME backend by default
+;;; and the GTK one for the interfaces the former does not implement.
 
 (define (home-niri-portal-services)
   "Return the Home services that run the niri session's
 xdg-desktop-portal stack from the Guix profile: the portal frontend
-and its GNOME and GTK backends (see the comment above)."
+and its GNOME and GTK backends (see the comment above).  For hosts
+whose D-Bus activation cannot start the portals -- those with systemd
+as init; elsewhere the session bus activates them itself."
   (list
    (simple-service 'niri-portals home-shepherd-service-type
                    (list
@@ -362,8 +416,9 @@ still shutting down after login."
 targets: wayland-display (a marker for the compositor's socket, taken
 from WAYLAND_DISPLAY), x11-display (ready only once the session's
 XWayland is up, see niri-xwayland-satellite-service) and
-graphical-session, which requires both and is in turn required by
-fcitx5, noctalia and the portals."
+graphical-session, which requires both, is in turn required by fcitx5,
+noctalia and the portals, and hands the ready session's display
+environment to the D-Bus daemon for its activated services."
   (list
    (shepherd-service
     (documentation "Wayland display of the session's compositor.")
@@ -391,7 +446,17 @@ fcitx5, noctalia and the portals."
      "Service target to indicate a graphical session is ready.")
     (provision '(graphical-session))
     (requirement '(wayland-display x11-display))
-    (start #~(const #t))
+    ;; D-Bus-activated services inherit dbus-daemon's environment, not
+    ;; the session's -- the daemon is started by dbus-run-session
+    ;; before the compositor's socket and X exist.  Hand it the ready
+    ;; session's environment, or e.g. Guix System's activated portal
+    ;; backends come up without a display to talk to.
+    (start #~(lambda args
+               (system* #$(file-append dbus
+                                       "/bin/dbus-update-activation-environment")
+                        "WAYLAND_DISPLAY" "DISPLAY" "XDG_CURRENT_DESKTOP"
+                        "XDG_SESSION_TYPE")
+               #t))
     (stop #~(const #f)))))
 
 (define (home-niri-session-services)

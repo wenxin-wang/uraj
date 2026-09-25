@@ -8,4 +8,8 @@
              (uraj home niri))
 
 (home-environment
+ ;; This config is evaluated on the machine it configures, so both
+ ;; noctalia (plain vs. the host-PAM-patched variant) and the portal
+ ;; flavour default to what this host needs -- no Ubuntu-specific bits
+ ;; here, they follow /etc/os-release.
  (services (niri-desktop-home-services)))
