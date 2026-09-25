@@ -73,6 +73,14 @@ output "Philips Consumer Electronics Company PHL 245E1 0x00000693" {
     focus-at-startup
 }
 
+// Built-in panel of the Adol Book Air 14: 2560x1600 at scale 1.5, i.e.
+// 1706x1066 logical, so below the 2560x1440 HP its position is
+// x = (2560 - 1706) / 2 = 427, y = 1440.
+output "China Star Optoelectronics Technology Co., Ltd MNF307DA1-1 0x00005302" {
+    position x=427 y=1440
+    scale 1.5
+}
+
 // GNOME ran this panel at 125% (see ~/.config/monitors.xml); niri's
 // auto-detected 1.5 made everything larger than before. Keep in sync with
 // env/dotfiles/common/x11/Xresources (Xft.dpi = 96 x scale).
