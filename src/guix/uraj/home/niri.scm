@@ -19,6 +19,7 @@
 (define niri-desktop-packages
   (specifications->packages
    '("swappy"                    ;screenshot editing (Print flow)
+     "adwaita-icon-theme"        ;icons used by the GTK Polkit agent
      "grim"                      ;screenshot capture (Print/Mod+Print flow)
      "qtwayland"                 ;Qt Wayland platform plugin
      "niri"

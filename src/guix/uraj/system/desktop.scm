@@ -17,10 +17,12 @@
   #:use-module (gnu packages linux)       ;btrfs-progs, linux-pam
   #:use-module (gnu services)
   #:use-module (gnu services base)
+  #:use-module (gnu services dbus)
   #:use-module (gnu services guix)
   #:use-module (gnu services ssh)
   #:use-module (gnu system nss)
   #:use-module (gnu system privilege)
+  #:use-module (guix gexp)
   #:use-module (nongnu packages linux)
   #:use-module (nongnu system linux-initrd)
   #:use-module (rosenthal services base)
@@ -66,6 +68,20 @@
                  "wenxin-authorized-keys"
                  "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCaK0O50zlTIaIUeaAmfOXTYpansMf7wjQsZCprTIkp8OhgB7XvDwqzLP9xJ3yzKsej8Am4v02d1RHQgCFi2KDmSTAjBFScRAkb5gDXtchPxc0XH4EFNGT1MqmNubDFNsJdMIUyHiPw5iEjsH+pV9qEuWry+1YVNMefjbKz38XTO3r7Ti+Oxq62HErypslYbHUG2wP2c5mS6n+3Ty+Nq3UG8zqhGgd6iIqrNPYC0u6JLiYe/HD6yd3bGuFDAPwJvgKFeDp9R67ScK7BEY9Z5yv6BPKgwGeJ4UvUASpWNdIszIzR/e5qvYa3uBZPgR/6I4J7X8sk3UGtP6VRe2EgclYb simple\n"))))))
 
+;;; Noctalia is NetworkManager's secret agent: it supplies the Wi-Fi
+;;; passphrase, but authorization to create or change the connection is a
+;;; separate Polkit decision.  A live user's empty Unix password cannot be
+;;; submitted reliably by graphical authentication agents.  Let only the
+;;; active local netdev user manage NetworkManager; other administrative
+;;; actions retain the normal wheel authentication policy.
+(define %desktop-network-manager-polkit-rules
+  (file-union
+   "desktop-network-manager-polkit-rules"
+   `(("share/polkit-1/rules.d/20-network-manager-netdev.rules"
+      ,(plain-file
+        "20-network-manager-netdev.rules"
+        "polkit.addRule(function(action, subject) {\n    if (action.id.indexOf(\"org.freedesktop.NetworkManager.\") === 0 &&\n        subject.local && subject.active && subject.isInGroup(\"netdev\")) {\n        return polkit.Result.YES;\n    }\n});\n")))))
+
 (define %desktop-base-os
   (operating-system
     ;; Required fields, given storage-free placeholders that inheriting
@@ -85,7 +101,10 @@
     ;; (kernel linux-lts)
     (kernel linux)
     (initrd microcode-initrd)
-    (firmware (list linux-firmware))
+    ;; linux-firmware carries device firmware, while wireless-regdb supplies
+    ;; regulatory.db for cfg80211's country-specific channel and transmit-power
+    ;; rules.
+    (firmware (list linux-firmware wireless-regdb))
 
     (users
      (cons (user-account
@@ -122,7 +141,19 @@
     (pam-services (base-pam-services #:allow-empty-passwords? #t))
 
     (services
-     (cons* ;; The Home environment lives in the same generation as the
+     (cons* ;; Let PipeWire and WirePlumber acquire bounded real-time
+            ;; scheduling through the system bus instead of falling back to
+            ;; normal priority with org.freedesktop.RealtimeKit1 unavailable.
+            (service rtkit-service-type)
+
+            ;; No password prompt is needed for NetworkManager in an active
+            ;; local desktop session.  In particular this makes the live
+            ;; image usable before its initially empty password is changed.
+            (simple-service 'network-manager-netdev-polkit
+                            polkit-service-type
+                            (list %desktop-network-manager-polkit-rules))
+
+            ;; The Home environment lives in the same generation as the
             ;; system; its activation runs as 'wenxin' on boot and on
             ;; reconfigure, populating ~/.guix-home.
             (service guix-home-service-type
