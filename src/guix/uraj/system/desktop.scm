@@ -24,6 +24,7 @@
   #:use-module (gnu system privilege)
   #:use-module (guix gexp)
   #:use-module (nongnu packages linux)
+  #:use-module (nongnu packages mozilla)
   #:use-module (nongnu system linux-initrd)
   #:use-module (rosenthal services base)
   #:use-module (rosenthal services desktop)
@@ -120,7 +121,8 @@
            %base-user-accounts))
 
     (packages
-     (cons* btrfs-progs       ;subvolume and snapshot management
+     (cons* firefox           ;Mozilla Firefox from the Nonguix channel
+            btrfs-progs       ;subvolume and snapshot management
             ;; dbus-run-session launches the niri session bus; dbus is
             ;; a service dependency but not part of %base-packages.
             dbus
