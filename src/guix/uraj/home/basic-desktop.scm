@@ -29,7 +29,9 @@
             ;; Graphical SSH password prompts outside terminal sessions.  It
             ;; works outside Plasma; its Qt/KDE Frameworks dependencies are
             ;; part of the package closure.
-            "ksshaskpass"))))
+            "ksshaskpass"
+            ;; For general desktop settings
+            "evtest"))))
 
 (define (merged-terminfo-directory packages)
   "Return a directory merging the `share/terminfo' trees of PACKAGES, each

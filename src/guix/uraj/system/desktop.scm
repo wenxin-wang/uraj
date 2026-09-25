@@ -33,6 +33,7 @@
   #:use-module (rosenthal services base)
   #:use-module (rosenthal services desktop)
   #:use-module (srfi srfi-1)
+  #:use-module (uraj hardware keyboard)
   #:use-module (uraj home niri)
   #:use-module (uraj packages window-managers)
   #:use-module (uraj utils file path)
@@ -183,7 +184,14 @@
     (pam-services (base-pam-services #:allow-empty-passwords? #t))
 
     (services
-     (cons* ;; Let PipeWire and WirePlumber acquire bounded real-time
+     (cons* ;; Per-keyboard hwdb key remap from (uraj hardware keyboard):
+            ;; physical Caps Lock → left Shift, left Shift → left Ctrl,
+            ;; left Ctrl → Caps Lock.  Compiled into /etc/udev/hwdb.bin
+            ;; at build time, so it applies in the console and in every
+            ;; graphical session without per-user remapping.
+            %keyboard-remap-hwdb-service
+
+            ;; Let PipeWire and WirePlumber acquire bounded real-time
             ;; scheduling through the system bus instead of falling back to
             ;; normal priority with org.freedesktop.RealtimeKit1 unavailable.
             (service rtkit-service-type)
