@@ -9,13 +9,14 @@
 
 (define basic-dev-packages
   (specifications->packages
-   '("bash-completion"          ;completions for git, fd, ... (see .bashrc.d)
+   '("bash-completion"          ; completions for git, fd, ... (see .bashrc.d)
      "direnv"
      "fd"
      "ripgrep"
      "age"
      "inotify-tools"
      "git"
+     "nss-certs"                ; Without this git clone would have ssl unknown certs errors.
      "vim"
      ;; System status.
      "htop"
