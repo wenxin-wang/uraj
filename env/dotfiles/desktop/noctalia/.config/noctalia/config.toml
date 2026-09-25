@@ -50,5 +50,5 @@ enabled = true
 # 唤醒后仍停留在锁屏界面；播放视频等持有 inhibit 的应用会阻止触发。
 [idle.behavior.suspend-on-battery]
 timeout = 900
-command = 'for f in /sys/class/power_supply/*/online; do [ "$(cat "$f" 2>/dev/null)" = 1 ] && exit 0; done; systemctl suspend'
+command = 'for f in /sys/class/power_supply/*/online; do [ "$(cat "$f" 2>/dev/null)" = 1 ] && exit 0; done; loginctl suspend'
 enabled = true
