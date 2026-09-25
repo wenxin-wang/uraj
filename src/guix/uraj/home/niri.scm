@@ -1,8 +1,11 @@
 (define-module (uraj home niri)
   #:use-module (gnu home services)
+  #:use-module (gnu home services shepherd)
   #:use-module (gnu home services sound)
   #:use-module (gnu packages)
+  #:use-module (gnu packages polkit)
   #:use-module (gnu services)
+  #:use-module (guix gexp)
   #:use-module (uraj home basic-desktop)
   #:use-module (uraj packages window-managers)
   #:export (niri-desktop-home-services))
@@ -24,6 +27,21 @@
      "xdg-desktop-portal-gtk"
      "xorg-server-xwayland"      ;Xwayland, exec'd by xwayland-satellite
      "xwayland-satellite")))     ;X11 support, run by the session Shepherd
+
+(define %niri-polkit-agent-service
+  (shepherd-service
+   (documentation "Run a graphical Polkit authentication agent for niri.")
+   (provision '(polkit-agent))
+   (requirement '(dbus graphical-session))
+   (modules '((shepherd support)))
+   (start #~(make-forkexec-constructor
+             (list #$(file-append
+                      polkit-gnome
+                      "/libexec/polkit-gnome-authentication-agent-1"))
+             #:log-file
+             (in-vicinity %user-log-dir "polkit-agent.log")
+             #:environment-variables (environ)))
+   (stop #~(make-kill-destructor))))
 
 ;;; noctalia <= 5.0.0-beta.8 registered the session lock screen with
 ;;; text-input-v3, which could leave fcitx5 without input for apps
@@ -53,6 +71,14 @@ some other machine and must pin both: plain noctalia and
     (simple-service 'niri-desktop-packages
                     home-profile-service-type
                     niri-desktop-packages)
+    ;; NetworkManager operations such as creating the first connection
+    ;; require Polkit authorization.  Noctalia supplies NM's secret agent
+    ;; (the Wi-Fi password prompt), but it is not a Polkit authentication
+    ;; agent; without this service the request is denied after the password
+    ;; is submitted and the UI appears to do nothing.
+    (simple-service 'niri-polkit-agent
+                    home-shepherd-service-type
+                    (list %niri-polkit-agent-service))
     ;; The session's audio stack: PipeWire + WirePlumber + PipeWire's
     ;; PulseAudio compatibility layer.  Versions match the client
     ;; libraries noctalia links against.  On Ubuntu hosts the
