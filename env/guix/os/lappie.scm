@@ -88,13 +88,8 @@
                  ;; if the kernel lacks zstd support.
                  "zswap.enabled=1"
                  "zswap.compressor=zstd"
-                 "zswap.max_pool_percent=20"
-                 ;; Stability mitigations found while running the live
-                 ;; ISO off the USB stick (see desktop-iso.scm): keep
-                 ;; the hardware out of its aggressive power states.
-                 "usbcore.autosuspend=-1"
-                 "nvme_core.default_ps_max_latency_us=0"
-                 "pcie_aspm=off")))
+                 "zswap.max_pool_percent=20")
+           %asus-adolbook-air14-kernel-cmdlines))
 
   (bootloader
    (bootloader-configuration
@@ -123,4 +118,5 @@
   ;; %desktop-base-os, so its services are appended back explicitly.
   (services
    (append (operating-system-user-services %desktop-base-os)
-           (list %asus-adolbook-air14-panel-replay-service))))
+           (list ; %asus-adolbook-air14-panel-replay-service
+                 ))))

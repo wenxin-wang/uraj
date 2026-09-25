@@ -13,13 +13,13 @@
 ;;;   dmesg | grep "Table Upgrade"    -> override [SSDT-AMD    -AOD     ]
 ;;;   dmesg | grep "ACPI: SSDT.*AOD"  -> OEM revision 00000002
 ;;;
-;;; amdgpu is not blacklisted here: the image carries
-;;; %asus-adolbook-air14-panel-replay-service, which disables Panel
-;;; Replay early enough that the internal panel keeps updating.  Without
-;;; it the screen freezes on the first frame rendered after the driver
-;;; loads -- the system then looks hung or the keyboard dead -- and a
-;;; manual "modprobe.blacklist=amdgpu,radeon" at the GRUB prompt used to
-;;; be the only way to get a usable console.
+;;; amdgpu is not blacklisted here: amdgpu.dcdebugmask disables PSR and
+;;; Panel Replay before the driver probes.  The older post-probe debugfs
+;;; service is deliberately disabled below while this approach is tested.
+;;; Without either workaround the screen freezes on the first frame
+;;; rendered after the driver loads -- the system then looks hung or the
+;;; keyboard dead -- and a manual "modprobe.blacklist=amdgpu,radeon" at
+;;; the GRUB prompt used to be the only way to get a usable console.
 ;;;
 ;;; The override is ignored while the kernel is locked down, so do not
 ;;; enable Secure Boot for this image.
@@ -34,22 +34,20 @@
   (load (in-vicinity (dirname (current-filename)) "desktop-iso.scm")))
 
 (operating-system
-  (inherit desktop-iso-os)
-  ;; Guix does not add the resume argument itself; the initrd resumes
-  ;; from a device given as path, UUID, or bare label.
-  (kernel-arguments
-   (append %default-kernel-arguments
-           (list ;; Stability mitigations found while running the live
-                 ;; ISO off the USB stick (see desktop-iso.scm): keep
-                 ;; the hardware out of its aggressive power states.
-                 "usbcore.autosuspend=-1"
-                 "nvme_core.default_ps_max_latency_us=0"
-                 "pcie_aspm=off")))
-  (initrd (asus-adolbook-air14-acpi-hack
-           (operating-system-initrd desktop-iso-os)))
+ (inherit desktop-iso-os)
+ ;; Guix does not add the resume argument itself; the initrd resumes
+ ;; from a device given as path, UUID, or bare label.
+ (kernel-arguments
+  (append %default-kernel-arguments
+          %asus-adolbook-air14-kernel-cmdlines))
+ (initrd (asus-adolbook-air14-acpi-hack
+          (operating-system-initrd desktop-iso-os)))
 
-  ;; Naming (services ...) replaces the list inherited from
-  ;; desktop-iso-os, so its services are appended back explicitly.
-  (services
-   (append (operating-system-user-services desktop-iso-os)
-           (list %asus-adolbook-air14-panel-replay-service))))
+  ;; amdgpu.dcdebugmask above now disables PSR and Panel Replay before
+  ;; the driver probes.  Leave the old post-probe debugfs workaround out
+  ;; of this image while testing whether the kernel argument is sufficient.
+  ;;
+  ;; (services
+  ;;  (append (operating-system-user-services desktop-iso-os)
+  ;;          (list %asus-adolbook-air14-panel-replay-service)))
+ )
