@@ -187,8 +187,7 @@ they run on; Guix System configs pin @code{#:portals} instead."
 
 ;; The session is managed by the host display manager (GDM on Ubuntu).
 ;; GDM runs /usr/local/bin/niri-session (host-side wrapper, see below),
-;; which sources the Guix Home environment, waits for the greeter's
-;; Xwayland to release :0, and then runs:
+;; which sources the Guix Home environment and then runs:
 ;;   niri --session
 ;; niri then spawns the user Shepherd (spawn-at-startup "shepherd"),
 ;; which starts noctalia and the other graphical services inside the
@@ -359,15 +358,18 @@ as init; elsewhere the session bus activates them itself."
 ;;; retry, so X must already be up when fcitx5 starts, or X11 apps get
 ;;; no input method.  The satellite therefore runs as a Shepherd service
 ;;; -- kept alive by respawn, with a start method that re-spawns it
-;;; until it survives.  The retry matters right after login: the display
-;;; manager's greeter may still own :0 with its own Xwayland, which
-;;; makes the satellite exit at once, and five quick respawns would trip
-;;; the respawn limit and disable the service.  niri's own spawner is
-;;; disabled with "xwayland-satellite { off }" (see the niri dotfiles),
-;;; so there is exactly one satellite and the display number stays :0.
+;;; until it survives.  It runs on display :1, not :0: right after login
+;;; the display manager's greeter may still own :0 with its own Xwayland
+;;; for a dozen seconds, and a satellite on :0 would fail to start until
+;;; the greeter releases it.  On :1 the first spawn already survives;
+;;; the retry loop remains as insurance against a stray X server, and
+;;; its settle gives Xwayland a moment to be ready before the services
+;;; downstream connect.  niri's own spawner is disabled with
+;;; "xwayland-satellite { off }" (see the niri dotfiles), so there is
+;;; exactly one satellite and the display number stays :1.
 ;;;
 ;;; x11-display reports ready only once the satellite is running -- that
-;;; is, once the session's Xwayland holds :0 -- and exports DISPLAY=:0.
+;;; is, once the session's Xwayland holds :1 -- and exports DISPLAY=:1.
 ;;; rosenthal's x11-display instead scans /tmp/.X11-unix for the first
 ;;; X[0-9]+ with (access? name O_RDWR), which the greeter's socket
 ;;; satisfies during login: fcitx5 (requirement '(dbus
@@ -379,11 +381,10 @@ as init; elsewhere the session bus activates them itself."
 
 (define (niri-xwayland-satellite-service)
   "Return the Shepherd service that runs xwayland-satellite on display
-:0.  Its start method retries the spawn until the satellite survives,
-which takes the display from a display manager's greeter when that is
-still shutting down after login."
+:1.  The greeter may keep its own Xwayland on :0 for a while after
+login, and :1 never collides with it."
   (shepherd-service
-   (documentation "Run xwayland-satellite on display :0.")
+   (documentation "Run xwayland-satellite on display :1.")
    (provision '(xwayland-satellite))
    (requirement '(wayland-display))
    (respawn? #t)
@@ -393,7 +394,7 @@ still shutting down after login."
           (make-forkexec-constructor
            (list #$(file-append xwayland-satellite
                                 "/bin/xwayland-satellite")
-                 ":0")
+                 ":1")
            ;; Inherit the session environment; the satellite needs
            ;; WAYLAND_DISPLAY and finds Xwayland on PATH.
            #:environment-variables (environ)))
@@ -401,8 +402,9 @@ still shutting down after login."
           (catch 'system-error
             (lambda () (kill (process-id process) 0) #t)
             (lambda _ #f)))
-        ;; Xwayland exits as soon as it is denied the display, so give
-        ;; each attempt a moment, then retry until the satellite stays.
+        ;; On :1 nothing contends for the display, so the first attempt
+        ;; survives; the settle gives Xwayland a moment to be ready, and
+        ;; the retries cover a stray X server holding :1.
         (let retry ((attempt 0))
           (let ((process (spawn args)))
             (sleep 1.5)
@@ -431,13 +433,13 @@ environment to the D-Bus daemon for its activated services."
     (documentation "X11 display of the session, from xwayland-satellite.")
     (provision '(x11-display))
     ;; The satellite's start method returns only once its Xwayland
-    ;; survives on :0, so that completion is the readiness signal -- not
+    ;; survives on :1, so that completion is the readiness signal -- not
     ;; a socket scan, which any accessible socket satisfies, be it the
     ;; greeter's or a stale one.
     (requirement '(wayland-display xwayland-satellite))
     (start #~(lambda args
-               (setenv "DISPLAY" ":0")
-               ":0"))
+               (setenv "DISPLAY" ":1")
+               ":1"))
     (stop #~(lambda (_)
               (unsetenv "DISPLAY")
               #f)))
@@ -462,7 +464,7 @@ environment to the D-Bus daemon for its activated services."
 (define (home-niri-session-services)
   "Return the Home services that provide the niri session's display
 targets and its XWayland: the @command{xwayland-satellite} Shepherd
-service, run on display :0, and the wayland-display, x11-display and
+service, run on display :1, and the wayland-display, x11-display and
 graphical-session services that report the session ready only once that
 X server is up (see the comment above)."
   (list

@@ -98,7 +98,7 @@ some other machine and must pin both: plain noctalia and
    (if (eq? portals 'shepherd)
        (home-niri-portal-services)
        '())
-   ;; XWayland on :0 as a session Shepherd service, plus the session's
+   ;; XWayland on :1 as a session Shepherd service, plus the session's
    ;; display targets (wayland-display, x11-display, graphical-session)
    ;; that report the session ready only once that X server is up:
    ;; X11 apps need a live X, and fcitx5's XIM frontend connects to X
