@@ -1,0 +1,20 @@
+#!/bin/sh
+
+# GnuPG clients pass the request's display and tty settings to gpg-agent, so
+# choose a frontend when pinentry is requested rather than at login time.
+if [ -n "${WAYLAND_DISPLAY:-}" ] || [ -n "${DISPLAY:-}" ]; then
+    for frontend in pinentry-kwallet pinentry-qt pinentry-gnome3 pinentry-gtk-2; do
+        if command -v "$frontend" >/dev/null 2>&1; then
+            exec "$frontend" "$@"
+        fi
+    done
+fi
+
+for frontend in pinentry-tty pinentry-curses; do
+    if command -v "$frontend" >/dev/null 2>&1; then
+        exec "$frontend" "$@"
+    fi
+done
+
+echo "pinentry-auto: no usable pinentry frontend found" >&2
+exit 1
