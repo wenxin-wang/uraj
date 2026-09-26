@@ -20,6 +20,7 @@
   #:use-module (gnu services base)
   #:use-module (gnu services dbus)
   #:use-module (gnu services guix)
+  #:use-module (gnu services security-token) ;pcscd
   #:use-module (gnu services ssh)
   #:use-module (gnu system nss)
   #:use-module (gnu system privilege)
@@ -195,6 +196,11 @@
             ;; scheduling through the system bus instead of falling back to
             ;; normal priority with org.freedesktop.RealtimeKit1 unavailable.
             (service rtkit-service-type)
+
+            ;; The Guix Home gpg-agent's scdaemon reaches OpenPGP smart
+            ;; cards through pcscd (the stock gnupg has no internal CCID
+            ;; driver).  Foreign hosts get their distro's pcscd instead.
+            (service pcscd-service-type)
 
             ;; No password prompt is needed for NetworkManager in an active
             ;; local desktop session.  In particular this makes the live
