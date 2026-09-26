@@ -13,6 +13,7 @@
   #:use-module (gnu bootloader)
   #:use-module (gnu bootloader grub)
   #:use-module (gnu home)
+  #:use-module (gnu home services)
   #:use-module (gnu packages glib)        ;dbus (dbus-run-session)
   #:use-module (gnu packages linux)       ;btrfs-progs, linux-pam
   #:use-module (gnu services)
@@ -22,7 +23,10 @@
   #:use-module (gnu services ssh)
   #:use-module (gnu system nss)
   #:use-module (gnu system privilege)
+  #:use-module (guix base32)
+  #:use-module (guix download)
   #:use-module (guix gexp)
+  #:use-module (guix packages)
   #:use-module (nongnu packages linux)
   #:use-module (nongnu packages mozilla)
   #:use-module (nongnu system linux-initrd)
@@ -31,6 +35,7 @@
   #:use-module (srfi srfi-1)
   #:use-module (uraj home niri)
   #:use-module (uraj packages window-managers)
+  #:use-module (uraj utils file path)
   #:autoload (rosenthal packages wm) (noctalia)
   #:export (%desktop-base-os
             %desktop-openssh-configuration
@@ -52,10 +57,21 @@
 ;;; needs: plain noctalia, whose locker uses Guix's own PAM, and portal
 ;;; activation by the session bus instead of the session Shepherd.
 
+(define %desktop-trusted-channels-file
+  (local-file
+   (project-path "src/guix/uraj/system/trusted-channels.scm")
+   "trusted-channels.scm"))
+
 (define desktop-home-environment
   (home-environment
-   (services (niri-desktop-home-services #:noctalia noctalia
-                                         #:portals 'activation))))
+   (services
+    (cons (simple-service
+           'trusted-guix-channels
+           home-files-service-type
+           `((".config/guix/trusted-channels.scm"
+              ,%desktop-trusted-channels-file)))
+          (niri-desktop-home-services #:noctalia noctalia
+                                      #:portals 'activation)))))
 
 ;;; SSH with key auth for wenxin; root login stays disabled
 ;;; (permit-root-login defaults to #f and root's shadow entry is
@@ -82,6 +98,16 @@
       ,(plain-file
         "20-network-manager-netdev.rules"
         "polkit.addRule(function(action, subject) {\n    if (action.id.indexOf(\"org.freedesktop.NetworkManager.\") === 0 &&\n        subject.local && subject.active && subject.isInGroup(\"netdev\")) {\n        return polkit.Result.YES;\n    }\n});\n")))))
+
+;;; Fetch the Nonguix substitute signing key while building the system or
+;;; image.  Pinning its hash makes authorization independent of mutable
+;;; network content and requires no download during system activation.
+(define %nonguix-signing-key
+  (origin
+    (method url-fetch)
+    (uri "https://substitutes.nonguix.org/signing-key.pub")
+    (sha256
+     (base32 "0j66nq1bxvbxf5n8q2py14sjbkn57my0mjwq7k1qm9ddghca7177"))))
 
 (define %desktop-base-os
   (operating-system
@@ -202,4 +228,19 @@
             ;; on %desktop-services).
 
             (modify-services %rosenthal-desktop-services/base
+              (guix-service-type config =>
+                (guix-configuration
+                 (inherit config)
+                 ;; Prefer the SJTUG mirrors, retain the upstream build farms
+                 ;; as fallbacks, and finally try the independent Nonguix
+                 ;; cache for packages supplied by that channel.
+                 (substitute-urls
+                  '("https://mirror.sjtu.edu.cn/guix-bordeaux"
+                    "https://mirror.sjtu.edu.cn/guix"
+                    "https://bordeaux.guix.gnu.org"
+                    "https://ci.guix.gnu.org"
+                    "https://substitutes.nonguix.org"))
+                 (authorized-keys
+                  (cons %nonguix-signing-key
+                        (guix-configuration-authorized-keys config)))))
               (delete mingetty-service-type))))))
