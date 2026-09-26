@@ -10,12 +10,6 @@
 
 (define %asus-adolbook-air14-kernel-cmdlines
   (list
-   ;; Stability mitigations found while running the live
-   ;; ISO off the USB stick (see desktop-iso.scm): keep
-   ;; the hardware out of its aggressive power states.
-   "usbcore.autosuspend=-1"
-   "nvme_core.default_ps_max_latency_us=0"
-   "pcie_aspm=off"
    ;; DC_DISABLE_PSR | DC_DISABLE_REPLAY.  Do this before
    ;; amdgpu probes so screen-off/on and suspend/resume cannot
    ;; re-enable the panel features disabled by the debugfs
