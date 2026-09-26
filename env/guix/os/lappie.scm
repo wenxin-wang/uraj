@@ -24,7 +24,7 @@
 ;;; Partitioning recipe (sgdisk):
 ;;;   sgdisk --zap-all /dev/nvme0n1
 ;;;   sgdisk -n 1:0:+1G  -t 1:ef00 -c 1:EFI    /dev/nvme0n1
-;;;   sgdisk -n 2:0:+16G -t 2:8200 -c 2:swap   /dev/nvme0n1   ; >= 2/5RAM
+;;;   sgdisk -n 2:0:+32G -t 2:8200 -c 2:swap   /dev/nvme0n1   # >= RAM for hibernation
 ;;;   sgdisk -n 3:0:0    -t 3:8300 -c 3:lappie /dev/nvme0n1
 ;;;   mkfs.fat -F32 -n EFI /dev/nvme0n1p1
 ;;;   mkswap -L swap /dev/nvme0n1p2
