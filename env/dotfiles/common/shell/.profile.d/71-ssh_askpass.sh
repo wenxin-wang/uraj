@@ -1,6 +1,9 @@
-# Use gpg-agent for SSH authentication.  OpenPGP-card authentication keys are
-# available here when a YubiKey or CanoKey is inserted.
-export SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket)"
+# Use gpg-agent for SSH authentication when the session does not already have
+# an agent.  In particular, preserve the socket installed by `ssh -A` so agent
+# forwarding keeps working in remote login shells.
+if [ -z "${SSH_AUTH_SOCK:-}" ]; then
+    export SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket)"
+fi
 
 # OpenSSH only invokes askpass when no TTY is available and DISPLAY is set.
 # Resolve the Guix-profile program dynamically instead of assuming /usr/bin.
