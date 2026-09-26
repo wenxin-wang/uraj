@@ -67,6 +67,14 @@
   (file-systems %base-file-systems)
   (swap-devices '())
 
+  ;; Redirect writes to /gnu/store to the installation target.  This is
+  ;; normally supplied by 'installation-os', which this customized desktop
+  ;; image does not inherit.  It is intentionally not auto-started: after
+  ;; mounting the target on /mnt, run "sudo herd start cow-store /mnt".
+  (services
+   (cons ((@@ (gnu system install) cow-store-service))
+         (operating-system-user-services %desktop-base-os)))
+
   ;; %installer-disk-utilities is not exported from (gnu system
   ;; install), hence @@; it is the official installer's disk tool set
   ;; (parted, gptfdisk, dosfstools, btrfs-progs, e2fsprogs, cryptsetup,
