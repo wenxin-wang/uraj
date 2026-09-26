@@ -1295,10 +1295,7 @@ dir is the directory of the buffer (param of my/project-try), when it's changed,
   ;; A global mode that compiles .el files prior to loading them via `load' or
   ;; `require'. Additionally, it compiles all packages that were loaded before
   ;; the mode `compile-angel-on-load-mode' was activated.
-  ;; Disable this in debug mode because it may trigger loading of code not defined
-  ;; during normal compilation.
-  (when (not minimal-emacs-debug)
-    (compile-angel-on-load-mode 1)))
+  (compile-angel-on-load-mode 1))
 
 ;; See https://emacsredux.com/blog/2026/04/07/stealing-from-the-best-emacs-configs/
 (setq-default bidi-display-reordering 'left-to-right
