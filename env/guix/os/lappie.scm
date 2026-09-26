@@ -48,6 +48,7 @@
 ;;;   mount -o subvol=@data,compress=zstd /dev/nvme0n1p3 /mnt/data
 ;;;   mount -o subvol=@snapshots          /dev/nvme0n1p3 /mnt/snapshots
 ;;;   mount /dev/nvme0n1p1 /mnt/boot/efi
+;;;   install -d -m 1777 /mnt/tmp
 
 (use-modules (gnu)
              (gnu bootloader)
@@ -97,7 +98,8 @@
     (targets (list "/boot/efi"))))
 
   (file-systems
-   (cons* (file-system
+   (cons* %desktop-tmp-file-system
+          (file-system
            (device (file-system-label "EFI"))
            (mount-point "/boot/efi")
            (type "vfat"))

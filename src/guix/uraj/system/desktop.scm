@@ -39,6 +39,7 @@
   #:autoload (rosenthal packages wm) (noctalia)
   #:export (%desktop-base-os
             %desktop-openssh-configuration
+            %desktop-tmp-file-system
             desktop-home-environment))
 
 ;;; The Home environment is embedded via guix-home-service-type: one
@@ -108,6 +109,19 @@
     (uri "https://substitutes.nonguix.org/signing-key.pub")
     (sha256
      (base32 "0j66nq1bxvbxf5n8q2py14sjbkn57my0mjwq7k1qm9ddghca7177"))))
+
+;;; Keep temporary files in memory (and swap under pressure).  The size is a
+;;; ceiling rather than a reservation and can be changed at runtime with a
+;;; tmpfs remount.
+(define %desktop-tmp-file-system
+  (file-system
+    (mount-point "/tmp")
+    (device "none")
+    (type "tmpfs")
+    (flags '(no-suid no-dev))
+    (options "mode=1777,size=16G")
+    (check? #f)
+    (create-mount-point? #t)))
 
 (define %desktop-base-os
   (operating-system

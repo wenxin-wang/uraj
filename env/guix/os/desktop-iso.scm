@@ -62,15 +62,19 @@
    (bootloader-configuration
     (bootloader grub-bootloader)))
 
-  ;; Pseudo file systems only: the ISO's volatile root comes from the
-  ;; image machinery.
-  (file-systems %base-file-systems)
+  ;; The ISO's volatile root comes from the image machinery.  Keep /tmp on a
+  ;; dedicated tmpfs, as in Guix's official installation image.
+  (file-systems
+   (cons %desktop-tmp-file-system %base-file-systems))
   (swap-devices '())
 
   ;; Redirect writes to /gnu/store to the installation target.  This is
   ;; normally supplied by 'installation-os', which this customized desktop
   ;; image does not inherit.  It is intentionally not auto-started: after
-  ;; mounting the target on /mnt, run "sudo herd start cow-store /mnt".
+  ;; mounting the target on /mnt, first preserve the standard sticky /tmp
+  ;; permissions across cow-store's bind mount, then start it:
+  ;;   sudo install -d -m 1777 /mnt/tmp
+  ;;   sudo herd start cow-store /mnt
   (services
    (cons ((@@ (gnu system install) cow-store-service))
          (operating-system-user-services %desktop-base-os)))
