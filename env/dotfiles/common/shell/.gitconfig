@@ -1,0 +1,55 @@
+[core]
+    # editor = vim
+    # pager = diff-so-fancy | less --tabs=4 -RFX
+    # pager = git-split-diffs --color | less -RFX
+[alias]
+    st = status
+    cm = commit
+    chp = cherry-pick
+    cmm = commit -m
+    cam = commit -a -m
+    cma = commit --amend
+    cmane = commit --amend --no-edit
+    co = checkout
+    dc = diff --cached
+    sth = stash
+    stp = stash pop
+    org = "!p=$(pwd); n=$(basename $p); b=$(git symbolic-ref HEAD | awk -F '/' '{print $3 }'); git archive --format=tar.gz --prefix=$n/ -o $p.tar.gz $b"
+    arg = "!p=$(pwd); n=$(basename $p); b=$(git symbolic-ref HEAD | awk -F '/' '{print $3 }'); git archive --format=tar.gz --prefix=$n-$b/ -o $p-$b.tar.gz $b"
+    arz = "!p=$(pwd); n=$(basename $p); b=$(git symbolic-ref HEAD | awk -F '/' '{print $3 }'); git archive --format=zip --prefix=$n-$b/ -o $p-$b.zip $b"
+    artg = "!p=$(pwd); n=$(basename $p); b=$(git describe --tags --abbrev=0); git archive --format=tar.gz --prefix=$n-$b/ -o $p-$b.tar.gz $b"
+    artz = "!p=$(pwd); n=$(basename $p); b=$(git describe --tags --abbrev=0); git archive --format=zip --prefix=$n-$b/ -o $p-$b.zip $b"
+    vicma = "!EDITOR=vi git cma"
+    vimcma = "!EDITOR=vim git cma"
+
+[push]
+    default = simple
+[pull]
+    ff = only
+
+[color]
+    ui = auto
+
+[diff]
+    renames = copy
+[split-diffs]
+    theme-name = solarized-light
+
+[filter "lfs"]
+    clean = git-lfs clean -- %f
+    smudge = git-lfs smudge -- %f
+    required = true
+    process = git-lfs filter-process
+
+# Speed up git-status
+[core]
+    fsmonitor = true
+    preloadIndex = true
+[feature]
+    manyFiles  = true
+[status]
+    aheadBehind = false
+
+[include]
+    path = .gitconfig.local
+    path = .gitconfig.transient
