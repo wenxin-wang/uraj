@@ -27,7 +27,10 @@
      "inotify-tools"
      "git"
      "nss-certs"                ; Without this git clone would have ssl unknown certs errors.
+     "xdg-utils"
      "vim"
+     ;; Security
+     "bubblewrap"
      ;; System status.
      "htop"
      ;; Python
