@@ -9,6 +9,7 @@
   #:use-module (uraj common basic-services)
   #:use-module (uraj home basic-dev)
   #:use-module (uraj home emacs)
+  #:use-module (uraj home llm)
   #:use-module (uraj packages basic-packages)
   #:use-module (uraj packages input-methods)
   #:use-module (uraj packages terminals)
@@ -77,4 +78,5 @@ services."
    (my-dotfiles-services (list (project-path "env/dotfiles/desktop")))
    (basic-dev-home-services)
    (emacs-home-services)
+   (llm-home-services)
    %base-home-services))
