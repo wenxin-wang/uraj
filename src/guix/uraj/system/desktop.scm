@@ -154,11 +154,13 @@
             (name "wenxin")
             (comment "Wenxin Wang")
             (group "users")
-            ;; Empty password: SSH key login works from the start, and
-            ;; greetd accepts a bare RET for the first local login; set
-            ;; a real password with `passwd` afterwards (PAM's nullok
-            ;; below is what allows the empty password).
-            (password (crypt "" "$6$abc"))
+            ;; A genuinely empty shadow field for the first login: greetd's
+            ;; own PAM service accepts it, while the ordinary sudo PAM
+            ;; service deliberately does not.  After logging in, `passwd'
+            ;; lets the user set their own password without sudo.  Guix
+            ;; preserves the shadow entry across reconfigures; this value
+            ;; only initializes a new account.  SSH key login is independent.
+            (password "")
             (supplementary-groups '("wheel" "netdev" "audio" "video")))
            %base-user-accounts))
 
@@ -179,10 +181,6 @@
             (program (file-append linux-pam "/sbin/unix_chkpwd"))
             (setuid? #t))
            %default-privileged-programs))
-
-    ;; PAM accepts the empty first-login password (greetd login, sudo
-    ;; and su before `passwd`); see the wenxin user-account above.
-    (pam-services (base-pam-services #:allow-empty-passwords? #t))
 
     (services
      (cons* ;; Per-keyboard hwdb key remap from (uraj hardware keyboard):
@@ -225,6 +223,9 @@
             ;; %rosenthal-desktop-services/tuigreet layout.
             (service greetd-service-type
               (greetd-configuration
+               ;; This controls only greetd's PAM service.  In particular it
+               ;; does not add `nullok' to sudo authentication.
+               (allow-empty-passwords? #t)
                (greeter-supplementary-groups '("video" "input"))
                (terminals
                 (map (lambda (vt)

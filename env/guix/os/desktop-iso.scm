@@ -68,6 +68,13 @@
    (cons %desktop-tmp-file-system %base-file-systems))
   (swap-devices '())
 
+  ;; Unlike real machines (see lappie.scm), the live image keeps sudo,
+  ;; su, and passwd passwordless for the empty first-login password:
+  ;; it is a disposable, physically-present-only environment, same as
+  ;; Guix's own official installer ('installation-os' in (gnu system
+  ;; install) passes the same #:allow-empty-passwords? #t).
+  (pam-services (base-pam-services #:allow-empty-passwords? #t))
+
   ;; Redirect writes to /gnu/store to the installation target.  This is
   ;; normally supplied by 'installation-os', which this customized desktop
   ;; image does not inherit.  It is intentionally not auto-started: after

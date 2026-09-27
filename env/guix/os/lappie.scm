@@ -49,6 +49,10 @@
 ;;;   mount -o subvol=@snapshots          /dev/nvme0n1p3 /mnt/snapshots
 ;;;   mount /dev/nvme0n1p1 /mnt/boot/efi
 ;;;   install -d -m 1777 /mnt/tmp
+;;;
+;;; On the first boot, log in as wenxin through greetd with an empty password,
+;;; then run `passwd' (no sudo) to set a real one.  Until then sudo refuses the
+;;; empty password; wheel membership grants permission, not NOPASSWD access.
 
 (use-modules (gnu)
              (gnu bootloader)
