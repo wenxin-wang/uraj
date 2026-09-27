@@ -3,11 +3,12 @@
   #:use-module (gnu home services)
   #:use-module (gnu packages)
   #:use-module (gnu services)
+  #:use-module (uraj packages llm)
   #:export (llm-home-services))
 
 (define llm-packages
-  (specifications->packages '("codex"
-                              "claude-code")))
+  (cons codex
+        (specifications->packages '("claude-code"))))
 
 (define (llm-home-services)
   (list
