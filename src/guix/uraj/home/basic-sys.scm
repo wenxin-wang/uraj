@@ -27,6 +27,7 @@
      ;; Utils.
      "inotify-tools"
      "nss-certs"                ; Without this git clone would have ssl unknown certs errors.
+     "pv"
      "xdg-utils")))
 
 (define (basic-sys-home-services)
