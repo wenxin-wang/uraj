@@ -12,27 +12,13 @@
 
 (define basic-dev-packages
   (specifications->packages
-   '("bash-completion"          ; completions for git, fd, ... (see .bashrc.d)
-     "direnv"
-     "fd"
-     "ripgrep"
-     "age"
-     ;; OpenPGP smart cards (YubiKey/CanoKey), commit signing and the
+   '(;; OpenPGP smart cards (YubiKey/CanoKey), commit signing and the
      ;; gpg-agent SSH agent.  Card access goes through the host's pcscd
      ;; (Ubuntu: 'apt install pcscd'; Guix System: pcscd-service-type),
      ;; so the stock package suffices.  Keep a terminal pinentry here so
      ;; basic-dev also works on machines without a desktop environment.
      "gnupg"
      "pinentry-tty"
-     "inotify-tools"
-     "git"
-     "nss-certs"                ; Without this git clone would have ssl unknown certs errors.
-     "xdg-utils"
-     "vim"
-     ;; Security
-     "bubblewrap"
-     ;; System status.
-     "htop"
      ;; Python
      "uv")))
 
@@ -108,4 +94,4 @@
     (basic-dev-gpg-agent-service)
     (mask-host-gpg-agent-systemd-units))
    (my-dotfiles-services
-    (list (project-path "env/dotfiles/common")))))
+    (list (project-path "env/dotfiles/dev")))))
