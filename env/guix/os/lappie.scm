@@ -63,19 +63,8 @@
              (srfi srfi-1)
              (uraj hardware asus)
              (uraj system desktop)
-             (uraj system iso))
-
-(define %btrfs-mount-options "compress=zstd")
-
-(define (btrfs-subvolume mount-point subvol)
-  (file-system
-   (device (file-system-label "lappie"))
-   (mount-point mount-point)
-   (type "btrfs")
-   (options (string-append "subvol=" subvol
-                           (if (string=? subvol "@snapshots")
-                               ""
-                               (string-append "," %btrfs-mount-options))))))
+             (uraj system iso)
+             (uraj system storage))
 
 (define lappie-os
   (operating-system
@@ -106,24 +95,8 @@
     (bootloader grub-efi-bootloader)
     (targets (list "/boot/efi"))))
 
-  (file-systems
-   (cons* %desktop-tmp-file-system
-          (file-system
-           (device (file-system-label "EFI"))
-           (mount-point "/boot/efi")
-           (type "vfat"))
-          (btrfs-subvolume "/" "@root")
-          (btrfs-subvolume "/home" "@home")
-          (btrfs-subvolume "/var" "@var")
-          (btrfs-subvolume "/gnu/store" "@gnu")
-          (btrfs-subvolume "/data" "@data")
-          (btrfs-subvolume "/snapshots" "@snapshots")
-          %base-file-systems))
-
-  (swap-devices
-   (list (swap-space
-          (target (file-system-label "swap"))
-          (discard? #t))))
+  (file-systems (btrfs-root-file-systems "lappie"))
+  (swap-devices %nvme-swap-devices)
 
   ;; Naming (services ...) replaces the list inherited from
   ;; %desktop-base-os, so its services are appended back explicitly.
