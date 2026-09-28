@@ -9,8 +9,18 @@
 (define* (system-vm #:optional (config-path (guix-env-path "os/qemu-example.scm")))
   ($guix `("system" "vm" ,config-path)))
 
-(define* (build-iso #:optional (config-path (guix-env-path "os/desktop-iso.scm")))
-  ($guix `("system" "image" "-t" "iso9660" ,config-path)))
+(define* (build-iso #:optional (config-path (guix-env-path "os/lappie.scm")))
+  ;; The configuration itself performs the transformation.  Environment is
+  ;; used because maak's CLI rejects task-specific --options.
+  (let ((old-value (getenv "TO_ISO")))
+    (dynamic-wind
+      (lambda () (setenv "TO_ISO" "1"))
+      (lambda ()
+        ($guix `("system" "image" "-t" "iso9660" ,config-path)))
+      (lambda ()
+        (if old-value
+            (setenv "TO_ISO" old-value)
+            (unsetenv "TO_ISO"))))))
 
 (define* (home-container #:optional (config-path (guix-env-path "os/home-example.scm"))
 	                 #:key (fork? (my-fork?))

@@ -53,13 +53,17 @@
 ;;; On the first boot, log in as wenxin through greetd with an empty password,
 ;;; then run `passwd' (no sudo) to set a real one.  Until then sudo refuses the
 ;;; empty password; wheel membership grants permission, not NOPASSWD access.
+;;;
+;;; Build the matching live installer (maak sets TO_ISO in the Guix process):
+;;;   maak -f env/guix/os/maak.scm build-iso
 
 (use-modules (gnu)
              (gnu bootloader)
              (gnu bootloader grub)
              (srfi srfi-1)
              (uraj hardware asus)
-             (uraj system desktop))
+             (uraj system desktop)
+             (uraj system iso))
 
 (define %btrfs-mount-options "compress=zstd")
 
@@ -73,7 +77,8 @@
                                ""
                                (string-append "," %btrfs-mount-options))))))
 
-(operating-system
+(define lappie-os
+  (operating-system
   (inherit %desktop-base-os)
   (host-name "lappie")
 
@@ -125,4 +130,11 @@
   (services
    (append (operating-system-user-services %desktop-base-os)
            (list ; %asus-adolbook-air14-panel-replay-service
-                 ))))
+                 )))))
+
+;; `maak build-iso' sets TO_ISO for its Guix subprocess.  Keeping the switch
+;; here means this remains the single source of truth for both the installed
+;; system and its hardware-matched live image.
+(if (getenv "TO_ISO")
+    (to-iso lappie-os)
+    lappie-os)
