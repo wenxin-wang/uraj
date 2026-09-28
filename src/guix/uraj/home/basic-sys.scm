@@ -9,20 +9,25 @@
 
 (define basic-sys-packages
   (specifications->packages
-   '("bash-completion"          ; completions for git, fd, ... (see .bashrc.d)
+   '(;; UI
+     "bash-completion"          ; completions for git, fd, ... (see .bashrc.d)
+     "tmux"
+     ;; Data.
      "direnv"
      "fd"
-     "ripgrep"
-     "age"
-     "inotify-tools"
      "git"
-     "nss-certs"                ; Without this git clone would have ssl unknown certs errors.
-     "xdg-utils"
+     "ripgrep"
+     "rsync"
      "vim"
-     ;; Security
+     ;; Security.
+     "age"
      "bubblewrap"
      ;; System status.
-     "htop")))
+     "htop"
+     ;; Utils.
+     "inotify-tools"
+     "nss-certs"                ; Without this git clone would have ssl unknown certs errors.
+     "xdg-utils")))
 
 (define (basic-sys-home-services)
   (append
