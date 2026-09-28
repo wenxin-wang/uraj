@@ -37,6 +37,7 @@
   #:use-module (uraj hardware keyboard)
   #:use-module (uraj home niri)
   #:use-module (uraj packages window-managers)
+  #:use-module (uraj system home)
   #:use-module (uraj utils file path)
   #:autoload (rosenthal packages wm) (noctalia)
   #:export (%desktop-base-os
@@ -210,7 +211,7 @@
             ;; The Home environment lives in the same generation as the
             ;; system; its activation runs as 'wenxin' on boot and on
             ;; reconfigure, populating ~/.guix-home.
-            (service guix-home-service-type
+            (service guix-home-with-environment-service-type
                      (list (list "wenxin" desktop-home-environment)))
 
             ;; SSH config lives in %desktop-openssh-configuration above
