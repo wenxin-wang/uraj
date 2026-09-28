@@ -1,5 +1,5 @@
 (define-module (uraj maak guix)
-  #:use-module (maak dsl)
+  #:use-module (uraj maak process)
   #:use-module (uraj utils file path)
   #:export (my-fork?
             $guix
@@ -10,9 +10,15 @@
   (getenv "MY_FORK"))
 
 (define* ($guix args #:key (fork? (my-fork?)))
-  (if fork?
-      ($ `(,(guix-env-path "pre-inst-env") "guix" ,@args))
-      (time-machine args #:channels (guix-env-path "channels-lock.scm"))))
+  (let ((command
+         (if fork?
+             (append (list (guix-env-path "pre-inst-env") "guix") args)
+             (append (list "guix" "time-machine"
+                           (string-append "--channels="
+                                          (guix-env-path "channels-lock.scm"))
+                           "--")
+                     args))))
+    (run-command command)))
 
 (define* (guix . args)
   ($guix args))

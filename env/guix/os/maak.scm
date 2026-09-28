@@ -4,10 +4,16 @@
   #:use-module (uraj desktop env)
   #:use-module (uraj maak guix)
   #:use-module (uraj utils file path)
-  #:export (system-vm build-iso home-container home-reconfigure))
+  #:export (system-vm system-reconfigure build-iso home-container home-reconfigure))
 
 (define* (system-vm #:optional (config-path (guix-env-path "os/qemu-example.scm")))
   ($guix `("system" "vm" ,config-path)))
+
+(define* (system-reconfigure
+          #:optional (config-path
+                      (project-path
+                       (string-append "env/guix/os/" (gethostname) ".scm"))))
+  ($guix `("system" "reconfigure" ,config-path)))
 
 (define* (build-iso #:optional (config-path (guix-env-path "os/lappie.scm")))
   ;; The configuration itself performs the transformation.  Environment is
@@ -31,9 +37,9 @@
     (match (desktop-container-envs)
       ((shares . env)
        (let* ((script (and (pair? env)
-                           (string-append "'"
-                                          (string-join (map (cut string-append "export " <>) env) ";")
-                                          (if (null? command*) ";exec /proc/self/exe'" ";'"))))
+                           (string-append
+                            (string-join (map (cut string-append "export " <>) env) ";")
+                            (if (null? command*) ";exec /proc/self/exe" ";"))))
               (head `("home" "container" ,config-path
                       ;; Only the fork supports this option.
                       ,@(if fork? '("--keep-host-uid-gid") '())
