@@ -1,0 +1,8 @@
+[tui]
+# Temporary workaround: Ghostty 1.3.1 can split UTF-8 characters when
+# truncating desktop notifications. Upstream has fixed this in:
+# https://github.com/ghostty-org/ghostty/pull/13811
+# The Debian build we use (dariogriffo/ghostty-debian 1.3.1-6) lacks the fix.
+# Remove notification_method below once that package includes the fix and
+# the updated Ghostty is installed, to restore automatic desktop notifications.
+notification_method = "bel"
