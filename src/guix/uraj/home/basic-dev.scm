@@ -75,7 +75,7 @@
     ;; pinentry-tty (also in this profile) otherwise.
     (pinentry-program
      ;; Recursive store import preserves the script's executable bit.
-     (local-file (project-path "env/dotfiles/common/bin/.local/bin/pinentry-auto")
+     (local-file (project-path "env/dotfiles/dev/bin/.local/bin/pinentry-auto")
                  #:recursive? #t))
     (ssh-support? #t)
     (default-cache-ttl 3600)
