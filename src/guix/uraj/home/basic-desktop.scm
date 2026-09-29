@@ -5,6 +5,7 @@
   #:use-module (gnu packages fcitx5)
   #:use-module (gnu services)
   #:use-module (guix gexp)
+  #:use-module (nongnu packages mozilla)
   #:use-module (rosenthal services desktop)
   #:use-module (uraj common basic-services)
   #:use-module (uraj home basic-dev)
@@ -19,6 +20,7 @@
 (define basic-desktop-packages
   (cons* glibc-common-locales
          ghostty                        ;terminal emulator
+         firefox                        ;Mozilla Firefox from the Nonguix channel
          (specifications->packages
           '("font-jigmo"
             "font-jetbrains-mono"
