@@ -1,6 +1,11 @@
-# 默认方案为「明月拼音·简化字」(luna_pinyin_simp)，输出简体中文；
-# F4 可在方案列表中切换到 luna_pinyin（繁体）等其它方案。
+# 默认方案为「雾凇拼音」(rime_ice)；数据文件由 Guix 包 rime-ice 软链进
+# 本目录（见 (uraj home basic-desktop) 的 rime-ice-data 服务）。
+# F4 可在方案列表中切换其它已安装方案。
 patch:
   schema_list:
-    - schema: luna_pinyin_simp
-    - schema: luna_pinyin
+    - schema: rime_ice
+  # 雾凇默认用 - = 翻页，这里把经典的 , . 翻页追加回来：
+  # , 上一页（在第一页时仍直接上屏，保持旧习惯）；. 下一页。
+  key_binder/bindings/+:
+    - { when: paging, accept: comma, send: Page_Up }
+    - { when: has_menu, accept: period, send: Page_Down }
