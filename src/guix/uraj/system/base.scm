@@ -5,6 +5,7 @@
   #:use-module (gnu bootloader grub)
   #:use-module (gnu packages linux)
   #:use-module (gnu services)
+  #:use-module (gnu services avahi)
   #:use-module (gnu services base)
   #:use-module (gnu services ssh)
   #:use-module (guix base32)
@@ -81,9 +82,20 @@
       extra-field ...)))
 
 (define (base-services services)
-  "Add shared SSH and Guix settings to the role's SERVICES."
-  (cons (service openssh-service-type %base-openssh-configuration)
-        (modify-services services
+  "Add shared SSH, store publishing, and Guix settings to SERVICES."
+  (cons* (service openssh-service-type %base-openssh-configuration)
+         (service guix-publish-service-type
+           (guix-publish-configuration
+             (host "0.0.0.0")
+             (port 8080)
+             (advertise? #t)))
+         ;; Desktop services already include Avahi; headless systems need it
+         ;; too so that live installers can discover their published store.
+         (modify-services
+          (if (any (lambda (s) (eq? (service-kind s) avahi-service-type))
+                   services)
+              services
+              (cons (service avahi-service-type) services))
           (guix-service-type config =>
             (guix-configuration
               (inherit config)

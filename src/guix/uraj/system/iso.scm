@@ -5,6 +5,7 @@
   #:use-module (gnu bootloader)
   #:use-module (gnu bootloader grub)
   #:use-module (gnu packages version-control)
+  #:use-module (gnu services base)
   #:use-module (guix gexp)
   #:export (to-iso))
 
@@ -30,12 +31,31 @@
             (use-modules (guix build utils))
             (copy-file #$(apply base-initrd file-systems rest) #$output))))))
 
+(define* (iso-services os #:optional (key "/etc/guix/signing-key.pub"))
+  ;; Read only the public key of the machine evaluating the image.  Keep this
+  ;; inside the ISO transformation: installed OS evaluations must neither
+  ;; read nor authorize the build host's key.
+  (let ((host-keys (if (file-exists? key)
+                       (list (local-file key "build-host-signing-key.pub"))
+                       '())))
+    (cons ((@@ (gnu system install) cow-store-service))
+          (modify-services (operating-system-user-services os)
+            (guix-service-type config =>
+              (guix-configuration
+                (inherit config)
+                (discover? #t)
+                (authorized-keys
+                 (append host-keys
+                         (guix-configuration-authorized-keys config)))))))))
+
 (define (to-iso os)
   "Return a live installation image operating system derived from OS.
 
 Machine-specific kernel, firmware, initrd, services, and packages are kept;
 only settings tied to an installed system's disks and authentication are
-replaced, and the standard Guix installation utilities are added."
+replaced, and the standard Guix installation utilities are added.  The live
+daemon discovers LAN substitutes and trusts the build host's public key
+when it exists."
   (operating-system
     (inherit os)
 
@@ -59,9 +79,7 @@ replaced, and the standard Guix installation utilities are added."
     ;; After mounting the target at /mnt, run:
     ;;   sudo install -d -m 1777 /mnt/tmp
     ;;   sudo herd start cow-store /mnt
-    (services
-     (cons ((@@ (gnu system install) cow-store-service))
-           (operating-system-user-services os)))
+    (services (iso-services os))
 
     (packages
      (append (list git)
