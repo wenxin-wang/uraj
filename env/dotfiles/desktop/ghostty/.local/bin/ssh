@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+# ssh wrapper for callers that bypass ghostty's shell integration: ghostty's
+# ssh hook is a shell function, but sshpass (and scripts, and other shells)
+# exec the ssh binary straight from PATH, so an interactive login from such a
+# caller leaves TERM=xterm-ghostty on a remote host with no matching terminfo.
+# This mirrors the hook: install the terminfo over a multiplexed connection
+# (same authentication is reused by the real ssh), fall back to
+# TERM=xterm-256color when that is impossible.  Only plain interactive
+# logins are touched: commands, scripts and already-muxed calls pass through.
+
+# Find the real ssh: first ssh in PATH outside this wrapper's directory.
+self_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+real_ssh=
+IFS=: read -r -a path_dirs <<<"$PATH"
+for d in "${path_dirs[@]}"; do
+    [[ -x $d/ssh ]] || continue
+    [[ $(cd -- "$d" 2>/dev/null && pwd -P) == "$self_dir" ]] && continue
+    real_ssh=$d/ssh
+    break
+done
+if [[ -z $real_ssh ]]; then
+    printf 'ssh: real ssh not found in PATH\n' >&2
+    exit 127
+fi
+
+# Recursion guard: ProxyCommand/ProxyJump under this ssh spawn nested ssh.
+if [[ -n ${_GHOSTTY_SSH_WRAPPER-} ]]; then
+    exec "$real_ssh" "$@"
+fi
+export _GHOSTTY_SSH_WRAPPER=1
+
+# Only plain interactive logins: a tty with ghostty's TERM...
+if [[ ${TERM-} != xterm-ghostty || ! -t 0 ]]; then
+    exec "$real_ssh" "$@"
+fi
+
+# ...carrying exactly one non-option argument (the host).
+args=("$@")
+idx=0
+host=
+skip=0
+while ((idx < ${#args[@]})); do
+    a=${args[idx]}
+    if [[ $a == -- ]]; then
+        idx=$((idx + 1))
+        host=${args[idx]-}
+        idx=$((idx + 1))
+        break
+    fi
+    if [[ $a == -* ]]; then
+        case $a in
+        -o)
+            # Already multiplexed by ghostty's hook, which handles terminfo.
+            [[ ${args[idx + 1]-} == *ControlPath* ]] && skip=1
+            idx=$((idx + 1))
+            ;;
+        -p | -i | -l | -b | -c | -D | -E | -F | -I | -J | -L | -m | -O | -Q | -R | -S | -w | -W | -e)
+            idx=$((idx + 1))
+            ;;
+        -N | -f | -G | -V | -T | -M)
+            skip=1
+            ;;
+        esac
+        idx=$((idx + 1))
+    else
+        host=$a
+        idx=$((idx + 1))
+        break
+    fi
+done
+[[ $skip == 0 && -n $host && $idx -eq ${#args[@]} ]] || exec "$real_ssh" "$@"
+
+# Keep truecolor/TERM_PROGRAM visible on the remote (ghostty's ssh-env).
+env_opts=(-o "SetEnv COLORTERM=truecolor" -o "SendEnv TERM_PROGRAM TERM_PROGRAM_VERSION")
+
+cpath_dir=$(mktemp -d "${TMPDIR:-/tmp}/ghostty-ssh-$(id -u).XXXXXX") || exec "$real_ssh" "$@"
+cpath=$cpath_dir/socket
+
+# Leave stderr alone: sshpass watches the pty output for the password prompt.
+probe_ok=0
+infocmp -x xterm-ghostty 2>/dev/null | "$real_ssh" -o ControlMaster=yes \
+    -o ControlPath="$cpath" -o ControlPersist=60s "$@" '
+        infocmp xterm-ghostty >/dev/null 2>&1 && exit 0
+        command -v tic >/dev/null 2>&1 || exit 1
+        mkdir -p ~/.terminfo 2>/dev/null && tic -x - 2>/dev/null && exit 0
+        exit 1
+    ' && probe_ok=1
+
+# Reuse the probe's connection when possible: the session must not
+# authenticate a second time (sshpass answers only one password prompt).
+cpath_opt=()
+if "$real_ssh" -S "$cpath" -O check "$host" >/dev/null 2>&1; then
+    cpath_opt=(-o "ControlPath=$cpath")
+else
+    rmdir "$cpath_dir" 2>/dev/null || true
+fi
+
+if ((probe_ok)); then
+    # Let ghostty's own hook skip its setup step for this host.
+    target=$("$real_ssh" -G "$@" 2>/dev/null | awk '/^user /{u=$2} /^hostname /{h=$2} END{if (u != "" && h != "") print u "@" h}')
+    if [[ -n $target ]] && command -v ghostty >/dev/null 2>&1; then
+        ghostty +ssh-cache --add="$target" >/dev/null 2>&1 || true
+    fi
+    exec "$real_ssh" "${env_opts[@]}" "${cpath_opt[@]}" "$@"
+else
+    printf 'ssh: could not set up xterm-ghostty terminfo on %s; using TERM=xterm-256color\n' "$host" >&2
+    exec env TERM=xterm-256color "$real_ssh" "${env_opts[@]}" "${cpath_opt[@]}" "$@"
+fi
