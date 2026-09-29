@@ -5,11 +5,20 @@
 ;; See the "Replicating Guix" section in the manual.
 
 (use-modules (gnu home)
+             (uraj hardware nvidia)
              (uraj home niri))
 
-(home-environment
- ;; This config is evaluated on the machine it configures, so both
- ;; noctalia (plain vs. the host-PAM-patched variant) and the portal
- ;; flavour default to what this host needs -- no Ubuntu-specific bits
- ;; here, they follow /etc/os-release.
- (services (niri-desktop-home-services)))
+(define base-home
+  (home-environment
+   ;; This config is evaluated on the machine it configures, so both
+   ;; noctalia (plain vs. the host-PAM-patched variant) and the portal
+   ;; flavour default to what this host needs -- no Ubuntu-specific bits
+   ;; here, they follow /etc/os-release.
+   (services (niri-desktop-home-services))))
+
+;; The proprietary NVIDIA userspace must match the host's kernel module,
+;; so only start grafting when the host actually has the driver loaded
+;; *and* its version is pinned in (uraj hardware nvidia).
+(if (nvidia-host?)
+    (home-transformation-nvidia base-home)
+    base-home)
