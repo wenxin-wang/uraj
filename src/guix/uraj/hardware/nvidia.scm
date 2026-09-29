@@ -1,5 +1,6 @@
 (define-module (uraj hardware nvidia)
   #:use-module (gnu home)
+  #:use-module (gnu home services)
   #:use-module (gnu packages base)
   #:use-module (gnu packages bash)
   #:use-module (gnu packages compression)
@@ -172,6 +173,23 @@ there is nothing to match, and NVIDIA's userspace is not wanted either."
 the loaded kernel module reports a version."
   (and (host-nvidia-driver-version) #t))
 
+(define host-egl-precedence-service
+  ;; glvnd reads __EGL_VENDOR_LIBRARY_DIRS *instead of* its built-in
+  ;; search path, so nvda's copy would point every app in the session --
+  ;; host apps included -- at Guix's mesa.  A host app that links the
+  ;; host's libwayland (1.22 on Ubuntu 24.04) then dies as soon as GDK
+  ;; initializes EGL at window creation: guix mesa 26 needs
+  ;; wl_display_create_queue_with_name, which 1.22 does not have.  Host
+  ;; directories first keeps host apps on the host stack; Guix's copy
+  ;; stays last so Guix apps still find nvda's when a host has no
+  ;; vendors of its own.  Same for the external-platform (dmabuf) JSONs.
+  (simple-service 'prefer-host-egl-directories
+    home-environment-variables-service-type
+    '(("__EGL_VENDOR_LIBRARY_DIRS"
+       . "/usr/share/glvnd/egl_vendor.d:/etc/glvnd/egl_vendor.d:$HOME/.guix-home/profile/share/glvnd/egl_vendor.d")
+      ("__EGL_EXTERNAL_PLATFORM_CONFIG_DIRS"
+       . "/usr/share/egl/egl_external_platform.d:/etc/egl/egl_external_platform.d:$HOME/.guix-home/profile/share/egl/egl_external_platform.d"))))
+
 (define (home-transformation-nvidia he)
   "Return the home environment HE with nonguix's nvda grafted over Guix's
 mesa, pinned to the NVIDIA kernel module loaded on the host.
@@ -182,7 +200,9 @@ whose libEGL, libgbm, GBM backends and EGL vendors all come from mesa --
 are not rebuilt, and nvda is added to the profile so its search paths
 are exported to the session.  This is what lets a niri session advertise
 the NVIDIA driver's dmabuf feedback instead of falling back to
-llvmpipe.
+llvmpipe.  Because that export also reaches host apps, which must not
+be pointed at Guix's mesa, @code{host-egl-precedence-service} is added
+to put the host's own EGL directories first.
 
 The userspace and the kernel module must match exactly (\"NVRM: API
 mismatch\" otherwise), so with no loaded NVIDIA driver HE is returned
@@ -211,4 +231,6 @@ leaving the home profile on mesa.  Add the ~a installer to \
           (cons nvda
                 (with-transformation graft (home-environment-packages he))))
          (services
-          (with-transformation graft (home-environment-user-services he)))))))))
+          (cons host-egl-precedence-service
+                (with-transformation graft
+                  (home-environment-user-services he))))))))))
