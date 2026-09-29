@@ -3,9 +3,27 @@
   #:use-module (guix gexp)
   #:use-module (guix packages)
   #:use-module (guix utils)
+  #:use-module ((px packages ai)
+                #:select ((claude-code . pantherx-claude-code)))
   #:use-module ((px packages tools)
                 #:select ((codex . pantherx-codex)))
-  #:export (codex))
+  #:export (claude-code
+            codex))
+
+;;; PantherX's package replaces `unpack' and leaves the build-directory root as
+;;; the working directory, so install-license-files lists "../" (= /tmp) to
+;;; find the source directory.  The host's AppArmor profile for guix-builders
+;;; does not allow reading /tmp itself, so scandir returns #f and the phase
+;;; dies with `match-error'.  The package installs a single binary and ships
+;;; no license files in the build tree, so drop the phase.
+(define-public claude-code
+  (package
+    (inherit pantherx-claude-code)
+    (arguments
+     (substitute-keyword-arguments (package-arguments pantherx-claude-code)
+       ((#:phases phases #~%standard-phases)
+        #~(modify-phases #$phases
+            (delete 'install-license-files)))))))
 
 ;;; PantherX installs only the main executable from OpenAI's standalone
 ;;; release.  Code Mode is distributed as a separate, version-matched host
@@ -30,6 +48,10 @@
      (substitute-keyword-arguments (package-arguments pantherx-codex)
        ((#:phases phases #~%standard-phases)
         #~(modify-phases #$phases
+            ;; The tarball unpacks to a single file, so 'unpack' does not
+            ;; enter a sub-directory; see claude-code above for why the
+            ;; license phase must go.
+            (delete 'install-license-files)
             (add-after 'install 'install-code-mode-host
               (lambda* (#:key inputs outputs #:allow-other-keys)
                 (let* ((archive (assoc-ref inputs "code-mode-host"))
