@@ -28,7 +28,7 @@
             (setenv "TO_ISO" old-value)
             (unsetenv "TO_ISO"))))))
 
-(define* (home-container #:optional (config-path (guix-env-path "os/home-example.scm"))
+(define* (home-container #:optional (config-path (guix-env-path "os/home.scm"))
 	                 #:key (fork? (my-fork?))
                          (command '())
                          . args)
@@ -49,5 +49,5 @@
                           (else            '()))))
          ($guix (append head tail) #:fork? fork?))))))
 
-(define* (home-reconfigure #:optional (config-path (guix-env-path "os/home-example.scm")))
+(define* (home-reconfigure #:optional (config-path (guix-env-path "os/home.scm")))
   ($guix `("home" "reconfigure" ,config-path)))
