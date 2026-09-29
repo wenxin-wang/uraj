@@ -15,6 +15,7 @@
   #:use-module (gnu home)
   #:use-module (gnu home services)
   #:use-module (gnu packages glib)        ;dbus (dbus-run-session)
+  #:use-module (gnu packages gnome)       ;network-manager-applet
   #:use-module (gnu packages linux)       ;btrfs-progs, linux-pam
   #:use-module (gnu services)
   #:use-module (gnu services base)
@@ -68,6 +69,7 @@
 
 (define desktop-home-environment
   (home-environment
+   (packages (list network-manager-applet))
    (services
     (cons (simple-service
            'trusted-guix-channels
