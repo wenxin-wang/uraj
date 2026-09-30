@@ -16,6 +16,7 @@
      "direnv"
      "fd"
      "git"
+     "git-lfs"
      "ripgrep"
      "rsync"
      "vim"
