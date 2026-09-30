@@ -47,4 +47,14 @@
         (make-channel-introduction
          "0bbaf1fdd25266c7df790f65640aaa01e6d2dbc9"
          (openpgp-fingerprint
-          "8D10 60B9 6BB8 292E 829B  7249 AED4 1CC1 93B7 01E2")))))
+          "8D10 60B9 6BB8 292E 829B  7249 AED4 1CC1 93B7 01E2"))))
+      (channel
+       (name 'shikanox)
+       (url "https://codeberg.org/ch4og/shikanox.git")
+       (branch "main")
+       (commit "16f3d13bceb85592b6c83be6496fce6cfbad2ff5")
+       (introduction
+        (make-channel-introduction
+         "fe3b5f72aa676c69f4d43507bdd18fb051906917"
+         (openpgp-fingerprint
+          "7C9E 7EBA 828C 58DF DACE  5BED 4DCC 7AB7 FC75 319B")))))
