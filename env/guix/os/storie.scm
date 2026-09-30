@@ -241,50 +241,60 @@ temperature sensors, fan tachometers and PWM control.")
       (license license:gpl2+))))
 
 ;; fancontrol accepts !COMMAND as a temperature input.  This helper only
-;; reads the three HDD sensors and returns their maximum in millidegrees;
+;; translates CPU and HDD temperatures into a common demand for case airflow;
 ;; fancontrol itself performs all PWM control.  Resolve disks by serial so
-;; neither sdX nor hwmon numbering is assumed.  Missing/invalid data requests
-;; full HDD fan speed (100 C), rather than stopping the fan on a read error.
-(define %storie-hdd-temperature
+;; neither sdX nor hwmon numbering is assumed.  CPU 45..75 C and hottest HDD
+;; 40..45 C both map to 0..100% of the speed range above the PWM 60 floor.
+;; Express HDD demand on the CPU scale: 45000 + 6 * (HDD - 40000), then
+;; take max(CPU, mapped HDD).  Values are millidegrees, not whole degrees.
+;; Missing/invalid data requests full case fan speed (equivalent to 100 C).
+(define %storie-case-temperature
   (program-file
-   "storie-hdd-temperature"
+   "storie-case-temperature"
    #~(begin
        (use-modules (ice-9 ftw) (ice-9 textual-ports) (srfi srfi-1))
        (define (read-text path)
          (string-trim-both (call-with-input-file path get-string-all)))
-       (define (disk-temperature id)
-         (let* ((disk (basename (canonicalize-path
-                                (string-append "/dev/disk/by-id/" id))))
-                (root (string-append "/sys/class/block/" disk "/device/hwmon/"))
-                (sensors
+       (define (hwmon-temperature root expected-name)
+         (let* ((sensors
                  (filter (lambda (entry)
                            (and (string-prefix? "hwmon" entry)
                                 (string=? (read-text (string-append root entry "/name"))
-                                          "drivetemp")))
+                                          expected-name)))
                          (scandir root))))
-           (unless (= (length sensors) 1) (error "Missing HDD sensor" id))
+           (unless (= (length sensors) 1) (error "Missing temperature sensor" root))
            (let ((value (string->number
                          (read-text (string-append root (car sensors) "/temp1_input")))))
              (unless (and (integer? value) (< 0 value 150000))
-               (error "Invalid HDD temperature" id))
+               (error "Invalid temperature" root))
              value)))
+       (define (disk-temperature id)
+         (let ((disk (basename (canonicalize-path
+                               (string-append "/dev/disk/by-id/" id)))))
+           (hwmon-temperature
+            (string-append "/sys/class/block/" disk "/device/hwmon/")
+            "drivetemp")))
        (display
         (catch #t
           (lambda ()
-            (apply max
-                   (map disk-temperature
-                        '("ata-WDC_WD20EFPX-68C4TN0_WD-WX72D636L2YT"
-                          "ata-WDC_WD20EFRX-68EUZN0_WD-WCC4M7TX4Y1K"
-                          "ata-WDC_WD20EFRX-68EUZN0_WD-WCC4M7TX4JRX"))))
+            (let ((cpu (hwmon-temperature
+                        "/sys/devices/platform/coretemp.0/hwmon/" "coretemp"))
+                  (hdd (apply max
+                              (map disk-temperature
+                                   '("ata-WDC_WD20EFPX-68C4TN0_WD-WX72D636L2YT"
+                                     "ata-WDC_WD20EFRX-68EUZN0_WD-WCC4M7TX4Y1K"
+                                     "ata-WDC_WD20EFRX-68EUZN0_WD-WCC4M7TX4JRX")))))
+              (max cpu (+ 45000 (* 6 (- hdd 40000))))))
           (lambda _ 100000)))
        (newline))))
 
 ;; Verified with pwmconfig + physical identification on 2026-09-30:
 ;; pwm2/fan2 = CPU; pwm3/fan3 = HDDs.  pwm5 has no verified fan mapping.
-;; Both stop at <=40 C; CPU uses package temperature, HDDs use hottest disk.
-;; CPU reaches maximum PWM at 75 C, HDD at 45 C.  CPU RPM already plateaus
-;; around PWM 165, so physical maximum RPM can occur before MAXTEMP.
-;; Measured CPU PWM 60 = ~786 RPM (45 unreliable); HDD PWM 45 = ~1101 RPM.
+;; CPU stops at <=45 C and reaches maximum PWM at 75 C.  Case/HDD fan runs
+;; at least PWM 60, reaching maximum at CPU 75 C OR hottest HDD 45 C.
+;; CPU RPM already plateaus around PWM 165, so physical maximum RPM can
+;; occur before MAXTEMP.
+;; Measured CPU PWM 60 = ~786 RPM (45 unreliable); HDD PWM 60 = ~1451 RPM.
 ;; MINSTART=255 gives a one-second full-output startup kick; cold-start
 ;; reliability still needs verification on the physical fans.
 ;; DEVPATH/DEVNAME make fancontrol reject changed device identities.
@@ -295,13 +305,13 @@ temperature sensors, fan tachometers and PWM control.")
    "DEVPATH=hwmon7=devices/platform/coretemp.0 hwmon8=devices/platform/it87.2624\n"
    "DEVNAME=hwmon7=coretemp hwmon8=it8613\n"
    "FCTEMPS=hwmon8/pwm2=hwmon7/temp1_input hwmon8/pwm3=!"
-   %storie-hdd-temperature "\n"
+   %storie-case-temperature "\n"
    "FCFANS=hwmon8/pwm2=hwmon8/fan2_input hwmon8/pwm3=hwmon8/fan3_input\n"
-   "MINTEMP=hwmon8/pwm2=40 hwmon8/pwm3=40\n"
-   "MAXTEMP=hwmon8/pwm2=75 hwmon8/pwm3=45\n"
+   "MINTEMP=hwmon8/pwm2=45 hwmon8/pwm3=45\n"
+   "MAXTEMP=hwmon8/pwm2=75 hwmon8/pwm3=75\n"
    "MINSTART=hwmon8/pwm2=255 hwmon8/pwm3=255\n"
-   "MINSTOP=hwmon8/pwm2=60 hwmon8/pwm3=45\n"
-   "MINPWM=hwmon8/pwm2=0 hwmon8/pwm3=0\n"
+   "MINSTOP=hwmon8/pwm2=60 hwmon8/pwm3=60\n"
+   "MINPWM=hwmon8/pwm2=0 hwmon8/pwm3=60\n"
    "MAXPWM=hwmon8/pwm2=255 hwmon8/pwm3=255\n"))
 
 (define %storie-fan-services
