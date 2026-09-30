@@ -20,6 +20,9 @@
      "ripgrep"
      "rsync"
      "vim"
+     ;; Networking.
+     "curl"
+     "wget"
      ;; Security.
      "age"
      "bubblewrap"
