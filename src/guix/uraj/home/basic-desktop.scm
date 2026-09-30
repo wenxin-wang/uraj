@@ -176,6 +176,21 @@ services."
                        "application/x-extension-xhtml"
                        "application/x-extension-xht")))))
 
+    ;; 没有 user-dirs.dirs 时 Firefox 等应用会自己建 ~/Downloads。
+    ;; 除 projects 外都是用不上的目录，但激活时每个都会被建出来，
+    ;; 所以统一丢到 ~/tmp 下。
+    (service home-xdg-user-directories-service-type
+             (home-xdg-user-directories-configuration
+              (desktop "$HOME/tmp/Desktop")
+              (documents "$HOME/tmp/Documents")
+              (download "$HOME/tmp/Downloads")
+              (music "$HOME/tmp/Music")
+              (pictures "$HOME/tmp/Pictures")
+              (projects "$HOME/src")
+              (publicshare "$HOME/tmp/Public")
+              (templates "$HOME/tmp/Templates")
+              (videos "$HOME/tmp/Videos")))
+
     ;; 见 merged-terminfo-directory：其它终端包也可以加进这个列表。
     (simple-service 'terminfo
                     home-files-service-type
