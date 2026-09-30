@@ -13,9 +13,11 @@
   #:use-module (gnu packages linux)       ;linux-pam
   #:use-module (gnu services)
   #:use-module (gnu services base)
+  #:use-module (gnu services containers)  ;rootless podman
   #:use-module (gnu services dbus)
   #:use-module (gnu services guix)
   #:use-module (gnu services security-token) ;pcscd
+  #:use-module (gnu system accounts)      ;subid-range
   #:use-module (gnu system nss)
   #:use-module (gnu system privilege)
   #:use-module (guix gexp)
@@ -96,7 +98,10 @@
     (users
      (cons (user-account
             (inherit %base-user)
-            (supplementary-groups '("wheel" "netdev" "audio" "video")))
+            ;; "cgroup" is rootless-podman-service-type's group owning
+            ;; the delegated /sys/fs/cgroup controllers.
+            (supplementary-groups
+             '("wheel" "netdev" "audio" "video" "cgroup")))
            %base-user-accounts))
 
     (packages
@@ -133,6 +138,17 @@
             ;; cards through pcscd (the stock gnupg has no internal CCID
             ;; driver).  Foreign hosts get their distro's pcscd instead.
             (service pcscd-service-type)
+
+            ;; Rootless Podman: subuid/subgid ranges, cgroup v2 delegation,
+            ;; a shared root mount and /etc/containers defaults.  The podman
+            ;; CLI itself comes from the basic-dev home profile.  No
+            ;; iptables-service-type: netavark >= 2.0 only speaks nftables,
+            ;; and rootless rules live in podman's own network namespace.
+            (service rootless-podman-service-type
+                     (rootless-podman-configuration
+                      (podman #f)
+                      (subuids (list (subid-range (name "wenxin"))))
+                      (subgids (list (subid-range (name "wenxin"))))))
 
             ;; No password prompt is needed for NetworkManager in an active
             ;; local desktop session.  In particular this makes the live
