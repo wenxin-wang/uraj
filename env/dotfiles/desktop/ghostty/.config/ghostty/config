@@ -3,3 +3,4 @@
 # COLORTERM/TERM_PROGRAM, so remote sessions keep truecolor detection instead
 # of falling back to TERM=xterm-256color.
 shell-integration-features = cursor,no-sudo,title,ssh-env,ssh-terminfo,path
+keybind = ctrl+enter=unbind
