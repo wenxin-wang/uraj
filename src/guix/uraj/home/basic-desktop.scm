@@ -1,6 +1,7 @@
 (define-module (uraj home basic-desktop)
   #:use-module (gnu home)
   #:use-module (gnu home services)
+  #:use-module (gnu home services xdg)
   #:use-module (gnu packages)
   #:use-module (gnu packages admin)
   #:use-module (gnu packages base)
@@ -152,6 +153,28 @@ services."
     (simple-service 'basic-desktop-packages
                     home-profile-service-type
                     basic-desktop-packages)
+
+    ;; 链接点击（聊天软件、终端、其它应用）都经 xdg-open 查 mimeapps.list
+    ;; 找默认 handler。不声明的话就是先到先得：发行版的 firefox 第一次
+    ;; 运行时注册的 userapp-Firefox-*.desktop（Exec 指向
+    ;; /usr/lib/firefox）会一直占着默认值，打开的是 host 的 firefox。
+    ;; 这里把 Web 相关的默认 handler 固定为 nonguix firefox 在 profile
+    ;; 里提供的 firefox.desktop。
+    (service home-xdg-mime-applications-service-type
+             (home-xdg-mime-applications-configuration
+              (default
+                (map (lambda (mime)
+                       (cons mime "firefox.desktop"))
+                     '("x-scheme-handler/http"
+                       "x-scheme-handler/https"
+                       "x-scheme-handler/chrome"
+                       "text/html"
+                       "application/x-extension-htm"
+                       "application/x-extension-html"
+                       "application/x-extension-shtml"
+                       "application/xhtml+xml"
+                       "application/x-extension-xhtml"
+                       "application/x-extension-xht")))))
 
     ;; 见 merged-terminfo-directory：其它终端包也可以加进这个列表。
     (simple-service 'terminfo
