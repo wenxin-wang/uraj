@@ -4,6 +4,7 @@
              (gnu services shepherd)
              (gnu services ssh)
              (sops services sops)
+             (sops secrets)
              (srfi srfi-1)
              (srfi srfi-64)
              (uraj system secrets))
@@ -42,8 +43,9 @@
        (test-equal "persistent identity path"
          "/var/lib/sops/age/keys.txt"
          (sops-service-configuration-age-key-file config))
-       (test-equal "no secrets before recipient enrollment" '()
-         (sops-service-configuration-secrets config))
+       (test-equal "only the host's declared business secrets"
+         (if (string=? host "storie") '(("immich" "db-password")) '())
+         (map sops-secret-key (sops-service-configuration-secrets config)))
        (test-assert "key generation waits until after system activation"
          (memq 'user-processes (shepherd-service-requirement key-service)))
        (test-assert "key generation starts automatically"

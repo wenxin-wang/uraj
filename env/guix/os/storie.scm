@@ -124,6 +124,7 @@
              (gnu packages version-control)
              (gnu services)
              (gnu services base)
+             (gnu services docker)
              (gnu services linux)
              (gnu services nfs)
              (gnu services shepherd)
@@ -135,8 +136,12 @@
              (guix utils)
              (nongnu packages linux)
              (rosenthal services file-systems)
+             (sops secrets)
+             (sops services sops)
+             (uraj services immich)
              (uraj system server)
              (uraj system secrets)
+             (uraj utils file path)
              (uraj system storage)
              (uraj system iso)
              (uraj system zfs))
@@ -378,6 +383,14 @@ temperature sensors, fan tachometers and PWM control.")
      (list (zfs-snapshot-timer 'zfs-snapshot-daily 31 "daily"
                               #~(calendar-event #:hours '(0) #:minutes '(0)))))))
 
+(define %immich-database-secret
+  (sops-secret
+   (key '("immich" "db-password"))
+   (file (local-file (project-path "secrets/hosts/storie/immich.yaml")))
+   (user "root")
+   (group "root")
+   (permissions #o400)))
+
 (define storie-os
   (operating-system
     (inherit %server-base-os)
@@ -403,10 +416,25 @@ temperature sensors, fan tachometers and PWM control.")
                ("core-data/backups" . "/core-data/backups")
                ("media-data" . "/media-data")))
             (service nfs-on-zfs-service-type
-              (nfs-configuration (exports %nfs-exports))))
+              (nfs-configuration (exports %nfs-exports)))
+            ;; Headless Docker, with no default bridge, NAT or firewall rules.
+            (service containerd-service-type)
+            (service immich-docker-service-type %immich-docker-configuration)
+            (service immich-service-type
+              (immich-configuration
+               (data-directory "/data/immich") ; NVMe Btrfs @data
+               (media-directory "/core-data/archive/immich")
+               (database-password-file
+                (sops-secret->secret-file %immich-database-secret))
+               (secret-requirements '(sops-secrets))
+               (parent-interface "enp1s0")
+               (subnet "172.31.0.0/24")
+               (gateway "172.31.0.1")
+               (address "172.31.0.6"))))
       %storage-timer-services
       %storie-fan-services
-      (if (getenv "TO_ISO") '() (host-sops-services))
+      (if (getenv "TO_ISO") '()
+          (host-sops-services (list %immich-database-secret)))
       (operating-system-user-services %server-base-os)))))
 
 (if (getenv "TO_ISO")
