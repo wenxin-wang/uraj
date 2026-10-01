@@ -8,7 +8,9 @@
   #:export (emacs-home-services))
 
 (define emacs-packages
-  (specifications->packages '("emacs-pgtk")))
+  (specifications->packages
+    '("emacs-pgtk"
+      "gcc-toolchain")))
 
 (define minimal-emacs-repository
   "https://github.com/jamescherti/minimal-emacs.d")
