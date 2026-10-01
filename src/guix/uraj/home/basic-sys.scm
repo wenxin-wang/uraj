@@ -26,6 +26,8 @@
      ;; Security.
      "age"
      "bubblewrap"
+     "password-store"
+     "sshpass"
      ;; System status.
      "htop"
      "ncdu"
