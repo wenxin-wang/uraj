@@ -7,6 +7,8 @@ keys:
       7F26222A047E9F5EDFA496D00273036A1927C05B!
   - &lappie-age >-
       age14xfjfwayact80jcp84ck2kj8ue469kwfsn9ngyxkt6curgm324fsnqcswt
+  - &storie-age >-
+      age1dd3xzm8spynfmnmqfwgfmd6dylm9kgvfcr60yu5hqhrf7ph8rvcqhp5gkg
 
 creation_rules:
   # Add each host's age recipient to its own rule when it is provisioned.
@@ -15,6 +17,7 @@ creation_rules:
     age: *lappie-age
   - path_regex: ^secrets/hosts/storie/[^/]+\.yaml$
     pgp: *admin
+    age: *storie-age
   # Before sharing with hosts, add a specific rule ABOVE this fallback,
   # with only the age recipients of the participating hosts.
   - path_regex: ^secrets/shared/[^/]+\.yaml$
