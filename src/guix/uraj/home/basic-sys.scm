@@ -20,6 +20,8 @@
      "ripgrep"
      "rsync"
      "vim"
+     "zip"
+     "7zip"
      ;; Networking.
      "curl"
      "wget"
