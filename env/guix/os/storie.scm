@@ -435,7 +435,14 @@ temperature sensors, fan tachometers and PWM control.")
       %storie-fan-services
       (if (getenv "TO_ISO") '()
           (host-sops-services (list %immich-database-secret)))
-      (operating-system-user-services %server-base-os)))))
+      (modify-services (operating-system-user-services %server-base-os)
+        (guix-service-type config =>
+          (guix-configuration
+            (inherit config)
+            (discover? #t)
+            (authorized-keys
+             (cons (local-file (guix-env-path "os/keys/lappie-signing-key.pub"))
+                   (guix-configuration-authorized-keys config))))))))))
 
 (if (getenv "TO_ISO")
     (to-iso
