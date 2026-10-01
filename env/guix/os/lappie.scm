@@ -64,6 +64,7 @@
              (uraj hardware asus)
              (uraj system desktop)
              (uraj system iso)
+             (uraj system secrets)
              (uraj system storage))
 
 (define lappie-os
@@ -102,6 +103,7 @@
   ;; %desktop-base-os, so its services are appended back explicitly.
   (services
    (append (operating-system-user-services %desktop-base-os)
+           (if (getenv "TO_ISO") '() (host-sops-services))
            (list ; %asus-adolbook-air14-panel-replay-service
                  )))))
 

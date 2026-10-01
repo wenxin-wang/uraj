@@ -136,6 +136,7 @@
              (nongnu packages linux)
              (rosenthal services file-systems)
              (uraj system server)
+             (uraj system secrets)
              (uraj system storage)
              (uraj system iso)
              (uraj system zfs))
@@ -405,6 +406,7 @@ temperature sensors, fan tachometers and PWM control.")
               (nfs-configuration (exports %nfs-exports))))
       %storage-timer-services
       %storie-fan-services
+      (if (getenv "TO_ISO") '() (host-sops-services))
       (operating-system-user-services %server-base-os)))))
 
 (if (getenv "TO_ISO")
