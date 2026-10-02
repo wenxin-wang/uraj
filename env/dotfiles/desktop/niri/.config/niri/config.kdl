@@ -72,6 +72,13 @@ output "Philips Consumer Electronics Company PHL 245E1 0x00000693" {
     focus-at-startup
 }
 
+// 3840x2160 at scale 1.5 gives 2560x1440 logical pixels.
+output "Philips Consumer Electronics Company PHL 279C9 UHB2247016586" {
+    position x=0 y=0
+    scale 1.5
+    focus-at-startup
+}
+
 // Built-in panel of the Lenovo Legion Y7000 IRX10: 2560x1600 at scale 1.5,
 // i.e. 1706x1066 logical, so to the right of the 2560x1440 HP its
 // position is x = 2560, y = (1440 - 1066) / 2 = 187.
@@ -88,6 +95,12 @@ output "China Star Optoelectronics Technology Co., Ltd MNF307DA1-1 0x00005302" {
 output "AU Optronics 0xA195 Unknown" {
     position x=384 y=1440
     scale 1.25
+}
+
+// Center the 1645x1028 logical panel below the 2560x1440 external display.
+output "Samsung Display Corp. ATNA40HQ05-0  Unknown" {
+    position x=458 y=1440
+    scale 1.75
 }
 
 // Start user Shepherd for Guix Home; noctalia, fcitx5, the portals,
