@@ -44,7 +44,8 @@
          "/var/lib/sops/age/keys.txt"
          (sops-service-configuration-age-key-file config))
        (test-equal "only the host's declared business secrets"
-         (if (string=? host "storie") '(("immich" "db-password")) '())
+         (if (string=? host "storie") '(("immich" "db-password"))
+             '(("strongswan" "fwd2home")))
          (map sops-secret-key (sops-service-configuration-secrets config)))
        (test-assert "key generation waits until after system activation"
          (memq 'user-processes (shepherd-service-requirement key-service)))

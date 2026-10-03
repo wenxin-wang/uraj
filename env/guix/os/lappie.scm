@@ -61,11 +61,25 @@
              (gnu bootloader)
              (gnu bootloader grub)
              (srfi srfi-1)
+             (guix gexp)
+             (sops secrets)
+             (uraj services strongswan)
+             (uraj utils file path)
              (uraj hardware asus)
              (uraj system desktop)
              (uraj system iso)
              (uraj system secrets)
              (uraj system storage))
+
+(define %vpn-connections
+  (list
+   (cons "fwd2home"
+         (sops-secret
+          (key '("strongswan" "fwd2home"))
+          (file (local-file (project-path "secrets/hosts/lappie/strongswan.yaml")))
+          (user "root")
+          (group "root")
+          (permissions #o400)))))
 
 (define lappie-os
   (operating-system
@@ -103,7 +117,9 @@
   ;; %desktop-base-os, so its services are appended back explicitly.
   (services
    (append (operating-system-user-services %desktop-base-os)
-           (if (getenv "TO_ISO") '() (host-sops-services))
+           (if (getenv "TO_ISO") '()
+               (append (host-sops-services (map cdr %vpn-connections))
+                       (strongswan-services %vpn-connections)))
            (list ; %asus-adolbook-air14-panel-replay-service
                  )))))
 

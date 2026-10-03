@@ -1,0 +1,38 @@
+# Public template used by every named connection. Only @NAME@ is substituted.
+# Sensitive fields come from the SOPS include loaded before this template:
+# remote_addrs, local.id, local.eap_id, remote.id, secrets.eap-*.id/secret.
+connections {
+  @NAME@ {
+    version = 2
+    vips = 0.0.0.0, ::
+    encap = no
+
+    # Move an existing IKE SA when the network changes. If it expires, retry.
+    mobike = yes
+    dpd_delay = 30s
+    keyingtries = 0
+
+    local {
+      auth = eap
+      # id and eap_id are separate private fields; do not assume they match.
+    }
+    remote {
+      auth = pubkey
+      # Certificate identity (id) is private, and must still be verified.
+    }
+
+    children {
+      @NAME@ {
+        local_ts = dynamic
+        # The server narrows these selectors to its permitted networks.
+        remote_ts = 0.0.0.0/0, ::/0
+        ipcomp = no
+
+        # Loading is inert. Reconnect only after a manual initiation.
+        start_action = none
+        dpd_action = restart
+        close_action = start
+      }
+    }
+  }
+}
