@@ -476,9 +476,9 @@ X server is up (see the comment above)."
 ;; The Guix System counterpart of the host-side wrapper above, for
 ;; greetd-based systems (see env/guix/os/lappie.scm): the session
 ;; command passed to tuigreet's --cmd.  Guix compiles the record into a
-;; wrapper that sets XDG_SESSION_TYPE and XDG_RUNTIME_DIR (greetd's PAM
-;; stack has no pam_elogind, so the worker does not set them itself;
-;; passing a raw string to --cmd skips that wrapper).  bash -l then
+;; wrapper that sets XDG_SESSION_TYPE and XDG_RUNTIME_DIR.  elogind's
+;; PAM extension owns the runtime directory; passing a raw string to
+;; --cmd skips the session wrapper.  bash -l then
 ;; sources /etc/profile and ~/.bash_profile, which pull in the Guix
 ;; Home environment and ~/.profile.d, and dbus-run-session provides
 ;; the session bus.

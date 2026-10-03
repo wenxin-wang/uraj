@@ -171,7 +171,7 @@
             ;; VT1: login through tuigreet, then start the niri session;
             ;; VT2-6: plain shell logins (agreety), like the
             ;; %rosenthal-desktop-services/tuigreet layout.
-            (service greetd-service-type
+            (service greetd-with-elogind-service-type
               (base-greetd-configuration
                (lambda (vt)
                  (if (= vt 1)
