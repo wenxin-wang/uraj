@@ -21,7 +21,7 @@
            home-files-service-type
            `((".config/guix/trusted-channels.scm"
               ,(local-file
-                (project-path "src/guix/uraj/system/trusted-channels.scm")
+                (project-path "env/guix/trusted-channels.scm")
                 "trusted-channels.scm"))))
           (basic-sys-home-services)))))
 

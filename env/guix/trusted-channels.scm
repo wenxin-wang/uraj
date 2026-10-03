@@ -1,3 +1,6 @@
+;; Loaded by `guix pull'/`guix time-machine' in an isolated module that only
+;; exposes the channel bindings (no `use-modules'), like `guix describe -f
+;; channels' output.
 (list (channel
        (inherit %default-guix-channel)
        (url "https://mirror.nju.edu.cn/git/guix.git"))

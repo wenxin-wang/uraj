@@ -58,7 +58,7 @@
 
 (define %desktop-trusted-channels-file
   (local-file
-   (project-path "src/guix/uraj/system/trusted-channels.scm")
+   (project-path "env/guix/trusted-channels.scm")
    "trusted-channels.scm"))
 
 (define desktop-home-environment
