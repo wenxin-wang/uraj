@@ -29,6 +29,7 @@
   #:use-module (uraj hardware keyboard)
   #:use-module (uraj home niri)
   #:use-module (uraj packages window-managers)
+  #:use-module (uraj packages wireless)
   #:use-module (uraj system base)
   #:use-module (uraj system home)
   #:use-module (uraj utils file path)
@@ -94,7 +95,7 @@
     (host-name "laptop")
     (name-service-switch %mdns-host-lookup-nss)
 
-    (firmware (list linux-firmware wireless-regdb))
+    (firmware (list linux-firmware wireless-regdb-signed))
 
     (users
      (cons (user-account
