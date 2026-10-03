@@ -1,0 +1,21 @@
+Honor BlueZ's no-reply flag when releasing media endpoints.
+
+Backport the endpoint_release guard present in PipeWire upstream master:
+https://github.com/PipeWire/pipewire/blob/master/spa/plugins/bluez5/bluez5-dbus.c
+PipeWire 1.6.8 otherwise sends unsolicited NotImplemented errors, which
+the system bus rejects on suspend and logout.
+
+--- a/spa/plugins/bluez5/bluez5-dbus.c
++++ b/spa/plugins/bluez5/bluez5-dbus.c
+@@ -5068,6 +5068,11 @@
+ }
+ static DBusHandlerResult endpoint_release(DBusConnection *conn, DBusMessage *m, void *userdata)
+ {
++	/* BlueZ calls Release() without expecting a reply; an unrequested reply
++	 * is rejected by the system bus and logged by dbus-daemon. */
++	if (dbus_message_get_no_reply(m))
++		return DBUS_HANDLER_RESULT_HANDLED;
++
+ 	if (!reply_with_error(conn, m, BLUEZ_MEDIA_ENDPOINT_INTERFACE ".Error.NotImplemented", "Method not implemented"))
+ 		return DBUS_HANDLER_RESULT_NEED_MEMORY;
+ 

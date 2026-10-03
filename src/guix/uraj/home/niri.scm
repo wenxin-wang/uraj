@@ -7,6 +7,7 @@
   #:use-module (gnu services)
   #:use-module (guix gexp)
   #:use-module (uraj home basic-desktop)
+  #:use-module (uraj packages audio)
   #:use-module (uraj packages window-managers)
   #:export (niri-desktop-home-services))
 
@@ -86,7 +87,10 @@ some other machine and must pin both: plain noctalia and
     ;; niri-session wrapper stops the host's audio user units before
     ;; starting niri so the sockets in XDG_RUNTIME_DIR are free for
     ;; these services (see (uraj packages window-managers)).
-    (service home-pipewire-service-type))
+    (service home-pipewire-service-type
+             (home-pipewire-configuration
+              (pipewire pipewire-with-bluez-release-fix)
+              (wireplumber wireplumber-with-bluez-release-fix))))
    ;; The niri + noctalia session: a session Shepherd (started by
    ;; "niri --session", not at login), a stub dbus service (the session
    ;; bus comes from the host system or dbus-run-session) and noctalia
