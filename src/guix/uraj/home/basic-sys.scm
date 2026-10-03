@@ -23,6 +23,13 @@
      "zip"
      "7zip"
      ;; Networking.
+     "bind:utils"              ; dig, host, nslookup; no DNS server output
+     "tcpdump"
+     "netcat-openbsd"          ; nc
+     "iproute2"                ; ip, ss
+     "iputils"                 ; ping, tracepath
+     "traceroute"
+     "mtr"
      "curl"
      "wget"
      ;; Security.

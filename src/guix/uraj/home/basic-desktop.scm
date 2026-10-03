@@ -38,6 +38,8 @@
             ;; works outside Plasma; its Qt/KDE Frameworks dependencies are
             ;; part of the package closure.
             "ksshaskpass"
+            ;; Network packet analysis (GUI and command-line tools).
+            "wireshark"
             ;; For general desktop settings
             "evtest"))))
 
