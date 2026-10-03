@@ -30,6 +30,7 @@
   #:use-module (uraj home niri)
   #:use-module (uraj packages window-managers)
   #:use-module (uraj packages wireless)
+  #:use-module (uraj services desktop)
   #:use-module (uraj system base)
   #:use-module (uraj system home)
   #:use-module (uraj utils file path)
@@ -135,6 +136,8 @@
             ;; scheduling through the system bus instead of falling back to
             ;; normal priority with org.freedesktop.RealtimeKit1 unavailable.
             (service rtkit-service-type)
+
+            bluetooth-gatt-release-service
 
             ;; The Guix Home gpg-agent's scdaemon reaches OpenPGP smart
             ;; cards through pcscd (the stock gnupg has no internal CCID
