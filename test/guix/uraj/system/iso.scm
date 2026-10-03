@@ -9,7 +9,8 @@
              (gnu system image)
              (guix gexp)
              (srfi srfi-1)
-             (srfi srfi-64))
+             (srfi srfi-64)
+             (uraj system iso))
 
 (define (services-of-kind os kind)
   (filter (lambda (s) (eq? (service-kind s) kind))
@@ -17,6 +18,11 @@
 
 (define (guix-config os)
   (service-value (car (services-of-kind os guix-service-type))))
+
+;; local-file contains a lazily computed absolute-path promise.  Re-evaluating
+;; an OS may produce equivalent keys whose records are not equal?.
+(define (key-identity key)
+  (if (local-file? key) (local-file-file key) key))
 
 (test-begin "iso-build-host-substitutes")
 (for-each
@@ -31,17 +37,22 @@
                    ((@@ (uraj system iso) iso-services)
                     installed "/dev/null/missing-signing-key.pub")))))
        (test-equal "missing host key preserves existing trust"
-         installed-keys (guix-configuration-authorized-keys without-key))
+         (map key-identity installed-keys)
+         (map key-identity (guix-configuration-authorized-keys without-key)))
        (test-assert "missing host key still enables discovery"
          ((@@ (gnu services base) guix-configuration-discover?) without-key)))
      (setenv "TO_ISO" "1")
      (let* ((live (load file))
             (live-keys (guix-configuration-authorized-keys (guix-config live)))
             (host-key (car live-keys)))
-       (test-equal "ISO adds the build host key only when present"
+       ;; Test to-iso's invariant against its actual input.  storie's live
+       ;; branch intentionally selects base services rather than its
+       ;; installed storage, containers and machine-specific trust settings.
+       (test-equal "to-iso adds the build host key only when present"
          (+ (if (file-exists? "/etc/guix/signing-key.pub") 1 0)
             (length installed-keys))
-         (length live-keys))
+         (length (guix-configuration-authorized-keys
+                  (guix-config (to-iso installed)))))
        (test-equal "ISO includes an existing build host public key"
          (file-exists? "/etc/guix/signing-key.pub")
          (and (local-file? host-key)
