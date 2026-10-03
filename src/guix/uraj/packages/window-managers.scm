@@ -2,6 +2,7 @@
   #:use-module (gnu home services)
   #:use-module (gnu home services shepherd)
   #:use-module (gnu packages bash)
+  #:use-module (gnu packages admin)
   #:use-module (gnu packages elf)
   #:use-module (gnu services)
   #:use-module ((gnu services base) #:select (greetd-user-session))
@@ -11,6 +12,7 @@
   #:use-module (guix packages)
   #:use-module (ice-9 rdelim)
   #:use-module (srfi srfi-13)
+  #:use-module (uraj utils file path)
   #:autoload (gnu packages freedesktop) (xdg-desktop-portal
                                         xdg-desktop-portal-gtk)
   #:autoload (gnu packages glib) (dbus)
@@ -481,9 +483,21 @@ X server is up (see the comment above)."
 ;; --cmd skips the session wrapper.  bash -l then
 ;; sources /etc/profile and ~/.bash_profile, which pull in the Guix
 ;; Home environment and ~/.profile.d, and dbus-run-session provides
-;; the session bus.
+;; the session bus. Keep that bus alive until the Home Shepherd is stopped.
+(define (niri-system-session)
+  (program-file
+   "niri-system-session"
+   #~(begin
+       (setenv "NIRI_SESSION_HERD"
+               #$(file-append shepherd-for-home "/bin/herd"))
+       (execl #$(file-append dbus "/bin/dbus-run-session")
+              "dbus-run-session" "--"
+              #$(file-append bash "/bin/bash")
+              #$(local-file (project-path "env/desktop/niri-session.sh"))))))
+
 (define (niri-greetd-user-session)
   (greetd-user-session
    (command (file-append bash "/bin/bash"))
-   (command-args '("-l" "-c" "exec dbus-run-session -- niri --session"))
+   ;; $0 is the store script, passed separately from shell code.
+   (command-args (list "-l" "-c" "exec \"$0\"" (niri-system-session)))
    (xdg-session-type "wayland")))
