@@ -16,6 +16,7 @@
   #:use-module (gnu services containers)  ;rootless podman
   #:use-module (gnu services dbus)
   #:use-module (gnu services guix)
+  #:use-module (gnu services networking)
   #:use-module (gnu services security-token) ;pcscd
   #:use-module (gnu system accounts)      ;subid-range
   #:use-module (gnu system nss)
@@ -185,4 +186,7 @@
 
             (base-services
              (modify-services %rosenthal-desktop-services/base
+               ;; Cellular support is opt-in; unused ModemManager delay
+               ;; inhibitors can hold up suspend on machines without modems.
+               (delete modem-manager-service-type)
                (delete mingetty-service-type)))))))
