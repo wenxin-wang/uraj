@@ -2,7 +2,8 @@
 (use-modules (gnu) (gnu services) (gnu services base)
              (gnu services desktop) (gnu system pam) (guix gexp)
              (srfi srfi-1) (srfi srfi-13) (srfi srfi-64)
-             (uraj system desktop))
+             (uraj system desktop)
+             (uraj packages elogind))
 
 (test-begin "desktop-session-lifecycle")
 (define os (load (string-append (getcwd) "/env/guix/os/lappie.scm")))
@@ -36,6 +37,12 @@
 (test-assert "elogind is retained"
   (find (lambda (s) (eq? (service-kind s) elogind-service-type))
         (operating-system-services os)))
+(test-assert "desktop uses the orderly Shepherd kexec helper"
+  (eq? elogind-with-shepherd-kexec
+       ((@@ (gnu services desktop) elogind-configuration-elogind)
+        (service-value
+         (fold-services (operating-system-services os)
+                        #:target-type elogind-service-type)))))
 
 (define failures (test-runner-fail-count (test-runner-current)))
 (test-end "desktop-session-lifecycle")

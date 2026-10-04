@@ -15,6 +15,7 @@
   #:use-module (gnu services base)
   #:use-module (gnu services containers)  ;rootless podman
   #:use-module (gnu services dbus)
+  #:use-module (gnu services desktop)
   #:use-module (gnu services guix)
   #:use-module (gnu services networking)
   #:use-module (gnu services security-token) ;pcscd
@@ -29,6 +30,7 @@
   #:use-module (uraj hardware keyboard)
   #:use-module (uraj home niri)
   #:use-module (uraj packages window-managers)
+  #:use-module (uraj packages elogind)
   #:use-module (uraj packages wireless)
   #:use-module (uraj services desktop)
   #:use-module (uraj system base)
@@ -190,6 +192,10 @@
 
             (base-services
              (modify-services %rosenthal-desktop-services/base
+               (elogind-service-type config =>
+                 (elogind-configuration
+                  (inherit config)
+                  (elogind elogind-with-shepherd-kexec)))
                ;; Cellular support is opt-in; unused ModemManager delay
                ;; inhibitors can hold up suspend on machines without modems.
                (delete modem-manager-service-type)
