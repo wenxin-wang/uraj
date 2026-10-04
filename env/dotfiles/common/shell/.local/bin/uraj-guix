@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+eval "$(cd ~/src/uraj; direnv export bash)"
+maak -f ~/src/uraj/env/guix/maak.scm -- guix -- $@
