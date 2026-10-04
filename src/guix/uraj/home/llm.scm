@@ -3,12 +3,13 @@
   #:use-module (gnu home services)
   #:use-module (gnu services)
   #:use-module (uraj common basic-services)
+  #:use-module (uraj packages codex-desktop)
   #:use-module (uraj packages llm)
   #:use-module (uraj utils file path)
   #:export (llm-home-services))
 
 (define llm-packages
-  (list claude-code codex paseo))
+  (list claude-code codex codex-desktop paseo))
 
 (define (llm-home-services)
   (append

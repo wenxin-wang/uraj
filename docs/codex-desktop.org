@@ -1,0 +1,47 @@
+#+title: Codex Desktop / ChatGPT on Guix
+
+The =(uraj packages codex-desktop)= module repackages OpenAI's official
+Linux amd64 Debian package.  Version 26.930.41038 is distributed under the
+ChatGPT name.  Its versioned download URL and SHA256 come from the official
+APT repository's =dists/stable/main/binary-amd64/Packages= index.
+
+* Build and try
+
+From the repository root:
+
+#+begin_src sh
+uraj-guix build -L src/guix -L src/guile \
+  -e '(@ (uraj packages codex-desktop) codex-desktop)'
+uraj-guix shell -L src/guix -L src/guile \
+  -e '(@ (uraj packages codex-desktop) codex-desktop)' -- codex-desktop
+#+end_src
+
+If =uraj-guix= cannot find =maak=, use the equivalent prefix
+=guix time-machine -C env/guix/channels-lock.scm --=.
+The package is included in =(uraj home llm)=; a Home reconfigure installs it.
+
+* Coexistence with the CLI
+
+- =codex= remains the separately packaged CLI (currently 0.155.0).
+- =codex-desktop= and =chatgpt= launch the desktop application.
+- The desktop keeps its bundled Codex 0.160.0 and Code Mode host.  Do not
+  replace these with the independently updated CLI without testing protocol
+  compatibility with the GUI.
+- The clients can share =~/.codex/config.toml=, including MCP configuration.
+  See https://learn.chatgpt.com/docs/extend/mcp .  Shared configuration means
+  changes made by either client may affect the other.
+
+* Validation and limits
+
+The locked-channel build, default grafts, CLI/desktop profile coexistence,
+and library resolution for 26 Linux x64 dynamic binaries were checked.
+Timed startup checks with temporary =--user-data-dir= directories reached
+window-ready and a successful bundled app-server handshake under both
+XWayland and native Wayland (=--ozone-platform=wayland=), without disabling
+the sandbox.  These are startup checks, not an end-to-end agent task test.
+
+Only x86_64-linux is packaged.  Optional Qt shims and foreign-platform or
+musl addons are retained but excluded from ELF patching; the default UI uses
+GTK.  The desktop can download additional runtimes/plugins into user state:
+those downloads are not part of this Guix package's pinned dependency closure.
+No Home reconfigure is performed by building or testing this package.
