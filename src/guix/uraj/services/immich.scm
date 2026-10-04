@@ -132,6 +132,8 @@
             (volumes . ,(vector (bind (string-append data "/postgres") "/var/lib/postgresql/data")))
             (shm_size . "128mb")
             (depends_on . ,network-dependency)
+            ;; Engine 20.10 cannot use start_interval; inherit the image's
+            ;; healthcheck and allow enough startup time below.
             (healthcheck . ((disable . #f)))))))
         (networks .
          ((lan . ,(if (immich-external-network config)
@@ -231,7 +233,9 @@
            (catch #t
              (lambda ()
                (invoke #$command "up" "-d" "--force-recreate"
-                       "--wait" "--wait-timeout" "300")
+                       ;; The database's first probe runs after five minutes;
+                       ;; leave time for it and the dependent server to start.
+                       "--wait" "--wait-timeout" "600")
                #t)
              (lambda args
                ;; A failed start must not leave a partially running stack.
