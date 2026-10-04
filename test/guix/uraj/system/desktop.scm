@@ -1,5 +1,7 @@
 ;; Run with the pinned channels and -L src/guix -L src/guile.
 (use-modules (gnu) (gnu services) (gnu services base)
+             (gnu home) (gnu home services) (gnu home services shepherd)
+             (gnu home services admin) (gnu services admin)
              (gnu services desktop) (gnu system pam) (guix gexp)
              (gnu system accounts)
              ((guix utils) #:select (with-environment-variables))
@@ -71,6 +73,34 @@
         (service-value
          (fold-services (operating-system-services os)
                         #:target-type elogind-service-type)))))
+
+(define home-services
+  (home-shepherd-configuration-services
+   (service-value
+    (fold-services (home-environment-services desktop-home-environment)
+                   #:target-type home-shepherd-service-type))))
+(define rotation-services
+  (filter (lambda (s) (memq 'log-rotation (shepherd-service-provision s)))
+          home-services))
+(test-equal "Home has one rotation service for native and external logs"
+  1 (length rotation-services))
+(test-assert "niri remains outside Shepherd process management"
+  (not (any (lambda (s) (memq 'niri (shepherd-service-provision s)))
+            home-services)))
+(define home-log-rotation
+  (service-value
+   (fold-services (home-environment-services desktop-home-environment)
+                  #:target-type home-log-rotation-service-type)))
+(define home-variables
+  (service-value
+   (fold-services (home-environment-services desktop-home-environment)
+                  #:target-type home-environment-variables-service-type)))
+(test-equal "native Home rotation uses the target user's log path"
+  '("/home/wenxin/.local/state/shepherd/niri.log")
+  (log-rotation-configuration-external-log-files home-log-rotation))
+(test-equal "session writer and native rotation share the log path"
+  (car (log-rotation-configuration-external-log-files home-log-rotation))
+  (assoc-ref home-variables "NIRI_SESSION_LOG_FILE"))
 
 (define failures (test-runner-fail-count (test-runner-current)))
 (test-end "desktop-session-lifecycle")

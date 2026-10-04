@@ -1,5 +1,6 @@
 (define-module (uraj home niri)
   #:use-module (gnu home services)
+  #:use-module (gnu home services admin)
   #:use-module (gnu home services shepherd)
   #:use-module (gnu home services sound)
   #:use-module (gnu packages)
@@ -65,11 +66,20 @@
 session services, the xdg-desktop-portal stack, PipeWire audio, fcitx5,
 the shared dotfiles and the base services.
 
-The context parameter %for-foreign-home controls host detection for
+The context parameters %main-user and %for-foreign-home select the target
+state directory.  Only foreign Home configurations inspect the host for
 NOCTALIA's PAM libraries and PORTALS' activation strategy; system Home
 defaults to plain noctalia and D-Bus activation regardless of the builder."
+  (define log-file
+    (string-append (home-state-directory) "/shepherd/niri.log"))
   (append
    (list
+    (simple-service 'niri-session-log
+                    home-environment-variables-service-type
+                    `(("NIRI_SESSION_LOG_FILE" . ,log-file)))
+    (simple-service 'niri-log-rotation
+                    home-log-rotation-service-type
+                    (list log-file))
     (simple-service 'niri-desktop-packages
                     home-profile-service-type
                     niri-desktop-packages)
