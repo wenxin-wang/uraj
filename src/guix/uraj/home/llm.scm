@@ -8,7 +8,7 @@
   #:export (llm-home-services))
 
 (define llm-packages
-  (list claude-code codex))
+  (list claude-code codex paseo))
 
 (define (llm-home-services)
   (append
