@@ -60,6 +60,7 @@
 (use-modules (gnu)
              (gnu bootloader)
              (gnu bootloader grub)
+             (nongnu system linux-initrd)
              (srfi srfi-1)
              (guix gexp)
              (sops secrets)
@@ -67,6 +68,7 @@
              (uraj utils file path)
              (uraj hardware asus)
              (uraj system desktop)
+             (uraj system initrd)
              (uraj system iso)
              (uraj system secrets)
              (uraj system storage))
@@ -90,18 +92,19 @@
   ;; asus)); the patched table must travel in the initrd for the kernel's
   ;; ACPI table override to pick it up.
   (initrd (asus-adolbook-air14-acpi-hack
-           (operating-system-initrd %desktop-base-os)))
+           (lambda (file-systems . rest)
+             (apply microcode-initrd file-systems
+                    #:initrd zstd-zswap-initrd rest))))
 
   ;; Guix does not add the resume argument itself; the initrd resumes
   ;; from a device given as path, UUID, or bare label.
   (kernel-arguments
    (append %default-kernel-arguments
            (list "resume=swap"
-                 ;; zswap: compress pages in RAM before they hit the
-                 ;; swap device; falls back to the default compressor
-                 ;; if the kernel lacks zstd support.
+                 ;; zstd is a module in this kernel.  Select it in the
+                 ;; initrd after loading the module; early zswap
+                 ;; initialization uses the built-in default compressor.
                  "zswap.enabled=1"
-                 "zswap.compressor=zstd"
                  "zswap.max_pool_percent=20")
            %asus-adolbook-air14-kernel-cmdlines))
 
