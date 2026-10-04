@@ -23,6 +23,7 @@
   #:use-module (gnu system nss)
   #:use-module (gnu system privilege)
   #:use-module (guix gexp)
+  #:use-module (srfi srfi-1)
   #:use-module (nongnu packages linux)
   #:use-module (nongnu packages mozilla)
   #:use-module (rosenthal services base)
@@ -102,7 +103,9 @@
             ;; the delegated /sys/fs/cgroup controllers.
             (supplementary-groups
              '("wheel" "netdev" "audio" "video" "cgroup")))
-           %base-user-accounts))
+           (remove (lambda (user)
+                     (string=? (user-account-name user) "wenxin"))
+                   (operating-system-users %base-os))))
 
     (packages
      (cons* firefox           ;Mozilla Firefox from the Nonguix channel

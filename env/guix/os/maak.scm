@@ -4,7 +4,7 @@
   #:use-module (uraj desktop env)
   #:use-module (uraj maak guix)
   #:use-module (uraj utils file path)
-  #:export (system-vm system-reconfigure build-iso home-container home-reconfigure))
+  #:export (deploy system-vm system-reconfigure build-iso home-container home-reconfigure))
 
 (define* (system-vm #:optional (config-path (guix-env-path "os/qemu-example.scm")))
   ($guix `("system" "vm" ,config-path)))
@@ -51,3 +51,6 @@
 
 (define* (home-reconfigure #:optional (config-path (guix-env-path "os/home.scm")))
   ($guix `("home" "reconfigure" ,config-path)))
+
+(define* (deploy #:optional (config-path (guix-env-path "os/lappie.scm")))
+  ($guix `("deploy" ,config-path)))

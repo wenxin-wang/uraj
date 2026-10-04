@@ -139,3 +139,58 @@ Immich 自带数据库导出仍按应用默认值运行，输出到媒体目录�
 
 本次不扫描整个 archive 为外部图库。已有照片可另选具体目录只读挂载，
 避免把 Immich 自己的媒体目录再次作为 External Library 导入。
+
+* 用 guix deploy 远程更新
+
+共享的 =%base-os= 创建 =guix-deploy= 用户，桌面和服务器都继承它。
+该账户没有密码登录、没有 wheel 附加组，SSH 复用 wenxin 的公钥，
+并通过 authorized_keys 的 =restrict= 禁用 PTY、转发和用户 rc。
+它仍需要正常 shell，以运行 SSH 远程命令。
+
+sudoers 仅允许 root 执行系统 profile 的 =guix repl -t machine=，
+以及路径匹配 store 内 Guile 的 =guile --no-auto-compile ...=。
+这些是锁定 Guix 的部署协议所需入口，不能只允许 =system reconfigure=。
+这只是命令入口白名单：解释器能执行任意 root 代码，部署者仍是等同
+root 的可信管理员。它不是“只能部署”的安全隔离；不要把这个密钥
+交给不可信用户。升级 Guix 后如调用形式改变，应重新审阅规则。
+
+** 首次启用
+
+将更新后的仓库同步到目标机，在目标机仓库根目录以 wenxin 执行一次：
+
+#+begin_src sh
+unset TO_ISO
+sudo -E guix time-machine -C env/guix/channels-lock.scm -- \
+  system reconfigure -L src/guix -L src/guile env/guix/os/storie.scm
+#+end_src
+
+这一步需要现有 sudo 密码；尚未创建的 guix-deploy 不能自举自己。
+其他主机启用时改用各自的系统配置文件。
+
+** 日常部署 storie
+
+在开发机仓库根目录执行，不加 sudo：
+
+#+begin_src sh
+unset TO_ISO
+guix time-machine -C env/guix/channels-lock.scm -- \
+  deploy -L src/guix -L src/guile --dry-run env/guix/deploy/storie.scm
+guix time-machine -C env/guix/channels-lock.scm -- \
+  deploy -L src/guix -L src/guile env/guix/deploy/storie.scm
+#+end_src
+
+入口固定 storie 的 Ed25519 主机公钥，使用端口 23333、guix-deploy
+账户和开发机 =$HOME/.ssh/simple= 私钥。本地构建，SSH 传输并激活；
+=authorize? #t= 允许远端导入开发机签名的 store 产物。
+预演可能连接远端，不代表服务启动或重启验证已通过。
+
+部署后用 wenxin 登录检查 =sudo herd status=、=sudo herd status immich=
+和 =sudo /etc/immich/compose ps=。内核及 ZFS/it87 模块更新后安排重启。
+回滚命令：
+
+#+begin_src sh
+guix time-machine -C env/guix/channels-lock.scm -- \
+  deploy -L src/guix -L src/guile --roll-back env/guix/deploy/storie.scm
+#+end_src
+
+系统代回滚不恢复数据库、照片或 ZFS 数据。

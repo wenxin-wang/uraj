@@ -19,15 +19,40 @@
             %tmp-file-system base-services
             %greetd-console-session base-greetd-configuration))
 
+(define %admin-ssh-public-key
+  "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCaK0O50zlTIaIUeaAmfOXTYpansMf7wjQsZCprTIkp8OhgB7XvDwqzLP9xJ3yzKsej8Am4v02d1RHQgCFi2KDmSTAjBFScRAkb5gDXtchPxc0XH4EFNGT1MqmNubDFNsJdMIUyHiPw5iEjsH+pV9qEuWry+1YVNMefjbKz38XTO3r7Ti+Oxq62HErypslYbHUG2wP2c5mS6n+3Ty+Nq3UG8zqhGgd6iIqrNPYC0u6JLiYe/HD6yd3bGuFDAPwJvgKFeDp9R67ScK7BEY9Z5yv6BPKgwGeJ4UvUASpWNdIszIzR/e5qvYa3uBZPgR/6I4J7X8sk3UGtP6VRe2EgclYb simple\n")
+
 ;;; Same SSH identity and port on desktop and server; root remains locked.
 (define %base-openssh-configuration
   (openssh-configuration
    (port-number 23333)
    (authorized-keys
     (list (list "wenxin"
-                (plain-file
-                 "wenxin-authorized-keys"
-                 "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCaK0O50zlTIaIUeaAmfOXTYpansMf7wjQsZCprTIkp8OhgB7XvDwqzLP9xJ3yzKsej8Am4v02d1RHQgCFi2KDmSTAjBFScRAkb5gDXtchPxc0XH4EFNGT1MqmNubDFNsJdMIUyHiPw5iEjsH+pV9qEuWry+1YVNMefjbKz38XTO3r7Ti+Oxq62HErypslYbHUG2wP2c5mS6n+3Ty+Nq3UG8zqhGgd6iIqrNPYC0u6JLiYe/HD6yd3bGuFDAPwJvgKFeDp9R67ScK7BEY9Z5yv6BPKgwGeJ4UvUASpWNdIszIzR/e5qvYa3uBZPgR/6I4J7X8sk3UGtP6VRe2EgclYb simple\n"))))))
+                (plain-file "wenxin-authorized-keys" %admin-ssh-public-key))
+          (list "guix-deploy"
+                (plain-file "guix-deploy-authorized-keys"
+                            (string-append "restrict " %admin-ssh-public-key)))))))
+
+;; Deploy needs a shell for SSH commands, but no password or wheel membership.
+(define %deploy-user
+  (user-account
+    (name "guix-deploy")
+    (comment "Guix remote deployment")
+    (group "users")
+    (password "*")
+    (home-directory "/var/lib/guix-deploy")))
+
+;; guix deploy invokes these two interpreter entry points, not system
+;; reconfigure.  They can evaluate arbitrary root code: this is a command
+;; allowlist, NOT a privilege boundary for an untrusted deployment operator.
+;; Keep guix resolution in the root-owned system profile.  The Guile store
+;; path varies with the coordinator's pinned Guix, hence the anchored regex.
+(define %deploy-sudoers
+  (plain-file "sudoers"
+    (string-append
+     (plain-file-content %sudoers-specification)
+     "\nDefaults:guix-deploy secure_path=\"/run/current-system/profile/bin:/run/current-system/profile/sbin\"\n"
+     "guix-deploy ALL=(root) NOPASSWD: /run/current-system/profile/bin/guix repl -t machine, ^/gnu/store/[0-9a-z]{32}-guile-[^/]+/bin/guile$ --no-auto-compile *\n")))
 
 (define %nonguix-signing-key
   (origin
@@ -119,6 +144,7 @@
     (kernel linux)
     (initrd microcode-initrd)
     (firmware (list linux-firmware))
-    (users (cons %base-user %base-user-accounts))
+    (users (cons* %base-user %deploy-user %base-user-accounts))
+    (sudoers-file %deploy-sudoers)
     (packages (cons btrfs-progs %base-packages))
     (services (base-services %base-services))))

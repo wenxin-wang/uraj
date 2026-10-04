@@ -1,0 +1,6 @@
+#!/bin/sh
+
+target=$1
+
+eval "$(cd ~/src/uraj; direnv export bash)"
+maak -f ~/src/uraj/env/guix/os/maak.scm deploy ~/src/uraj/env/guix/os/deploy/$target.scm
