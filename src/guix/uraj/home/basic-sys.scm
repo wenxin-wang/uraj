@@ -43,6 +43,7 @@
      ;; Utils.
      "inotify-tools"
      "nss-certs"                ; Without this git clone would have ssl unknown certs errors.
+     "python"
      "pv"
      "xdg-utils")))
 

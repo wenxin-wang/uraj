@@ -26,7 +26,9 @@
      ;; system desktop)); podman-compose drives the podman CLI directly,
      ;; so no API socket service is needed for compose projects.
      "podman"
-     "podman-compose")))
+     "podman-compose"
+     ;; Deployment
+     "ansible")))
 
 ;;; The gpg-agent runs under the session Shepherd (see the service below),
 ;;; so on foreign distros the host must not start its own: systemd user
