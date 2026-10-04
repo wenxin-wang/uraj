@@ -27,6 +27,7 @@
   #:use-module (nongnu packages mozilla)
   #:use-module (rosenthal services base)
   #:use-module (rosenthal services desktop)
+  #:use-module (uraj common context)
   #:use-module (uraj hardware keyboard)
   #:use-module (uraj home niri)
   #:use-module (uraj packages window-managers)
@@ -36,7 +37,6 @@
   #:use-module (uraj system base)
   #:use-module (uraj system home)
   #:use-module (uraj utils file path)
-  #:autoload (rosenthal packages wm) (noctalia)
   #:export (%desktop-base-os
             %desktop-openssh-configuration
             %desktop-tmp-file-system
@@ -49,14 +49,8 @@
 ;;; session commands below start login shells that source the Guix Home
 ;;; environment.
 ;;;
-;;; Unlike a "guix home reconfigure" config, this one is evaluated on
-;;; the machine that *builds* the system -- the installers are built on
-;;; an Ubuntu host -- while the target is Guix System.  The niri
-;;; services' host detection (noctalia-for-host,
-;;; host-uses-systemd-activation?) would therefore look at the wrong
-;;; machine, so both choices are pinned to what a Guix System target
-;;; needs: plain noctalia, whose locker uses Guix's own PAM, and portal
-;;; activation by the session bus instead of the session Shepherd.
+;;; Construct the embedded Home under the target account's context.
+;;; Foreign-host detection must not inspect the system's build machine.
 
 (define %desktop-trusted-channels-file
   (local-file
@@ -64,16 +58,17 @@
    "trusted-channels.scm"))
 
 (define desktop-home-environment
-  (home-environment
-   (packages (list network-manager-applet))
-   (services
-    (cons (simple-service
-           'trusted-guix-channels
-           home-files-service-type
-           `((".config/guix/trusted-channels.scm"
-              ,%desktop-trusted-channels-file)))
-          (niri-desktop-home-services #:noctalia noctalia
-                                      #:portals 'activation)))))
+  (parameterize ((%main-user %base-user)
+                 (%for-foreign-home #f))
+    (home-environment
+     (packages (list network-manager-applet))
+     (services
+      (cons (simple-service
+             'trusted-guix-channels
+             home-files-service-type
+             `((".config/guix/trusted-channels.scm"
+                ,%desktop-trusted-channels-file)))
+            (niri-desktop-home-services))))))
 
 (define %desktop-openssh-configuration %base-openssh-configuration)
 (define %desktop-tmp-file-system %tmp-file-system)

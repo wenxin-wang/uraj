@@ -71,17 +71,17 @@ into programs noctalia spawns."
 ;;; "The host" is the machine the home environment runs on, and the
 ;;; detection only holds for configs that are evaluated on that same
 ;;; machine -- "guix home reconfigure" ones like
-;;; env/guix/os/home-ponyai.scm, which work unchanged on any Ubuntu
+;;; env/guix/os/home.scm, which work unchanged on any Ubuntu
 ;;; release and fall back to plain noctalia everywhere else
-;;; (noctalia-for-host is also the services' default).  A Guix System
-;;; config must pin the package instead: its home environment is built
+;;; niri-desktop-home-services enables this detection only with
+;;; %for-foreign-home.  A Guix System home environment is built
 ;;; *on* whatever machine runs the build -- a developer's Ubuntu box for
 ;;; the installers -- while the target is Guix System, where the patch's
 ;;; absolute /usr/lib/x86_64-linux-gnu paths do not exist and the loader
 ;;; refuses to run the binary at all.  Guix System's own PAM is what
 ;;; plain noctalia uses there (see the unix_chkpwd privileged program in
-;;; (uraj system desktop)); (uraj system desktop) passes plain noctalia
-;;; explicitly for this reason.
+;;; (uraj system desktop)); the system context selects plain noctalia
+;;; for this reason.
 
 (define (ubuntu-pam-libs libs)
   (map (lambda (lib)
@@ -311,7 +311,7 @@ pass plain noctalia instead (see the comment above)."
 ;;; a window.  Owning the bus names from the session Shepherd means no
 ;;; <name>.service is ever started.  niri-desktop-home-services picks
 ;;; this flavour automatically on hosts where systemd is the init (see
-;;; host-uses-systemd-activation?), and Guix System configs pin
+;;; host-uses-systemd-activation?), and the Guix System context selects
 ;;; @code{#:portals 'activation} for the reason given above
 ;;; noctalia-for-host.
 ;;;

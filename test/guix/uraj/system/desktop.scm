@@ -1,11 +1,39 @@
 ;; Run with the pinned channels and -L src/guix -L src/guile.
 (use-modules (gnu) (gnu services) (gnu services base)
              (gnu services desktop) (gnu system pam) (guix gexp)
+             (gnu system accounts)
+             ((guix utils) #:select (with-environment-variables))
              (srfi srfi-1) (srfi srfi-13) (srfi srfi-64)
              (uraj system desktop)
+             (uraj common context)
              (uraj packages elogind))
 
 (test-begin "desktop-session-lifecycle")
+(define target-user
+  (user-account (name "target") (group "users")
+                (home-directory "/srv/target")))
+(with-environment-variables '(("XDG_STATE_HOME" "/tmp/foreign-state"))
+  (parameterize ((%main-user target-user) (%for-foreign-home #f))
+    (test-equal "system context ignores the build user's environment"
+      "/srv/target/.local/state" (home-state-directory))
+    (parameterize ((%for-foreign-home #t))
+      (test-equal "foreign context honors XDG even with a main user"
+        "/tmp/foreign-state" (home-state-directory))
+      (with-environment-variables '(("XDG_STATE_HOME" #f))
+        (test-equal "foreign context can use an explicit main user"
+          "/srv/target/.local/state" (home-state-directory))))
+    (test-equal "nested context restores system selection"
+      "/srv/target/.local/state" (home-state-directory)))
+  (parameterize ((%main-user #f) (%for-foreign-home #t))
+    (test-equal "foreign context supports the current user"
+      "/tmp/foreign-state" (home-state-directory))
+    (with-environment-variables '(("XDG_STATE_HOME" ""))
+      (test-equal "empty XDG falls back to the current user's home"
+        (string-append (getenv "HOME") "/.local/state")
+        (home-state-directory))))
+  (parameterize ((%main-user #f) (%for-foreign-home #f))
+    (test-error "system context requires a target account" #t
+      (home-state-directory))))
 (define os (load (string-append (getcwd) "/env/guix/os/lappie.scm")))
 (define config
   (service-value

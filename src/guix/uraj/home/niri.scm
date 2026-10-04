@@ -6,16 +6,18 @@
   #:use-module (gnu packages polkit)
   #:use-module (gnu services)
   #:use-module (guix gexp)
+  #:use-module (uraj common context)
   #:use-module (uraj home basic-desktop)
   #:use-module (uraj packages audio)
   #:use-module (uraj packages window-managers)
+  #:use-module ((rosenthal packages wm) #:select ((noctalia . plain-noctalia)))
   #:export (niri-desktop-home-services))
 
 ;;; One-stop Home configuration for a niri desktop session.  The
 ;;; packages ride along with the services: the profile extension below
 ;;; is what the home-environment 'packages' field expands to anyway,
-;;; so configs only need to add (niri-desktop-home-services) to their
-;;; services and the whole desktop comes with it.
+;;; so configs only need to add (niri-desktop-home-services)
+;;; to their services and the whole desktop comes with it.
 
 (define niri-desktop-packages
   (specifications->packages
@@ -52,22 +54,20 @@
 ;;; focus round trip to the launcher (Mod+D).
 
 (define* (niri-desktop-home-services
-          #:key (noctalia (noctalia-for-host))
-                (portals (if (host-uses-systemd-activation?)
+          #:key (noctalia (if (%for-foreign-home)
+                             (noctalia-for-host)
+                             plain-noctalia))
+                (portals (if (and (%for-foreign-home)
+                                  (host-uses-systemd-activation?))
                              'shepherd
                              'activation)))
   "Return the Home services for a niri desktop: the niri + noctalia
 session services, the xdg-desktop-portal stack, PipeWire audio, fcitx5,
 the shared dotfiles and the base services.
 
-NOCTALIA and PORTALS both default to the choice for the machine this
-home environment is evaluated on -- @code{noctalia-for-host} and
-@code{host-uses-systemd-activation?} -- which is right for configs that
-run on the machine they are evaluated on (@command{guix home
-reconfigure} ones).  Guix System configs build their home environment on
-some other machine and must pin both: plain noctalia and
-@code{#:portals 'activation} (see (uraj packages window-managers) and
-(uraj system desktop))."
+The context parameter %for-foreign-home controls host detection for
+NOCTALIA's PAM libraries and PORTALS' activation strategy; system Home
+defaults to plain noctalia and D-Bus activation regardless of the builder."
   (append
    (list
     (simple-service 'niri-desktop-packages
