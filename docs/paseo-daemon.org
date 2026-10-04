@@ -1,0 +1,111 @@
+#+title: Storie Paseo daemon
+
+* Layout
+
+The =paseo= Shepherd service runs a Guix system container.  It reuses the
+existing Paseo desktop package in headless mode (=paseo daemon run=); no display
+server, Electron window, Docker image, or container-local Guix daemon is started.
+The host system generation retains the complete container and Home closure.
+
+The host creates =paseo0= in macvlan bridge mode on =enp1s0= and moves it into
+the container network namespace.  The guest configures =172.31.0.7/24=, gateway
+and DNS =172.31.0.1=.  It can communicate with the existing relay at
+=172.31.0.8:4000=.  This interface is managed independently of Docker's
+=docker_lan= object; the two use the same parent and LAN.  Keep .7 outside DHCP.
+The host cannot directly access its macvlan children; use another LAN machine
+or enter the container namespace for checks.
+
+The daemon connects to =172.31.0.8:4000= with relay enabled and TLS disabled.
+Its pairing offers advertise that same private endpoint, never the public
+Paseo relay.  Clients therefore need LAN/VPN access.  Public DNS/TLS is a later
+step; an HTTPS browser may block the insecure WebSocket, so use the native
+Paseo client for this initial LAN setup.
+
+| Host path                       | Guest path                 | Purpose                    |
+|---------------------------------+----------------------------+----------------------------|
+| /data/paseo/home                 | /home/paseo                | Entire persistent home     |
+| /data/paseo/workspace            | /workspace                 | Repositories and worktrees |
+| /data/paseo/home/.paseo-password | /home/paseo/.paseo-password | Direct API access password |
+
+Both host and guest reserve UID/GID 1100 for =paseo=.  Preparation refuses to
+write when /data is not mounted, the NIC is absent, or existing directories
+have the wrong owner/type.  It does not recursively change existing ownership.
+A random password is created once with mode 0600, outside the store.  Existing
+passwords and =.paseo/config.json= survive restarts.  Initial worktrees live at
+=/workspace/worktrees=.  Back up home and workspace together, including private
+credentials and uncommitted work; cache directories can be excluded.
+
+* Programs and configuration
+
+Guix Home installs Paseo, Codex (including its code-mode host), Claude Code,
+Git, SSH, curl, ripgrep, Python, and Node.js.  The daemon waits for Home activation
+and networking.  It and the agents run as the non-root =paseo= user.  The root
+container startup process sets up namespaces; it is not the agent account.
+
+Add skills and static configuration through =paseo-configuration='s
+=home-services= field, e.g. =home-files-service-type=.  Keep writable login
+state and plugin caches in home.  Do not put credentials in =local-file= or
+=plain-file=.  Use separate skill paths for Codex (=.agents/skills=) and Claude
+(=.claude/skills=), with shared source files where appropriate.
+
+* Deployment and checks
+
+Build/reconfigure using the repository's locked channels.  Storie already has
+a deployment declaration at =env/guix/os/deploy/storie.scm=:
+
+#+begin_src sh
+guix time-machine -C env/guix/channels-lock.scm -- \
+  deploy -L src/guix -L src/guile env/guix/os/deploy/storie.scm
+#+end_src
+
+On Storie:
+
+#+begin_src sh
+sudo herd status paseo
+sudo tail -n 100 /var/log/paseo-container.log
+sudo tail -n 100 /data/paseo/home/.paseo/shepherd.log
+#+end_src
+
+Service startup waits for HTTP =/api/health= from within the network namespace.
+From another LAN machine:
+
+#+begin_src sh
+curl --fail http://172.31.0.7:6767/api/health
+#+end_src
+
+The unauthenticated health endpoint is intentionally public; the daemon API
+and direct connections require the generated password.  Read it locally with
+=sudo cat /data/paseo/home/.paseo-password= when adding a direct connection.
+
+* Agent login and relay pairing
+
+Enter the container as the agent user (all login state goes into its home):
+
+#+begin_src sh
+sudo guix container exec "$(sudo cat /run/paseo-container/pid)" \
+  /run/current-system/profile/bin/su - paseo
+codex login --device-auth
+claude
+paseo daemon status --json
+paseo daemon pair
+#+end_src
+
+Complete the providers' login flows in your browser.  Scan the pairing QR
+with the native Paseo app on the LAN/VPN.  Use =paseo daemon pair --json= for a
+structured offer.  Treat the pairing offer as private; do not commit it.
+
+Provider authentication and pairing a real client require the account/device
+owner.  A successful health check alone does not prove that agents are logged
+in or that a phone has been paired.
+
+* Lifecycle
+
+Use =sudo herd stop paseo= and =sudo herd start paseo= on the host.  A container
+restart interrupts running agent processes but retains files, sessions, identity
+and credentials.  The macvlan interface disappears with the network namespace.
+An unexpected existing host =paseo0= causes startup to fail instead of deleting
+an unrelated interface.  Inspect failures before retrying.
+
+After a system reconfiguration, restart =paseo= to select the new container and
+Guix Home generation.  Keep the previous host generation for rollback.  Home
+data is writable state: rolling back a generation does not roll back that data.

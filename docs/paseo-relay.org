@@ -2,7 +2,8 @@
 
 * Layout
 
-Immich keeps 172.31.0.6; 172.31.0.7 is reserved for a future Paseo daemon.
+Immich keeps 172.31.0.6; the Guix Paseo daemon container uses 172.31.0.7
+(see [[file:paseo-daemon.org][daemon deployment and pairing]]).
 The relay listens at 172.31.0.8:4000 on the shared macvlan network
 =docker_lan=, attached to =enp1s0=, with gateway 172.31.0.1.
 
@@ -81,5 +82,5 @@ Compose file still describes the network as owned by Immich.
 
 This config exposes the relay only on the LAN. Public mobile access still
 requires a reachable hostname and a TLS reverse proxy supporting WebSocket
-upgrades to port 4000. No public DNS, TLS or Paseo daemon pairing is configured
-here. End-to-end verification with a daemon and app follows their deployment.
+upgrades to port 4000. No public DNS or TLS is configured here. The daemon
+advertises this private relay for LAN/VPN pairing; see the daemon document.

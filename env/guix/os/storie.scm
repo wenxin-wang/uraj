@@ -142,6 +142,7 @@
              (uraj services new-api)
              (uraj services docker-lan)
              (uraj services paseo-relay)
+             (uraj services paseo)
              (uraj system server)
              (uraj system secrets)
              (uraj utils file path)
@@ -426,6 +427,7 @@ temperature sensors, fan tachometers and PWM control.")
             (service docker-lan-service-type)
             (service paseo-relay-service-type
               (paseo-relay-configuration (address "172.31.0.8")))
+            (service paseo-service-type)
             ;; Image built by traj-record's new-api-plugin/build.sh; see
             ;; docs/new-api.org.  Bump the tag together with a new build.
             (service new-api-service-type

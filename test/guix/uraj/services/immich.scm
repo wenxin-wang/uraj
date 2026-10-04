@@ -53,7 +53,7 @@
 (for-each (lambda (name)
             (test-assert (format #f "installer does not run ~a" name)
               (not (lookup live name))))
-          '(immich dockerd containerd docker-lan paseo-relay))
+          '(immich dockerd containerd docker-lan paseo-relay paseo))
 (define shared-manifest
   (json-string->scm
    (plain-file-content
