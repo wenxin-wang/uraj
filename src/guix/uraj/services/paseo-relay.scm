@@ -12,7 +12,7 @@
 (define-record-type* <paseo-relay-configuration>
   paseo-relay-configuration make-paseo-relay-configuration paseo-relay-configuration?
   (commit paseo-relay-commit (default "3fc41c96c8c63f3a7109e832899cc57d473c4531"))
-  (network paseo-relay-network (default "immich_lan"))
+  (network paseo-relay-network (default "docker_lan"))
   (address paseo-relay-address (default "172.31.0.8")))
 
 (define (paseo-relay-compose-file config)

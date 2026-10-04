@@ -12,7 +12,7 @@
 (define-record-type* <docker-lan-configuration>
   docker-lan-configuration make-docker-lan-configuration docker-lan-configuration?
   ;; Retain the existing Immich network so migration need not disconnect it.
-  (name docker-lan-name (default "immich_lan"))
+  (name docker-lan-name (default "docker_lan"))
   (parent docker-lan-parent (default "enp1s0"))
   (subnet docker-lan-subnet (default "172.31.0.0/24"))
   (gateway docker-lan-gateway (default "172.31.0.1"))

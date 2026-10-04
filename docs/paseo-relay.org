@@ -4,7 +4,7 @@
 
 Immich keeps 172.31.0.6; 172.31.0.7 is reserved for a future Paseo daemon.
 The relay listens at 172.31.0.8:4000 on the shared macvlan network
-=immich_lan=, attached to =enp1s0=, with gateway 172.31.0.1.
+=docker_lan=, attached to =enp1s0=, with gateway 172.31.0.1.
 
 =docker-lan= ensures that network exists and validates its configuration.
 It adopts the existing Immich network without disconnecting containers.
@@ -27,7 +27,7 @@ Run these commands on storie from the updated repository checkout.
 First inspect the existing network and confirm the new address is unused:
 
 #+begin_src sh
-sudo docker network inspect immich_lan
+sudo docker network inspect docker_lan
 #+end_src
 
 Reconfigure and start the service. If the commit-tagged image is missing,

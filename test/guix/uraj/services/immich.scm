@@ -57,7 +57,7 @@
 (define shared-manifest
   (json-string->scm
    (plain-file-content
-    (immich-compose-file (immich-configuration (external-network "immich_lan"))))))
+    (immich-compose-file (immich-configuration (external-network "docker_lan"))))))
 (define relay-manifest
   (json-string->scm
    (plain-file-content (paseo-relay-compose-file (paseo-relay-configuration)))))
