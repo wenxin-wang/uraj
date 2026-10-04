@@ -19,6 +19,17 @@
 (define-public claude-code
   (package
     (inherit pantherx-claude-code)
+    ;; Backport PantherX fd68e7a6's update without advancing the channel lock.
+    (version "2.1.287")
+    (source
+     (origin
+       (inherit (package-source pantherx-claude-code))
+       (uri (string-append
+             "https://storage.googleapis.com/claude-code-dist-"
+             "86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/"
+             version "/linux-x64/claude"))
+       (sha256
+        (base32 "1w0q2xd0x9hnkkdmwvbrphigy23l4wjjqf8sd9wgbkq9a6d4h81r"))))
     (arguments
      (substitute-keyword-arguments (package-arguments pantherx-claude-code)
        ((#:phases phases #~%standard-phases)
