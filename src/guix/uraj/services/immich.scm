@@ -25,6 +25,7 @@
   (subnet immich-subnet (default "172.31.0.0/24"))
   (gateway immich-gateway (default "172.31.0.1"))
   (address immich-address (default "172.31.0.6"))
+  (external-network immich-external-network (default #f))
   ;; #f generates a persistent secret outside the store on first startup.
   ;; A string names a runtime file, e.g. a sops-guix decrypted secret.
   (database-password-file immich-password-file (default #f))
@@ -133,13 +134,15 @@
             (depends_on . ,network-dependency)
             (healthcheck . ((disable . #f)))))))
         (networks .
-         ((lan . ((driver . "macvlan")
-                  (driver_opts . ((parent . ,(immich-parent-interface config))
-                                  (macvlan_mode . "bridge")))
-                  (ipam . ((config . ,(vector
-                                      `((subnet . ,(immich-subnet config))
-                                        (gateway . ,(immich-gateway config))
-                                        (ip_range . ,(string-append (immich-address config) "/32")))))))))))
+         ((lan . ,(if (immich-external-network config)
+                      `((external . #t) (name . ,(immich-external-network config)))
+                      `((driver . "macvlan")
+                        (driver_opts . ((parent . ,(immich-parent-interface config))
+                                        (macvlan_mode . "bridge")))
+                        (ipam . ((config . ,(vector
+                                            `((subnet . ,(immich-subnet config))
+                                              (gateway . ,(immich-gateway config))
+                                              (ip_range . ,(string-append (immich-address config) "/32"))))))))))))
         (secrets . ((db-password . ((file . "/run/immich/db-password"))))))))))
 
 (define (immich-prepare-program config)

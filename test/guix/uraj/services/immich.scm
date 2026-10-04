@@ -2,7 +2,7 @@
 (use-modules (gnu) (gnu services) (gnu services shepherd)
              (gnu image) (gnu system image)
              (guix gexp) (json) (srfi srfi-1) (srfi srfi-64)
-             (uraj services immich))
+             (uraj services immich) (uraj services paseo-relay))
 
 (define (services os)
   (shepherd-configuration-services
@@ -38,6 +38,12 @@
 (test-assert "Immich waits for SOPS password decryption"
   (every (lambda (r) (memq r (ancestors installed 'immich)))
          '(sops-secrets sops-secret-immich/db-password sops-secrets-host-key)))
+(test-assert "applications wait for the shared network"
+  (and (memq 'docker-lan (ancestors installed 'immich))
+       (memq 'docker-lan (ancestors installed 'paseo-relay))))
+(test-assert "relay is independent of Immich, secrets and data pools"
+  (not (any (lambda (r) (memq r '(immich zfs-data-ready sops-secrets)))
+            (ancestors installed 'paseo-relay))))
 (for-each
  (lambda (name)
    (test-assert (format #f "~a remains independent of Immich and data pools" name)
@@ -47,7 +53,24 @@
 (for-each (lambda (name)
             (test-assert (format #f "installer does not run ~a" name)
               (not (lookup live name))))
-          '(immich dockerd containerd))
+          '(immich dockerd containerd docker-lan paseo-relay))
+(define shared-manifest
+  (json-string->scm
+   (plain-file-content
+    (immich-compose-file (immich-configuration (external-network "immich_lan"))))))
+(define relay-manifest
+  (json-string->scm
+   (plain-file-content (paseo-relay-compose-file (paseo-relay-configuration)))))
+(define (lan manifest) (assoc-ref (assoc-ref manifest "networks") "lan"))
+(test-equal "Immich and relay use the same externally managed network"
+  (lan shared-manifest) (lan relay-manifest))
+(test-equal "Compose must not delete the shared network" #t
+  (assoc-ref (lan shared-manifest) "external"))
+(define relay (assoc-ref (assoc-ref relay-manifest "services") "relay"))
+(test-equal "relay uses .8, leaving .6 for Immich and .7 for daemon" "172.31.0.8"
+  (assoc-ref (assoc-ref (assoc-ref relay "networks") "lan") "ipv4_address"))
+(test-equal "build works without Docker's default bridge" "host"
+  (assoc-ref (assoc-ref relay "build") "network"))
 (define manifest
   (json-string->scm (plain-file-content (immich-compose-file (immich-configuration)))))
 (define containers (assoc-ref manifest "services"))

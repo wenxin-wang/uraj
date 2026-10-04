@@ -139,6 +139,8 @@
              (sops secrets)
              (sops services sops)
              (uraj services immich)
+             (uraj services docker-lan)
+             (uraj services paseo-relay)
              (uraj system server)
              (uraj system secrets)
              (uraj utils file path)
@@ -420,6 +422,9 @@ temperature sensors, fan tachometers and PWM control.")
             ;; Headless Docker, with no default bridge, NAT or firewall rules.
             (service containerd-service-type)
             (service immich-docker-service-type %immich-docker-configuration)
+            (service docker-lan-service-type)
+            (service paseo-relay-service-type
+              (paseo-relay-configuration (address "172.31.0.8")))
             (service immich-service-type
               (immich-configuration
                (data-directory "/data/immich") ; NVMe Btrfs @data
@@ -427,6 +432,8 @@ temperature sensors, fan tachometers and PWM control.")
                (database-password-file
                 (sops-secret->secret-file %immich-database-secret))
                (secret-requirements '(sops-secrets))
+               (requirements '(docker-lan zfs-data-ready file-system-/data))
+               (external-network "immich_lan")
                (parent-interface "enp1s0")
                (subnet "172.31.0.0/24")
                (gateway "172.31.0.1")
