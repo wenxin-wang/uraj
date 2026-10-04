@@ -1,0 +1,91 @@
+#+title: Storie new-api
+
+* Layout
+
+new-api is an LLM API gateway. This instance records Claude Code
+trajectories (every =/v1/messages= request and raw response) for later
+scoring and training. It listens on plain HTTP at 172.31.0.9:3000 on the
+shared macvlan network =docker_lan=; Immich keeps .6, .7 is reserved for a
+Paseo daemon and the relay uses .8. Reserve .9 outside the router's DHCP
+pool before deployment.
+
+Containers (one Compose project, all in the anchor's network namespace):
+- =network=: pause container holding the macvlan address
+- =new-api=: the gateway
+- =database=: Postgres 15, listening on 127.0.0.1 only
+- =redis=: Valkey, listening on 127.0.0.1 only
+
+Storage:
+- =/data/new-api/= (NVMe Btrfs): =postgres/=, =app/= (new-api =/data=),
+  =logs/=, =secrets/= (generated database password and session secret)
+- =/media-data/new-api/traj-records/= (ZFS =media-data=, single disk):
+  trajectory JSONL; rotated files are zstd-compressed and all are kept
+
+Shepherd checks both mounts before every start and generates the two secrets
+on first start. It refuses to generate a database password when a database
+already exists without one. Secrets are copied to the root-only
+=/run/new-api/= and mounted as Compose secrets; the Compose file in the store
+holds no credentials.
+
+* Image
+
+The image is the official new-api release plus the =traj_record= plugin.
+Its sources, the wiring patch and the build script live in the traj-record
+repository under =new-api-plugin/=. The image tag pins the upstream tag and
+a hash of the plugin sources, e.g. =localhost/new-api-traj:v1.0.0-rc.41-8fedb70fb555=.
+Docker on storie never pulls it: Compose runs with =--pull missing=, so a
+missing image fails startup instead of fetching something else.
+
+Build on a workstation with podman and load it into storie's Docker:
+
+#+begin_src sh
+cd traj-record/new-api-plugin
+GOPROXY=https://goproxy.cn,direct ./build.sh --load storie.home.labbies.wenxinwang.me
+#+end_src
+
+The script prints the image name. Put it in the =image= field of
+=new-api-configuration= in =env/guix/os/storie.scm=.
+
+* First deployment
+
+#+begin_src sh
+sudo docker network inspect docker_lan   # confirm .9 is unused
+sudo docker image ls localhost/new-api-traj
+sudo guix time-machine -C env/guix/channels-lock.scm -- \
+  system -L src/guix -L src/guile reconfigure env/guix/os/storie.scm
+sudo herd start new-api
+sudo herd status new-api
+sudo /etc/new-api/compose ps
+#+end_src
+
+From another machine on the LAN (macvlan does not connect its own host):
+
+#+begin_src sh
+curl --fail http://172.31.0.9:3000/api/status
+#+end_src
+
+Open http://172.31.0.9:3000 and create the root account, then add an
+Anthropic channel and a token. Point Claude Code at the gateway:
+
+#+begin_src sh
+ANTHROPIC_BASE_URL=http://172.31.0.9:3000 ANTHROPIC_AUTH_TOKEN=sk-... claude
+#+end_src
+
+Only requests whose User-Agent starts with =claude-cli/= are recorded.
+
+* Operation and updates
+
+#+begin_src sh
+sudo /etc/new-api/compose logs --tail 100 new-api
+sudo ls -l /media-data/new-api/traj-records/
+sudo herd stop new-api
+sudo herd start new-api
+#+end_src
+
+To update new-api or the plugin: change =UPSTREAM_TAG= or the plugin in
+traj-record, run =build.sh --load storie.home.labbies.wenxinwang.me=, set the printed tag in
+=storie.scm=, reconfigure and restart. Keep the previous image for rollback.
+Bumping the upstream tag can break the plugin's build when upstream moves an
+internal package; the build then fails on the workstation, never on storie.
+After an update, send one Claude Code request and check that a new =call=
+line appears in =traj.jsonl=.

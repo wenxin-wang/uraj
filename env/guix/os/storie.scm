@@ -139,6 +139,7 @@
              (sops secrets)
              (sops services sops)
              (uraj services immich)
+             (uraj services new-api)
              (uraj services docker-lan)
              (uraj services paseo-relay)
              (uraj system server)
@@ -425,6 +426,12 @@ temperature sensors, fan tachometers and PWM control.")
             (service docker-lan-service-type)
             (service paseo-relay-service-type
               (paseo-relay-configuration (address "172.31.0.8")))
+            ;; Image built by traj-record's new-api-plugin/build.sh; see
+            ;; docs/new-api.org.  Bump the tag together with a new build.
+            (service new-api-service-type
+              (new-api-configuration
+               (image "localhost/new-api-traj:v1.0.0-rc.41-8fedb70fb555")
+               (address "172.31.0.9")))
             (service immich-service-type
               (immich-configuration
                (data-directory "/data/immich") ; NVMe Btrfs @data
