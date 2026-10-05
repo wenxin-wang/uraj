@@ -15,6 +15,7 @@
   #:use-module (nongnu packages linux)
   #:use-module (nongnu system linux-initrd)
   #:use-module (srfi srfi-1)
+  #:use-module (uraj services guix-mirrors)
   #:export (%base-os %base-user %base-openssh-configuration
             %tmp-file-system base-services
             %greetd-console-session base-greetd-configuration))
@@ -109,6 +110,17 @@
 (define (base-services services)
   "Add shared SSH, store publishing, and Guix settings to SERVICES."
   (cons* (service openssh-service-type %base-openssh-configuration)
+         (simple-service
+          'guix-crate-mirrors etc-service-type
+          ;; /etc/guix is a mutable directory maintained by Guix itself.
+          ;; etc-service-type installs top-level links, not files into it.
+          `(("guix-daemon-command"
+             ,(guix-mirror-command
+               (guix-configuration-guix
+                (service-value
+                 (find (lambda (service)
+                         (eq? (service-kind service) guix-service-type))
+                       services)))))))
          (service guix-publish-service-type
            (guix-publish-configuration
              (host "0.0.0.0")
@@ -124,6 +136,13 @@
           (guix-service-type config =>
             (guix-configuration
               (inherit config)
+              ;; GUIX selects the daemon's helper, independently of clients
+              ;; (including time-machine).  Keep package derivations intact.
+              (environment
+               (cons "GUIX=/etc/guix-daemon-command"
+                     (filter (lambda (entry)
+                               (not (string-prefix? "GUIX=" entry)))
+                             (guix-configuration-environment config))))
               (substitute-urls
                '("https://mirror.sjtu.edu.cn/guix-bordeaux"
                  "https://mirror.sjtu.edu.cn/guix"
