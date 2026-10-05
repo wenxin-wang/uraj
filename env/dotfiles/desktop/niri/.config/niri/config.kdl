@@ -130,7 +130,7 @@ hotkey-overlay {
 // Ask clients to omit their client-side decorations.
 prefer-no-csd
 
-screenshot-path "~/Pictures/Screenshots/%Y%m%d-%H%M%S.png"
+screenshot-path "~/tmp/Pictures/Screenshots/%Y%m%d-%H%M%S.png"
 
 // Noctalia: rounded corners for all windows.
 window-rule {
@@ -138,9 +138,9 @@ window-rule {
     clip-to-geometry true
 }
 
-// The swappy annotation window floats above the layout untilled.
+// The Satty annotation window floats above the tiled layout.
 window-rule {
-    match app-id="me.jtheoof.swappy"
+    match app-id=r#"^org\.satty\.satty$"#
     open-floating true
     geometry-corner-radius 0
     clip-to-geometry false
@@ -157,12 +157,12 @@ binds {
     Mod+Return { spawn "ghostty"; }
 
     // Noctalia.
-    Mod+Z           { spawn "noctalia" "msg" "panel-toggle" "control-center"; }
-    Mod+D           { spawn "noctalia" "msg" "panel-toggle" "launcher"; }
-    Mod+S           { spawn "noctalia" "msg" "settings-toggle"; }
-    Mod+Shift+Q     { spawn "noctalia" "msg" "session" "lock"; }
-    Mod+Ctrl+Q      { spawn "noctalia" "msg" "panel-toggle" "session"; }
-    Mod+Shift+E     { spawn "herd" "restart" "noctalia"; }
+    Mod+Z            { spawn "noctalia" "msg" "panel-toggle" "control-center"; }
+    Mod+D            { spawn "noctalia" "msg" "panel-toggle" "launcher"; }
+    Mod+Shift+Ctrl+S { spawn "noctalia" "msg" "settings-toggle"; }
+    Mod+Shift+Q      { spawn "noctalia" "msg" "session" "lock"; }
+    Mod+Ctrl+Q       { spawn "noctalia" "msg" "panel-toggle" "session"; }
+    Mod+Shift+E      { spawn "herd" "restart" "noctalia"; }
 
     // Volume and media keys.
     XF86AudioRaiseVolume  allow-when-locked=true { spawn "noctalia" "msg" "volume-up"; }
@@ -294,16 +294,14 @@ binds {
 
     Mod+W { toggle-column-tabbed-display; }
 
-    // Focused-screen annotation: grim captures the focused output, swappy
-    // opens it for annotation (Ctrl+S saves, Ctrl+C copies to clipboard).
-    Print { spawn "sh" "/home/wenxin/.config/niri/screenshot-focused.sh"; }
-    // Interactive region select (niri's screenshot UI), then swappy opens
-    // the result for annotation.
-    Mod+Print { spawn "sh" "/home/wenxin/.config/niri/screenshot-region.sh"; }
-    // Whole focused screen to file, no editor.
-    Shift+Print { screenshot-screen; }
-    Ctrl+Print { screenshot-screen; }
-    Alt+Print { screenshot-window; }
+    // niri captures; Satty annotates. Ctrl+S saves, Ctrl+C copies.
+    // Laptop screenshot key emits Super+Ctrl+S rather than Print.
+    Mod+S       { spawn "python3" "/home/wenxin/.config/niri/screenshot.py" "region"; }
+    Print       { spawn "python3" "/home/wenxin/.config/niri/screenshot.py" "region"; }
+    Mod+Shift+S { spawn "python3" "/home/wenxin/.config/niri/screenshot.py" "screen"; }
+    Shift+Print { spawn "python3" "/home/wenxin/.config/niri/screenshot.py" "screen"; }
+    Mod+Ctrl+S  { spawn "python3" "/home/wenxin/.config/niri/screenshot.py" "window"; }
+    Ctrl+Print  { spawn "python3" "/home/wenxin/.config/niri/screenshot.py" "window"; }
 
     Mod+Escape allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
 

@@ -5,6 +5,7 @@
   #:use-module (gnu home services sound)
   #:use-module (gnu packages)
   #:use-module (gnu packages polkit)
+  #:use-module ((shika packages satty) #:select (satty))
   #:use-module (gnu services)
   #:use-module (guix gexp)
   #:use-module (uraj common context)
@@ -21,17 +22,16 @@
 ;;; to their services and the whole desktop comes with it.
 
 (define niri-desktop-packages
-  (specifications->packages
-   '("swappy"                    ;screenshot editing (Print flow)
-     "adwaita-icon-theme"        ;icons used by the GTK Polkit agent
-     "grim"                      ;screenshot capture (Print/Mod+Print flow)
-     "qtwayland"                 ;Qt Wayland platform plugin
-     "niri"
-     "wl-clipboard"
-     "xdg-desktop-portal-gnome"  ;screencast/screenshots
-     "xdg-desktop-portal-gtk"
-     "xorg-server-xwayland"      ;Xwayland, exec'd by xwayland-satellite
-     "xwayland-satellite")))     ;X11 support, run by the session Shepherd
+  (cons satty
+        (specifications->packages
+         '("adwaita-icon-theme"       ;icons used by the GTK Polkit agent
+           "qtwayland"               ;Qt Wayland platform plugin
+           "niri"
+           "wl-clipboard"
+           "xdg-desktop-portal-gnome" ;screencast/screenshots
+           "xdg-desktop-portal-gtk"
+           "xorg-server-xwayland"    ;exec'd by xwayland-satellite
+           "xwayland-satellite"))))  ;run by the session Shepherd
 
 (define %niri-polkit-agent-service
   (shepherd-service
