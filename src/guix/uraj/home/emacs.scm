@@ -7,7 +7,7 @@
   #:use-module (uraj utils file path)
   #:export (emacs-home-services))
 
-(define emacs-packages
+(define (emacs-packages)
   (specifications->packages
     '("emacs-pgtk"
       "gcc-toolchain"
@@ -170,5 +170,5 @@
   (list
    (simple-service 'emacs-packages
                    home-profile-service-type
-                   emacs-packages)
+                   (emacs-packages))
    (emacs-config-activation-service)))

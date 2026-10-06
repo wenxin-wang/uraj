@@ -21,7 +21,7 @@
 ;;; so configs only need to add (niri-desktop-home-services)
 ;;; to their services and the whole desktop comes with it.
 
-(define niri-desktop-packages
+(define (niri-desktop-packages)
   (cons satty
         (specifications->packages
          '("adwaita-icon-theme"       ;icons used by the GTK Polkit agent
@@ -82,7 +82,7 @@ defaults to plain noctalia and D-Bus activation regardless of the builder."
                     (list log-file))
     (simple-service 'niri-desktop-packages
                     home-profile-service-type
-                    niri-desktop-packages)
+                    (niri-desktop-packages))
     ;; NetworkManager operations such as creating the first connection
     ;; require Polkit authorization.  Noctalia supplies NM's secret agent
     ;; (the Wi-Fi password prompt), but it is not a Polkit authentication

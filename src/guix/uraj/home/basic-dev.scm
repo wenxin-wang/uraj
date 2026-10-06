@@ -10,7 +10,7 @@
   #:use-module (uraj utils file path)
   #:export (basic-dev-home-services))
 
-(define basic-dev-packages
+(define (basic-dev-packages)
   (specifications->packages
    '(;; OpenPGP smart cards (YubiKey/CanoKey), commit signing and the
      ;; gpg-agent SSH agent.  Card access goes through the host's pcscd
@@ -98,7 +98,7 @@
    (list
     (simple-service 'basic-dev-packages
                     home-profile-service-type
-                    basic-dev-packages)
+                    (basic-dev-packages))
     (basic-dev-gpg-agent-service)
     (mask-host-gpg-agent-systemd-units))
    (my-dotfiles-services

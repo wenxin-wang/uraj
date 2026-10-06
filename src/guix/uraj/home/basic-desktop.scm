@@ -22,7 +22,7 @@
   #:use-module (uraj utils file path)
   #:export (basic-desktop-home-services))
 
-(define basic-desktop-packages
+(define (basic-desktop-packages)
   (cons* glibc-common-locales
          ghostty                        ;terminal emulator
          firefox                        ;Mozilla Firefox from the Nonguix channel
@@ -154,7 +154,7 @@ services."
    (list
     (simple-service 'basic-desktop-packages
                     home-profile-service-type
-                    basic-desktop-packages)
+                    (basic-desktop-packages))
 
     ;; 链接点击（聊天软件、终端、其它应用）都经 xdg-open 查 mimeapps.list
     ;; 找默认 handler。不声明的话就是先到先得：发行版的 firefox 第一次

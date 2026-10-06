@@ -7,7 +7,11 @@
   #:use-module (uraj utils file path)
   #:export (basic-sys-home-services))
 
-(define basic-sys-packages
+;; Package lists in (uraj home ...) are procedures, not variables: resolving
+;; specifications at load time scans every -L module, re-entering modules
+;; still being loaded, e.g. (uraj system desktop) before (uraj home niri)
+;; has defined niri-desktop-home-services.
+(define (basic-sys-packages)
   (specifications->packages
    '(;; UI
      "bash-completion"          ; completions for git, fd, ... (see .bashrc.d)
@@ -52,6 +56,6 @@
    (list
     (simple-service 'basic-sys-packages
                     home-profile-service-type
-                    basic-sys-packages))
+                    (basic-sys-packages)))
    (my-dotfiles-services
     (list (project-path "env/dotfiles/common")))))
