@@ -228,5 +228,5 @@ services."
    (basic-dev-home-services)
    (basic-sys-home-services)
    (emacs-home-services)
-   (llm-home-services)
+   (agent-desktop-services)
    %base-home-services))

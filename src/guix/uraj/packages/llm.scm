@@ -1,6 +1,10 @@
 (define-module (uraj packages llm)
+  #:use-module (gnu packages bash)
+  #:use-module (gnu packages chromium)
   #:use-module (gnu packages linux)
+  #:use-module (guix build-system copy)
   #:use-module (guix download)
+  #:use-module (guix git-download)
   #:use-module (guix gexp)
   #:use-module ((guix licenses) #:prefix license:)
   #:use-module (guix packages)
@@ -10,7 +14,8 @@
                 #:select ((claude-code . pantherx-claude-code)))
   #:use-module ((px packages tools)
                 #:select ((codex . pantherx-codex)))
-  #:export (claude-code
+  #:export (agent-browser
+            claude-code
             codex
             paseo))
 
@@ -155,4 +160,70 @@
 coding agents such as Claude Code and Codex.  This package repackages the
 official Linux desktop application, including its bundled command-line client.
 Run @command{paseo-desktop} for the GUI or @command{paseo} for the CLI.")
+    (license license:asl2.0)))
+
+;;; The release binary is statically linked against musl and needs no
+;;; patching.  `agent-browser skills get' serves version-matched content from
+;;; ../skills and ../skill-data next to the canonicalized executable, so the
+;;; tagged checkout supplies those directories and the binary sits beside them
+;;; under share/.  The launcher defaults to ungoogled-chromium in place of the
+;;; Chrome for Testing that `agent-browser install' downloads, which cannot run
+;;; on Guix System.
+(define-public agent-browser
+  (package
+    (name "agent-browser")
+    (version "0.38.2")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/vercel-labs/agent-browser")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0l9jnxqyc4zdkvsinxa9c571hldmr4jkllrdhnycpa8q6fyi1liw"))))
+    (build-system copy-build-system)
+    (arguments
+     (let ((binary
+            (origin
+              (method url-fetch)
+              (uri (string-append
+                    "https://github.com/vercel-labs/agent-browser/releases/download/v"
+                    (package-version this-package)
+                    "/agent-browser-linux-musl-x64"))
+              (sha256
+               (base32 "0xg6k2wwrhh30c9f17s4zhmm197baaj22r9sv5h9ihfg9lplcgcr")))))
+       (list
+        #:install-plan
+        #~'(("skills" "share/agent-browser/")
+            ("skill-data" "share/agent-browser/"))
+        #:phases
+        #~(modify-phases %standard-phases
+            (add-after 'install 'install-binary
+              (lambda* (#:key inputs #:allow-other-keys)
+                (let ((real (string-append #$output
+                                           "/share/agent-browser/bin/agent-browser"))
+                      (launcher (string-append #$output "/bin/agent-browser")))
+                  (mkdir-p (dirname real))
+                  (copy-file #$binary real)
+                  (chmod real #o555)
+                  (mkdir-p (dirname launcher))
+                  (call-with-output-file launcher
+                    (lambda (port)
+                      (format port "#!~a
+export AGENT_BROWSER_EXECUTABLE_PATH=\"${AGENT_BROWSER_EXECUTABLE_PATH:-~a}\"
+exec ~a \"$@\"~%"
+                              (search-input-file inputs "/bin/bash")
+                              (search-input-file inputs "/bin/chromium")
+                              real)))
+                  (chmod launcher #o555))))))))
+    (inputs (list bash-minimal ungoogled-chromium))
+    (supported-systems '("x86_64-linux"))
+    (home-page "https://agent-browser.dev")
+    (synopsis "Browser automation command-line tool for AI agents")
+    (description
+     "agent-browser drives Chrome or Chromium over the DevTools protocol and
+prints accessibility-tree snapshots with compact element references, for use by
+AI coding agents.  This package repackages the official static Linux binary
+together with its version-matched agent skills.")
     (license license:asl2.0)))

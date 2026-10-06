@@ -24,6 +24,7 @@
   #:use-module (guix gexp)
   #:use-module (guix modules)
   #:use-module (guix records)
+  #:use-module (uraj home llm)
   #:use-module (uraj packages llm)
   #:use-module (uraj system home)
   #:export (paseo-configuration paseo-service-type paseo-operating-system
@@ -40,18 +41,21 @@
   (gateway paseo-gateway (default "172.31.0.1"))
   (name-server paseo-name-server (default "172.31.0.1"))
   (relay-endpoint paseo-relay-endpoint (default "172.31.0.8:4000"))
-  ;; Home extensions can declare skills and non-secret agent configuration.
+  ;; Extra Home services on top of the agents and skills shared with desktop
+  ;; Homes, e.g. more skills (extend home-agent-skills-service-type) or
+  ;; non-secret agent configuration.
   (home-services paseo-home-services (default '()))
+  ;; Tools the agents use; desktop Homes get them from their dev services.
   (packages paseo-packages
-            (default (list codex claude-code git github-cli openssh curl ripgrep
-                           python node-lts)))
+            (default (list git github-cli openssh curl ripgrep python node-lts)))
   (requirements paseo-requirements (default '(networking file-system-/data))))
 
 (define (paseo-home config)
   (home-environment
    (packages (cons (paseo-package config) (paseo-packages config)))
-   (services (cons (service home-bash-service-type)
-                   (paseo-home-services config)))))
+   (services (cons* (service home-bash-service-type)
+                    (append (agent-common-services)
+                            (paseo-home-services config))))))
 
 (define (paseo-guest-services config)
   (let* ((home (paseo-home config))
