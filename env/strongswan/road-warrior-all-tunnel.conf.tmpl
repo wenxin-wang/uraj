@@ -7,6 +7,12 @@ connections {
     vips = 0.0.0.0, ::
     encap = no
 
+    # The server redirects 32495 to its 4500. A local port other than 500
+    # prefixes the non-ESP marker from the first packet, so IKE and ESP stay
+    # on 32495 instead of switching to the server's real 4500.
+    local_port = 4500
+    remote_port = 32495
+
     # Move an existing IKE SA when the network changes. If it expires, retry.
     mobike = yes
     dpd_delay = 30s
