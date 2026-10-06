@@ -445,7 +445,7 @@ temperature sensors, fan tachometers and PWM control.")
             ;; docs/new-api.org.  Bump the tag together with a new build.
             (service new-api-service-type
               (new-api-configuration
-               (image "localhost/new-api-traj:v1.0.0-rc.41-8fedb70fb555")
+               (image "localhost/new-api-traj:v1.0.0-rc.41-59aef181d111")
                (address "172.31.0.9")))
             (service immich-service-type
               (immich-configuration
