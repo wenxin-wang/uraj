@@ -19,6 +19,8 @@
      ;; basic-dev also works on machines without a desktop environment.
      "gnupg"
      "pinentry-tty"
+     ;; Git
+     "github-cli"
      ;; Python
      "uv"
      ;; Containers.  Guix System hosts get subids, cgroup delegation and

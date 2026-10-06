@@ -43,7 +43,7 @@
   ;; Home extensions can declare skills and non-secret agent configuration.
   (home-services paseo-home-services (default '()))
   (packages paseo-packages
-            (default (list codex claude-code git openssh curl ripgrep
+            (default (list codex claude-code git github-cli openssh curl ripgrep
                            python node-lts)))
   (requirements paseo-requirements (default '(networking file-system-/data))))
 
