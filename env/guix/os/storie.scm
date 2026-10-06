@@ -151,6 +151,16 @@
              (uraj system iso)
              (uraj system zfs))
 
+;; The administrator, who also owns the embedded Home.  Let it drive
+;; dockerd, as root-equivalent as wheel.
+(define %main-user
+  (main-user-account "wenxin" #:comment "Wenxin Wang"
+                     #:supplementary-groups '("docker")))
+
+(define %server-os
+  (server-base-os %main-user
+                  (local-file (guix-env-path "os/keys/wenxin-ssh.pub"))))
+
 ;; Match the module build to the inherited operating-system kernel.
 (define zfs-linux
   (package
@@ -159,7 +169,7 @@
                          (version-major+minor (package-version linux))))
     (arguments
      (substitute-keyword-arguments (package-arguments zfs)
-       ((#:linux _) (operating-system-kernel %server-base-os))))))
+       ((#:linux _) (operating-system-kernel %server-os))))))
 
 (define zfs-auto-snapshot-linux
   (package
@@ -232,7 +242,7 @@
           (base32 "1fga3dmxychrf7m1xjdj51zab682i8rcrfr23565yjv8g6hsi5gh"))))
       (build-system linux-module-build-system)
       (arguments
-       (list #:linux (operating-system-kernel %server-base-os)
+       (list #:linux (operating-system-kernel %server-os)
              #:tests? #f ; No upstream test suite; hardware test is separate.
              #:phases
              #~(modify-phases %standard-phases
@@ -244,7 +254,7 @@
                                  #$(string-append
                                     "TARGET="
                                     (package-version
-                                     (operating-system-kernel %server-base-os))))))
+                                     (operating-system-kernel %server-os))))))
       (home-page "https://github.com/frankcrawford/it87")
       (synopsis "ITE Super I/O monitoring and fan control driver")
       (description "Out-of-tree it87 driver with support for IT8613E
@@ -398,31 +408,19 @@ temperature sensors, fan tachometers and PWM control.")
 
 (define storie-os
   (operating-system
-    (inherit %server-base-os)
+    (inherit %server-os)
     (host-name "storie")
     (kernel-loadable-modules
-     (cons it87-linux (operating-system-kernel-loadable-modules %server-base-os)))
+     (cons it87-linux (operating-system-kernel-loadable-modules %server-os)))
     (bootloader
      (bootloader-configuration
        (bootloader grub-efi-bootloader)
        (targets '("/boot/efi"))))
     (file-systems (btrfs-root-file-systems "storie"))
     (swap-devices %nvme-swap-devices)
-    ;; Let the main user drive dockerd, as root-equivalent as wheel.
-    (users
-     (map (lambda (user)
-            (if (string=? (user-account-name user)
-                          (user-account-name %base-user))
-                (user-account
-                  (inherit user)
-                  (supplementary-groups
-                   (append (user-account-supplementary-groups user)
-                           '("docker"))))
-                user))
-          (operating-system-users %server-base-os)))
     (packages
      (cons* git nfs-utils lm-sensors
-            (operating-system-packages %server-base-os)))
+            (operating-system-packages %server-os)))
     (services
      (append
       (list (service zfs-data-service-type
@@ -464,7 +462,7 @@ temperature sensors, fan tachometers and PWM control.")
       %storie-fan-services
       (if (getenv "TO_ISO") '()
           (host-sops-services (list %immich-database-secret)))
-      (modify-services (operating-system-user-services %server-base-os)
+      (modify-services (operating-system-user-services %server-os)
         (guix-service-type config =>
           (guix-configuration
             (inherit config)
@@ -483,5 +481,5 @@ temperature sensors, fan tachometers and PWM control.")
                 (zfs-configuration
                   (zfs zfs-linux)
                   (auto-mount? #f)))
-              (operating-system-user-services %server-base-os)))))
+              (operating-system-user-services %server-os)))))
     storie-os)

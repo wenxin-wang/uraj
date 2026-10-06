@@ -2,7 +2,8 @@
 ;;;
 ;;; Inherits the account, kernel, SSH policy, and Guix settings from base;
 ;;; adds greetd/niri, Guix Home, and Rosenthal desktop services.  Machine
-;;; configurations supply storage and hardware, and to-iso derives live media.
+;;; configurations supply the main user, storage and hardware, and to-iso
+;;; derives live media.
 
 (define-module (uraj system desktop)
   #:use-module (gnu)
@@ -23,7 +24,6 @@
   #:use-module (gnu system nss)
   #:use-module (gnu system privilege)
   #:use-module (guix gexp)
-  #:use-module (srfi srfi-1)
   #:use-module (nongnu packages linux)
   #:use-module (nongnu packages mozilla)
   #:use-module (rosenthal services base)
@@ -38,8 +38,7 @@
   #:use-module (uraj system base)
   #:use-module (uraj system home)
   #:use-module (uraj utils file path)
-  #:export (%desktop-base-os
-            %desktop-openssh-configuration
+  #:export (desktop-base-os
             %desktop-tmp-file-system
             desktop-home-environment))
 
@@ -50,17 +49,16 @@
 ;;; session commands below start login shells that source the Guix Home
 ;;; environment.
 ;;;
-;;; Construct the embedded Home under the target account's context.
-;;; Foreign-host detection must not inspect the system's build machine.
+;;; Construct the embedded Home for the target account, never the build
+;;; machine: guix-system-home-target inspects nothing on the latter.
 
 (define %desktop-trusted-channels-file
   (local-file
    (project-path "env/guix/trusted-channels.scm")
    "trusted-channels.scm"))
 
-(define desktop-home-environment
-  (parameterize ((%main-user %base-user)
-                 (%for-foreign-home #f))
+(define (desktop-home-environment user)
+  (parameterize ((%home-target (guix-system-home-target user)))
     (home-environment
      (packages (list network-manager-applet))
      (services
@@ -71,7 +69,6 @@
                 ,%desktop-trusted-channels-file)))
             (niri-desktop-home-services))))))
 
-(define %desktop-openssh-configuration %base-openssh-configuration)
 (define %desktop-tmp-file-system %tmp-file-system)
 
 ;;; Noctalia is NetworkManager's secret agent: it supplies the Wi-Fi
@@ -88,32 +85,30 @@
         "20-network-manager-netdev.rules"
         "polkit.addRule(function(action, subject) {\n    if (action.id.indexOf(\"org.freedesktop.NetworkManager.\") === 0 &&\n        subject.local && subject.active && subject.isInGroup(\"netdev\")) {\n        return polkit.Result.YES;\n    }\n});\n")))))
 
-(define %desktop-base-os
+(define (desktop-base-os main-user ssh-key)
+  "Return the graphical role administered by MAIN-USER (see
+main-user-account), who also owns the embedded niri Home.  SSH-KEY is as
+for base-os."
+  (define user
+    ;; "cgroup" is rootless-podman-service-type's group owning the
+    ;; delegated /sys/fs/cgroup controllers.
+    (user-account-with-groups main-user '("netdev" "audio" "video" "cgroup")))
+  (define user-name (user-account-name user))
+  (define base (base-os user ssh-key))
+
   (operating-system
-    (inherit %base-os)
+    (inherit base)
     (host-name "laptop")
     (name-service-switch %mdns-host-lookup-nss)
 
     (firmware (list linux-firmware wireless-regdb-signed))
-
-    (users
-     (cons (user-account
-            (inherit %base-user)
-            ;; "cgroup" is rootless-podman-service-type's group owning
-            ;; the delegated /sys/fs/cgroup controllers.
-            (supplementary-groups
-             (append (user-account-supplementary-groups %base-user)
-                     '("netdev" "audio" "video" "cgroup"))))
-           (remove (lambda (user)
-                     (string=? (user-account-name user) "wenxin"))
-                   (operating-system-users %base-os))))
 
     (packages
      (cons* firefox           ;Mozilla Firefox from the Nonguix channel
             ;; dbus-run-session launches the niri session bus; dbus is
             ;; a service dependency but not part of %base-packages.
             dbus
-            (operating-system-packages %base-os)))
+            (operating-system-packages base)))
 
     ;; noctalia's screen locker verifies passwords in-process against the
     ;; system PAM stack; pam_unix offloads to unix_chkpwd, which Guix
@@ -153,8 +148,8 @@
             (service rootless-podman-service-type
                      (rootless-podman-configuration
                       (podman #f)
-                      (subuids (list (subid-range (name "wenxin"))))
-                      (subgids (list (subid-range (name "wenxin"))))))
+                      (subuids (list (subid-range (name user-name))))
+                      (subgids (list (subid-range (name user-name))))))
 
             ;; No password prompt is needed for NetworkManager in an active
             ;; local desktop session.  In particular this makes the live
@@ -164,10 +159,10 @@
                             (list %desktop-network-manager-polkit-rules))
 
             ;; The Home environment lives in the same generation as the
-            ;; system; its activation runs as 'wenxin' on boot and on
+            ;; system; its activation runs as the main user on boot and on
             ;; reconfigure, populating ~/.guix-home.
             (service guix-home-with-environment-service-type
-                     (list (list "wenxin" desktop-home-environment)))
+                     (list (list user-name (desktop-home-environment user))))
 
             ;; VT1: login through tuigreet, then start the niri session;
             ;; VT2-6: plain shell logins (agreety), like the
@@ -190,6 +185,7 @@
             ;; on %desktop-services).
 
             (base-services
+             user ssh-key
              (modify-services %rosenthal-desktop-services/base
                (elogind-service-type config =>
                  (elogind-configuration

@@ -5,6 +5,8 @@
 (test-begin "guix-mirrors-service")
 (define services
   (base-services
+   (main-user-account "target")
+   (plain-file "target.pub" "ssh-ed25519 AAAA target\n")
    (list (service guix-service-type
                   (guix-configuration
                    (environment '("EXTRA=retained" "GUIX=/old/helper")))))))

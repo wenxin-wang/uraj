@@ -17,23 +17,33 @@
   #:use-module (srfi srfi-1)
   #:use-module (uraj services guix-mirrors)
   #:use-module (uraj services rsyslog)
-  #:export (%base-os %base-user %base-openssh-configuration
+  #:export (base-os main-user-account user-account-with-groups
+            base-openssh-configuration
             %tmp-file-system base-services
             %greetd-console-session base-greetd-configuration))
 
-(define %admin-ssh-public-key
-  "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCaK0O50zlTIaIUeaAmfOXTYpansMf7wjQsZCprTIkp8OhgB7XvDwqzLP9xJ3yzKsej8Am4v02d1RHQgCFi2KDmSTAjBFScRAkb5gDXtchPxc0XH4EFNGT1MqmNubDFNsJdMIUyHiPw5iEjsH+pV9qEuWry+1YVNMefjbKz38XTO3r7Ti+Oxq62HErypslYbHUG2wP2c5mS6n+3Ty+Nq3UG8zqhGgd6iIqrNPYC0u6JLiYe/HD6yd3bGuFDAPwJvgKFeDp9R67ScK7BEY9Z5yv6BPKgwGeJ4UvUASpWNdIszIzR/e5qvYa3uBZPgR/6I4J7X8sk3UGtP6VRe2EgclYb simple\n")
-
 ;;; Same SSH identity and port on desktop and server; root remains locked.
-(define %base-openssh-configuration
+;;; SSH-KEY, a file-like object of public keys, admits the main user and,
+;;; restricted to commands, the deployment account.
+(define (base-openssh-configuration main-user ssh-key)
   (openssh-configuration
    (port-number 23333)
    (authorized-keys
-    (list (list "wenxin"
-                (plain-file "wenxin-authorized-keys" %admin-ssh-public-key))
+    (list (list (user-account-name main-user) ssh-key)
           (list "guix-deploy"
-                (plain-file "guix-deploy-authorized-keys"
-                            (string-append "restrict " %admin-ssh-public-key)))))))
+                (computed-file
+                 "guix-deploy-authorized-keys"
+                 #~(begin
+                     (use-modules (ice-9 rdelim))
+                     (call-with-output-file #$output
+                       (lambda (out)
+                         (call-with-input-file #$ssh-key
+                           (lambda (in)
+                             (let loop ((line (read-line in)))
+                               (unless (eof-object? line)
+                                 (unless (string-null? line)
+                                   (format out "restrict ~a~%" line))
+                                 (loop (read-line in)))))))))))))))
 
 ;; Deploy needs a shell for SSH commands, but no password or wheel membership.
 (define %deploy-user
@@ -73,15 +83,29 @@
     (check? #f)
     (create-mount-point? #t)))
 
-(define %base-user
+;;; The main user is the machine's administrator and the owner of its
+;;; embedded Guix Home.  Machine configurations name it; roles only add
+;;; the groups their services need, through user-account-with-groups.
+(define* (main-user-account name #:key (comment "")
+                            (supplementary-groups '()))
+  "Return the account of the main user NAME, a member of 'wheel' and
+'log-readers' in addition to SUPPLEMENTARY-GROUPS."
   (user-account
-    (name "wenxin")
-    (comment "Wenxin Wang")
+    (name name)
+    (comment comment)
     (group "users")
     ;; Initialize only: Guix preserves passwords on reconfigure.  Greetd
     ;; permits first login; sudo still requires a password set with passwd.
     (password "")
-    (supplementary-groups '("wheel" "log-readers"))))
+    (supplementary-groups
+     (append '("wheel" "log-readers") supplementary-groups))))
+
+(define (user-account-with-groups user groups)
+  "Return USER additionally in GROUPS."
+  (user-account
+    (inherit user)
+    (supplementary-groups
+     (append (user-account-supplementary-groups user) groups))))
 
 (define %greetd-console-session
   (greetd-agreety-session
@@ -108,9 +132,11 @@
             (iota 6 1)))
       extra-field ...)))
 
-(define (base-services services)
-  "Add shared SSH, store publishing, and Guix settings to SERVICES."
-  (cons* (service openssh-service-type %base-openssh-configuration)
+(define (base-services main-user ssh-key services)
+  "Add shared SSH, store publishing, and Guix settings to SERVICES.
+MAIN-USER and the deployment account log in with SSH-KEY."
+  (cons* (service openssh-service-type
+                  (base-openssh-configuration main-user ssh-key))
          (simple-service
           'guix-crate-mirrors etc-service-type
           ;; /etc/guix is a mutable directory maintained by Guix itself.
@@ -154,7 +180,10 @@
                (cons %nonguix-signing-key
                      (guix-configuration-authorized-keys config))))))))
 
-(define %base-os
+(define (base-os main-user ssh-key)
+  "Return the headless foundation administered by MAIN-USER, a
+<user-account> (see main-user-account), who logs in with SSH-KEY, a
+file-like object of public keys."
   (operating-system
     (host-name "base")
     (bootloader (bootloader-configuration (bootloader grub-bootloader)))
@@ -164,7 +193,7 @@
     (kernel linux)
     (initrd microcode-initrd)
     (firmware (list linux-firmware))
-    (users (cons* %base-user %deploy-user %base-user-accounts))
+    (users (cons* main-user %deploy-user %base-user-accounts))
     (sudoers-file %deploy-sudoers)
     (packages (cons btrfs-progs %base-packages))
-    (services (base-services %base-services))))
+    (services (base-services main-user ssh-key %base-services))))

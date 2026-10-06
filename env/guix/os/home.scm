@@ -12,12 +12,11 @@
              (uraj home niri)
              (uraj packages local-resources))
 
-(parameterize ((%main-user #f)
-               (%for-foreign-home #t))
+(parameterize ((%home-target (foreign-home-target)))
   (define base-home
     (home-environment
      ;; Foreign Home is evaluated on the machine it configures, so the
-     ;; context enables host detection for noctalia and portal activation.
+     ;; target describes this host for noctalia and portal activation.
      (services
       (append
        (niri-desktop-home-services)

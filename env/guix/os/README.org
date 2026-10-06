@@ -205,7 +205,7 @@ Immich 自带数据库导出仍按应用默认值运行，输出到媒体目录�
 
 * 用 guix deploy 远程更新
 
-共享的 =%base-os= 创建 =guix-deploy= 用户，桌面和服务器都继承它。
+共享的 =base-os= 创建 =guix-deploy= 用户，桌面和服务器都继承它。
 该账户没有密码登录、没有 wheel 附加组，SSH 复用 wenxin 的公钥，
 并通过 authorized_keys 的 =restrict= 禁用 PTY、转发和用户 rc。
 它仍需要正常 shell，以运行 SSH 远程命令。

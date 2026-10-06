@@ -12,7 +12,6 @@
   #:use-module (uraj home basic-desktop)
   #:use-module (uraj packages audio)
   #:use-module (uraj packages window-managers)
-  #:use-module ((rosenthal packages wm) #:select ((noctalia . plain-noctalia)))
   #:export (niri-desktop-home-services))
 
 ;;; One-stop Home configuration for a niri desktop session.  The
@@ -55,21 +54,17 @@
 ;;; focus round trip to the launcher (Mod+D).
 
 (define* (niri-desktop-home-services
-          #:key (noctalia (if (%for-foreign-home)
-                             (noctalia-for-host)
-                             plain-noctalia))
-                (portals (if (and (%for-foreign-home)
-                                  (host-uses-systemd-activation?))
+          #:key (noctalia (noctalia-for-host (current-home-target)))
+                (portals (if (home-target-systemd? (current-home-target))
                              'shepherd
                              'activation)))
   "Return the Home services for a niri desktop: the niri + noctalia
 session services, the xdg-desktop-portal stack, PipeWire audio, fcitx5,
 the shared dotfiles and the base services.
 
-The context parameters %main-user and %for-foreign-home select the target
-state directory.  Only foreign Home configurations inspect the host for
-NOCTALIA's PAM libraries and PORTALS' activation strategy; system Home
-defaults to plain noctalia and D-Bus activation regardless of the builder."
+The current %home-target selects the state directory, NOCTALIA's host PAM
+closure and PORTALS' activation strategy; a Guix System target selects
+plain noctalia and D-Bus activation regardless of the builder."
   (define log-file
     (string-append (home-state-directory) "/shepherd/niri.log"))
   (append

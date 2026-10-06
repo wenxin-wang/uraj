@@ -32,8 +32,7 @@
   (find (lambda (u) (string=? "wenxin" (user-account-name u)))
         (operating-system-users desktop)))
 (test-equal "desktop inherits shared groups and appends device groups"
-  (append (user-account-supplementary-groups %base-user)
-          '("netdev" "audio" "video" "cgroup"))
+  '("wheel" "log-readers" "netdev" "audio" "video" "cgroup")
   (user-account-supplementary-groups user))
 (test-assert "desktop receives log-readers membership"
   (member "log-readers" (user-account-supplementary-groups user)))

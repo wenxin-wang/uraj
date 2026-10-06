@@ -8,34 +8,48 @@
              (srfi srfi-1) (srfi srfi-13) (srfi srfi-64)
              (uraj system desktop)
              (uraj common context)
-             (uraj packages elogind))
+             (uraj packages elogind)
+             (uraj packages window-managers)
+             ((rosenthal packages wm) #:select (noctalia)))
 
 (test-begin "desktop-session-lifecycle")
 (define target-user
   (user-account (name "target") (group "users")
                 (home-directory "/srv/target")))
 (with-environment-variables '(("XDG_STATE_HOME" "/tmp/foreign-state"))
-  (parameterize ((%main-user target-user) (%for-foreign-home #f))
-    (test-equal "system context ignores the build user's environment"
-      "/srv/target/.local/state" (home-state-directory))
-    (parameterize ((%for-foreign-home #t))
-      (test-equal "foreign context honors XDG even with a main user"
-        "/tmp/foreign-state" (home-state-directory))
-      (with-environment-variables '(("XDG_STATE_HOME" #f))
-        (test-equal "foreign context can use an explicit main user"
-          "/srv/target/.local/state" (home-state-directory))))
-    (test-equal "nested context restores system selection"
+  (test-equal "system target ignores the build user's environment"
+    "/srv/target/.local/state"
+    (home-target-state-directory (guix-system-home-target target-user)))
+  (test-assert "system target records nothing about the build machine"
+    (let ((target (guix-system-home-target target-user)))
+      (and (not (home-target-foreign? target))
+           (not (home-target-systemd? target))
+           (null? (home-target-os-release target)))))
+  (test-equal "foreign target honors XDG"
+    "/tmp/foreign-state"
+    (home-target-state-directory (foreign-home-target)))
+  (with-environment-variables '(("XDG_STATE_HOME" ""))
+    (test-equal "empty XDG falls back to the current user's home"
+      (string-append (getenv "HOME") "/.local/state")
+      (home-target-state-directory (foreign-home-target))))
+  (parameterize ((%home-target (guix-system-home-target target-user)))
+    (test-equal "the bound target selects the state directory"
       "/srv/target/.local/state" (home-state-directory)))
-  (parameterize ((%main-user #f) (%for-foreign-home #t))
-    (test-equal "foreign context supports the current user"
-      "/tmp/foreign-state" (home-state-directory))
-    (with-environment-variables '(("XDG_STATE_HOME" ""))
-      (test-equal "empty XDG falls back to the current user's home"
-        (string-append (getenv "HOME") "/.local/state")
-        (home-state-directory))))
-  (parameterize ((%main-user #f) (%for-foreign-home #f))
-    (test-error "system context requires a target account" #t
-      (home-state-directory))))
+  (test-error "Home construction requires a bound target" #t
+    (home-state-directory)))
+(define (fake-foreign-target os-release systemd?)
+  (home-target (foreign? #t) (state-directory "/tmp/state")
+               (os-release os-release) (systemd? systemd?)))
+(test-assert "unknown foreign hosts use plain noctalia"
+  (eq? noctalia
+       (noctalia-for-host
+        (fake-foreign-target '(("ID" . "ubuntu") ("VERSION_ID" . "20.04")) #t))))
+(test-assert "Guix System never selects the host PAM closure"
+  (eq? noctalia
+       (noctalia-for-host
+        (home-target (foreign? #f) (state-directory "/tmp/state")
+                     (os-release '(("ID" . "ubuntu")
+                                   ("VERSION_ID" . "24.04")))))))
 (define os (load (string-append (getcwd) "/env/guix/os/lappie.scm")))
 (define config
   (service-value
@@ -74,10 +88,11 @@
          (fold-services (operating-system-services os)
                         #:target-type elogind-service-type)))))
 
+(define home (desktop-home-environment target-user))
 (define home-services
   (home-shepherd-configuration-services
    (service-value
-    (fold-services (home-environment-services desktop-home-environment)
+    (fold-services (home-environment-services home)
                    #:target-type home-shepherd-service-type))))
 (define rotation-services
   (filter (lambda (s) (memq 'log-rotation (shepherd-service-provision s)))
@@ -89,14 +104,14 @@
             home-services)))
 (define home-log-rotation
   (service-value
-   (fold-services (home-environment-services desktop-home-environment)
+   (fold-services (home-environment-services home)
                   #:target-type home-log-rotation-service-type)))
 (define home-variables
   (service-value
-   (fold-services (home-environment-services desktop-home-environment)
+   (fold-services (home-environment-services home)
                   #:target-type home-environment-variables-service-type)))
 (test-equal "native Home rotation uses the target user's log path"
-  '("/home/wenxin/.local/state/shepherd/niri.log")
+  '("/srv/target/.local/state/shepherd/niri.log")
   (log-rotation-configuration-external-log-files home-log-rotation))
 (test-equal "session writer and native rotation share the log path"
   (car (log-rotation-configuration-external-log-files home-log-rotation))

@@ -67,11 +67,20 @@
              (uraj services strongswan)
              (uraj utils file path)
              (uraj hardware asus)
+             (uraj system base)
              (uraj system desktop)
              (uraj system initrd)
              (uraj system iso)
              (uraj system secrets)
              (uraj system storage))
+
+;; The administrator, who also owns the embedded niri Home.
+(define %main-user
+  (main-user-account "wenxin" #:comment "Wenxin Wang"))
+
+(define %desktop-os
+  (desktop-base-os %main-user
+                   (local-file (guix-env-path "os/keys/wenxin-ssh.pub"))))
 
 (define %vpn-connections
   (list
@@ -85,7 +94,7 @@
 
 (define lappie-os
   (operating-system
-  (inherit %desktop-base-os)
+  (inherit %desktop-os)
   (host-name "lappie")
 
   ;; The firmware's SSDT10 would panic acpi_init (see (uraj hardware
@@ -117,9 +126,9 @@
   (swap-devices %nvme-swap-devices)
 
   ;; Naming (services ...) replaces the list inherited from
-  ;; %desktop-base-os, so its services are appended back explicitly.
+  ;; %desktop-os, so its services are appended back explicitly.
   (services
-   (append (operating-system-user-services %desktop-base-os)
+   (append (operating-system-user-services %desktop-os)
            (if (getenv "TO_ISO") '()
                (append (host-sops-services (map cdr %vpn-connections))
                        (strongswan-services %vpn-connections)))

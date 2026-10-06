@@ -10,8 +10,8 @@
   #:use-module (guix build-system trivial)
   #:use-module (guix gexp)
   #:use-module (guix packages)
-  #:use-module (ice-9 rdelim)
-  #:use-module (srfi srfi-13)
+  #:use-module (srfi srfi-1)
+  #:use-module (uraj common context)
   #:use-module (uraj utils file path)
   #:autoload (gnu packages freedesktop) (xdg-desktop-portal
                                         xdg-desktop-portal-gtk)
@@ -20,7 +20,6 @@
   #:autoload (gnu packages xorg) (xwayland-satellite)
   #:autoload (rosenthal packages wm) (noctalia)
   #:export (noctalia-for-host
-            host-uses-systemd-activation?
             home-niri-noctalia-services
             home-niri-portal-services
             home-niri-session-services
@@ -68,20 +67,19 @@ into programs noctalia spawns."
 ;;; DT_NEEDED list prepends the host PAM closure.  The closure differs
 ;;; per release, so pick it by the host's /etc/os-release.
 ;;;
-;;; "The host" is the machine the home environment runs on, and the
-;;; detection only holds for configs that are evaluated on that same
-;;; machine -- "guix home reconfigure" ones like
-;;; env/guix/os/home.scm, which work unchanged on any Ubuntu
-;;; release and fall back to plain noctalia everywhere else
-;;; niri-desktop-home-services enables this detection only with
-;;; %for-foreign-home.  A Guix System home environment is built
+;;; "The host" is the machine the home environment runs on, as
+;;; described by a <home-target> (see (uraj common context)).  Only
+;;; foreign-home-target reads /etc/os-release, for "guix home
+;;; reconfigure" configs like env/guix/os/home.scm, which work unchanged
+;;; on any Ubuntu release and fall back to plain noctalia everywhere
+;;; else.  A Guix System home environment is built
 ;;; *on* whatever machine runs the build -- a developer's Ubuntu box for
 ;;; the installers -- while the target is Guix System, where the patch's
 ;;; absolute /usr/lib/x86_64-linux-gnu paths do not exist and the loader
 ;;; refuses to run the binary at all.  Guix System's own PAM is what
 ;;; plain noctalia uses there (see the unix_chkpwd privileged program in
-;;; (uraj system desktop)); the system context selects plain noctalia
-;;; for this reason.
+;;; (uraj system desktop)); guix-system-home-target therefore records
+;;; no os-release, and plain noctalia is selected.
 
 (define (ubuntu-pam-libs libs)
   (map (lambda (lib)
@@ -136,56 +134,33 @@ into programs noctalia spawns."
      "libpwquality.so.1"
      "libselinux.so.1")))
 
-(define (%os-release-field name)
-  "Return the value of field NAME from /etc/os-release, or #f."
-  (and (file-exists? "/etc/os-release")
-       (call-with-input-file "/etc/os-release"
-         (lambda (port)
-           (let loop ((line (read-line port)))
-             (cond
-              ((eof-object? line) #f)
-              ((string-prefix? (string-append name "=") line)
-               (let ((value (substring line (+ (string-length name) 1))))
-                 ;; Strip quotes, e.g. VERSION_ID="24.04".
-                 (if (and (> (string-length value) 1)
-                          (char=? #\" (string-ref value 0))
-                          (char=? #\" (string-ref value (1- (string-length value)))))
-                     (substring value 1 (1- (string-length value)))
-                     value)))
-              (else (loop (read-line port)))))))))
-
 (define (ubuntu-pam-libs-for-version version)
   (cond ((string=? "22.04" version) %ubuntu-pam-libs-22.04)
         ((string=? "24.04" version) %ubuntu-pam-libs-24.04)
         (else #f)))
 
-(define (host-ubuntu-pam-libs)
-  "Return the host PAM closure as a list of absolute library file names,
-or #f if the host is not Ubuntu 22.04/24.04."
-  (and (string=? "ubuntu" (or (%os-release-field "ID") ""))
-       (ubuntu-pam-libs-for-version (%os-release-field "VERSION_ID"))))
+(define (host-ubuntu-pam-libs target)
+  "Return the PAM closure of TARGET's host as a list of absolute library
+file names, or #f if it is not a foreign Ubuntu 22.04/24.04 host."
+  (let ((os-release (home-target-os-release target)))
+    (and (home-target-foreign? target)
+         (equal? "ubuntu" (assoc-ref os-release "ID"))
+         (ubuntu-pam-libs-for-version
+          (or (assoc-ref os-release "VERSION_ID") "")))))
 
-(define (noctalia-for-host)
-  "Return the noctalia package for the machine this home environment is
-being evaluated on: noctalia patched with the host's PAM closure on
-Ubuntu releases with a known closure, plain noctalia anywhere else (see
-the comment above).  Only for configs evaluated on the machine they run
-on; Guix System configs pin the package instead."
-  (let ((libs (host-ubuntu-pam-libs)))
-    (if (and libs
-             (file-exists? "/usr/lib/x86_64-linux-gnu/libpam.so.0"))
+(define (noctalia-for-host target)
+  "Return the noctalia package for TARGET, a <home-target>: noctalia
+patched with the host's PAM closure on foreign Ubuntu releases with a
+known closure, plain noctalia anywhere else (see the comment above)."
+  (let ((libs (host-ubuntu-pam-libs target)))
+    ;; A foreign target is evaluated on its host, so its files can be
+    ;; checked.  The loader refuses to start a binary with any missing
+    ;; DT_NEEDED entry, so require the whole closure: another multiarch
+    ;; directory or a module's package not installed (libecryptfs,
+    ;; libpwquality, ...) keeps plain noctalia, whose locker merely fails.
+    (if (and libs (every file-exists? libs))
         (noctalia-with-host-pam noctalia libs)
         noctalia)))
-
-(define (host-uses-systemd-activation?)
-  "Return #t if D-Bus activation on this machine goes through the user
-systemd manager -- that is, if systemd is the init.  The portals'
-.service files carry SystemdService=, so on such a host activation
-cannot start them inside the niri session and the session Shepherd has
-to own their bus names instead (see home-niri-portal-services).  Like
-noctalia-for-host, only meaningful for configs evaluated on the machine
-they run on; Guix System configs pin @code{#:portals} instead."
-  (file-exists? "/run/systemd/system"))
 
 ;; The session is managed by the host display manager (GDM on Ubuntu).
 ;; GDM runs /usr/local/bin/niri-session (host-side wrapper, see below),
@@ -244,16 +219,15 @@ they run on; Guix System configs pin @code{#:portals} instead."
          args)))
    (stop #~(make-kill-destructor))))
 
-(define* (home-niri-noctalia-services #:key (noctalia (noctalia-for-host)))
+(define* (home-niri-noctalia-services
+          #:key (noctalia (noctalia-for-host (current-home-target))))
   "Return the list of Home services that run NOCTALIA under a niri
 session managed by the host display manager: a session Shepherd (started
 by niri, not at login), a stub @code{dbus} service (the session bus is
 provided by the host system) and noctalia itself.
 
-NOCTALIA defaults to @code{noctalia-for-host}, the package for the
-machine this home environment is evaluated on; that is only right for
-configs evaluated on the machine they run on, so Guix System configs
-pass plain noctalia instead (see the comment above)."
+NOCTALIA defaults to @code{noctalia-for-host} of the current
+@code{%home-target} (see the comment above)."
   (list
    (service home-shepherd-service-type
             (home-shepherd-configuration
@@ -310,10 +284,9 @@ pass plain noctalia instead (see the comment above)."
 ;;; (until the frontend unit hits its start timeout) before it can open
 ;;; a window.  Owning the bus names from the session Shepherd means no
 ;;; <name>.service is ever started.  niri-desktop-home-services picks
-;;; this flavour automatically on hosts where systemd is the init (see
-;;; host-uses-systemd-activation?), and the Guix System context selects
-;;; @code{#:portals 'activation} for the reason given above
-;;; noctalia-for-host.
+;;; this flavour automatically for foreign targets whose init is systemd
+;;; (see home-target-systemd?); guix-system-home-target never records
+;;; systemd, for the reason given above noctalia-for-host.
 ;;;
 ;;; Either way the niri package ships niri-portals.conf (in the profile,
 ;;; hence in XDG_DATA_DIRS), which selects the GNOME backend by default
