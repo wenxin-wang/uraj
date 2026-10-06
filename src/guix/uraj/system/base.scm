@@ -16,6 +16,7 @@
   #:use-module (nongnu system linux-initrd)
   #:use-module (srfi srfi-1)
   #:use-module (uraj services guix-mirrors)
+  #:use-module (uraj services rsyslog)
   #:export (%base-os %base-user %base-openssh-configuration
             %tmp-file-system base-services
             %greetd-console-session base-greetd-configuration))
@@ -80,7 +81,7 @@
     ;; Initialize only: Guix preserves passwords on reconfigure.  Greetd
     ;; permits first login; sudo still requires a password set with passwd.
     (password "")
-    (supplementary-groups '("wheel"))))
+    (supplementary-groups '("wheel" "log-readers"))))
 
 (define %greetd-console-session
   (greetd-agreety-session
@@ -131,8 +132,8 @@
          (modify-services
           (if (any (lambda (s) (eq? (service-kind s) avahi-service-type))
                    services)
-              services
-              (cons (service avahi-service-type) services))
+              (rsyslog-services services)
+              (cons (service avahi-service-type) (rsyslog-services services)))
           (guix-service-type config =>
             (guix-configuration
               (inherit config)
