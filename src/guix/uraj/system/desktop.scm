@@ -102,7 +102,8 @@
             ;; "cgroup" is rootless-podman-service-type's group owning
             ;; the delegated /sys/fs/cgroup controllers.
             (supplementary-groups
-             '("wheel" "netdev" "audio" "video" "cgroup")))
+             (append (user-account-supplementary-groups %base-user)
+                     '("netdev" "audio" "video" "cgroup"))))
            (remove (lambda (user)
                      (string=? (user-account-name user) "wenxin"))
                    (operating-system-users %base-os))))

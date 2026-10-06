@@ -143,6 +143,7 @@
              (uraj services docker-lan)
              (uraj services paseo-relay)
              (uraj services paseo)
+             (uraj system base)
              (uraj system server)
              (uraj system secrets)
              (uraj utils file path)
@@ -407,6 +408,18 @@ temperature sensors, fan tachometers and PWM control.")
        (targets '("/boot/efi"))))
     (file-systems (btrfs-root-file-systems "storie"))
     (swap-devices %nvme-swap-devices)
+    ;; Let the main user drive dockerd, as root-equivalent as wheel.
+    (users
+     (map (lambda (user)
+            (if (string=? (user-account-name user)
+                          (user-account-name %base-user))
+                (user-account
+                  (inherit user)
+                  (supplementary-groups
+                   (append (user-account-supplementary-groups user)
+                           '("docker"))))
+                user))
+          (operating-system-users %server-base-os)))
     (packages
      (cons* git nfs-utils lm-sensors
             (operating-system-packages %server-base-os)))
