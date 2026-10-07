@@ -163,44 +163,16 @@ known closure, plain noctalia anywhere else (see the comment above)."
         noctalia)))
 
 ;; The session is managed by the host display manager (GDM on Ubuntu).
-;; GDM runs /usr/local/bin/niri-session (host-side wrapper, see below),
-;; which sources the Guix Home environment and then runs:
+;; GDM runs /usr/local/bin/niri-session, which sources the Guix Home
+;; environment and then runs:
 ;;   niri --session
 ;; niri then spawns the user Shepherd (spawn-at-startup "shepherd"),
 ;; which starts noctalia and the other graphical services inside the
 ;; graphical session.
 ;;
-;; Host-side wrapper (/usr/local/bin/niri-session); copied verbatim --
-;; keep in sync when the host file changes:
-;;   #!/bin/sh
-;;   # setup-environment requires HOME_ENVIRONMENT to be set first (as
-;;   # ~/.profile does).  Self-contained on purpose: GDM imports the
-;;   # systemd user-manager environment only on hosts that have a
-;;   # user-environment-generator; on hosts without one this source is
-;;   # the only thing that puts the Guix Home profile on PATH.
-;;   HOME_ENVIRONMENT="$HOME/.guix-home"
-;;   [ -f "$HOME_ENVIRONMENT/setup-environment" ] && \
-;;       . "$HOME_ENVIRONMENT/setup-environment"
-;;   unset HOME_ENVIRONMENT
-;;   # Ubuntu 22.04's user session runs PulseAudio (audio) and a
-;;   # video-only PipeWire; the session Shepherd starts its own
-;;   # PipeWire + WirePlumber + pipewire-pulse instead.  Stop the host
-;;   # units (sockets included, so they cannot reactivate) to free the
-;;   # pipewire-0 and pulse/native sockets in XDG_RUNTIME_DIR.
-;;   systemctl --user stop pipewire.socket pipewire.service \
-;;       pipewire-media-session.service pulseaudio.socket pulseaudio.service \
-;;       2>/dev/null || true
-;;   if [ -n "$DBUS_SESSION_BUS_ADDRESS" ]; then
-;;       niri --session
-;;   else
-;;       dbus-run-session -- niri --session
-;;   fi
-;;   # niri exited: logind leaves processes behind (Ubuntu default
-;;   # KillUserProcesses=no), so tear the session Shepherd down
-;;   # explicitly. This stops the session services (noctalia, fcitx5)
-;;   # and frees the Shepherd socket for the next login. Note: niri must
-;;   # NOT be exec'd here, otherwise this cleanup never runs.
-;;   herd stop root 2>/dev/null || true
+;; The host-side wrapper's source of truth is
+;; env/playbooks/roles/foreign-distro/files/niri-session, deployed to
+;; /usr/local/bin by the foreign-desktop playbook.
 
 (define (niri-noctalia-shepherd-service noctalia)
   "Return the Shepherd service that runs NOCTALIA."

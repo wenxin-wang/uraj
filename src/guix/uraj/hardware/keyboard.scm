@@ -1,7 +1,9 @@
 ;;; keyboard.scm -- udev hwdb key remaps shared by all desktop machines.
 
 (define-module (uraj hardware keyboard)
-  #:use-module (gnu services base)  ;udev-hardware, udev-hardware-service
+  #:use-module (gnu services base)        ;file->udev-hardware, udev-hardware-service
+  #:use-module (guix gexp)                ;local-file
+  #:use-module (uraj utils file path)     ;project-path
   #:export (%keyboard-remap-hwdb-service))
 
 ;;; hwdb remaps keys per input device, at the kernel-input level, so
@@ -21,22 +23,13 @@
 ;;; path to the same property set), so one record covers every device
 ;;; sharing an encoding.  The "61-" prefix keeps this file after the
 ;;; upstream 60-keyboard.hwdb, so it wins on equal-length matches.
+;;;
+;;; The remap itself lives in env/desktop/61-keyboard-local.hwdb,
+;;; shared with the Ansible basic-system role that deploys it on
+;;; foreign-distro desktops; edit it there.
 (define %keyboard-remap-hwdb-service
   (udev-hardware-service
    'keyboard-remap
-   (udev-hardware "61-keyboard-local.hwdb"
-"evdev:atkbd:dmi:bvnLENOVO:bvrN2XET33W*
-evdev:input:b0011v0001p0001*
-  KEYBOARD_KEY_3a=leftshift
-  KEYBOARD_KEY_2a=leftctrl
-  KEYBOARD_KEY_1d=capslock
-
-evdev:input:b0003v413Cp2113*
-evdev:input:b0003v17EFp6047*
-evdev:input:b0003v258Ap0013*
-evdev:input:b0003v05ACp024F*
-evdev:input:b0003v048DpC100*
-  KEYBOARD_KEY_70039=leftshift
-  KEYBOARD_KEY_700e1=leftctrl
-  KEYBOARD_KEY_700e0=capslock
-")))
+   (file->udev-hardware
+    "61-keyboard-local.hwdb"
+    (local-file (project-path "env/desktop/61-keyboard-local.hwdb")))))

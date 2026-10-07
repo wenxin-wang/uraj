@@ -1,0 +1,24 @@
+---
+# Host layer for a desktop that runs the Guix Home environment on a
+# foreign distro (apt packages, /etc files, GDM, udev).  Run on the
+# machine itself; see README.org.  Per-host steps, if any, live in
+# hosts/<hostname>.yml.
+- name: Set up the foreign-distro desktop host layer
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: true
+  roles:
+    - role: foreign-distro
+      tags: [foreign-distro]
+    - role: basic-system
+      tags: [basic-system]
+  tasks:
+    - name: Apply host-specific setup, if present
+      ansible.builtin.include_tasks: "{{ item }}"
+      with_first_found:
+        - files:
+            - "hosts/{{ ansible_facts['hostname'] }}.yml"
+          paths:
+            - "{{ playbook_dir }}"
+          skip: true

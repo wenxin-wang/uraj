@@ -1,0 +1,35 @@
+---
+- name: Install the login-shell environment generator for the systemd user manager
+  ansible.builtin.copy:
+    src: 70-login-shell-profile.sh
+    dest: /etc/systemd/user-environment-generators/70-login-shell-profile.sh
+    owner: root
+    group: root
+    mode: "0755"
+  tags: [session]
+
+- name: Install the keyboard remap hwdb file
+  ansible.builtin.copy:
+    # Shared with the Guix side (keyboard.scm), so it lives outside
+    # the playbook tree.
+    src: "{{ playbook_dir }}/../desktop/61-keyboard-local.hwdb"
+    dest: /etc/udev/hwdb.d/61-keyboard-local.hwdb
+    owner: root
+    group: root
+    mode: "0644"
+  register: keyboard_hwdb
+  tags: [keyboard]
+
+- name: Recompile the hardware database
+  ansible.builtin.command:
+    cmd: systemd-hwdb update
+  when: keyboard_hwdb.changed
+  changed_when: false
+  tags: [keyboard]
+
+- name: Re-apply hardware properties to input devices
+  ansible.builtin.command:
+    cmd: udevadm trigger --subsystem-match=input
+  when: keyboard_hwdb.changed
+  changed_when: false
+  tags: [keyboard]

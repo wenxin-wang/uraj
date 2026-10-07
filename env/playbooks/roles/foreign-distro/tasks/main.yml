@@ -1,0 +1,43 @@
+---
+- name: Install pcscd (smart card daemon)
+  ansible.builtin.apt:
+    name: pcscd
+    state: present
+    update_cache: true
+    cache_valid_time: 86400
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [pcscd]
+
+- name: Install the niri Wayland session desktop entry
+  ansible.builtin.copy:
+    src: niri.desktop
+    dest: /usr/share/wayland-sessions/niri.desktop
+    owner: root
+    group: root
+    mode: "0644"
+  tags: [session]
+
+- name: Install the niri session wrapper for GDM
+  ansible.builtin.copy:
+    src: niri-session
+    dest: /usr/local/bin/niri-session
+    owner: root
+    group: root
+    mode: "0755"
+  tags: [session]
+
+- name: Check for a GDM configuration
+  ansible.builtin.stat:
+    path: /etc/gdm3/custom.conf
+  register: gdm_custom_conf
+  tags: [gdm]
+
+- name: Leave GDM's Wayland setting at the default
+  ansible.builtin.lineinfile:
+    path: /etc/gdm3/custom.conf
+    regexp: '^\s*#?\s*WaylandEnable\s*='
+    line: "# WaylandEnable=false"
+    insertafter: '^\[daemon\]'
+  when: gdm_custom_conf.stat.exists
+  notify: Restart gdm3
+  tags: [gdm]

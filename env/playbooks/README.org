@@ -1,0 +1,87 @@
+#+title: Playbooks
+
+宿主层配置：Guix Home 管不到的部分（apt 包、/etc、display manager、
+systemd 系统层、udev 等）。一台机器第一次装好 Guix Home 后运行一次，
+之后按需重跑。加密（sops）相关内容不在这里。
+
+* foreign-desktop.yml
+
+面向在 foreign distro（Ubuntu）上跑 Guix Home 桌面的机器。本地
+connection，不需要 inventory：
+
+#+begin_src sh
+cd ~/src/uraj            # 任意 checkout
+env/playbooks/setup-foreign-desktop.sh
+#+end_src
+
+脚本封装了 =ansible-playbook -e ansible_python_interpreter=/usr/bin/python3
+-K env/playbooks/foreign-desktop.yml=，额外参数原样传给 playbook（如
+=--tags pcscd=；后给的 =-e= 会覆盖脚本自己的）。脚本做两件 locale 相关
+的事：把 =LANG=/=LC_ALL= 固定为 =C.UTF-8=（sudo 不保留
+=GUIX_LOCPATH=，Guix Python 在 become 下解析不了会话 locale）；模块统一
+用系统 =/usr/bin/python3= 跑（apt 模块从系统 =locale -a= 挑到 =C.utf8=
+后 =setlocale=，Guix glibc 不认这个名字；sudo 的 =secure_path= 在保留
+逻辑之后无条件替换 =PATH=，=-E=/=--preserve-env= 也带不进 Guix 自己的
+=locale= 命令；而且 apt 本来就需要系统 Python 的 python-apt）。
+=ansible-playbook= 来自 Guix Home profile；
+=syntax-check= 与 =--check= 可以预演（=--check= 里 apt 结果只是预测）。
+常用 tag：=foreign-distro=、=basic-system=、=session=、=gdm=、=pcscd=、
+=keyboard=。
+
+roles/foreign-distro 做（foreign distro 专属部分）：
+- 安装 pcscd（智能卡 / YubiKey，Debian 系；说明见
+  src/guix/uraj/home/basic-dev.scm）
+- =/usr/local/bin/niri-session= 与
+  =/usr/share/wayland-sessions/niri.desktop=：GDM 会话入口，source
+  =~/.guix-home/setup-environment= 后运行 =niri --session=
+- =/etc/gdm3/custom.conf=：把 =WaylandEnable= 注释回默认（Ubuntu 默认
+  启用 Wayland）。机器上存在该文件才执行；只有内容变化才重启 gdm3，
+  重启会杀掉当前图形会话
+
+通用 role（不限 foreign distro，其它类机器的 playbook 也可以复用）：
+
+- =basic-system=：
+  - 安装 =/etc/systemd/user-environment-generators/70-login-shell-profile.sh=，
+    让 systemd 用户管理器继承登录 shell 环境（沿用 pylon 的文件）
+  - 安装 =/etc/udev/hwdb.d/61-keyboard-local.hwdb=：左缘三个修饰键轮换
+    （CapsLock→Shift、Shift→Ctrl、Ctrl→CapsLock），内置键盘用 AT
+    scancode、USB 键盘用 HID usage。文件变化后执行 =systemd-hwdb
+    update= 和 =udevadm trigger --subsystem-match=input=，立即生效
+
+* 与 Guix 共用的文件
+
+playbooks 目录属于 Ansible 层；与 Guix 共用的文件放在 env/ 的主题目录
+下，两边共同引用：
+
+- =env/desktop/61-keyboard-local.hwdb=：keyboard role 部署到
+  /etc/udev/hwdb.d/（copy 的 src 用 playbook_dir 指过去），
+  src/guix/uraj/hardware/keyboard.scm 通过 file->udev-hardware 引用
+
+改文件后两边同时生效（Guix 侧在 reconfigure 时快照进 store，Ansible
+侧在下次运行时同步）。只给 Ansible 用的文件留在 role 的 files/ 下；
+niri-session 的 Guix 侧引用只在 window-managers.scm 注释中指出位置。
+
+* 主机专属步骤
+
+通用步骤做成 role；某台机器独有、不值得抽象的步骤放到
+=env/playbooks/hosts/<hostname>.yml=，playbook 末尾按
+=ansible_facts['hostname']= 自动 include，文件不存在则跳过。目前没有。
+主机名不出现在 playbook 和 role 里。用 =--tags= 筛选时该 include 不
+参与，文件里的任务需要自己的 tag。
+
+* 新机器顺序
+
+1. 按 pylon 的 guix 文档 bootstrap 外层的 Guix（uidmap、guix-install、
+   镜像配置；文件里缺什么就补那里）
+2. =guix home reconfigure= 部署 Guix Home（dotfiles、shepherd、以及
+   profile 里的 ansible 都从这来）
+3. =env/playbooks/setup-foreign-desktop.sh= 配宿主层
+4. 重新登录
+
+* 边界
+
+- 这里只做宿主层。用户环境（dotfiles、shepherd 服务、软件包）由 Guix
+  Home 管；bootstrap Guix 本身按 pylon 文档人工完成，不在这里脚本化。
+- 以后不装 Guix 的机器会用自己的 class playbook 复用 role
+  （basic-system、dotfiles 等），不套用本 playbook。
+- pylon 里给 voyage 等其它机器的配置以后再迁移，不进 foreign-desktop。

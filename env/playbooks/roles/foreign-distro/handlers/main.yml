@@ -1,0 +1,5 @@
+---
+- name: Restart gdm3
+  ansible.builtin.systemd_service:
+    name: gdm3
+    state: restarted

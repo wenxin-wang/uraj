@@ -1,0 +1,15 @@
+evdev:atkbd:dmi:bvnLENOVO:bvrN2XET33W*
+evdev:input:b0011v0001p0001*
+  KEYBOARD_KEY_3a=leftshift
+  KEYBOARD_KEY_2a=leftctrl
+  KEYBOARD_KEY_1d=capslock
+
+evdev:input:b0003v413Cp2113*
+evdev:input:b0003v17EFp6047*
+evdev:input:b0003v258Ap0013*
+evdev:input:b0003v05ACp024F*
+evdev:input:b0003v048DpC100*
+evdev:input:b0003v048DpC195*
+  KEYBOARD_KEY_70039=leftshift
+  KEYBOARD_KEY_700e1=leftctrl
+  KEYBOARD_KEY_700e0=capslock
