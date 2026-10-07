@@ -1,6 +1,10 @@
-# ssh integration: the "ssh" wrapper installs the xterm-ghostty terminfo on
-# the remote host (first connect to a host, then cached) and forwards
-# COLORTERM/TERM_PROGRAM, so remote sessions keep truecolor detection instead
-# of falling back to TERM=xterm-256color.
-shell-integration-features = cursor,no-sudo,title,ssh-env,ssh-terminfo,path
+# ssh integration lives in the ~/.local/bin/ssh wrapper instead of ghostty's
+# ssh-env/ssh-terminfo shell hook: the wrapper installs the xterm-ghostty
+# terminfo on the remote host (first connect to a host, then cached in
+# ghostty's ssh cache) and forwards COLORTERM/TERM_PROGRAM, so remote sessions
+# keep truecolor detection instead of falling back to TERM=xterm-256color.
+# The hook would re-authenticate (a second password prompt) whenever its
+# terminfo install fails, and it does not cover callers that exec ssh
+# directly.
+shell-integration-features = cursor,no-sudo,title,path
 keybind = ctrl+enter=unbind

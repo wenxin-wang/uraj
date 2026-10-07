@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# ssh wrapper for callers that bypass ghostty's shell integration: ghostty's
-# ssh hook is a shell function, but sshpass (and scripts, and other shells)
-# exec the ssh binary straight from PATH, so an interactive login from such a
-# caller leaves TERM=xterm-ghostty on a remote host with no matching terminfo.
-# This mirrors the hook: install the terminfo over a multiplexed connection
-# (same authentication is reused by the real ssh), fall back to
-# TERM=xterm-256color when that is impossible.  Only plain interactive
-# logins are touched: commands, scripts and already-muxed calls pass through.
+# ssh wrapper that installs ghostty's terminfo on remote hosts.  It replaces
+# ghostty's own ssh-terminfo/ssh-env shell hook (disabled in the ghostty
+# config): that hook is a shell function, so sshpass, scripts and other
+# shells that exec ssh straight from PATH bypass it; and when its terminfo
+# install fails it drops the multiplexed connection, so the real session
+# authenticates (asks for the password) a second time.  Here the terminfo is
+# installed over a multiplexed connection whose authentication the real ssh
+# always reuses, falling back to TERM=xterm-256color when that is
+# impossible.  Only plain interactive logins are touched: commands, scripts
+# and already-muxed calls pass through.
 
 # Find the real ssh: first ssh in PATH outside this wrapper's directory.
 self_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
@@ -73,6 +75,15 @@ done
 # Keep truecolor/TERM_PROGRAM visible on the remote (ghostty's ssh-env).
 env_opts=(-o "SetEnv COLORTERM=truecolor" -o "SendEnv TERM_PROGRAM TERM_PROGRAM_VERSION")
 
+# Hosts that already got the terminfo are recorded in ghostty's cache.
+target=$("$real_ssh" -G "$@" 2>/dev/null | awk '/^user /{u=$2} /^hostname /{h=$2} END{if (u != "" && h != "") print u "@" h}')
+has_ghostty=0
+command -v ghostty >/dev/null 2>&1 && has_ghostty=1
+if ((has_ghostty)) && [[ -n $target ]] &&
+    ghostty +ssh-cache --host="$target" >/dev/null 2>&1; then
+    exec "$real_ssh" "${env_opts[@]}" "$@"
+fi
+
 cpath_dir=$(mktemp -d "${TMPDIR:-/tmp}/ghostty-ssh-$(id -u).XXXXXX") || exec "$real_ssh" "$@"
 cpath=$cpath_dir/socket
 
@@ -96,9 +107,7 @@ else
 fi
 
 if ((probe_ok)); then
-    # Let ghostty's own hook skip its setup step for this host.
-    target=$("$real_ssh" -G "$@" 2>/dev/null | awk '/^user /{u=$2} /^hostname /{h=$2} END{if (u != "" && h != "") print u "@" h}')
-    if [[ -n $target ]] && command -v ghostty >/dev/null 2>&1; then
+    if ((has_ghostty)) && [[ -n $target ]]; then
         ghostty +ssh-cache --add="$target" >/dev/null 2>&1 || true
     fi
     exec "$real_ssh" "${env_opts[@]}" "${cpath_opt[@]}" "$@"
