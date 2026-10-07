@@ -135,6 +135,12 @@ for base-os."
 
             bluetooth-gatt-release-service
 
+            ;; Remembered day/night panel brightness (see (uraj services
+            ;; desktop)); a no-op without backlight devices.  Keep the
+            ;; times in sync with [location] in the noctalia config,
+            ;; whose night light follows the same schedule.
+            (backlight-schedule-service "07:30" "19:00")
+
             ;; The Guix Home gpg-agent's scdaemon reaches OpenPGP smart
             ;; cards through pcscd (the stock gnupg has no internal CCID
             ;; driver).  Foreign hosts get their distro's pcscd instead.

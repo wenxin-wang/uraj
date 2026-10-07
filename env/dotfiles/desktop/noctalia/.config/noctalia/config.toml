@@ -1,6 +1,6 @@
 # Noctalia v5 configuration (TOML, hot-reloaded via inotify).
-# All settings below are at their defaults except the [idle.behavior.*]
-# overrides at the end; see the full reference at
+# All settings below are at their defaults except the night light schedule
+# and the [idle.behavior.*] overrides at the end; see the full reference at
 # https://raw.githubusercontent.com/noctalia-dev/noctalia-shell/v5.0.0-beta.8/example.toml
 
 [shell]
@@ -29,6 +29,19 @@ enabled               = false
 # keyboard-layout OSD（屏幕中央/角落弹当前输入法名），非桌面通知，关掉
 [osd.kinds]
 keyboard_layout       = false
+
+# 夜间模式（wlr gamma-control 调色温，不改背光亮度）按固定时间切换：
+# custom_schedule 让日夜时间取下面的 sunset/sunrise，而不是按经纬度算
+# 日出日落；这个日夜划分也会被主题自动切换沿用。背光的白天/夜间亮度
+# 切换（src/guix/uraj/system/desktop.scm 的 backlight-schedule-service）
+# 用同一组时间，改这里时一起改。
+[location]
+custom_schedule       = true
+sunset                = "19:00"
+sunrise               = "07:30"
+
+[nightlight]
+enabled               = true
 
 # 空闲行为（noctalia 内置 idle manager，经 ext-idle-notify-v1 从 niri
 # 拿输入空闲状态）。两个超时都从最后一次输入算起：先锁屏，一分钟后
