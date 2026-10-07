@@ -1,4 +1,5 @@
-;;; On-demand IKEv2 connections; only encrypted files enter the store.
+;;; IKEv2 connections, on demand or at boot; only encrypted files enter
+;;; the store.
 (define-module (uraj services strongswan)
   #:use-module (gnu services)
   #:use-module (gnu services base)
@@ -56,11 +57,13 @@
                    (display (string-replace-substring text "@NAME@" name) port))
                  '#$names))))))))
 
-(define (strongswan-services connections)
+(define* (strongswan-services connections #:key (at-boot '()))
   "CONNECTIONS is an alist of public names to root-only SOPS secrets.
 Each secret contains private swanctl fields in the named IKE and EAP sections.
 Legacy full configurations are also accepted; the public template takes
-precedence for its fields. Register the secrets with host-sops-services."
+precedence for its fields. Register the secrets with host-sops-services.
+Connections named in AT-BOOT start at boot, and keep retrying in charon when
+the first attempt fails; the others only connect when started by hand."
   (let* ((names (map car connections))
          (files (map (lambda (entry) (sops-secret->secret-file (cdr entry)))
                      connections))
@@ -92,6 +95,8 @@ precedence for its fields. Register the secrets with host-sops-services."
                                                 (memv c '(#\- #\_)))) name)))
                         names))
       (error "VPN names must be unique ASCII letters, digits, hyphens or underscores"))
+    (unless (every (lambda (name) (member name names)) at-boot)
+      (error "Boot VPN names must name connections" at-boot))
     (for-each
      (lambda (entry)
        (let ((secret (cdr entry)))
@@ -119,12 +124,15 @@ precedence for its fields. Register the secrets with host-sops-services."
          (stop #~(make-kill-destructor)))
         (map
          (lambda (name file)
+           (define boot? (and (member name at-boot) #t))
            (shepherd-service
             (provision (list (string->symbol (string-append "vpn-" name))))
             (requirement '(strongswan-charon sops-secrets))
-            (auto-start? #f)
+            (auto-start? boot?)
             (respawn? #f)
-            (documentation (string-append "Manually connect VPN " name "."))
+            (documentation
+             (string-append (if boot? "Connect VPN " "Manually connect VPN ")
+                            name "."))
             (modules '((ice-9 textual-ports) (ice-9 popen) (srfi srfi-13)))
             (start
              #~(lambda _
@@ -146,6 +154,10 @@ precedence for its fields. Register the secrets with host-sops-services."
                       (run "--load-authorities" "--file" #$config)
                       (run "--load-conns" "--file" #$config)
                       (or (run "--initiate" "--child" #$name "--timeout" "30")
+                          ;; At boot the network may come up later.  swanctl
+                          ;; only stops waiting: keyingtries = 0 lets charon
+                          ;; retry until it connects, and stop still ends it.
+                          #$boot?
                           (begin
                             (run "--terminate" "--ike" #$name "--timeout" "10")
                             #f)))))

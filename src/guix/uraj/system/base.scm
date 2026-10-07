@@ -19,7 +19,7 @@
   #:use-module (uraj services rsyslog)
   #:export (base-os main-user-account user-account-with-groups
             base-openssh-configuration
-            %tmp-file-system base-services
+            %tmp-file-system base-services trust-substitute-servers
             %greetd-console-session base-greetd-configuration))
 
 ;;; Same SSH identity and port on desktop and server; root remains locked.
@@ -179,6 +179,19 @@ MAIN-USER and the deployment account log in with SSH-KEY."
               (authorized-keys
                (cons %nonguix-signing-key
                      (guix-configuration-authorized-keys config))))))))
+
+(define* (trust-substitute-servers services keys #:key (urls '()))
+  "Make the Guix daemon in SERVICES accept substitutes signed by KEYS, a list
+of file-like public keys, and query URLS before its other servers.  The
+daemon still queries discovered servers first."
+  (modify-services services
+    (guix-service-type config =>
+      (guix-configuration
+        (inherit config)
+        (substitute-urls
+         (append urls (guix-configuration-substitute-urls config)))
+        (authorized-keys
+         (append keys (guix-configuration-authorized-keys config)))))))
 
 (define (base-os main-user ssh-key)
   "Return the headless foundation administered by MAIN-USER, a

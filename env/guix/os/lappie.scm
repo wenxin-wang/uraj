@@ -128,7 +128,10 @@
   ;; Naming (services ...) replaces the list inherited from
   ;; %desktop-os, so its services are appended back explicitly.
   (services
-   (append (operating-system-user-services %desktop-os)
+   (append (trust-substitute-servers
+            (operating-system-user-services %desktop-os)
+            (list (local-file
+                   (guix-env-path "os/keys/storie-signing-key.pub"))))
            (if (getenv "TO_ISO") '()
                (append (host-sops-services (map cdr %vpn-connections))
                        (strongswan-services %vpn-connections)))

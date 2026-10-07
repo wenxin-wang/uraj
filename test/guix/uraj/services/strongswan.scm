@@ -87,6 +87,25 @@
 (set! query-output "")
 (set! query-status 256)
 (test-assert "query failure is not mistaken for stopped" (stop))
+;; Only the named connection starts at boot, and a failed first attempt
+;; leaves charon retrying instead of tearing the IKE SA down.
+(define boot-services
+  (service-value (cadr (strongswan-services entries #:at-boot '("fwd2home")))))
+(test-equal "only the boot connection auto-starts"
+  '(#f #t #f)
+  (map shepherd-service-auto-start? boot-services))
+(test-error "unknown boot connection rejected" #t
+  (strongswan-services entries #:at-boot '("missing")))
+(set! start
+  (eval (replace-paths
+         (gexp->approximate-sexp (shepherd-service-start (cadr boot-services))))
+        sandbox))
+(set! config-text "connections {}")
+(set! failed-command "--initiate")
+(set! calls '())
+(test-assert "failed boot initiation stays running" (start))
+(test-equal "failed boot initiation is not terminated"
+  "--initiate" (car (last calls)))
 (define failures (test-runner-fail-count (test-runner-current)))
 (test-end "strongswan")
 (exit (if (zero? failures) 0 1))
