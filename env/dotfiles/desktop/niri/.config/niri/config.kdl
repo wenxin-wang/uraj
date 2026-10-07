@@ -292,7 +292,7 @@ binds {
     Mod+V       { toggle-window-floating; }
     Mod+Ctrl+V { switch-focus-between-floating-and-tiling; }
 
-    Mod+W { toggle-column-tabbed-display; }
+    Mod+T { toggle-column-tabbed-display; }
 
     // niri captures; Satty annotates. Ctrl+S saves, Ctrl+C copies.
     // Laptop screenshot key emits Super+Ctrl+S rather than Print.
