@@ -11,6 +11,7 @@
   #:use-module (uraj common context)
   #:use-module (uraj home basic-desktop)
   #:use-module (uraj packages audio)
+  #:use-module (uraj packages libinput)
   #:use-module (uraj packages window-managers)
   #:export (niri-desktop-home-services))
 
@@ -21,16 +22,18 @@
 ;;; to their services and the whole desktop comes with it.
 
 (define (niri-desktop-packages)
-  (cons satty
-        (specifications->packages
-         '("adwaita-icon-theme"       ;icons used by the GTK Polkit agent
-           "qtwayland"               ;Qt Wayland platform plugin
-           "niri"
-           "wl-clipboard"
-           "xdg-desktop-portal-gnome" ;screencast/screenshots
-           "xdg-desktop-portal-gtk"
-           "xorg-server-xwayland"    ;exec'd by xwayland-satellite
-           "xwayland-satellite"))))  ;run by the session Shepherd
+  ;; niri built with libinput's Lua plugins, for the touchpad dead zones
+  ;; in the niri dotfiles (see (uraj packages libinput)).
+  (cons* satty
+         niri-with-libinput-plugins
+         (specifications->packages
+          '("adwaita-icon-theme"       ;icons used by the GTK Polkit agent
+            "qtwayland"               ;Qt Wayland platform plugin
+            "wl-clipboard"
+            "xdg-desktop-portal-gnome" ;screencast/screenshots
+            "xdg-desktop-portal-gtk"
+            "xorg-server-xwayland"    ;exec'd by xwayland-satellite
+            "xwayland-satellite"))))  ;run by the session Shepherd
 
 (define %niri-polkit-agent-service
   (shepherd-service
