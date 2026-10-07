@@ -89,7 +89,10 @@
                  #:recursive? #t))
     (ssh-support? #t)
     (default-cache-ttl 3600)
-    (default-cache-ttl-ssh 3600)
+    ;; Keep the SSH key passphrase cached for a day of idleness and a week
+    ;; overall, so pinentry does not pop up every hour or two.
+    (default-cache-ttl-ssh 86400)
+    (max-cache-ttl-ssh 604800)
     ;; ssh-support? only affects the supervised instance; on-demand
     ;; launches in console/SSH sessions read the config file instead, so
     ;; keep the ssh socket there too.
