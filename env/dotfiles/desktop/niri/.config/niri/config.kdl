@@ -35,6 +35,20 @@ layout {
         off
     }
 
+    // Brighter, chunkier tab indicator: explicit colors (the defaults fall
+    // back to the focus ring's #505050 for inactive tabs, which halves to
+    // near-invisible when the column isn't focused).
+    tab-indicator {
+        hide-when-single-tab
+        width 8
+        length total-proportion=1.0
+        gaps-between-tabs 2
+        corner-radius 4
+        active-color "#7fc8ff"
+        inactive-color "#606060"
+        urgent-color "#ff5555"
+    }
+
     preset-column-widths {
         proportion 0.33333
         proportion 0.5
