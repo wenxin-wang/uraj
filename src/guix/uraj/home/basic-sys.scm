@@ -1,8 +1,10 @@
 (define-module (uraj home basic-sys)
   #:use-module (gnu home)
   #:use-module (gnu home services)
+  #:use-module (gnu home services shells)
   #:use-module (gnu packages)
   #:use-module (gnu services)
+  #:use-module (guix gexp)
   #:use-module (uraj common basic-services)
   #:use-module (uraj utils file path)
   #:export (basic-sys-home-services))
@@ -56,6 +58,17 @@
    (list
     (simple-service 'basic-sys-packages
                     home-profile-service-type
-                    (basic-sys-packages)))
+                    (basic-sys-packages))
+    ;; Appended to Guix Home's ~/.profile, after setup-environment, so that
+    ;; every reader of ~/.profile (not only bash login shells) gets the
+    ;; ~/.profile.d snippets.  Keep the snippets POSIX sh.
+    (simple-service 'profile-d
+                    home-shell-profile-service-type
+                    (list (plain-file "profile-d.sh" "\
+for profile in \"$HOME\"/.profile.d/*.sh; do
+    [ -r \"$profile\" ] && . \"$profile\"
+done
+unset profile
+"))))
    (my-dotfiles-services
     (list (project-path "env/dotfiles/common")))))

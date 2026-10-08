@@ -1,14 +1,6 @@
 if [ ! -n "$HAS_MY_PROFILE" ]; then
+    # Guix Home's ~/.profile also sources ~/.profile.d (see basic-sys).
     [[ -f ~/.profile ]] && . ~/.profile
-    for dir in ~/.profile.d; do
-        if [ -d $dir ]
-        then
-            for profile in $dir/*.sh
-            do
-                . $profile
-            done
-        fi
-    done
     # Export before sourcing ~/.bashrc: the same guard there must not load
     # the profile a second time.
     export HAS_MY_PROFILE=1

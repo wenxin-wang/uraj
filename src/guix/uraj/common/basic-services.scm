@@ -6,6 +6,7 @@
   #:use-module (ice-9 ftw)
   #:use-module (ice-9 regex)
   #:use-module (srfi srfi-1)
+  #:use-module (uraj utils file path)
   #:export (block-in-file-activation-service
             block-in-files-activation-service
             my-dotfiles-services))
@@ -24,6 +25,14 @@
                      #\-))
                path)))
 
+(define (block-template-label template-path)
+  "Return the block label for TEMPLATE-PATH: the path relative to the project
+root, so that it stays the same wherever the checkout lives."
+  (let ((prefix (string-append project-root "/")))
+    (if (string-prefix? prefix template-path)
+        (string-drop template-path (string-length prefix))
+        template-path)))
+
 (define (block-template-file template-path)
   "Return a file-like object that snapshots TEMPLATE-PATH into the store at
 reconfigure time."
@@ -36,10 +45,11 @@ reconfigure time."
                                            (name 'block-in-file-activation))
   "Return a home activation service that makes sure TARGET-FILE-PATH contains
 a block generated from TEMPLATE-PATH, delimited by
-\"COMMENT-STR BEGIN-BLOCK: TEMPLATE-PATH\" and
-\"COMMENT-STR END-BLOCK: TEMPLATE-PATH\".  The template is snapshotted into
-the store at reconfigure time, like 'home-dotfiles-service-type' does, so
-edits made after reconfigure take effect only after the next reconfigure."
+\"COMMENT-STR BEGIN-BLOCK: LABEL\" and \"COMMENT-STR END-BLOCK: LABEL\",
+where LABEL is TEMPLATE-PATH relative to the project root.  The template is
+snapshotted into the store at reconfigure time, like
+'home-dotfiles-service-type' does, so edits made after reconfigure take
+effect only after the next reconfigure."
   (simple-service name
                   home-activation-service-type
                   (with-imported-modules '((uraj utils file template))
@@ -49,7 +59,7 @@ edits made after reconfigure take effect only after the next reconfigure."
                          #$(block-template-file template-path)
                          #$target-file-path
                          #:comment-str #$comment-str
-                         #:label #$template-path)))))
+                         #:label #$(block-template-label template-path))))))
 
 (define %block-template-re
   ;; "<x>.block<anything>.tmpl" -> x
@@ -114,7 +124,7 @@ made after reconfigure take effect only after the next reconfigure."
                                          (string-append (getenv "HOME") "/"
                                                         #$target-rel-path)
                                          #:comment-str #$comment-str
-                                         #:label #$template-path)))
+                                         #:label #$(block-template-label template-path))))
                                   templates))))))
 
 (define (my-dotfiles-services source-directories)

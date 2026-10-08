@@ -41,6 +41,40 @@ the lines surrounding that block.  Otherwise return #f."
          (else (scan-end (cdr rest))))))
      (else (loop (cdr lines) (cons (car lines) before-rev))))))
 
+(define (stale-block-label lines begin-prefix suffix)
+  "Return the label of the first block in LINES whose begin marker starts with
+BEGIN-PREFIX and whose label ends with SUFFIX, or #f."
+  (any (lambda (line)
+         (and (string-prefix? begin-prefix line)
+              (let ((label (string-drop line (string-length begin-prefix))))
+                (and (string-suffix? suffix label) label))))
+       lines))
+
+(define (relabel-stale-blocks lines comment-str label)
+  "Blocks used to be labeled by the absolute template path, so moving the
+checkout left a duplicate block behind.  Give the first block in LINES whose
+label is a path ending in \"/LABEL\" the current LABEL, keeping its position,
+and drop the other such blocks."
+  (let* ((begin-prefix (string-append comment-str " BEGIN-BLOCK: "))
+         (end-prefix (string-append comment-str " END-BLOCK: "))
+         (begin-marker (string-append begin-prefix label))
+         (end-marker (string-append end-prefix label))
+         (suffix (string-append "/" label)))
+    (let loop ((lines lines))
+      (let* ((old (stale-block-label lines begin-prefix suffix))
+             (split (and old
+                         (split-block lines
+                                      (string-append begin-prefix old)
+                                      (string-append end-prefix old)))))
+        (cond
+         ((not split) lines)
+         ((split-block lines begin-marker end-marker)
+          (loop (append (car split) (cdr split))))
+         (else
+          (loop (append (car split)
+                        (list begin-marker end-marker)
+                        (cdr split)))))))))
+
 (define (mkdir-p dir)
   (let ((parent (dirname dir)))
     (unless (or (string=? dir parent) (file-exists? dir))
@@ -62,9 +96,11 @@ the file."
          (existing-content (if (file-exists? target-file-path)
                                (call-with-input-file target-file-path get-string-all)
                                ""))
-         (existing-lines (if (string-null? existing-content)
-                             '()
-                             (string-split existing-content #\newline)))
+         (existing-lines (relabel-stale-blocks
+                          (if (string-null? existing-content)
+                              '()
+                              (string-split existing-content #\newline))
+                          comment-str label))
          (block-lines (cons begin-marker
                             (append template-lines (list end-marker))))
          (split (split-block existing-lines begin-marker end-marker))
