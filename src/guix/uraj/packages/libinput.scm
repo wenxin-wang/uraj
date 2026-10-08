@@ -6,6 +6,7 @@
   #:use-module (guix git-download)
   #:use-module (guix packages)
   #:use-module (guix utils)
+  #:use-module (uraj utils file path)
   #:export (libinput-minimal-with-lua-plugins
             niri-with-libinput-plugins))
 
@@ -42,9 +43,21 @@
      (modify-inputs (package-inputs libinput-minimal)
        (append lua-5.4)))))
 
+;; niri 26.04 screencasts offer DMA-BUF buffers only, so capturers that
+;; cannot negotiate DMA-BUF (Feishu and other WebRTC/GStreamer clients)
+;; fail with "no more input formats".  The patch is upstream PR #1791
+;; (merged for the next release); drop it once Guix's niri includes it.
 (define niri-with-libinput-plugins
   (package
     (inherit niri)
+    (source
+     (origin
+       (inherit (package-source niri))
+       (patches
+        (append (origin-patches (package-source niri))
+                (list (local-file
+                       (project-path
+                        "src/guix/uraj/packages/patches/niri-shm-support.patch")))))))
     (inputs
      (modify-inputs (package-inputs niri)
        (replace "libinput-minimal" libinput-minimal-with-lua-plugins)))))
