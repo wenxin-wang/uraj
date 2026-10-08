@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 eval "$(cd ~/src/uraj; direnv export bash)"
 maak -f ~/src/uraj/env/guix/os/maak.scm home-reconfigure
