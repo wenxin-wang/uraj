@@ -257,7 +257,8 @@ binds {
     Mod+Shift+Page_Down { move-column-to-workspace-down; }
     Mod+Shift+Page_Up   { move-column-to-workspace-up; }
     Mod+Shift+O         { move-column-to-workspace-down; }
-    Mod+Shift+I         { move-column-to-workspace-up; }
+    // At the top, move into a new workspace without a permanent empty one.
+    Mod+Shift+I repeat=false { spawn "python3" "/home/wenxin/.config/niri/workspace-up.py"; }
 
     Mod+Ctrl+Page_Down { move-workspace-down; }
     Mod+Ctrl+Page_Up   { move-workspace-up; }
