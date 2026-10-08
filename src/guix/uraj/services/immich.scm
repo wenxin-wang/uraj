@@ -33,15 +33,17 @@
                 (default '(zfs-data-ready file-system-/data)))
   (secret-requirements immich-secret-requirements (default '())))
 
-;; Guix's daemon service unnecessarily requires desktop session services.
-;; Keep its activation, account and package integration, but remove elogind
-;; and D-Bus from the headless daemon's prerequisites.
+;; Guix's daemon service requires elogind and D-Bus only as a boot-ordering
+;; workaround (bug#34333); it still requires the cgroup mount, networking and
+;; udev it actually uses.  Keep its activation, account and package
+;; integration, but drop those two so restarting a session service does not
+;; also stop dockerd and every container.  The cgroup mount comes from
+;; elogind's file systems on the server role.
 (define immich-docker-service-type
   (service-type
    (inherit docker-service-type)
    (name 'immich-docker)
    (extensions
-    (cons (service-extension file-system-service-type (const %control-groups))
      (map (lambda (extension)
            (if (eq? (service-extension-target extension) shepherd-root-service-type)
                (service-extension
@@ -55,7 +57,7 @@
                                    (shepherd-service-requirement s)))))
                        ((service-extension-compute extension) config))))
                extension))
-         (service-type-extensions docker-service-type))))))
+         (service-type-extensions docker-service-type)))))
 
 (define %immich-docker-configuration
   (docker-configuration
