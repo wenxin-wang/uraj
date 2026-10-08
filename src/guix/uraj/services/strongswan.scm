@@ -4,6 +4,8 @@
   #:use-module (gnu services)
   #:use-module (gnu services base)
   #:use-module (gnu services shepherd)
+  #:use-module (gnu packages base)
+  #:use-module (gnu packages bash)
   #:use-module (gnu packages vpn)
   #:use-module (gnu packages nss)
   #:use-module (gnu packages dns)
@@ -62,12 +64,16 @@
 Each secret contains private swanctl fields in the named IKE and EAP sections.
 Legacy full configurations are also accepted; the public template takes
 precedence for its fields. Register the secrets with host-sops-services.
-Connections named in AT-BOOT start at boot, and keep retrying in charon when
-the first attempt fails; the others only connect when started by hand."
+Connections named in AT-BOOT start at boot, first waiting up to ten minutes
+for their server name to resolve (a captive portal can block DNS until it is
+passed), then keep retrying in charon when the first attempt fails; the others
+only connect when started by hand."
   (let* ((names (map car connections))
          (files (map (lambda (entry) (sops-secret->secret-file (cdr entry)))
                      connections))
          (swanctl (file-append strongswan "/sbin/swanctl"))
+         (sh (file-append bash-minimal "/bin/sh"))
+         (getent (file-append glibc "/bin/getent"))
          ;; Resolve requests DNS attributes and reference-counts them across
          ;; IKE SAs. openresolv keeps the physical link's DNS for disconnect.
          ;; -x excludes physical-link DNS while the VPN DNS entry exists.
@@ -133,7 +139,8 @@ the first attempt fails; the others only connect when started by hand."
             (documentation
              (string-append (if boot? "Connect VPN " "Manually connect VPN ")
                             name "."))
-            (modules '((ice-9 textual-ports) (ice-9 popen) (srfi srfi-13)))
+            (modules '((ice-9 textual-ports) (ice-9 popen) (ice-9 regex)
+                       (srfi srfi-13)))
             (start
              #~(lambda _
                  (define (run . args)
@@ -148,6 +155,27 @@ the first attempt fails; the others only connect when started by hand."
                      (if (zero? remaining)
                          (error "Timed out waiting for charon")
                          (begin (usleep 100000) (wait (- remaining 1))))))
+                 ;; charon drops a connection whose server name does not
+                 ;; resolve instead of retrying it, so at boot wait for DNS,
+                 ;; which a captive portal may block for minutes.  Shepherd's
+                 ;; sleep and system* do not block other services.
+                 (when #$boot?
+                   (let ((host (let ((m (string-match
+                                         "remote_addrs[ \t]*=[ \t]*\"?([^ \t\n,\"]+)"
+                                         (call-with-input-file #$file
+                                           get-string-all))))
+                                 (and m (match:substring m 1))))
+                         (deadline (+ (current-time) 600)))
+                     (define (resolves?)
+                       (zero? (system* #$sh "-c" "\"$0\" ahosts \"$1\" >/dev/null 2>&1"
+                                       #$getent host)))
+                     (when (and host (not (resolves?)))
+                       (format #t "VPN ~a: waiting for its server name to resolve~%"
+                               #$name)
+                       (let wait ()
+                         (when (< (current-time) deadline)
+                           (sleep 5)
+                           (unless (resolves?) (wait)))))))
                  ;; Always load the aggregate: --load-conns removes definitions
                  ;; absent from its input. Never clear another VPN's credentials.
                  (and (run "--load-creds" "--noprompt" "--file" #$config)
