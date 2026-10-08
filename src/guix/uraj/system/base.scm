@@ -4,11 +4,13 @@
   #:use-module (gnu bootloader)
   #:use-module (gnu bootloader grub)
   #:use-module (gnu packages linux)
+  #:use-module (gnu packages package-management)
   #:use-module (gnu services)
   #:use-module (gnu services avahi)
   #:use-module (gnu services base)
   #:use-module (gnu services ssh)
   #:use-module (guix base32)
+  #:use-module (guix channels)
   #:use-module (guix download)
   #:use-module (guix gexp)
   #:use-module (guix packages)
@@ -17,6 +19,7 @@
   #:use-module (srfi srfi-1)
   #:use-module (uraj services guix-mirrors)
   #:use-module (uraj services rsyslog)
+  #:use-module (uraj utils file path)
   #:export (base-os main-user-account user-account-with-groups
             base-openssh-configuration
             %tmp-file-system base-services trust-substitute-servers
@@ -132,22 +135,28 @@
             (iota 6 1)))
       extra-field ...)))
 
+(define (locked-channels)
+  "Return the channels pinned by the repository's channel lock."
+  ;; `load' would evaluate it in the caller's module, which need not
+  ;; import (guix channels).
+  (eval (call-with-input-file (guix-env-path "channels-lock.scm") read)
+        (resolve-module '(uraj system base))))
+
 (define (base-services main-user ssh-key services)
   "Add shared SSH, store publishing, and Guix settings to SERVICES.
 MAIN-USER and the deployment account log in with SSH-KEY."
+  (define channels (locked-channels))
+  ;; The system-wide guix carries every locked channel, so plain
+  ;; `guix system reconfigure' (and `guix system init' on a live image)
+  ;; evaluates host configurations without time-machine fetching them.
+  (define guix (guix-for-channels channels))
   (cons* (service openssh-service-type
                   (base-openssh-configuration main-user ssh-key))
          (simple-service
           'guix-crate-mirrors etc-service-type
           ;; /etc/guix is a mutable directory maintained by Guix itself.
           ;; etc-service-type installs top-level links, not files into it.
-          `(("guix-daemon-command"
-             ,(guix-mirror-command
-               (guix-configuration-guix
-                (service-value
-                 (find (lambda (service)
-                         (eq? (service-kind service) guix-service-type))
-                       services)))))))
+          `(("guix-daemon-command" ,(guix-mirror-command guix))))
          (service guix-publish-service-type
            (guix-publish-configuration
              (host "0.0.0.0")
@@ -163,6 +172,9 @@ MAIN-USER and the deployment account log in with SSH-KEY."
           (guix-service-type config =>
             (guix-configuration
               (inherit config)
+              (guix guix)
+              ;; Pins `guix pull' to the lock too.
+              (channels channels)
               ;; GUIX selects the daemon's helper, independently of clients
               ;; (including time-machine).  Keep package derivations intact.
               (environment
