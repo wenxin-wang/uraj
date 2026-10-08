@@ -59,9 +59,12 @@ enabled = true
 
 # 仅在电池供电时空闲 15 分钟自动挂起（接电源时什么都不做，命令直接
 # exit 0）。/sys/class/power_supply/*/online 为 1 表示有外部电源（AC、
-# USB-C PD 等都会暴露）。此前 lock(600s)/screen-off(660s) 已先锁屏关屏，
-# 唤醒后仍停留在锁屏界面；播放视频等持有 inhibit 的应用会阻止触发。
+# USB-C PD 等都会暴露）。还必须存在系统电池（type=Battery 且 scope 不是
+# Device，排除无线鼠标/手柄这类外设电池），否则台式机没有任何
+# power_supply 会被误判为"电池供电"而挂起。此前 lock(600s)/screen-off(660s)
+# 已先锁屏关屏，唤醒后仍停留在锁屏界面；播放视频等持有 inhibit 的应用会
+# 阻止触发。
 [idle.behavior.suspend-on-battery]
 timeout = 900
-command = 'for f in /sys/class/power_supply/*/online; do [ "$(cat "$f" 2>/dev/null)" = 1 ] && exit 0; done; loginctl suspend'
+command = 'bat=; for d in /sys/class/power_supply/*; do [ "$(cat "$d/online" 2>/dev/null)" = 1 ] && exit 0; [ "$(cat "$d/type" 2>/dev/null)" = Battery ] && [ "$(cat "$d/scope" 2>/dev/null)" != Device ] && bat=1; done; [ -z "$bat" ] || loginctl suspend'
 enabled = true
