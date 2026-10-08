@@ -1,0 +1,536 @@
+#+title: contained-agent: coding agents in per-project Guix containers
+
+=contained-agent= runs a coding agent (Codex, Claude Code) inside
+=guix shell --container=.  The container shares only the current project
+and the parts of the agent's own state that must persist.  The same command
+serves interactive use in a terminal and Paseo, which launches agents
+remotely.
+
+The threat model is an agent that follows instructions it reads in logs,
+web pages or third-party code (prompt injection), or that makes a well-meant
+destructive change.  The sandbox has to hold without the agent's
+cooperation.
+
+* Components
+
+| Path                                                      | Role                                                         |
+|-----------------------------------------------------------+--------------------------------------------------------------|
+| =src/guile/uraj/bin/contained-agent.scm=                  | The program: plain Guile, no =(guix ...)= modules            |
+| =src/guile/uraj/bin/contained-ssh.scm=                    | Host-side per-project ssh-agent lifecycle and key loading   |
+| =src/guix/uraj/home/llm.scm=                              | Agent specs, package list, =program-file=, Home files        |
+| =env/dotfiles/llm/contained-agent/.config/contained-agent/projects.scm= | Per-project clauses, owned by the user                      |
+| =~/.local/state/contained-agent/=                          | Approved copies of project-local files                       |
+| =~/.config/contained-agent/projects.local.scm=              | Optional host-private central additions, never Home-managed  |
+
+The program calls the =guix= command (=guix shell -C ...=) rather than Guix
+modules.  =llm.scm= generates the entry point with =program-file= and passes
+in everything known only at build time: store paths of the real =codex=
+and =claude=, of =git=, the agent specs and the package list.  Home installs:
+
+- =~/.local/bin/contained-agent=
+- =~/.local/bin/codex= and =~/.local/bin/claude=: store items that are
+  themselves links to =contained-agent=, made with =computed-file=.
+
+The program dispatches on the name it was invoked as (minus a store hash
+prefix).  Under an agent's name it takes exactly that agent's arguments;
+as =contained-agent= the first argument names the agent, or is =allow=.
+
+* Use
+
+- Terminal: =~/.local/bin= comes first in =PATH= (=.profile.d/61-paths.sh=),
+  so =codex= and =claude= are the contained ones.  The originals remain at
+  =~/.guix-home/profile/bin/=.
+- Paseo: =~/.paseo/config.json= overrides the provider commands:
+  #+begin_src json
+  "agents": { "providers": {
+    "codex":  { "command": ["/home/wenxin/.local/bin/codex"] },
+    "claude": { "command": ["/home/wenxin/.local/bin/claude"] } } }
+  #+end_src
+  Restart the daemon after a change: it caches the provider version probe.
+- Approve a project's own files: =contained-agent allow [DIRECTORY]=.
+
+* The container
+
+- =--container --no-cwd --network --expose=/gnu/store=.  The whole store is
+  read-only, so store links in configuration (MCP servers, skills) resolve.
+- The environment is cleared; agent specs and projects list what to keep
+  (=--preserve=).  =SSL_CERT_FILE= and friends point at the profile's
+  =nss-certs=.
+- Packages: =%contained-agent-packages= in =llm.scm=, plus an approved
+  project manifest.  =bubblewrap= is needed by Codex's own command sandbox
+  and by the overlays below.
+- The network is still the host's (=--network=).  An allowlisting proxy is
+  future work; see [[*Open items]].
+- All agents can read =~/src= when it exists, including other repositories
+  and their uncommitted files.  Common mounts come first; the current work
+  tree is then mounted read-write, followed by its Git protections.  Other
+  projects remain read-only unless separately granted write access.
+- Clone temporary reference code into =/tmp/reference-code/=, or use an
+  ignored =.reference-code/= directory in the current work tree to retain it.
+  Read access to =~/src= does not grant permission to clone into it.
+
+** Working directory
+
+Paseo starts =codex app-server= from its own working directory, =$HOME=,
+and tells Codex the session directory over JSON-RPC.  Claude is started with
+the session directory as working directory.  Both get =PASEO_AGENT_CWD=.
+Every process below an agent inherits that variable, so it is trusted only
+when the working directory is =$HOME=.
+
+A working directory of =$HOME= or =/= shares no project at all: Paseo's
+helper app-servers (model lists...) run that way.
+
+Projects are mounted at their host path.  A fixed path such as =/work/proj=
+does not work: Paseo passes host paths to the agent.
+
+** Git
+
+The work tree and the repository's common git directory are separate
+read-write mount points.  Read-only mount points on top cover what makes
+host-side git run code or read other files:
+
+- =hooks/= and =config= of the common directory;
+- a linked worktree's =.git= file;
+- =worktrees/= as a whole, then the session's own worktree directory
+  read-write again, with its =commondir= and =gitdir= read-only.
+
+A mount point cannot be renamed or removed (=EBUSY=).  The rule that makes
+this hold: every directory from a protected path up to the root of the
+writable share containing it must itself be a mount point.  That is why
+=.git= is a share of its own.  See [[*Pitfalls]] for the tests behind it.
+
+The main work tree of a linked worktree is readable when it is under
+=~/src=; otherwise it is not mounted by default.  Commits land in the
+shared =.git= and show up on the host at once.
+
+* Agent specs
+
+Specs are alists in =llm.scm=; =~= stands for the home directory.
+
+| Key        | Meaning                                                                                       |
+|------------+-----------------------------------------------------------------------------------------------|
+| =program=  | The real executable                                                                           |
+| =state=    | Directories created if missing and shared read-write                                          |
+| =share=    | Paths shared read-write when they exist                                                       |
+| =expose=   | Paths exposed read-only when they exist                                                       |
+| =protect=  | Configuration within =state= (created empty if missing, =/= suffix for a directory, =*= suffix for a prefix match) exposed read-only with its link targets |
+| =overlay=  | Directories writable for the session only, through a tmpfs overlay dropped on exit            |
+| =persist=  | Paths within an =overlay= that do reach the host                                              |
+| =seed=     | Files copied into the container's home, writable, dropped on exit                             |
+| =preserve= | Regexps of environment variable names to keep                                                 |
+
+Overlays are mounted inside the container by
+=bwrap --dev-bind / / --overlay-src DIR --tmp-overlay DIR=, which needs no
+privileges.  =persist= paths are first shared at
+=/run/contained-agent/persist-N=, then bound back over the overlay by the
+same =bwrap=.  =seed= files are exposed at =/run/contained-agent/seed-N= and
+copied by the launcher script.
+
+** Claude Code
+
+- =~/.claude= is an overlay.  Settings (=settings.json= links to one of the
+  =settings.json.*= profiles), plugins, skills and any new file such as
+  =CLAUDE.md= are the session's own.
+- Persisted: =projects/= (transcripts, memory), =sessions/=, =session-env/=,
+  =file-history/=, =paste-cache/=, =todos/=, =plans/=, =tasks/=,
+  =history.jsonl=.
+- =~/.claude.json= (project trust, MCP servers) is seeded and dropped.
+- Consequences: =/config=, =claude mcp add= and plugin installs work for the
+  session only; change them on the host.  The command line may ask for
+  project trust again; Paseo uses the SDK and does not.
+
+** Codex
+
+Codex keeps SQLite databases at the top of =~/.codex=, so it cannot simply
+be an overlay yet (see [[*Pitfalls]]).  For now:
+
+- =~/.codex= is =state=: shared read-write.
+- =config.toml= (MCP commands, hooks), =AGENTS.md= and =rules/= are
+  protected (read-only).
+- =~/.agents/skills= and =~/.codex/skills= are overlays.
+
+* Project configuration
+
+Clauses, in both places below:
+
+- =(expose PATH ...)=, =(share PATH ...)=: extra mounts, skipped when
+  missing.
+- =(preserve REGEXP ...)=: host environment variables passed through when
+  set.
+- =(guix-daemon)=: opt into Guix nesting and daemon access, with an isolated
+  project cache (details below).
+
+Central: =projects.scm=, keyed by the repository's main work tree, so all
+its worktrees share the entry.  It reaches the program through Home, so the
+agent cannot change it, and changing it takes a reconfigure.
+
+#+begin_src scheme
+(project "~/src/uraj"
+  (expose "/var/log" "/run/current-system" "/run/booted-system"
+          "/var/guix/profiles" "~/.local/state/shepherd" "~/.guix-home"
+          "~/.config/shepherd" "~/.config/guix"))
+#+end_src
+
+Host-private additions: =~/.config/contained-agent/projects.local.scm=.
+Create this file on the host, preferably with mode =0600=.  It uses the same
+=(project ROOT CLAUSES ...)= syntax as the managed central file.  Matching
+entries from both files are appended; neither replaces the other's entry.
+If absent, it is skipped.  Edits are read on the next launch, without Home
+reconfigure or =contained-agent allow=.
+
+This is user-level central policy, *not* project-local configuration.  Keep
+private paths, SSH identities and destinations here instead of in the public
+repository.  The program reads it at runtime; Home does not import it into
+the store.  Its parent directory is denied to container mount requests.
+Only one =ssh-agent= clause per project is accepted across the two files;
+duplicates fail instead of silently overriding a policy.  Put that whole
+clause in the private file when its contents are sensitive.
+
+Project-local: =.guix/contained-agent.scm= (same clauses at top level) and
+=.guix/manifest.scm=, or a top-level =manifest.scm=.  The agent can write
+them, and =guix shell= evaluates a manifest on the host, outside any
+sandbox.  So they count only once approved:
+
+1. =contained-agent allow= copies them to a staging directory, shows
+   =git diff= against the last approved copy and asks on a terminal.
+2. On =y= the copy is kept under its nar hash in
+   =~/.local/state/contained-agent/approved/=.
+3. A session hashes the project's current files and, on a match, loads the
+   approved copy, never the work tree.  Otherwise it warns and starts
+   without them.
+
+The whole =.guix= directory is hashed, as a manifest may =load= its
+siblings.  Links inside it are refused: they could reach unreviewed files.
+A top-level =manifest.scm= is hashed alone, so anything it loads is not
+covered.
+
+Requests never mount anything under these, nor any directory containing
+one (such as =$HOME= or =/=): =~/.paseo=, =~/.paseo-password=, =~/.ssh=,
+=~/.gnupg=, =~/.password-store=, =~/.config/contained-agent=,
+=~/.local/state/contained-agent=, =/var/guix/daemon-socket=, =/run/user=.
+
+* What agents cannot do
+
+- Use SSH by default.  The optional central =ssh-agent= clause below grants
+  access to a project's dedicated agent, not the host's normal agent or
+  private key files.  GPG remains unavailable.
+- Use =gh=: =~/.config/gh= is not mounted.
+- Reach the Guix daemon by default.  Projects opting into =(guix-daemon)=,
+  including uraj, can build and use nested Guix environments.
+- Control the user's Shepherd (=/run/user/UID=) or see host processes
+  (separate PID namespace; mounting the host's =/proc= would expose other
+  processes' environments).
+- Read =/var/log/debug=, =secure= or =guix-daemon.log=: those are root-only
+  even for the user; only =messages= is in =log-readers=.
+
+* Optional Guix daemon access
+
+The managed uraj entry includes =(guix-daemon)= so its sessions can run
+=guix build=, =guix home/system build= and =guix time-machine=.  It may also
+be added to host-private central configuration or an explicitly approved
+project-local configuration:
+
+#+begin_src scheme
+(project "~/src/another-project"
+  (guix-daemon))
+#+end_src
+
+This enables =guix shell --nesting=, which provides the running Guix and
+daemon socket.  Ordinary requests to mount the daemon socket directly remain
+denied.  The wrapper then applies these mappings *after* the project's other
+mounts:
+
+- A persistent per-project cache under
+  =~/.cache/contained-agent/guix<canonical-project-path>/cache= replaces
+  =~/.cache/guix=.  If the host uses =XDG_CACHE_HOME=, that nesting cache path
+  is covered too.  The first launch seeds the cache from the host with
+  =cp -a --reflink=auto=, guarded by a lock; later launches retain the project
+  copy.  Changes never copy back.  Without reflinks the initial copy can
+  consume substantial disk space.
+- The user's =/var/guix/profiles/per-user/USER/profiles= and =inferiors=
+  directories are writable for registering cached profile GC roots.  They
+  deliberately override uraj's read-only =/var/guix/profiles= mapping.  These
+  are shared host metadata, not project-private copies.
+
+Daemon access is an explicit relaxation: it exposes the daemon protocol,
+allows store operations and resource consumption, and lets fixed-output
+builds use the daemon's network outside the session's network policy.  The
+cache isolation avoids direct writes to host channel checkouts; it does not
+turn daemon access into a restricted build API.
+
+=python3 test/python/uraj/guix/contained-agent/contained-agent-guix.py= verifies opt-in, approved local
+configuration, one-time independent cache seeding, XDG cache coverage and
+mount ordering with real bind mounts.  It does not require a daemon.
+After deploying, verify in a new uraj session with:
+
+#+begin_src sh
+guix build hello --dry-run
+guix time-machine -C env/guix/channels-lock.scm -- describe
+#+end_src
+
+* Per-project SSH agents
+
+Only the central =projects.scm= or host-private =projects.local.scm= may
+declare =ssh-agent=.  Even an approved
+=.guix/contained-agent.scm= cannot request it.  For example (replace these
+example key paths with keys you provision on the host).  Put this in
+=~/.config/contained-agent/projects.local.scm= to keep it out of Git and
+the Guix store:
+
+#+begin_src scheme
+(project "~/src/uraj"
+  (ssh-agent
+    ;; Optional; defaults to ~/.ssh/known_hosts.
+    (known-hosts "~/.ssh/known_hosts")
+    (identity "~/.ssh/uraj-deploy"
+      (destinations "git@github.com"))
+    (identity "~/.ssh/dev-servers"
+      (destinations "wenxin@a.xx.com" "wenxin@b.xx.com"))))
+#+end_src
+
+An optional =(client-config STRING)= holds literal SSH client configuration,
+including multiline strings.  For example, inside the same =ssh-agent= clause:
+
+#+begin_src scheme
+(client-config "Host dev.example.com
+    HostName 192.0.2.1
+    User wenxin
+    Port 23333
+    HostKeyAlias [dev.example.com]:23333
+
+Host github.com
+    User git
+
+Host *
+    IdentitiesOnly no
+    ForwardAgent no
+    AddKeysToAgent no
+    StrictHostKeyChecking yes
+")
+#+end_src
+
+The corresponding identity still needs
+=(destinations "[dev.example.com]:23333")=.  SSH client configuration does
+not change how =ssh-add -h= looks up host keys.  =client-config= is text, not
+a filename; quotes and backslashes use Scheme string escaping.  Only one
+such clause is allowed.  Its contents are written to a mode-0600 file in the
+project's private runtime directory and mounted read-only as =~/.ssh/config=.
+The text is never shell-expanded or evaluated by SSH on the host.  It is
+interpreted by SSH inside the container, including any commands it specifies.
+If omitted, the generated config is empty.  Editing the string changes the
+policy fingerprint and reloads the project agent on the next launch.  A live
+agent keeps its socket and the config file is rewritten in place, so existing
+containers also see the update.
+
+Each =destinations= contains one or more alternatives.  Each becomes a
+separate =ssh-add -h= argument for that identity.  No identity may omit its
+destinations or supply an empty list.  Paths must be absolute or start with
+=~/=.  Private keys remain on the host; the supplied client config, public
+host-key data and selected agent socket enter the container.
+
+After Home reconfigure, normal agent startup automatically starts the
+project's SSH agent and loads its configured keys on the host, before entering
+the container.  Later sessions reuse it while the configuration is unchanged.
+The following host commands are optional management tools:
+
+#+begin_src sh
+contained-agent ssh-start ~/src/uraj   # explicitly reload keys, or unlock in advance
+contained-agent ssh-socket ~/src/uraj   # prints the host socket path
+# Stop it; a later session with ssh-agent configured will start it again:
+contained-agent ssh-stop ~/src/uraj
+#+end_src
+
+=ssh-start= starts a dedicated background OpenSSH agent and loads the keys;
+encrypted keys use ssh-add's terminal/askpass prompt.  It prints the socket
+path, never shell code to evaluate.  A failed key load stops the new agent.
+Starting it again reuses the live process/socket, runs =ssh-add -D= to clear
+all identities (including manually added ones), then loads the current policy.
+The config and known_hosts files are also updated in place to preserve existing
+bind mounts.  A successful reload needs no container restart.  Reload is not
+atomic: new authentication may briefly fail while keys are absent or loading;
+existing SSH connections remain established.  If clearing or loading fails,
+the agent is stopped so no partial set of keys remains.  Reopen containers
+after a stopped/dead agent is recreated, since that produces a new socket inode.
+Agents otherwise persist between sessions until
+stopped or the host shuts down; this is not a Shepherd autostart service.
+
+The host socket is
+=$XDG_RUNTIME_DIR/contained-agent/<32-hex-path-hash>/ssh.sock=.  If
+=XDG_RUNTIME_DIR= is unset, =/run/user/UID= is used; the runtime directory
+must already exist, belong to the user, and be private.  The hash uses the
+canonical main repository path, so linked worktrees share their project's
+agent while different repositories get different sockets.  No extra project
+name is needed.  A host-side lock serializes lifecycle operations.
+
+Session startup checks, under the project lock, for an agent with a matching
+policy and known_hosts snapshot.  A missing agent is started; a changed policy
+or known_hosts file clears and reloads its keys automatically.  Concurrent
+launches reuse the same process; the project lock serializes reloads.
+Replacing key material at the same filename also requires =ssh-start=.
+=--version= probes skip SSH provisioning.  Encrypted keys still require
+ssh-add's terminal or host askpass prompt.  Automatic loading has stdin set
+to =/dev/null= and stdout redirected to stderr so it cannot consume or corrupt
+Paseo's protocol stream.  Without an available unlock mechanism it fails and
+suggests =ssh-start= on the host; no partial agent is kept.  To permanently
+disable automatic SSH access, remove the central clause and stop the agent.
+
+In the container:
+- =SSH_AUTH_SOCK=/run/contained-agent/ssh.sock= selects only this project.
+- The socket is an individual read-only bind mount (read-only does not
+  prevent socket connections).  No parent runtime directory is exposed.
+- A read-only snapshot is mounted as =~/.ssh/known_hosts=; it reveals the
+  entries in the selected known_hosts file.  Use a dedicated file to limit
+  that list.  Private keys and the host's original SSH config remain absent.
+- The optional =client-config= string supplies the container's =~/.ssh/config=.
+  Put connection settings here rather than inheriting the host's IdentityFile
+  or forwarding configuration.
+- =openssh= joins the container packages.  Normal =ssh= and Git SSH remotes
+  use the socket and known_hosts without additional flags.
+
+An empty =(ssh-agent)= clause creates an empty agent for manual host-side
+loading.  Use =SSH_AUTH_SOCK="$(contained-agent ssh-socket DIR)" ssh-add ...=.
+In this mode it is your responsibility to pass =-h= constraints when loading
+keys.  The container can use the socket's management operations too (for
+example, deleting loaded keys); this is not a signing-only proxy.
+
+** Destination patterns
+
+Constraints use the native [[https://man.openbsd.org/ssh-add.1][ssh-add(1)]] syntax, including =user@host= and
+=source>user@destination= forwarding hops.  Strings are passed as arguments,
+never expanded by a shell.
+
+For a non-default port, match the known_hosts spelling, for example
+=(destinations "[hypie.example.com]:23333")=.  This selects the host-key
+record; the SSH connection still needs =-p 23333=.  Loading errors preserve
+ssh-add's original stderr and include the identity path, destination list,
+and source known_hosts path.  They are not assumed to be password errors.
+
+Wildcards such as =*.xx.com= need compatible known_hosts records; ssh-add
+does not enumerate ordinary =a.xx.com= and =b.xx.com= records to expand the
+pattern.  A usual wildcard setup uses a trusted host-certificate CA entry
+such as =@cert-authority *.xx.com KEY=.  Without that setup, list individual
+hosts.  Missing host keys fail loading; the wrapper never fetches or trusts
+host keys automatically.  Hosts are authenticated by keys/certificates,
+not merely by a DNS suffix.  A constraint to =git@github.com= does not limit
+repositories: use a repository-scoped deploy key for that.
+
+** Verification
+
+=python3 test/python/uraj/guix/contained-agent/contained-agent-ssh.py= uses disposable keys, fake HOME,
+temporary repositories and real OpenSSH processes.  It needs Guile 3,
+OpenSSH 8.9+, Git, Bash, bubblewrap and sha256sum on PATH.  It exercises per-project
+isolation, multiple identities/destinations, wildcard CA records, linked
+worktrees, additive public/private configuration, automatic startup/reuse,
+concurrent launches, policy reload,
+encrypted-key failure cleanup, launch arguments, and
+the SSH protocol through a read-only socket bind in a mount namespace.
+Guix argv is captured rather than building a profile; no daemon, external
+network, or real user keys are used.
+
+* Pitfalls
+
+Each of these was hit or tested while building this.
+
+** Paseo
+- Codex is launched without a working directory; the session directory comes
+  over JSON-RPC and in =PASEO_AGENT_CWD=, which children inherit.  An early
+  test run from inside a Paseo session therefore ran in the wrong
+  repository and committed there.
+- The version probe runs =COMMAND[0] --version= and drops the other
+  elements of a command override.  With =["contained-agent", "codex"]= the
+  probe failed, Paseo concluded Codex was too old and rejected its default
+  =auto-review= mode.  Hence one executable per agent, named after it.
+- Paseo kills agents with =tree-kill=, which reaches processes inside the
+  container; =SIGTERM= to the =guix= process alone does nothing.
+
+** Guix
+- =home-dotfiles-service-type= imports files with =local-file=, which
+  follows links: a link in the dotfiles tree becomes a copy.  Use a
+  =computed-file= that is itself a link.
+- Invoked through a store path the program name is =HASH-codex=; the hash
+  is stripped before dispatching.
+- =guix shell -C= mounts options in command-line order; a later mount covers
+  an earlier one.  User mappings come after =--nesting='s.
+- Inside the container =HOME= comes from =passwd=, not the caller's
+  environment: tests with a fake =HOME= must use absolute paths.
+- =execlp= replaces the process before Guile flushes the error port:
+  warnings need =force-output=.
+- =--nesting= shares the host's =~/.cache/guix= read-write: the channel
+  checkouts that host-side =guix pull= and =time-machine= evaluate.  The
+  optional =guix-daemon= clause covers this with a project-specific cache,
+  mounted after nesting's mappings.  See [[*Optional Guix daemon access]] for
+  the remaining tradeoffs.
+
+** Mounts
+- Guix's synthetic home tmpfs can start with mode =1777=.  OpenSSH rejects
+  this when discovering =~/.ssh/config= by default.  The container bootstrap
+  changes only that synthetic home directory to =0700= before starting the
+  agent; it does not recursively chmod mounted host data.  An explicit
+  =ssh -F FILE= test does not cover this permission check, so the regression
+  test also exercises default config discovery.
+- A read-only mount point inside a writable share can be escaped by
+  renaming its parent: =mv .git .git.x= and recreate =.git= with a
+  malicious =config= or hook.  Directories created by Guix for mount points
+  live in the container's tmpfs and are harmless.
+- Mounts follow links, so a link cannot be pinned read-only.
+  =~/.claude/settings.json= is a link: the link itself could be replaced
+  even though its target was read-only.  Hence the overlay for =~/.claude=.
+- An overlay's lower directory must hold no mount points, or the mount fails
+  with =EINVAL= (tmpfs and btrfs alike).  Hence =persist= paths mounted
+  aside and bound back.
+- A single-file mount cannot be renamed over.  Claude's atomic writes fall
+  back to writing in place; tools without such a fallback fail.
+- SQLite creates and deletes =-wal=, =-shm= or =-journal= files next to the
+  database.  Persisting the database file alone leaves those in the
+  overlay: committed data is lost, and concurrent sessions each get their
+  own =-shm=, which breaks locking and can corrupt the database.  A database
+  must persist with its whole directory.
+
+** Agents
+- Codex's own =workspace-write= sandbox (Paseo's =auto= mode) makes =.git=
+  entirely read-only.  Failures there do not say whether our layer would
+  have stopped them; test with =full-access= to see our layer alone.
+- =node_repl= processes from the =codex-desktop= store item are MCP servers
+  that =config.toml= points at, started by contained Codex sessions; they
+  do not mean the desktop app is running.
+- Plugin caches in an overlay: a marketplace update is downloaded again by
+  every session until a host-side Codex syncs it.
+
+* Development
+
+Run the module straight from the source tree:
+
+#+begin_src scheme
+;; /tmp/ca-dev.scm
+(use-modules (uraj bin contained-agent))
+(contained-agent-main (cons "contained-agent" (cdr (command-line)))
+  #:agents `(("bash" (program . ,(canonicalize-path
+                                  "/run/current-system/profile/bin/bash"))
+              (overlay "~/.claude")))
+  #:common '((preserve "TERM")) #:packages '("bash" "coreutils" "bubblewrap")
+  #:git "git")
+#+end_src
+
+#+begin_src sh
+CONTAINED_AGENT_PROJECTS=$PWD/env/dotfiles/llm/contained-agent/.config/contained-agent/projects.scm \
+  guile --no-auto-compile -L src/guile /tmp/ca-dev.scm bash -c '...'
+guix time-machine -C env/guix/channels-lock.scm -- build -L src/guix -L src/guile \
+  -e '((@@ (uraj home llm) contained-agent-link) "codex")'
+#+end_src
+
+Test writes against a fake =HOME= in =/tmp=, never the real agent state, and
+guard probes with the expected working directory.
+
+* Open items
+
+- Network: give the container its own network namespace and an allowlisting
+  proxy reached through a Unix socket.  Until then agents reach the Paseo
+  API on =127.0.0.1:6767= and the LAN.
+- Codex: move databases with =sqlite_home= into a directory of their own,
+  check how =auth.json= is written, then make =~/.codex= an overlay with a
+  persist list (=auth.json=, =sessions/=, =archived_sessions/=, the
+  database directory, =session_index.jsonl=, =history.jsonl=, =log/=).
+- Codex overlays for =plugins/=, =.tmp/=, =vendor_imports/=, =ipc/= (the
+  desktop app's socket) and =computer-use/=.
+- =codex-desktop= runs outside the sandbox and reads =~/.codex=.
+- Per-agent SSH agents holding only chosen keys.
