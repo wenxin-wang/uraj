@@ -160,6 +160,20 @@ window-rule {
     clip-to-geometry false
 }
 
+// Feishu popups float; the main window (native Wayland, app-id "") stays
+// tiled.  Meeting notifications and the screen-share panel are Xwayland
+// windows whose WM_CLASS instance names are as below; the image viewer
+// sets no WM_CLASS at all, so it can only be matched by title.
+window-rule {
+    match app-id=r#"^((Main_)?Meeting|ShareScreenFloatingPanelWindowBase)$"#
+    open-floating true
+}
+
+window-rule {
+    match title=r#"^(Feishu Meetings|Picture)$"#
+    open-floating true
+}
+
 debug {
     honor-xdg-activation-with-invalid-serial
 }
