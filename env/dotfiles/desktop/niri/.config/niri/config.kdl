@@ -102,8 +102,7 @@ output "China Star Optoelectronics Technology Co., Ltd MNF307DA1-1 0x00005302" {
 }
 
 // GNOME ran this panel at 125% (see ~/.config/monitors.xml); niri's
-// auto-detected 1.5 made everything larger than before. Keep in sync with
-// env/dotfiles/common/x11/Xresources (Xft.dpi = 96 x scale).
+// auto-detected 1.5 made everything larger than before.
 // 2240x1400 at scale 1.25, i.e. 1792x1120, so below the 2560x1440 HP its
 // position is x = (2560 - 1792) / 2 = 384, y = 1440.
 output "AU Optronics 0xA195 Unknown" {
@@ -121,11 +120,13 @@ output "Samsung Display Corp. ATNA40HQ05-0  Unknown" {
 // Xwayland and the display targets are its services.
 spawn-at-startup "shepherd"
 
-// Load ~/.Xresources once Xwayland (xwayland-satellite) is up: satellite
-// reports the real physical size (~190 DPI) to Xwayland, which makes X11
-// apps (Feishu, emacs, ...) render far larger than under GNOME. Xft.dpi
-// brings them back to 96 x scale = 120 DPI.
-spawn-at-startup "sh" "-c" "while ! xrdb -merge ~/.Xresources 2>/dev/null; do sleep 1; done"
+// Set Xft.dpi once Xwayland (xwayland-satellite) is up: satellite
+// reports 96 DPI regardless of output scale, which makes X11 apps
+// (Feishu, emacs, ...) render too small on scaled panels.  Pin the DPI
+// to 96 x the largest output scale so they are right on the densest
+// screen; they render large on any lower-scale external, which we
+// accept.
+spawn-at-startup "sh" "-c" "while :; do dpi=$(niri msg outputs | awk '/^  Scale:/ { if ($2 > m) m = $2 } END { printf \"%d\", 96 * m }'); [ \"$dpi\" != 0 ] && printf 'Xft.dpi: %s\n' \"$dpi\" | xrdb -merge - && exit 0; sleep 1; done"
 
 // Xwayland is provided by the session Shepherd on :1 (see (uraj packages
 // window-managers)).  niri's own spawner starts xwayland-satellite on

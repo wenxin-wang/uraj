@@ -1,8 +1,0 @@
-! X11 resources for the niri session.
-! xwayland-satellite gives the whole X screen the smallest scale of all
-! connected outputs: attaching the 1.0-scale DP-2 drops DPI from ~144 to
-! ~96 and shrinks X11 apps (Feishu) on the 1.5-scale built-in panel.
-! Pin Xft.dpi to 96 x 1.5 = 144, matching the built-in panel's `output`
-! scale in niri/config.kdl; X11 apps render larger on the 1.0-scale
-! external, which we accept.
-Xft.dpi: 144
