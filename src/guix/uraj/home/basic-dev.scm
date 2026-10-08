@@ -72,12 +72,33 @@
                     (symlink "/dev/null" mask))))
               '#$%host-gpg-agent-systemd-units)))))))
 
+(define home-gpg-agent/keep-ssh-auth-sock-service-type
+  ;; With ssh-support?, the upstream service exports SSH_AUTH_SOCK
+  ;; unconditionally in setup-environment, clobbering the socket that
+  ;; `ssh -A` forwards into remote login shells.  Only default to the
+  ;; gpg-agent socket when the session has no agent yet.
+  (service-type
+   (inherit home-gpg-agent-service-type)
+   (extensions
+    (map (lambda (extension)
+           (if (eq? (service-extension-target extension)
+                    home-environment-variables-service-type)
+               (service-extension
+                home-environment-variables-service-type
+                (lambda (config)
+                  (if (home-gpg-agent-configuration-ssh-support? config)
+                      '(("SSH_AUTH_SOCK"
+                         . "${SSH_AUTH_SOCK:-$XDG_RUNTIME_DIR/gnupg/S.gpg-agent.ssh}"))
+                      '())))
+               extension))
+         (service-type-extensions home-gpg-agent-service-type)))))
+
 (define (basic-dev-gpg-agent-service)
   ;; Generates ~/.gnupg/gpg-agent.conf from this configuration; all
   ;; machines run Guix Home or Guix System, so this is the only source
   ;; for that file.
   (service
-   home-gpg-agent-service-type
+   home-gpg-agent/keep-ssh-auth-sock-service-type
    (home-gpg-agent-configuration
     (gnupg gnupg)
     ;; The dotfiles script, copied into the store: it picks a graphical
