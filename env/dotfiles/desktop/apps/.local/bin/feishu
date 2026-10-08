@@ -1,13 +1,20 @@
 #!/bin/sh
-# Launch Feishu with native Wayland, IME support and a device scale factor that
-# matches the current niri output scale. The bundled Chromium (131) does not
-# apply niri's fractional output scale itself, so without this it rasterizes at
-# 1x and the compositor upscales the window, which makes all text look blurry.
+# Launch Feishu with native Wayland and IME support.
+#
+# No --force-device-scale-factor: Chromium follows each output's integer
+# wl_output scale on its own (2 for the 1.5x panel, 1 for the 1.0x monitor),
+# so text rasterizes at or above the physical scale and stays sharp on either
+# screen.
+#
+# WaylandFractionalScaleV1 is disabled because with it Chromium computes
+# surface/input geometry at the wrong scale under niri, and clicks land beside
+# the rendered widgets on the 1.5x panel (niri issue #2770). Without it
+# Chromium uses wp_viewport with integer buffer scales instead, which keeps
+# input aligned.
 
 set -u
 
 FEISHU=/usr/bin/bytedance-feishu-stable
-DEFAULT_SCALE=1.5
 
 if [ -e /etc/os-release ]; then
     . /etc/os-release
@@ -16,19 +23,7 @@ fi
 flags=""
 if [ -n "${WAYLAND_DISPLAY:-}" ] && [ "$NAME" = "Ubuntu" ] && \
         [ "$(echo "$VERSION_ID > 22.04" | bc -l )" = 1 ] ; then
-    scale=$(niri msg --json workspaces 2>/dev/null | python3 -c '
-import json, subprocess, sys
-try:
-    focused = next(w["output"] for w in json.load(sys.stdin)
-                   if w.get("is_focused") and w.get("output"))
-    outputs = json.loads(subprocess.check_output(
-        ["niri", "msg", "--json", "outputs"], text=True))
-    print(outputs[focused]["logical"]["scale"])
-except Exception:
-    pass
-')
-    [ -n "$scale" ] || scale=$DEFAULT_SCALE
-    flags="--ozone-platform=wayland --force-device-scale-factor=$scale --enable-wayland-ime --wayland-text-input-version=3"
+    flags="--ozone-platform=wayland --disable-features=WaylandFractionalScaleV1 --enable-wayland-ime --wayland-text-input-version=3"
 fi
 
 # shellcheck disable=SC2086
