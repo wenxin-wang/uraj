@@ -19,7 +19,7 @@
   #:use-module (uraj utils file path)
   #:export (server-base-os server-home-environment))
 
-(define (server-home-environment user)
+(define* (server-home-environment user #:key (extra-services '()))
   (parameterize ((%home-target (guix-system-home-target user)))
     (home-environment
      (services
@@ -30,9 +30,9 @@
                 ,(local-file
                   (project-path "env/guix/trusted-channels.scm")
                   "trusted-channels.scm"))))
-            (basic-sys-home-services))))))
+            (append (basic-sys-home-services) extra-services))))))
 
-(define (server-base-os main-user ssh-key)
+(define* (server-base-os main-user ssh-key #:key (home-services '()))
   "Return the headless role administered by MAIN-USER (see
 main-user-account), who also owns the embedded Home.  SSH-KEY is as for
 base-os."
@@ -45,7 +45,8 @@ base-os."
               ;; Activate the same Home on installed systems and live images.
               (service guix-home-with-environment-service-type
                        (list (list (user-account-name main-user)
-                                   (server-home-environment main-user))))
+                                   (server-home-environment
+                                    main-user #:extra-services home-services))))
               (service elogind-service-type
                 (elogind-configuration
                   (elogind elogind-with-shepherd-kexec)))

@@ -103,7 +103,7 @@ sys.exit(99)
                     socket.AF_UNIX, socket.SOCK_SEQPACKET
                 ) as peer:
                     peer.settimeout(0.2)
-                    peer.connect(str(self.runtime / "socket"))
+                    peer.connect(str(self.runtime / "connection/socket"))
                     peer.send(b'{"version":1,"type":"status"}')
                     return json.loads(peer.recv(65536)).get("type") == "status"
             except OSError:
@@ -160,6 +160,18 @@ sys.exit(99)
         )
         self.assertEqual(echo.returncode, 7)
 
+    def test_previous_boot_records_do_not_match_live_pids(self):
+        self.server.terminate()
+        self.server.wait(timeout=10)
+        self.server.stderr.close()
+        old = self.runtime / "execution-previous-boot"
+        old.mkdir()
+        (old / "boot-id").write_text("different-boot\n")
+        # A PID and start-time collision across boots must not block startup.
+        (old / "namespace.stat").write_text(Path("/proc/self/stat").read_text())
+        self.start_server()
+        self.assertFalse(old.exists())
+
     def test_signal_fidelity(self):
         proc = self.client("signal")
         proc.communicate(timeout=10)
@@ -209,7 +221,7 @@ sys.exit(99)
     def test_invalid_request(self):
         with socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET) as peer:
             peer.settimeout(5)
-            peer.connect(str(self.runtime / "socket"))
+            peer.connect(str(self.runtime / "connection/socket"))
             peer.send(
                 json.dumps(
                     {"version": 1, "type": "start", "provider": "sh"}

@@ -268,9 +268,13 @@
                        (fingerprint project policy tools) #f)))
     (string-append dir "/ssh.sock")))
 
-(define (ssh-ensure project policy tools)
+(define* (ssh-ensure project policy tools #:optional directory)
   "Reuse a matching agent or start it automatically; return its directory."
-  (let ((dir (ssh-runtime project tools)))
+  (let ((dir (if directory
+                 ;; A daemon has one policy, so its private namespace needs
+                 ;; no additional per-project hash directory.
+                 (private-directory directory #t)
+                 (ssh-runtime project tools))))
     ;; Check and start under the same lock: concurrent sessions must not
     ;; replace each other's newly loaded agent.
     (with-lock

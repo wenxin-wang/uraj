@@ -53,7 +53,7 @@
 (for-each (lambda (name)
             (test-assert (format #f "installer does not run ~a" name)
               (not (lookup live name))))
-          '(immich dockerd containerd docker-lan paseo-relay paseo))
+          '(immich dockerd containerd docker-lan paseo-relay paseo paseo-broker))
 (define shared-manifest
   (json-string->scm
    (plain-file-content
@@ -67,7 +67,7 @@
 (test-equal "Compose must not delete the shared network" #t
   (assoc-ref (lan shared-manifest) "external"))
 (define relay (assoc-ref (assoc-ref relay-manifest "services") "relay"))
-(test-equal "relay uses .8, leaving .6 for Immich and .7 for daemon" "172.31.0.8"
+(test-equal "relay uses .8 independently of the host-network daemon" "172.31.0.8"
   (assoc-ref (assoc-ref (assoc-ref relay "networks") "lan") "ipv4_address"))
 (test-equal "build works without Docker's default bridge" "host"
   (assoc-ref (assoc-ref relay "build") "network"))

@@ -40,6 +40,11 @@ class SharedSSHTest(unittest.TestCase):
         self.project.mkdir(parents=True)
         self.runtime = self.root / "run"
         self.runtime.mkdir(mode=0o700)
+        # Reproduce persistent Home paths: the previous execution-ssh-/keys
+        # layout exceeded Linux's socket path limit with this base length.
+        self.broker_directory = self.runtime / "broker"
+        padding = max(0, 40 - len(os.fsencode(self.broker_directory)))
+        self.broker_directory = self.runtime / ("broker" + "x" * padding)
         self.tools = {
             name: shutil.which(name)
             for name in (
@@ -149,7 +154,7 @@ if 'hold' in sys.argv:
             sys.executable,
             str(SOURCE / "src/python/uraj/paseo/broker.py"),
             "--directory",
-            str(self.runtime / "broker"),
+            str(self.broker_directory),
         ]
         self.command = self.prefix + [
             "serve",
@@ -167,7 +172,7 @@ if 'hold' in sys.argv:
         )
         self.addCleanup(self.stop_processes)
         wait_until(
-            lambda: (self.runtime / "broker/socket").exists()
+            lambda: (self.broker_directory / "connection/socket").exists()
             or self.server.poll() is not None
         )
         self.assertIsNone(self.server.poll())
@@ -227,11 +232,10 @@ if 'hold' in sys.argv:
         self.assertEqual(self.result(self.client("--version")), "no-ssh")
         self.assertEqual(self.result(self.client("auth", "status")), "no-ssh")
         self.assertFalse(self.prompts.exists())
-        self.assertFalse(
-            list((self.runtime / "broker").glob("execution-ssh-*"))
-        )
+        self.assertFalse(list(self.broker_directory.glob("ssh-*")))
         first, second = self.client(), self.client()
         sock = self.result(first)
+        self.assertLessEqual(len(os.fsencode(sock)), 107)
         self.assertEqual(self.result(second), sock)
         self.assertEqual(self.result(self.client()), sock)
         self.assertEqual(self.prompts.read_text().splitlines(), ["prompt"])
@@ -302,9 +306,7 @@ if 'hold' in sys.argv:
 
     def test_broker_death_cleans_shared_namespace_and_restart(self):
         self.result(self.client())
-        record = next(
-            (self.runtime / "broker").glob("execution-ssh-*/namespace.stat")
-        )
+        record = next(self.broker_directory.glob("ssh-*/namespace.stat"))
         fd = os.pidfd_open(int(record.read_text().split()[0]))
         self.server.kill()
         self.server.wait(timeout=10)
@@ -323,7 +325,9 @@ if 'hold' in sys.argv:
                     socket.AF_UNIX, socket.SOCK_SEQPACKET
                 ) as peer:
                     peer.settimeout(0.2)
-                    peer.connect(str(self.runtime / "broker/socket"))
+                    peer.connect(
+                        str(self.broker_directory / "connection/socket")
+                    )
                     peer.send(b'{"version":1,"type":"status"}')
                     return bool(peer.recv(65536))
             except OSError:
@@ -359,7 +363,7 @@ if 'hold' in sys.argv:
         wait_until(self.prompts.exists)
         with socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET) as peer:
             peer.settimeout(1)
-            peer.connect(str(self.runtime / "broker/socket"))
+            peer.connect(str(self.broker_directory / "connection/socket"))
             peer.send(b'{"version":1,"type":"status"}')
             self.assertEqual(
                 json.loads(peer.recv(65536))["ssh_preparation"], "unlocking"
@@ -372,7 +376,9 @@ if 'hold' in sys.argv:
         self.server.terminate()
         self.server.wait(timeout=10)
         self.assertEqual(
-            list((self.runtime / "broker").glob("execution-*")), []
+            list(self.broker_directory.glob("execution-*"))
+            + list(self.broker_directory.glob("ssh-*")),
+            [],
         )
 
 

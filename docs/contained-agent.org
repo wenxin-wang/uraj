@@ -40,11 +40,12 @@ as =contained-agent= the first argument names the agent, or is =allow=.
 - Terminal: =~/.local/bin= comes first in =PATH= (=.profile.d/61-paths.sh=),
   so =codex= and =claude= are the contained ones.  The originals remain at
   =~/.guix-home/profile/bin/=.
-- Paseo: =~/.paseo/config.json= overrides the provider commands:
+- Paseo: Home activation configures broker clients in =~/.paseo/config.json=
+  (see [[file:paseo-daemon.org][daemon service]]):
   #+begin_src json
   "agents": { "providers": {
-    "codex":  { "command": ["/home/wenxin/.local/bin/codex"] },
-    "claude": { "command": ["/home/wenxin/.local/bin/claude"] } } }
+    "codex":  { "command": ["/home/wenxin/.guix-home/profile/bin/paseo-codex"] },
+    "claude": { "command": ["/home/wenxin/.guix-home/profile/bin/paseo-claude"] } } }
   #+end_src
   Restart the daemon after a change: it caches the provider version probe.
 - Approve a project's own files: =contained-agent allow [DIRECTORY]=.
@@ -65,6 +66,10 @@ as =contained-agent= the first argument names the agent, or is =allow=.
   and their uncommitted files.  Common mounts come first; the current work
   tree is then mounted read-write, followed by its Git protections.  Other
   projects remain read-only unless separately granted write access.
+- All agents can read =~/.cache/paseo-tmp= when it exists. Paseo uses it as
+  =TMPDIR= so Codex's =localImage= paths work across container boundaries.
+  This includes other sessions' attachments and temporary files; see
+  [[file:paseo-daemon.org::*Image attachments][image attachments]] for setup and cleanup.
 - Clone temporary reference code into =/tmp/reference-code/=, or use an
   ignored =.reference-code/= directory in the current work tree to retain it.
   Read access to =~/src= does not grant permission to clone into it.
@@ -207,7 +212,8 @@ covered.
 Requests never mount anything under these, nor any directory containing
 one (such as =$HOME= or =/=): =~/.paseo=, =~/.paseo-password=, =~/.ssh=,
 =~/.gnupg=, =~/.password-store=, =~/.config/contained-agent=,
-=~/.local/state/contained-agent=, =/var/guix/daemon-socket=, =/run/user=.
+=~/.local/state/contained-agent=, =~/.local/state/paseo-broker=,
+=/var/guix/daemon-socket=, =/run/user=.
 
 * What agents cannot do
 

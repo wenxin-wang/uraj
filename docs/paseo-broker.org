@@ -2,15 +2,14 @@
 
 * Status and scope
 
-Implemented for a same-user host Paseo daemon; not yet switched into the live
-lappie/storie Paseo installation.  The agent execution environment cannot see
-the host Home or user Shepherd, so the final lappie commands below are run by
-the user.  This extends
-[[file:contained-agent.org][contained-agent]]; it does not replace its mount, state-overlay, Git protection
-or approved-manifest implementation.  Existing direct terminal use stays as is.
+The broker is integrated with the boot service described in
+[[file:paseo-daemon.org][Paseo application container and boot service]]. Guix System starts it as
+the daemon's host user; the daemon itself runs in a Guix application container.
+Foreign Guix Home uses user Shepherd. This extends
+[[file:contained-agent.org][contained-agent]] without replacing its mount, state-overlay, Git protection
+or approved-manifest implementation. Existing direct terminal use stays as is.
+The deployment still needs the host-side cutover described in that document.
 
-The host broker launches agent containers.  Paseo currently remains on the host;
-moving it into a container is a later step requiring peer UID/mount integration.
 Paseo still owns conversations, provider protocols and session restoration.
 The broker owns execution lifetime and cleanup, not conversation history.
 Python's standard library is the proposed control-protocol implementation;
@@ -35,7 +34,8 @@ resolved on the host for each execution and need no Paseo restart.
 | =test/python/uraj/guix/contained-agent/paseo-broker.py= | Real-process integration tests with fake providers |
 
 The broker accepts only same-UID peers for now.  It permits project cwd under
-~/src and ~/Projects, plus a no-project home cwd for probes.  =--root= on the
+~/src and ~/Projects by default, plus a no-project home cwd for probes.
+Storie uses the same roots under /home/wenxin.  =--root= on the
 server changes the roots.  Cwd is canonicalized, but concurrent host-path
 rename/symlink attacks are not fully hardened; do not yet treat this as the
 untrusted cross-UID/Paseo-container boundary described in the longer design.
@@ -43,7 +43,9 @@ It executes the existing installed contained-agent policy, including its
 current optional SSH/Guix access settings; broker transport adds no new grant.
 
 The supervisor records namespace init identity before releasing its launch
-gate.  A broker restart checks recorded PID/start-time identities with pidfds
+gate. Execution directories also record the boot ID so persistent records
+from an earlier boot cannot match a reused PID. A broker restart checks
+recorded PID/start-time identities with pidfds
 and waits for old namespace teardown before removing execution temporary
 directories.  SIGTERM cancellation allows two seconds; the broker additionally
 escalates a stuck supervisor after five seconds.  Runtime files/socket are
@@ -63,10 +65,10 @@ herd start paseo-broker
 #+end_src
 
 These explicit trial commands load and start the service in the existing user
-Shepherd.  Normal Home reconfiguration also installs the binaries and stable
-client paths and registers the broker Shepherd service.  If Home already
-manages the service, do not load a second trial definition.  Home does not
-change Paseo provider configuration automatically.  Replacing a running broker
+Shepherd.  Normal Home reconfiguration installs the profile clients and automatically
+merges their commands into Paseo configuration. On Guix System the root
+Shepherd owns the boot service; foreign Home registers user services. Do not
+load a trial broker alongside either managed service.  Replacing a running broker
 can end its executions; finish them before deploying a new service definition.
 
 Switch only the two provider commands after successful version probes:
@@ -123,7 +125,8 @@ run on the host through =SSH_ASKPASS=.  The inner Guix container still applies
 the separate contained-agent environment policy.
 
 The broker must itself inherit working desktop/askpass settings.  Retaining
-variables cannot recover settings missing from the user Shepherd environment.
+variables cannot recover settings missing from the service environment.
+System boot services need explicit graphical/askpass environment configuration.
 Version probes do not exercise encrypted SSH keys.  The regression test
 =paseo-broker-askpass.py= unlocks a disposable encrypted key without a terminal,
 using a fake askpass helper; it does not validate the user's graphical session.

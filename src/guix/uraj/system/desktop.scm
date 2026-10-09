@@ -35,6 +35,7 @@
   #:use-module (uraj packages elogind)
   #:use-module (uraj packages wireless)
   #:use-module (uraj services desktop)
+  #:use-module (uraj services paseo)
   #:use-module (uraj system base)
   #:use-module (uraj system home)
   #:use-module (uraj utils file path)
@@ -57,7 +58,7 @@
    (project-path "env/guix/trusted-channels.scm")
    "trusted-channels.scm"))
 
-(define (desktop-home-environment user)
+(define* (desktop-home-environment user #:key (paseo-at-boot? #f))
   (parameterize ((%home-target (guix-system-home-target user)))
     (home-environment
      (packages (list network-manager-applet))
@@ -67,7 +68,8 @@
              home-files-service-type
              `((".config/guix/trusted-channels.scm"
                 ,%desktop-trusted-channels-file)))
-            (niri-desktop-home-services))))))
+            (niri-desktop-home-services
+             #:paseo-autostart? (not paseo-at-boot?)))))))
 
 (define %desktop-tmp-file-system %tmp-file-system)
 
@@ -85,10 +87,11 @@
         "20-network-manager-netdev.rules"
         "polkit.addRule(function(action, subject) {\n    if (action.id.indexOf(\"org.freedesktop.NetworkManager.\") === 0 &&\n        subject.local && subject.active && subject.isInGroup(\"netdev\")) {\n        return polkit.Result.YES;\n    }\n});\n")))))
 
-(define (desktop-base-os main-user ssh-key)
+(define* (desktop-base-os main-user ssh-key #:key (paseo-at-boot? #f))
   "Return the graphical role administered by MAIN-USER (see
 main-user-account), who also owns the embedded niri Home.  SSH-KEY is as
-for base-os."
+for base-os.  PASEO-AT-BOOT? selects system services instead of session
+Home services, including on machines that also run a desktop."
   (define user
     ;; "cgroup" is rootless-podman-service-type's group owning the
     ;; delegated /sys/fs/cgroup controllers.
@@ -176,7 +179,9 @@ for base-os."
             ;; system; its activation runs as the main user on boot and on
             ;; reconfigure, populating ~/.guix-home.
             (service guix-home-with-environment-service-type
-                     (list (list user-name (desktop-home-environment user))))
+                     (list (list user-name
+                                 (desktop-home-environment
+                                  user #:paseo-at-boot? paseo-at-boot?))))
 
             ;; VT1: login through tuigreet, then start the niri session;
             ;; VT2-6: plain shell logins (agreety), like the
@@ -198,14 +203,19 @@ for base-os."
             ;; all come from %rosenthal-desktop-services/base (which builds
             ;; on %desktop-services).
 
-            (base-services
-             user ssh-key
-             (modify-services %rosenthal-desktop-services/base
-               (elogind-service-type config =>
-                 (elogind-configuration
-                  (inherit config)
-                  (elogind elogind-with-shepherd-kexec)))
-               ;; Cellular support is opt-in; unused ModemManager delay
-               ;; inhibitors can hold up suspend on machines without modems.
-               (delete modem-manager-service-type)
-               (delete mingetty-service-type)))))))
+            (append
+             (if paseo-at-boot?
+                 (list (service paseo-service-type
+                         (paseo-user-configuration user)))
+                 '())
+             (base-services
+              user ssh-key
+              (modify-services %rosenthal-desktop-services/base
+                (elogind-service-type config =>
+                  (elogind-configuration
+                   (inherit config)
+                   (elogind elogind-with-shepherd-kexec)))
+                ;; Cellular support is opt-in; unused ModemManager delay
+                ;; inhibitors can hold up suspend on machines without modems.
+                (delete modem-manager-service-type)
+                (delete mingetty-service-type))))))))

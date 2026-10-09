@@ -2,7 +2,7 @@
 
 * Layout
 
-Immich keeps 172.31.0.6; the Guix Paseo daemon container uses 172.31.0.7
+Immich keeps 172.31.0.6; the Guix Paseo daemon uses storie's host address
 (see [[file:paseo-daemon.org][daemon deployment and pairing]]).
 The relay listens at 172.31.0.8:4000 on the shared macvlan network
 =docker_lan=, attached to =enp1s0=, with gateway 172.31.0.1.
@@ -13,7 +13,11 @@ Both Compose projects now treat the network as external, so removing either
 project does not remove the network. Stopping =docker-lan= leaves it intact.
 Its existing automatic allocation range remains 172.31.0.6/32; explicit
 container addresses such as .8 come from the enclosing /24 subnet.
-Reserve .6, .7 and .8 outside the router's DHCP pool before deployment.
+Reserve .6 and .8 outside the router's DHCP pool before deployment.
+
+The daemon now shares the host network and cannot directly reach this macvlan
+child. Direct LAN/VPN access works; relay use requires an endpoint reachable
+from the host. Existing private-relay pairing links need reconfiguration.
 
 The relay uses the official Dockerfile at commit
 =3fc41c96c8c63f3a7109e832899cc57d473c4531= of

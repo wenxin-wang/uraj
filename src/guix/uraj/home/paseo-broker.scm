@@ -7,8 +7,14 @@
   #:use-module (gnu services)
   #:use-module (gnu services shepherd)
   #:use-module (guix gexp)
+  #:use-module (guix packages)
+  #:use-module (guix build-system trivial)
+  #:use-module ((guix licenses) #:prefix license:)
   #:use-module (uraj utils file path)
-  #:export (paseo-broker-home-services paseo-broker-bundle))
+  #:use-module (uraj packages ssh)
+  #:export (paseo-broker-home-services paseo-broker-bundle
+            broker-program paseo-broker-clients supervisor
+            paseo-askpass-environment))
 
 (define supervisor
   (computed-file
@@ -45,14 +51,49 @@
    #~(apply execl #$(file-append python "/bin/python3") "python3"
             #$broker-source "client" #$provider (cdr (command-line)))))
 
-(define (broker-shepherd-service program)
+(define paseo-broker-clients
+  (package
+    (name "paseo-broker-clients")
+    (version "1")
+    (source #f)
+    (build-system trivial-build-system)
+    (arguments
+     (list #:builder
+           #~(begin
+               (mkdir #$output)
+               (mkdir (string-append #$output "/bin"))
+               (symlink #$(provider-client "codex")
+                        (string-append #$output "/bin/paseo-codex"))
+               (symlink #$(provider-client "claude")
+                        (string-append #$output "/bin/paseo-claude")))))
+    (home-page "https://paseo.sh")
+    (synopsis "Paseo host broker clients")
+    (description "Connect Paseo providers to the same-user execution broker.")
+    (license license:gpl3+)))
+
+;; Only host-side preparation receives the desktop's Secret Service access.
+;; Explicit values take precedence over stale inherited askpass settings.
+(define paseo-askpass-environment
+  #~(cons* (string-append "SSH_ASKPASS="
+                         #$(file-append ksshaskpass-with-qtkeychain
+                                        "/bin/ksshaskpass"))
+           "SSH_ASKPASS_REQUIRE=force"
+           (filter (lambda (entry)
+                     (not (or (string-prefix? "SSH_ASKPASS=" entry)
+                              (string-prefix? "SSH_ASKPASS_REQUIRE=" entry))))
+                   (environ))))
+
+(define* (broker-shepherd-service program #:key (requirements '())
+                                  (askpass? #f))
   (shepherd-service
    (provision '(paseo-broker))
+   (requirement requirements)
    (documentation "Launch Paseo agents through owned PID namespaces.")
-   (modules '((shepherd support)))
+   (modules '((shepherd support) (srfi srfi-1) (srfi srfi-13)))
    (start #~(make-forkexec-constructor
              (list #$program)
-             #:environment-variables (environ)
+             #:environment-variables #$(if askpass? paseo-askpass-environment
+                                          #~(environ))
              #:log-file (in-vicinity %user-log-dir "paseo-broker.log")))
    (stop #~(make-kill-destructor))))
 
@@ -72,11 +113,14 @@
               (use-modules (shepherd service))
               (register-services (list (primitive-load #$definition))))))))))
 
-(define (paseo-broker-home-services launcher)
-  "Install the local broker and separate Paseo provider clients.  The host
-Paseo daemon is unchanged; select these clients in its provider configuration."
+(define* (paseo-broker-home-services launcher #:key (autostart? #t)
+                                     (requirements '()) (askpass? #f))
+  "Install broker clients in the Home profile and optionally a user service.
+Boot deployments start the broker through the root Shepherd instead."
   (let ((program (broker-program launcher)))
-    (list
+    (append (list
+     (simple-service 'paseo-broker-profile home-profile-service-type
+       (list paseo-broker-clients))
      (simple-service 'paseo-broker-files home-files-service-type
        `((".local/bin/paseo-broker" ,program)
          (".local/libexec/paseo-broker/codex" ,(provider-client "codex"))
@@ -85,6 +129,9 @@ Paseo daemon is unchanged; select these clients in its provider configuration."
           ,(program-file
             "paseo-broker-configure"
             #~(apply execl #$(file-append python "/bin/python3") "python3"
-                     #$broker-source "configure" (cdr (command-line)))))))
-     (simple-service 'paseo-broker home-shepherd-service-type
-       (list (broker-shepherd-service program))))))
+                     #$broker-source "configure" (cdr (command-line))))))))
+     (if autostart?
+         (list (simple-service 'paseo-broker home-shepherd-service-type
+                 (list (broker-shepherd-service
+                        program #:requirements requirements #:askpass? askpass?))))
+         '()))))

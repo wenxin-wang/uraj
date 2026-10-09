@@ -7,6 +7,8 @@
              ((guix utils) #:select (with-environment-variables))
              (srfi srfi-1) (srfi srfi-13) (srfi srfi-64)
              (uraj system desktop)
+             (uraj home niri)
+             (uraj services paseo)
              (uraj common context)
              (uraj packages elogind)
              (uraj packages window-managers)
@@ -144,6 +146,55 @@
 (test-equal "session writer and native rotation share the log path"
   (car (log-rotation-configuration-external-log-files home-log-rotation))
   (assoc-ref home-variables "NIRI_SESSION_LOG_FILE"))
+
+(define (lookup services name)
+  (find (lambda (s) (memq name (shepherd-service-provision s))) services))
+(test-assert "lappie has no system Paseo instance"
+  (not (any (lambda (s) (eq? (service-kind s) paseo-service-type))
+            (operating-system-user-services os))))
+(test-equal "desktop broker waits for keyring initialization"
+  '(gnome-keyring-secrets)
+  (shepherd-service-requirement (lookup home-services 'paseo-broker)))
+(test-equal "desktop daemon waits for broker"
+  '(paseo-broker)
+  (shepherd-service-requirement (lookup home-services 'paseo)))
+(for-each
+ (lambda (name)
+   (test-assert (format #f "~a forces the configured desktop askpass" name)
+     (string-contains
+      (object->string (gexp->approximate-sexp
+                       (shepherd-service-start (lookup home-services name))))
+      "SSH_ASKPASS_REQUIRE=force")))
+ '(paseo paseo-broker))
+(define boot-os
+  (desktop-base-os target-user (plain-file "test.pub" "") #:paseo-at-boot? #t))
+(test-equal "boot desktop has one system Paseo service"
+  1 (count (lambda (s) (eq? (service-kind s) paseo-service-type))
+           (operating-system-user-services boot-os)))
+(define boot-home-services
+  (home-shepherd-configuration-services
+   (service-value
+    (fold-services
+     (home-environment-services
+      (desktop-home-environment target-user #:paseo-at-boot? #t))
+     #:target-type home-shepherd-service-type))))
+(test-assert "boot desktop Home never starts a second daemon or broker"
+  (and (not (lookup boot-home-services 'paseo))
+       (not (lookup boot-home-services 'paseo-broker))))
+(define foreign-services
+  (parameterize ((%home-target (fake-foreign-target '() #t)))
+    (home-shepherd-configuration-services
+     (service-value
+      (fold-services
+       (home-environment-services
+        (home-environment (services (niri-desktop-home-services))))
+       #:target-type home-shepherd-service-type)))))
+(test-equal "foreign broker uses the existing session, not Guix keyring"
+  '(dbus graphical-session)
+  (shepherd-service-requirement (lookup foreign-services 'paseo-broker)))
+(test-assert "foreign Home starts Paseo and leaves keyring to the host"
+  (and (lookup foreign-services 'paseo)
+       (not (lookup foreign-services 'gnome-keyring-secrets))))
 
 (define failures (test-runner-fail-count (test-runner-current)))
 (test-end "desktop-session-lifecycle")

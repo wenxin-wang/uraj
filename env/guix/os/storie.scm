@@ -136,6 +136,7 @@
              (sops secrets)
              (sops services sops)
              (uraj packages hwmon)
+             (uraj home llm)
              (uraj services immich)
              (uraj services new-api)
              (uraj services docker-lan)
@@ -157,7 +158,8 @@
 
 (define %server-os
   (server-base-os %main-user
-                  (local-file (guix-env-path "os/keys/wenxin-ssh.pub"))))
+                  (local-file (guix-env-path "os/keys/wenxin-ssh.pub"))
+                  #:home-services (agent-headless-services)))
 
 ;; Match the module build to the inherited operating-system kernel.
 (define zfs-linux
@@ -362,7 +364,9 @@
             (service docker-lan-service-type)
             (service paseo-relay-service-type
               (paseo-relay-configuration (address "172.31.0.8")))
-            (service paseo-service-type)
+            ;; Both processes use wenxin's existing Home and project roots.
+            (service paseo-service-type
+              (paseo-user-configuration %main-user #:listen "0.0.0.0:6767"))
             ;; Image built by traj-record's new-api-plugin/build.sh; see
             ;; docs/new-api.org.  Bump the tag together with a new build.
             (service new-api-service-type

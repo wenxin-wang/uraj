@@ -8,7 +8,7 @@
   #:use-module (srfi srfi-11)
   #:use-module (srfi srfi-26)
   #:use-module (uraj bin contained-ssh)
-  #:export (contained-agent-main))
+  #:export (contained-agent-main read-all clause-options))
 
 ;;; Run a coding agent inside `guix shell --container', sharing only the
 ;;; current project plus the agent's own state.  Arguments, stdio and the
@@ -161,6 +161,8 @@ tree, and the mount options for WORKDIR."
   ;; guix-daemon clause instead), and the user's service managers.
   '("~/.paseo" "~/.paseo-password" "~/.ssh" "~/.gnupg" "~/.password-store"
     "~/.config/contained-agent" "~/.local/state/contained-agent"
+    "~/.local/state/paseo-broker"
+    "~/.config/paseo" "~/.local/state/paseo-sandbox"
     "~/.cache/contained-agent"
     "/var/guix/daemon-socket" "/run/user"))
 

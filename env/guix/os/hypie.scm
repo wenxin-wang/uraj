@@ -182,7 +182,8 @@
 
 (define %desktop-os
   (desktop-base-os %main-user
-                   (local-file (guix-env-path "os/keys/wenxin-ssh.pub"))))
+                   (local-file (guix-env-path "os/keys/wenxin-ssh.pub"))
+                   #:paseo-at-boot? #t))
 
 ;; Match the module builds to the inherited operating-system kernel.
 (define zfs-linux

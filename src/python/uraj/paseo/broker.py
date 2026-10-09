@@ -67,12 +67,9 @@ def send_control_reply(connection, message):
 
 def default_runtime_directory():
     """Return the per-user broker runtime directory."""
-    return (
-        pathlib.Path(
-            os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
-        )
-        / "paseo-broker"
-    )
+    if directory := os.environ.get("PASEO_BROKER_DIRECTORY"):
+        return pathlib.Path(directory)
+    return pathlib.Path.home() / ".local/state/paseo-broker"
 
 
 def launcher_environment(home, forwarded):
@@ -95,6 +92,13 @@ def launcher_environment(home, forwarded):
 def namespace_has_exited(path, timeout=0):
     """Check the exact namespace init, including after its helper was killed."""
     path = pathlib.Path(path)
+    boot = path / "boot-id"
+    if (
+        boot.exists()
+        and boot.read_text()
+        != pathlib.Path("/proc/sys/kernel/random/boot_id").read_text()
+    ):
+        return True
     identity = path / "namespace.stat"
     if identity.exists():
         original = identity.read_text()
@@ -116,6 +120,15 @@ def namespace_has_exited(path, timeout=0):
             finally:
                 os.close(fd)
     return True
+
+
+def execution_directory(parent, prefix="execution-"):
+    """Record the boot before any process can run in persistent runtime state."""
+    path = pathlib.Path(tempfile.mkdtemp(prefix=prefix, dir=parent))
+    (path / "boot-id").write_text(
+        pathlib.Path("/proc/sys/kernel/random/boot_id").read_text()
+    )
+    return path
 
 
 def wait_for_old_execution_and_remove_directory(path):
@@ -210,11 +223,11 @@ class SharedSSHPreparation:
 
     def __init__(self, args, home, owner):
         """Start the trusted launcher in shared SSH service mode."""
-        self.directory = pathlib.Path(
-            tempfile.mkdtemp(prefix="execution-ssh-", dir=args.directory)
-        )
-        self.runtime = self.directory / "keys"
-        self.runtime.mkdir(mode=0o700)
+        # Keep project sockets below sun_path's 107-byte limit with the
+        # persistent ~/.local/state/paseo-broker base directory. This private
+        # tree also holds the supervisor identity used for safe cleanup.
+        self.directory = execution_directory(args.directory, "ssh-")
+        self.runtime = self.directory
         env = launcher_environment(home, {})
         env["TMPDIR"] = str(self.directory)
         env["CONTAINED_AGENT_SSH_RUNTIME_DIRECTORY"] = str(self.runtime)
@@ -302,9 +315,21 @@ class BrokerServer:
         self.lock = open(self.directory / "lock", "a")
         fcntl.flock(self.lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         # Restart cleans host-side setup artifacts after kernel process teardown.
-        for path in self.directory.glob("execution-*"):
-            wait_for_old_execution_and_remove_directory(path)
-        self.path = self.directory / "socket"
+        for pattern in ("execution-*", "ssh-*"):
+            for path in self.directory.glob(pattern):
+                wait_for_old_execution_and_remove_directory(path)
+        # Only this directory is exposed to the Paseo container. Execution
+        # records and shared SSH material stay outside its mount namespace.
+        socket_directory = self.directory / "connection"
+        socket_directory.mkdir(mode=0o700, exist_ok=True)
+        socket_stat = socket_directory.lstat()
+        if (
+            socket_directory.is_symlink()
+            or socket_stat.st_uid != os.getuid()
+            or socket_stat.st_mode & 0o077
+        ):
+            raise ValueError("socket directory must be private and user-owned")
+        self.path = socket_directory / "socket"
         self.path.unlink(missing_ok=True)
         self.listener = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
         self.listener.bind(str(self.path))
@@ -334,7 +359,7 @@ class BrokerServer:
             env["CONTAINED_AGENT_SSH_RUNTIME_DIRECTORY"] = str(
                 self.ssh_preparation.runtime
             )
-        temporary = tempfile.mkdtemp(prefix="execution-", dir=self.directory)
+        temporary = str(execution_directory(self.directory))
         env["TMPDIR"] = temporary
         job["temporary"] = temporary
         fds = job.pop("fds")
@@ -611,7 +636,7 @@ def run_provider_client(args):
         raise ValueError("provider client parent changed during startup")
     connection = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
     connection.settimeout(5)
-    connection.connect(str(pathlib.Path(args.directory) / "socket"))
+    connection.connect(str(pathlib.Path(args.directory) / "connection/socket"))
     forwarded = {k: v for k, v in os.environ.items() if ENV.fullmatch(k)}
     message = {
         "version": 1,
@@ -733,7 +758,9 @@ def print_broker_status(args):
     """Query the running broker and print execution metadata."""
     with socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET) as connection:
         connection.settimeout(5)
-        connection.connect(str(pathlib.Path(args.directory) / "socket"))
+        connection.connect(
+            str(pathlib.Path(args.directory) / "connection/socket")
+        )
         connection.send(
             encode_control_message({"version": 1, "type": "status"})
         )

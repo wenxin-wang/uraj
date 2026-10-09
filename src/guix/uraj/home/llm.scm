@@ -10,13 +10,15 @@
   #:use-module (ice-9 match)
   #:use-module (srfi srfi-1)
   #:use-module (uraj common basic-services)
+  #:use-module (uraj common context)
   #:use-module (uraj home paseo-broker)
+  #:use-module (uraj home paseo)
   #:use-module (uraj packages codex-desktop)
   #:use-module (uraj packages llm)
   #:use-module (uraj utils file path)
   #:export (home-agent-skills-service-type
             agent-common-services
-            agent-desktop-services))
+            agent-desktop-services agent-headless-services contained-agent))
 
 ;;; Agent skills: a list of (NAME DIRECTORY) entries, DIRECTORY being a
 ;;; file-like skill directory containing SKILL.md (use file-append to pick a
@@ -59,7 +61,7 @@ search paths.")))
 
 (define (agent-common-services)
   "Return the coding agents and their skills, shared by desktop Homes and the
-headless Paseo container."
+headless Homes."
   (list
    (simple-service 'llm-agent-packages
                    home-profile-service-type
@@ -101,7 +103,10 @@ headless Paseo container."
   ;; Long-term memory is read-only: one prompt injection written there would
   ;; reach every later session.
   '((share "~/.llm-memory")
-    (expose "~/src" "~/.llm-wiki" "~/.gitconfig" "~/.gitconfig.local")
+    ;; Paseo sends Codex localImage paths below its private TMPDIR. Keep the
+    ;; same path in both namespaces, including files uploaded after launch.
+    (expose "~/.cache/paseo-tmp"
+            "~/src" "~/.llm-wiki" "~/.gitconfig" "~/.gitconfig.local")
     (preserve "TERM" "COLORTERM" "LANG" "LC_.*" "NO_COLOR" "PASEO_.*"
               "RUST_LOG")))
 
@@ -141,10 +146,30 @@ headless Paseo container."
 (define llm-desktop-packages
   (list codex-desktop paseo))
 
-(define (agent-desktop-services)
+(define (agent-headless-services)
+  "Install agents and Paseo in the existing user's Home, without desktop apps
+or a second user Shepherd broker. Agent settings remain user-managed."
   (append
    (agent-common-services)
-   (paseo-broker-home-services contained-agent)
+   (paseo-broker-home-services contained-agent #:autostart? #f)
+   (paseo-home-services #:desktop? #f)
+   (list
+    (simple-service 'paseo-cli home-profile-service-type (list paseo))
+    (simple-service 'contained-agent home-files-service-type
+      (contained-agent-home-files)))))
+
+(define* (agent-desktop-services #:key (autostart? #t))
+  (append
+   (agent-common-services)
+   (paseo-broker-home-services
+    contained-agent
+    #:autostart? autostart?
+    #:requirements (if (home-target-foreign? (current-home-target))
+                       '(dbus graphical-session)
+                       '(gnome-keyring-secrets))
+    #:askpass? #t)
+   (paseo-home-services
+    #:autostart? autostart?)
    (list
     (simple-service 'llm-desktop-packages
                     home-profile-service-type
