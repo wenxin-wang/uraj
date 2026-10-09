@@ -92,6 +92,11 @@ probe_ok=0
 infocmp -x xterm-ghostty 2>/dev/null | "$real_ssh" -o ControlMaster=yes \
     -o ControlPath="$cpath" -o ControlPersist=60s "$@" '
         infocmp xterm-ghostty >/dev/null 2>&1 && exit 0
+        # Hosts without ncurses tools (e.g. Guix System, whose Home links
+        # the entry into ~/.terminfo) can still have it.
+        for f in ~/.terminfo/x/xterm-ghostty ~/.terminfo/78/xterm-ghostty; do
+            [ -e "$f" ] && exit 0
+        done
         command -v tic >/dev/null 2>&1 || exit 1
         mkdir -p ~/.terminfo 2>/dev/null && tic -x - 2>/dev/null && exit 0
         exit 1
