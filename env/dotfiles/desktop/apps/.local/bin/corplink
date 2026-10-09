@@ -1,0 +1,23 @@
+#!/bin/sh
+# Launch FeiLian (飞连) with 1x rendering and crisp 1x text.
+#
+# FeiLian pins its window to 888x560 device pixels (WM_NORMAL_HINTS min ==
+# max, re-asserted within seconds of any external resize), so the logical
+# viewport it lays out into shrinks as the device scale factor grows.  Under
+# Xwayland it picks the scale factor up from Xft.dpi, which the niri startup
+# script sets to 96 x max output scale (1.25-1.5); the UI then overflows the
+# fixed window and buttons get clipped.  At scale factor 1 the whole UI fits.
+#
+# At 1x the default grayscale AA rasterizes too softly on these 109-PPI
+# panels.  Integer glyph origins plus LCD subpixel AA make it crisp again;
+# xwayland-satellite maps the window buffer to physical pixels almost 1:1
+# at both output scales, so the subpixel fringes are not resampled into fuzz.
+
+set -u
+
+CORPLINK=/opt/apps/com.volcengine.feilian/files/corplink
+
+exec env NODE_ENV=production "$CORPLINK" --no-sandbox \
+    --force-device-scale-factor=1 \
+    --disable-font-subpixel-positioning \
+    --enable-lcd-text "$@"

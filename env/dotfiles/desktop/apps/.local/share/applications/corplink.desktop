@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name[zh_CN]=飞连
+Name=FeiLian
+Exec=/home/wenxin/.local/bin/corplink %U
+Terminal=false
+Type=Application
+Icon=corplink
+StartupWMClass=FeiLian
+MimeType=x-scheme-handler/corplink;x-scheme-handler/feilian;x-scheme-handler/seal;
+Categories=Utility;

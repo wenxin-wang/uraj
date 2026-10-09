@@ -75,8 +75,12 @@ environment {
 // The HP monitor is the external display that the built-in panels below
 // are placed relative to; it is focused at startup (niri opens new
 // windows on the focused output).  Positions are in logical pixels.
+// scale 1.25: at 1:1 this 109-PPI panel rasterizes grayscale-AA text too
+// thinly, which reads as fuzzy; at 1.25 Chromium clients get integer
+// scale 2 and downsample (denser strokes), GTK/Firefox render native 1.25.
 output "HP Inc. HP P27q G4 CNC0441QRP" {
     position x=0 y=0
+    scale 1.25
     focus-at-startup
 }
 
@@ -94,10 +98,10 @@ output "Philips Consumer Electronics Company PHL 279C9 UHB2247016586" {
 }
 
 // Built-in panel of the Lenovo Legion Y7000 IRX10: 2560x1600 at scale 1.5,
-// i.e. 1706x1066 logical, so to the right of the 2560x1440 HP its
-// position is x = 2560, y = (1440 - 1066) / 2 = 187.
+// i.e. 1706x1066 logical, so to the right of the 2048x1152 HP its
+// position is x = 2048, y = (1152 - 1066) / 2 = 43.
 output "China Star Optoelectronics Technology Co., Ltd MNF307DA1-1 0x00005302" {
-    position x=2560 y=187
+    position x=2048 y=43
     scale 1.5
 }
 
