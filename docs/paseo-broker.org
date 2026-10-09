@@ -1,0 +1,602 @@
+#+title: Paseo broker: host execution and container cleanup
+
+* Status and scope
+
+Implemented for a same-user host Paseo daemon; not yet switched into the live
+lappie/storie Paseo installation.  The agent execution environment cannot see
+the host Home or user Shepherd, so the final lappie commands below are run by
+the user.  This extends
+[[file:contained-agent.org][contained-agent]]; it does not replace its mount, state-overlay, Git protection
+or approved-manifest implementation.  Existing direct terminal use stays as is.
+
+The host broker launches agent containers.  Paseo currently remains on the host;
+moving it into a container is a later step requiring peer UID/mount integration.
+Paseo still owns conversations, provider protocols and session restoration.
+The broker owns execution lifetime and cleanup, not conversation history.
+Python's standard library is the proposed control-protocol implementation;
+reuse the existing Guile launcher rather than duplicate its sandbox policy.
+The native C helper implements the Linux lifecycle boundary.
+The preferred first implementation uses a trusted outer namespace init with
+PDEATHSIG and a pidfd startup check.  Keep cgroups as an alternative and possible
+future resource-control facility, not a prerequisite for the first broker.
+
+Paseo receives ~/src and ~/Projects at their host absolute paths, plus its
+own state.  New projects below these roots need no remount.  Adding another
+root requires updating the Paseo container.  Extra agent-only mounts are
+resolved on the host for each execution and need no Paseo restart.
+
+* Implemented trial and lappie commands
+
+| File | Role |
+|------+------|
+| =src/python/uraj/paseo/broker.py= | Unix seqpacket protocol, FD passing, provider clients, configuration switch/restore, status |
+| =src/c/uraj/paseo/agent-supervisor.c= | Parent pidfd/PDEATHSIG links, user/PID/mount namespaces, trusted init, cancellation and exit status |
+| =src/guix/uraj/home/paseo-broker.scm= | Guix build, standalone trial bundle, Home files and Shepherd service |
+| =test/python/uraj/guix/contained-agent/paseo-broker.py= | Real-process integration tests with fake providers |
+
+The broker accepts only same-UID peers for now.  It permits project cwd under
+~/src and ~/Projects, plus a no-project home cwd for probes.  =--root= on the
+server changes the roots.  Cwd is canonicalized, but concurrent host-path
+rename/symlink attacks are not fully hardened; do not yet treat this as the
+untrusted cross-UID/Paseo-container boundary described in the longer design.
+It executes the existing installed contained-agent policy, including its
+current optional SSH/Guix access settings; broker transport adds no new grant.
+
+The supervisor records namespace init identity before releasing its launch
+gate.  A broker restart checks recorded PID/start-time identities with pidfds
+and waits for old namespace teardown before removing execution temporary
+directories.  SIGTERM cancellation allows two seconds; the broker additionally
+escalates a stuck supervisor after five seconds.  Runtime files/socket are
+user-private.  Status exposes metadata only, not argv or credentials.
+
+In a host terminal on lappie, as wenxin (no sudo), build a GC-rooted trial:
+
+#+begin_src sh
+cd ~/src/uraj
+mkdir -p ~/.local/state
+paseo_bundle=$(guix build -L src/guix -L src/guile \
+  -r "$HOME/.local/state/paseo-broker-trial" \
+  -e '((@ (uraj home paseo-broker) paseo-broker-bundle) (@@ (uraj home llm) contained-agent))')
+herd load root "$paseo_bundle/share/paseo-broker/shepherd.scm"
+herd start paseo-broker
+"$paseo_bundle/bin/paseo-broker" status
+#+end_src
+
+These explicit trial commands load and start the service in the existing user
+Shepherd.  Normal Home reconfiguration also installs the binaries and stable
+client paths and registers the broker Shepherd service.  If Home already
+manages the service, do not load a second trial definition.  Home does not
+change Paseo provider configuration automatically.  Replacing a running broker
+can end its executions; finish them before deploying a new service definition.
+
+Switch only the two provider commands after successful version probes:
+
+#+begin_src sh
+"$paseo_bundle/bin/paseo-broker" configure \
+  --client-directory "$paseo_bundle/libexec/paseo-broker"
+#+end_src
+
+This reads existing ~/.paseo/config.json, probes both clients, writes a private
+backup beside the file, preserves other provider/settings fields and replaces
+the configuration atomically.  Managed symlink configs are refused.  It prints
+the backup path.  No daemon restart is hidden in this command.
+
+After allowing current sessions to finish, restart Paseo and create a new agent:
+
+#+begin_src sh
+paseo daemon restart
+"$paseo_bundle/bin/paseo-broker" status
+#+end_src
+
+Check a small prompt, interrupt a turn and continue, then close the session and
+check its execution disappears.  Closing the app with daemon retained should
+not remove it.  Provider sessions can remain idle between turns: idle does not
+mean their process should have exited.  The restart can end the current agent,
+so execute it only after this implementation conversation has finished.
+
+Restore only provider command fields from the printed backup if needed:
+
+#+begin_src sh
+"$paseo_bundle/bin/paseo-broker" configure --restore /path/to/printed/backup
+paseo daemon restart
+herd stop paseo-broker
+#+end_src
+
+Validated on 2026-10-09: Guix builds of native supervisor and bundle; ten
+integration tests (streams, probes, numeric/signal results, detached child
+cleanup, client/parent/broker death, restart, replacement barrier, config
+backup/restore, status and malformed request); isolated Shepherd load/start/
+status/stop using the exact trial file.  Real contained-agent version probes
+returned Codex 0.155.0 and Claude Code 2.1.287.  Real Codex app-server initialize
+and stdin-EOF exit passed through the full broker/Guix path with temporary
+state and no credentials.  Codex warns about PATH helper creation with a
+temporary CODEX_HOME; this test warning did not prevent the handshake.
+Authenticated model turns and the actual lappie Paseo UI remain host-side tests.
+
+** SSH passphrase prompts during broker startup
+
+The broker preserves its own =SSH_ASKPASS=, =SSH_ASKPASS_REQUIRE=, =DISPLAY=,
+=WAYLAND_DISPLAY=, =XAUTHORITY=, =XDG_RUNTIME_DIR= and
+=DBUS_SESSION_BUS_ADDRESS= for the host-side launcher.  These are not accepted
+from provider clients; in particular, a client cannot select an executable to
+run on the host through =SSH_ASKPASS=.  The inner Guix container still applies
+the separate contained-agent environment policy.
+
+The broker must itself inherit working desktop/askpass settings.  Retaining
+variables cannot recover settings missing from the user Shepherd environment.
+Version probes do not exercise encrypted SSH keys.  The regression test
+=paseo-broker-askpass.py= unlocks a disposable encrypted key without a terminal,
+using a fake askpass helper; it does not validate the user's graphical session.
+
+Do not restart a live broker just to refresh these settings: stopping it ends
+its active executions.  Wait for its executions to finish first.  A newly built
+broker can then be run in the foreground from a desktop terminal to inherit
+that terminal's environment, without restarting Paseo or changing provider
+commands.  Existing clients use the same socket protocol.
+
+** Shared project SSH agents
+
+The bundle enables =--shared-ssh=.  Before a project execution starts, the
+broker asks a long-lived =contained-agent ssh-service= to prepare its SSH keys.
+That service has its own supervised PID namespace, separate from every session:
+
+#+begin_example
+broker
+  +-- supervisor -- SSH service -- per-project ssh-agent processes
+  +-- supervisor -- session A -- Guix -- provider
+  +-- supervisor -- session B -- Guix -- provider
+#+end_example
+
+The shared service reads central project policy, resolves linked worktrees to
+the main repository, and serializes preparation requests.  Unchanged policy
+reuses loaded keys; policy or known_hosts changes reload them with the existing
+destination restrictions.  Session launchers check the prepared policy and
+mount only their project's socket and snapshots.  They never interpret PIDs
+from the shared service's namespace or start another SSH agent there.
+
+Version and =auth status= probes skip SSH preparation.  A session exiting does
+not clear shared keys.  Broker shutdown or death tears down the shared namespace
+as well as its sessions; the next broker lifetime requires unlocking again.
+The shared runtime tree is private and separate from direct terminal use, so
+host =contained-agent ssh-start= does not preload this broker's cache.
+
+Status reports =ssh_preparation= as =not-started=, =unlocking=, or =ready=.
+The broker remains responsive while askpass waits.  Canceling a waiting session
+prevents that session from launching; an already-open shared unlock prompt may
+finish and populate the cache for other sessions.  Cancel the dialog to reject
+the unlock.  A rejected unlock fails that request without stopping the service.
+The service's stderr goes to the broker log/terminal, never provider stdout.
+
+Regression coverage in =paseo-broker-shared-ssh.py= uses real encrypted test
+keys, SSH agents, and PID namespaces, with a fake askpass and Guix-shell probe.
+It checks concurrent and later reuse, worktrees, separate projects, policy
+reload, failed unlock/retry, cancellation, and broker death/restart cleanup.
+It neither reads user credentials nor starts the user's Paseo installation.
+
+The design/history sections below include future hardening and alternatives;
+the implemented trial is narrower, notably no cgroup requirement, PTY support,
+cross-UID peer authorization or hardened hostile path-race handling.
+
+* Observed Paseo contract
+
+Source inspection targets the repository's packaged Paseo v0.10.3, not an
+assertion about every running installation or provider.  Relevant upstream files:
+
+- [[https://github.com/getpaseo/paseo/blob/v0.10.3/packages/desktop/src/daemon/quit-lifecycle.ts][Desktop quit lifecycle]]: keepRunningAfterQuit can leave the daemon running.
+- [[https://github.com/getpaseo/paseo/blob/v0.10.3/packages/server/src/server/bootstrap.ts][Daemon bootstrap/stop]]: normal shutdown calls closeAllAgents.
+- [[https://github.com/getpaseo/paseo/blob/v0.10.3/packages/server/src/server/agent/providers/claude/agent.ts][Claude provider]] and [[https://github.com/getpaseo/paseo/blob/v0.10.3/packages/server/src/server/agent/providers/codex/app-server-transport.ts][Codex transport]]: closing a session terminates provider processes;
+  normal turn interruption is a provider-protocol operation.
+- [[https://github.com/getpaseo/paseo/blob/v0.10.3/packages/server/src/server/agent/agent-manager.ts][Agent manager]]: passes PASEO_AGENT_ID and PASEO_AGENT_CWD.
+- [[https://github.com/getpaseo/paseo/blob/v0.10.3/packages/server/src/server/agent/provider-launch-config.ts][Provider command configuration]]: supports replacing the launch command.
+
+Claude and Codex use pipes here, not interactive PTYs.  Restoring their
+conversation starts a provider runtime using persisted session/thread identity;
+it is not a promise to reattach to the same surviving OS process.
+
+| Event                                      | Required broker behavior                                      |
+|--------------------------------------------+---------------------------------------------------------------|
+| App disconnects; daemon remains alive       | Leave execution running                                       |
+| User interrupts a turn                     | Pass provider protocol unchanged; do not destroy the container |
+| Provider exits normally or fails           | Save result, clean all remaining execution processes           |
+| Paseo closes/reloads/archives a session     | Terminate that execution and clean descendants                 |
+| Client receives TERM/INT/HUP                | Request termination; await cleanup within a bounded deadline    |
+| Client is killed, or control socket closes | Terminate execution even without a final message               |
+| Daemon dies but its client survives         | Client detects parent death and closes the execution           |
+| Paseo container stops                      | Client disappears; host cleans its execution                   |
+| Broker stops or crashes                    | Parent-death link tears down each outer execution namespace    |
+| Broker restarts                            | Reconcile execution records and cleanup before replacements    |
+
+Daemon-crash cleanup is an explicit fail-closed policy, not a claim that
+upstream gracefully handles SIGKILL.  Do not automatically restart a provider
+or replay a prompt.  Paseo remains responsible for conversation recovery.
+
+* Launch and transport
+
+#+begin_example
+Paseo app -> Paseo daemon (container)
+                 -> codex / claude broker client
+                      == Unix control socket + SCM_RIGHTS ==>
+                 host broker -> trusted outer namespace init
+                                  -> contained-agent -> Guix container -> provider
+#+end_example
+
+Install a separate client entry point named codex and claude in the Paseo
+container and configure each provider command to that single executable.
+Do not depend on a prefix such as ["agent-client", "codex"]: the existing
+contained-agent investigation found version probes that use COMMAND[0] only.
+Support version, authentication and catalog probes without an agent ID/cwd;
+these use a minimal no-project policy and have normal execution ownership.
+
+The client sends a bounded, versioned start request containing provider, argv,
+requested cwd, optional agent ID and an allowlisted environment.  It transfers
+exactly stdin/stdout/stderr using SCM_RIGHTS.  The broker closes its duplicate
+stdio descriptors after handing them to the owned launcher.  Only the control
+socket remains in the client/broker; it must be close-on-exec and absent from
+agent and helper children.  Output flows directly through the original pipes.
+Diagnostics never go to protocol stdout.
+
+Control messages: start, started(execution-id), terminate, exited(code/signal),
+and error.  Termination is idempotent.  An execution ID is generated by the
+broker, never reused, and is distinct from Paseo's optional agent ID.  One
+connection owns one execution; disconnect is a cancellation, not detachment.
+No reconnect, output replay, terminal emulation or arbitrary host exec API in v1.
+
+The client must monitor its daemon parent as well as the control socket.
+Use a verified Linux parent-death/pidfd mechanism with the startup race handled;
+do not depend solely on stdin EOF (it may close intentionally, or remain held
+by another process).  A client orphaned by daemon SIGKILL must not keep its
+control connection and agent alive forever.  The exact helper and namespace
+behavior are implementation prerequisites to test, not assumptions.
+
+On normal completion, exited is sent only after cleanup is confirmed, and the
+client reproduces the provider exit code or terminating signal where possible.
+A transport or cleanup failure produces a distinct nonzero infrastructure
+failure, never a synthetic provider success.  A client killed by Paseo cannot
+wait for this acknowledgement; the host supervisor must still finish cleanup.
+Serialize replacement launches for the same authenticated owner/agent ID behind
+the previous execution's cleanup barrier, including when Paseo observed only
+the client's early death.  Do not globally serialize unrelated agents.  Verify
+auxiliary calls using the same ID separately so probes cannot accidentally
+terminate or masquerade as the main session.
+
+* Host policy and integration
+
+- Authenticate socket peers with permissions and kernel peer credentials;
+  explicitly account for Paseo's user-namespace UID mapping.  Mount the socket
+  directory only into Paseo, never into an agent.  Neither agent ID nor cwd is
+  an authorization credential.
+- Permit only installed Claude/Codex entry points.  Forward argv as data to
+  those programs inside the container; never interpolate a host shell command
+  or accept Guix flags, executable paths or mount lists from the client.
+- Resolve cwd against host-authorized roots.  Canonicalization alone leaves
+  symlink/rename races: mount-source resolution must resist concurrent mutation
+  or fail closed.  Include this in validation before granting sensitive mounts.
+- Read the installed host policy for each start and record its version.  Keep
+  existing approved-copy manifest semantics; the broker does not grant approval
+  or evaluate unapproved project code.  A changed installed configuration affects
+  new executions, not existing mounts.  Home-managed policy still needs a Home
+  reconfigure to install changes, but not a broker/Paseo process restart.
+- Add an explicit validated workdir input to the host launcher integration.
+  Do not depend on its current "$HOME cwd means trust PASEO_AGENT_CWD" heuristic.
+  Codex receives project cwd via context/RPC, not necessarily its process cwd.
+- Construct the host launch environment from trusted defaults.  Do not accept
+  client CONTAINED_AGENT_PROJECTS, GUILE_LOAD_PATH, PATH or loader settings as
+  host configuration.  Preserve only approved provider values into the sandbox.
+- Preserve the current state/overlay and Git rules.  Network isolation and
+  access to injected Paseo tools remain separate work: today's launcher uses
+  host networking.  Adding a broker does not fix that exposure.
+
+* Cleanup boundary: invariant and alternative cgroup implementation
+
+Reliable cleanup is mandatory.  The parent-death/PID-namespace implementation
+below is now preferred after primitive-level testing.  This section retains
+the alternative cgroup design and its provisioning requirements for comparison;
+it is not a requirement to deploy an extra cgroup guardian in the first broker.
+
+Paseo's tree-kill only sees the local client after this split.  It cannot clean
+the host execution tree.  Existing notes also report that SIGTERM to the outer
+Guix process alone is insufficient.  Process groups and --die-with-parent are
+useful secondary measures, not the ownership boundary: descendants can detach.
+
+Require a private cgroup v2 subtree with cgroup.kill support.  Each execution
+gets a child cgroup covering the launcher, Guix setup and all container
+descendants, including double-forked or setsid children.  Agent containers must
+not receive writable cgroup controls or another route to migrate out.
+[[https://docs.kernel.org/admin-guide/cgroup-v2.html][Linux cgroup v2 documentation]] specifies recursive cgroup.kill and the
+populated field of cgroup.events; these provide the final kill and emptiness
+checks.  Process names and stale numeric PID files are not cleanup authority.
+
+This needs deliberate host provisioning on Guix.  A Home service does not
+automatically get cgroup delegation.  A narrowly scoped system service must
+provision ownership/cleanup, or a trusted system guardian must manage the
+subtree.  Never run manifests or providers as root to solve this.  On either
+machine, absent delegation/guardian support must reject launch, with no silent
+fallback to kill-the-wrapper.  Deployment details remain to be implemented.
+Guix daemon build workers are owned by the Guix daemon, not this execution
+cgroup.  Closing the client connection may not immediately stop shared build
+work; do not kill system-wide build workers as if they were leaked agents.
+
+Launch sequence:
+
+1. Guardian allocates and records an execution cgroup before code can execute.
+2. Place a gated trusted child in that cgroup before releasing it to exec the
+   launcher.  Do not spawn Guix and migrate it afterwards: it could already fork.
+3. Record ownership and arm broker-death cleanup, then release the launch gate.
+   Cancellation at any intermediate step follows the same cleanup path.
+4. Report started as launcher ownership established, not provider-protocol
+   readiness.  Paseo's own initialization handshake establishes readiness.
+
+Cleanup state machine:
+
+#+begin_example
+allocated -> starting -> running -> stopping -> empty -> reported/released
+                                  | timeout/error
+                                  -> force-kill -> empty
+                                               -> cleanup-failed (visible)
+#+end_example
+
+On stop, allow a short bounded graceful interval (initial target: two seconds),
+then invoke cgroup.kill for remaining processes.  Normal leader exit also
+triggers descendant cleanup.  Confirm populated=0, reap owned children, remove
+the empty cgroup and release execution resources before reporting completion.
+Use subreaper/wait handling where appropriate; cgroup emptiness alone does not
+reap zombie children.  Preserve the leader's result separately from cleanup
+status.  PID-directed graceful signals require stable handles, not unchecked
+reused PID numbers.
+
+The guardian lives outside execution cgroups and independently of the broker's
+failure domain.  Its broker-liveness channel must not leak into children.
+Broker EOF/death causes cleanup even if the broker cannot run finally blocks.
+An outer Shepherd service must also clean the dedicated subtree when the
+guardian fails or the service stops, and on startup before opening admission.
+Simply setting respawn? on the broker is insufficient.  If the entire supervisor
+is unavailable, immediate cleanup cannot be guaranteed; startup reconciliation
+must still recover the subtree rather than forget it.
+
+Startup reconciliation enumerates the exclusively owned subtree, including
+cgroups whose metadata write was interrupted; it kills stale executions rather
+than trying to reconnect them.  Enforce single ownership so two broker instances
+cannot clean each other's live work.  Do not adopt arbitrary PID-file processes.
+
+SIGKILL cannot promise a hard exit deadline for a kernel-stuck task.  After the
+cleanup deadline, retain the execution as cleanup-failed, expose the cgroup and
+reason, and block replacement for that execution/agent.  Failed reconciliation
+blocks new service admission.  Never delete the record and report success while
+processes remain.  Log metadata and lifecycle transitions, not raw argv, prompts
+or credentials; expose status including cgroup population and cleanup failures.
+
+** What cgroups add in concrete cases
+
+A cgroup is persistent kernel membership, inherited by new children, rather
+than a snapshot of parent/child PIDs.  Reparenting, setsid and a double fork do
+not themselves change it.  Membership is only useful as a cleanup boundary if
+the workload cannot migrate out.  Killing the broker does not automatically
+kill its cgroups: a surviving supervisor must invoke cleanup.
+
+- Agent starts an MCP server and a detached test server: both stay in its
+  execution cgroup and are included in final cleanup, even after the agent
+  exits.  Guix PID-namespace teardown already covers these *inside* the container.
+- Cancellation during profile preparation, before there is a container PID 1:
+  the cgroup already owns the launcher and its local helpers.  There is no need
+  to wait for the PID namespace to exist.  Guix daemon workers remain outside
+  this scope, as explained above.
+- Paseo tree-kills the client or escalates straight to SIGKILL: broker socket
+  EOF initiates cleanup of the host cgroup without needing a client handler.
+- Broker crashes after creating descendants: the guardian can enumerate the
+  reserved execution subtree without reconstructing vanished parentage.  It
+  can clean even a group whose metadata transaction was interrupted.
+- Old execution exits while a descendant still holds files/pipes: populated
+  and child-reaping checks prevent admitting the replacement prematurely.
+
+Optional future controllers can cap memory, CPU bandwidth and process/thread
+count per execution.  These need explicit limits and controller delegation;
+creating a cgroup alone imposes none.  Cgroups do not provide file or network
+access isolation, undo writes, or automatically remove temporary directories.
+
+** Investigation: Guix PID namespace versus cgroup (2026-10-08)
+
+Source inspected: installed Guix 90d978cb9a60a3ea5bf676c9637ae2f718304a31,
+plus installed 1.5.0-6.64d4de2.  In gnu/build/linux-container.scm both list a
+cgroup namespace but leave "TODO: Initialize cgroups" in run-container.
+CLONE_NEWCGROUP virtualizes the cgroup view; it does not allocate a separate
+execution group.  See [[https://man7.org/linux/man-pages/man7/cgroup_namespaces.7.html][cgroup_namespaces(7)]].
+
+guix shell uses call-with-container with child-is-pid1? #f.  An intermediate
+PID 1 forwards selected signals and reaps children.  It exits when the main
+child exits; the kernel then kills remaining namespace processes, including
+detached descendants.  See [[https://man7.org/linux/man-pages/man7/pid_namespaces.7.html][pid_namespaces(7)]].  setsid is not an escape from
+this boundary either.
+
+Controlled experiment used guix repl to call this actual Guix primitive with
+namespaces '(user pid), child-is-pid1? #f and a process-spawned-hook capturing
+PID 1's outer PID.  The Python payload forked a setsid/double-fork background
+child ignoring TERM.  The driver was a subreaper and explicitly killed/reaped
+all test children.  No real providers, credentials or project writes were used.
+
+| Action                                     | Observation                                                  |
+|--------------------------------------------+--------------------------------------------------------------|
+| Main payload exits normally                | PID 1 and detached background child also exit; wrapper code 0 |
+| TERM directly to main payload              | Entire namespace exits; wrapper code 143                     |
+| TERM to outer wrapper or namespace PID 1   | Did not finish within three seconds in this harness          |
+| Payload ignores TERM; then KILL to PID 1    | All namespace processes stop; wrapper code 137               |
+| KILL outer Guix wrapper                    | PID 1, payload and background child remain alive             |
+| Subsequently KILL that namespace's PID 1   | All remaining test processes stop                            |
+
+These are primitive-level tests, not a full guix shell/Paseo integration test.
+Full guix shell was blocked by the current sandbox's denied Guix daemon socket;
+the test did not mount a new root/proc or exercise bubblewrap.  The unexpected
+TERM forwarding behavior needs investigation before choosing grace deadlines.
+No cgroup creation/kill experiment was possible in this environment, where
+/sys/fs/cgroup is not exposed.  Cgroup behavior above is based on kernel docs.
+
+The source handshake closes after container setup, with no continuing
+parent-death channel on this path.  call-with-container offers a
+process-spawned-hook, but guix shell does not expose it in this launch path.
+guix system container scripts do offer --pid-file; that is a different launcher.
+The hook also runs after setup and release of the child, so it alone does not
+close the startup ownership race.
+
+A viable non-cgroup alternative therefore needs a trusted per-execution
+supervisor holding a stable handle to namespace PID 1, a launch gate, and a
+broker-death cleanup channel, plus ownership of all pre-container helpers.
+Consider an outer PID namespace around the entire launcher/preparation phase:
+its init could provide the wider cleanup boundary, without cgroup delegation.
+That option needs tests for parent-death races, nested Guix user namespaces,
+signal permissions, result forwarding and temp-directory cleanup.  A wrapper
+that merely kills the outer Guix PID is demonstrably insufficient.
+
+Decision remains provisional: compare this supervised outer-PID-namespace
+approach with cgroup provisioning on both hosts.  The no-orphan acceptance
+criteria remain mandatory regardless of which mechanism is selected.
+
+** Parent-death signal: preferred implementation direction
+
+PR_SET_PDEATHSIG with SIGKILL can link the broker's lifetime to a trusted
+execution supervisor.  Combine that with an outer PID namespace containing
+the entire contained-agent/Guix launch, not merely the final provider:
+
+#+begin_example
+broker
+  -> trusted namespace init (parent-death SIGKILL armed)
+       -> contained-agent -> guix preparation -> inner container -> provider
+#+end_example
+
+Broker death then kills the outer namespace init, and the kernel tears down
+its namespace descendants.  Keep init as a trusted reaper/supervisor rather
+than exec the provider as PID 1; normal completion preserves the provider's
+result, and normal cancellation can attempt a bounded graceful stop before
+namespace teardown.  This is a candidate to replace the separate cgroup
+guardian for process cleanup, pending tests.
+
+The startup race is real: parent death before prctl does not generate a
+retroactive signal.  Before spawning, obtain a stable pidfd for the intended
+parent and pass it to the child.  After namespace/credential setup, arm
+PDEATHSIG, then check that pidfd for parent exit before releasing any workload.
+Parent death before arming is caught by the check; death afterwards is caught
+by the signal.  Check all syscall errors and fail closed.  A simple getppid
+comparison is not sufficient across PID namespaces: a child whose parent is
+outside its namespace sees getppid()==0 even while the parent is alive.
+
+Each actual fork/clone child must arm its own parent-death signal; the setting
+is not inherited by fork.  Credential changes and privileged exec can clear
+it.  Any intermediate launcher must have its own verified lifetime link, and
+the parent thread creating children must remain alive: PDEATHSIG tracks that
+thread, not just the last thread of the parent process.  A native helper can
+keep these operations explicit rather than relying on Python preexec_fn.
+
+util-linux unshare --kill-child already implements a related child-death link;
+the inspected upstream implementation uses PDEATHSIG plus a parent pidfd check.
+It only links unshare to its child, not the broker to unshare, so composing it
+still requires a verified outer link.  It is reference material, not evidence
+that an untested shell command handles all our races.
+
+References: [[https://man7.org/linux/man-pages/man2/PR_SET_PDEATHSIG.2const.html][PR_SET_PDEATHSIG]],
+[[https://man7.org/linux/man-pages/man7/pid_namespaces.7.html][PID namespaces]], and
+[[https://github.com/util-linux/util-linux/blob/master/sys-utils/unshare.c][util-linux unshare source]].
+The following experiment covers the deliberately paused startup race and
+broker death after workload readiness.  Full broker integration is still untested.
+
+** Parent-death experiment results (2026-10-09)
+
+Reproducible harness:
+[[file:../test/python/uraj/guix/contained-agent/parent-death-namespace.py][parent-death-namespace.py]].
+Run with Linux Python 3.9+, an installed Guix, user/PID/mount namespaces,
+and pidfd support:
+
+#+begin_src sh
+GUIX=/run/current-system/profile/bin/guix python3 \
+  test/python/uraj/guix/contained-agent/parent-death-namespace.py --repeat 3
+#+end_src
+
+All eight cases passed in three consecutive cycles (24 cases), using installed
+Guix 90d978cb9a60a3ea5bf676c9637ae2f718304a31 in this agent environment.
+The single-threaded fake broker prepares a user namespace and creates a child
+PID namespace.  Its trusted init arms PDEATHSIG=SIGKILL, then polls the original
+broker's inherited pidfd before launching work.  The test driver is a subreaper
+that outlives the fake broker, deliberately exercising reparenting as well.
+
+| Case                              | Assertion/result                                                   |
+|-----------------------------------+--------------------------------------------------------------------|
+| Broker killed before prctl         | Original pidfd reports death; init exits without launching any work |
+| Broker killed after arming         | Init exits without launching work                                  |
+| Broker killed during preparation   | Detached pre-container helper exits                                |
+| Broker killed during nested Guix   | Init, payload and detached inner/outer helpers all exit              |
+| Main exits 0 or 7                  | Correct numeric result; background descendants cleaned              |
+| Main killed by SIGKILL             | Guix's numeric result 137 preserved; descendants cleaned             |
+| Cancel with TERM-ignoring workload | Init's bounded grace expires; namespace teardown cleans descendants |
+
+The nested workload calls Guix's real call-with-container with '(user pid)
+and child-is-pid1? #f.  Both inner and pre-container background helpers double
+fork, setsid, and ignore TERM.  Assertions use pidfds to check process exit;
+the driver reaps *all* remaining children before returning from each case and
+checks that its open descriptor count returns to baseline.  All test-owned
+processes and temporary directories were cleaned.  No real agents were launched.
+
+An initial nested attempt failed writing UID maps because /proc still described
+the test driver's PID namespace.  Mounting a matching /proc inside the outer
+execution namespace fixed it.  This is a deployment requirement for nested
+Guix, not an optional cosmetic mount.  The harness keeps an additional old
+proc mount solely for test observation; do not expose it in production agent
+containers.  init sees getppid()==0, confirming why the pidfd check is necessary.
+
+Limits and next integration work:
+
+- This tests the kernel mechanism plus nested Guix's container primitive, not
+  full guix shell, state overlays, manifests, socket/FD transport or real Paseo.
+  It has not been run independently on both hosts.
+- The mock broker changes its own namespaces for the experiment.  A real
+  long-lived broker needs a native per-execution clone/setup path with parent
+  UID/GID mapping and a launch gate; never change the shared broker namespaces.
+  Audit any extra helper's lifetime link rather than assuming this prototype
+  proves a differently shaped production process tree.
+- The harness represents signaled Guix results numerically (SIGKILL -> 137).
+  Exact signal-vs-exit-code fidelity needs explicit status transport/instrumentation
+  in the real launcher; do not infer a signal from every 128+N exit code.
+- Normal cancellation is a test supervisor with a 250 ms grace deadline.  Actual
+  provider shutdown timing, output draining, reap/exit acknowledgement and the
+  replacement-session barrier still need integration tests.
+- Kernel process cleanup does not run Python/Guile finally blocks.  Temporary
+  host directories, records and GC roots still need cleanup/reconciliation after
+  crashes.  This prototype's driver cleans its own fixtures externally.
+- Process/resource limits and cgroup accounting are outside this mechanism;
+  add cgroups separately if those become requirements.
+
+The result supports choosing a small trusted PID-namespace supervisor instead
+of a separate cgroup guardian for initial process cleanup.  It does not claim
+that the entire broker is implemented or ready to deploy.
+
+* Acceptance before enabling the broker
+
+Use fake providers and temporary state first; then real Paseo/provider smoke
+tests.  Successful dialogue alone is not acceptance.  For every termination
+case assert that the execution cgroup becomes empty (or the selected namespace
+boundary is completely torn down), owned children are reaped,
+stdio closes, and no execution resources remain.  Exercise both machines.
+
+| Test                                    | Required observation                                             |
+|-----------------------------------------+------------------------------------------------------------------|
+| Version/auth/catalog without project     | Correct protocol/result, no unintended project mount              |
+| Streaming, stderr and output backpressure| Byte-preserving pipes, no control/log data on stdout               |
+| Exit 0, nonzero and signal              | Correct result after descendant cleanup                           |
+| App quit with daemon retained           | Agent continues; no cleanup triggered                             |
+| Turn interrupt then next turn           | Same usable session; container not destroyed                      |
+| Close, archive, reload, daemon stop      | Old execution fully cleaned; replacement does not overlap writers |
+| Kill client with SIGKILL                 | Disconnect cleanup works without client signal handler            |
+| Kill daemon with SIGKILL                 | Orphan client detects death; host execution is cleaned             |
+| Stop/restart Paseo container             | Host executions cleaned despite PID namespace separation          |
+| Provider ignores TERM; forks/setsid      | Escalation clears all descendants, including concurrent forks      |
+| Leader exits leaving background children| Result is not reported until descendants are cleared              |
+| Cancel during each launch stage         | No unowned launch or half-created execution                        |
+| Kill broker during launch/run/cleanup    | Parent-death teardown works; restart reconciles before admission   |
+| Kill namespace init; stop host service   | Namespace teardown and replacement barrier work                    |
+| Artificial cleanup failure              | Visible failure, no false success or unsafe replacement            |
+| Repeated create/close/reload cycles      | No growth in processes, cgroups, file descriptors or temp resources |
+
+Also test broker failure while the client is blocked on I/O, client-parent death
+before monitoring is armed, leaked-FD prevention, malformed/oversized requests,
+unauthorized peers, cwd symlink races, and attempts to override host policy.
+
+The design can match Paseo's normal exit semantics, but that is not yet a
+verified property of an implementation.  Provisioning the selected ownership
+boundary, crash cleanup and the tests above are release requirements, not later
+reliability enhancements.

@@ -367,12 +367,19 @@ policy and known_hosts snapshot.  A missing agent is started; a changed policy
 or known_hosts file clears and reloads its keys automatically.  Concurrent
 launches reuse the same process; the project lock serializes reloads.
 Replacing key material at the same filename also requires =ssh-start=.
-=--version= probes skip SSH provisioning.  Encrypted keys still require
+=--version= and =auth status= probes skip SSH provisioning.  Encrypted keys still require
 ssh-add's terminal or host askpass prompt.  Automatic loading has stdin set
 to =/dev/null= and stdout redirected to stderr so it cannot consume or corrupt
 Paseo's protocol stream.  Without an available unlock mechanism it fails and
 suggests =ssh-start= on the host; no partial agent is kept.  To permanently
 disable automatic SSH access, remove the central clause and stop the agent.
+
+The above host lifecycle applies to direct terminal use.  The
+[[file:paseo-broker.org][Paseo broker]] instead keeps a separate shared SSH service outside session
+namespaces.  It unlocks once per project and unchanged policy during a broker
+lifetime; closing a session does not remove those keys.  Broker shutdown clears
+that service.  Its PID records are isolated from direct host =ssh-start= and
+=ssh-stop=, so those commands do not manage the broker's SSH cache.
 
 In the container:
 - =SSH_AUTH_SOCK=/run/contained-agent/ssh.sock= selects only this project.
@@ -523,6 +530,10 @@ guard probes with the expected working directory.
 
 * Open items
 
+- Paseo outside the agent's container: see [[file:paseo-broker.org][Paseo broker design]]
+  for the implemented host execution service, lappie trial commands and
+  lifecycle/cleanup tests.  The host provider switch is explicit; existing
+  direct provider commands still rely on Paseo's process-tree cleanup.
 - Network: give the container its own network namespace and an allowlisting
   proxy reached through a Unix socket.  Until then agents reach the Paseo
   API on =127.0.0.1:6767= and the LAN.

@@ -10,6 +10,7 @@
   #:use-module (ice-9 match)
   #:use-module (srfi srfi-1)
   #:use-module (uraj common basic-services)
+  #:use-module (uraj home paseo-broker)
   #:use-module (uraj packages codex-desktop)
   #:use-module (uraj packages llm)
   #:use-module (uraj utils file path)
@@ -143,6 +144,7 @@ headless Paseo container."
 (define (agent-desktop-services)
   (append
    (agent-common-services)
+   (paseo-broker-home-services contained-agent)
    (list
     (simple-service 'llm-desktop-packages
                     home-profile-service-type

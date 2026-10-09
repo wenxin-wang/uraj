@@ -474,6 +474,31 @@ applied inside the container."
          paseo
          cwd))))
 
+(define (serve-project-ssh git projects-file ssh-tools)
+  "Prepare project SSH in one broker-owned namespace shared across sessions.
+Requests are NUL-terminated working directories; replies are STATUS NUL TEXT
+NUL.  All ssh-add output goes to stderr, never into this private protocol."
+  (define (reply status text)
+    (display status) (write-char #\nul)
+    (display text) (write-char #\nul)
+    (force-output))
+  (unless (getenv "CONTAINED_AGENT_SSH_RUNTIME_DIRECTORY")
+    (die "ssh-service requires a broker-owned runtime directory"))
+  (let loop ()
+    (let ((directory (read-delimited (string #\nul))))
+      (unless (eof-object? directory)
+        (catch 'contained-ssh-error
+          (lambda ()
+            (let*-values
+                (((project top mounts) (project-mounts git directory))
+                 ((policy) (ssh-policy
+                            (map cdr (central-entries
+                                      (expand-home projects-file) project)))))
+              (when policy (ssh-ensure project policy ssh-tools))
+              (reply "ok" "")))
+          (lambda (_ message) (reply "error" message)))
+        (loop)))))
+
 (define (run-agent name args agents common packages git projects-file ssh-tools)
   (let*-values
       (((spec) (or (assoc-ref agents name)
@@ -495,8 +520,10 @@ applied inside the container."
        ((central) (if project (central-entries projects-file project) '()))
        ((ssh) (ssh-policy (map cdr central)))
        ;; Version probes must not depend on SSH provisioning.
-       ((ssh-dir) (and ssh (not (equal? args '("--version")))
-                       (ssh-ensure project ssh ssh-tools)))
+       ((ssh-dir) (and ssh (not (member args '(("--version") ("auth" "status"))))
+                       (if (getenv "CONTAINED_AGENT_SSH_PREPARED")
+                           (ssh-prepared-directory project ssh ssh-tools)
+                           (ssh-ensure project ssh ssh-tools))))
        ((clauses)
         ;; (ORIGIN . CLAUSE), ORIGIN naming the file for messages.
         (append
@@ -608,6 +635,8 @@ used to inspect the project."
      (match (cons (program-name program) args)
        (("contained-agent" "allow") (allow "."))
        (("contained-agent" "allow" directory) (allow directory))
+       (("contained-agent" "ssh-service")
+        (serve-project-ssh git projects-file ssh-tools))
        (("contained-agent" (and action (or "ssh-start" "ssh-stop" "ssh-socket"))
                            directories ...)
         (when (> (length directories) 1)

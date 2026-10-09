@@ -5,7 +5,8 @@
   #:use-module (ice-9 regex)
   #:use-module (rnrs bytevectors)
   #:use-module (srfi srfi-1)
-  #:export (ssh-policy ssh-runtime ssh-start ssh-stop ssh-ensure))
+  #:export (ssh-policy ssh-runtime ssh-start ssh-stop ssh-ensure
+            ssh-prepared-directory))
 
 ;; Host-side SSH lifecycle.  This module never reads a private key itself,
 ;; evaluates ssh-agent's shell output, or accepts policy from a work tree.
@@ -93,7 +94,10 @@
 (define (ssh-runtime project tools)
   (let* ((runtime (or (getenv "XDG_RUNTIME_DIR")
                       (string-append "/run/user/" (number->string (getuid)))))
-         (base (string-append (private-directory runtime #f) "/contained-agent"))
+         ;; A broker's shared SSH service has its own state tree and PID view.
+         ;; Never mix its PID records with direct host invocations.
+         (base (or (getenv "CONTAINED_AGENT_SSH_RUNTIME_DIRECTORY")
+                   (string-append (private-directory runtime #f) "/contained-agent")))
          ;; A 32-hex SHA-256 prefix keeps the complete socket path short.
          (dir (string-append (private-directory base #t) "/"
                              (substring (digest tools (canonicalize-path project))
@@ -101,6 +105,22 @@
     (private-directory dir #t)
     (when (> (bytevector-length (string->utf8 (string-append dir "/ssh.sock"))) 107)
       (fail "XDG_RUNTIME_DIR is too long for an SSH socket"))
+    dir))
+
+(define (ssh-prepared-directory project policy tools)
+  "Check the shared service's prepared files without interpreting its PIDs."
+  (let ((dir (ssh-runtime project tools)))
+    (with-lock
+     dir
+     (lambda ()
+       (unless (match (read-state dir)
+                 ((_ previous)
+                  (and (equal? previous (fingerprint project policy tools))
+                       (file-exists? (string-append dir "/ssh.sock"))
+                       (file-exists? (string-append dir "/known_hosts"))
+                       (file-exists? (string-append dir "/config"))))
+                 (_ #f))
+         (fail "shared SSH preparation is missing or policy changed; retry"))))
     dir))
 
 (define (with-lock dir thunk)
