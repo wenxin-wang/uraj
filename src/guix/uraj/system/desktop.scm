@@ -146,6 +146,14 @@ for base-os."
             ;; driver).  Foreign hosts get their distro's pcscd instead.
             (service pcscd-service-type)
 
+            ;; Reuse the password entered at greetd to unlock the login
+            ;; keyring.  The Home session completes initialization with
+            ;; --components=secrets; no GNOME SSH agent is enabled.
+            (service gnome-keyring-service-type
+                     (gnome-keyring-configuration
+                      (pam-services '(("greetd" . login)
+                                      ("passwd" . passwd)))))
+
             ;; Rootless Podman: subuid/subgid ranges, cgroup v2 delegation,
             ;; a shared root mount and /etc/containers defaults.  The podman
             ;; CLI itself comes from the basic-dev home profile.  No

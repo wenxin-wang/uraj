@@ -8,6 +8,21 @@ HOME_ENVIRONMENT="$HOME/.guix-home"
 [ -f "$HOME_ENVIRONMENT/setup-environment" ] && \
     . "$HOME_ENVIRONMENT/setup-environment"
 unset HOME_ENVIRONMENT
+# Home masks GCR's SSH agent.  Apply those masks to a lingering user manager
+# and stop an instance left by an earlier desktop session.  Leave the host
+# gnome-keyring-daemon and PAM-unlocked Secret Service running.
+systemctl --user daemon-reload 2>/dev/null || true
+systemctl --user stop gcr-ssh-agent.socket gcr-ssh-agent.service \
+    2>/dev/null || true
+# A previous GCR environment import may survive in the user manager.  Replace
+# only its known sockets; preserve unrelated agents (including SSH forwarding).
+if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
+    case "${SSH_AUTH_SOCK:-}" in
+        "$XDG_RUNTIME_DIR/gcr/ssh"|"$XDG_RUNTIME_DIR/keyring/ssh")
+            export SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket)"
+            ;;
+    esac
+fi
 # Ubuntu 22.04's user session runs PulseAudio (audio) and a
 # video-only PipeWire; the session Shepherd starts its own
 # PipeWire + WirePlumber + pipewire-pulse instead.  Stop the host

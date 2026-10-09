@@ -1,0 +1,119 @@
+#+title: SSH askpass and GNOME Keyring
+
+* Components
+
+The desktop installs =ksshaskpass-with-qtkeychain= from =(uraj packages ssh)=.
+It backports upstream commit
+[[https://invent.kde.org/plasma/ksshaskpass/-/commit/46c7a4294babcfed9f0db064e407416b8bfb5b47][46c7a429: Switch from KWallet to QtKeychain]] onto Guix's 6.5.5.  The 6.7.5
+release needs Qt 6.10 / KF 6.26; the pinned environment has Qt 6.9.2 / KF 6.24.
+The patch adapts context and omits an identifier rename in a newer prompt
+parser absent from 6.5.5.  It adds no local password-handling implementation.
+
+The UI remains KDE/Qt.  QtKeychain uses libsecret in niri, so passwords are
+stored in the session's GNOME Keyring rather than KWallet.  KDE sessions still
+prefer KWallet; do not advertise a niri session as KDE through environment
+variables.  Neither askpass nor this configuration launches a GNOME SSH agent.
+
+=ssh-add -h= still decrypts keys on the host and loads the existing restricted
+OpenSSH agent.  The coding-agent container receives that restricted socket,
+not the host Secret Service bus or the password database.  GPG/card keys and
+the existing gpg-agent configuration are independent of this password store.
+
+* Foreign distro and Guix System
+
+On foreign distros, retain the host =gnome-keyring-daemon=, its systemd units,
+PAM integration and password files.  The foreign-desktop playbook installs
+=gnome-keyring= and =libpam-gnome-keyring= on Debian-family hosts.  The Home
+profile deliberately does not install a competing Guix GNOME Keyring daemon.
+The host must expose =org.freedesktop.secrets= on the same user session bus
+as askpass.  Installing the PAM package does not guarantee that a custom
+display manager's PAM stack is configured; standard GDM integration is the
+intended host setup.  Autologin/fingerprint login may still require unlocking
+the keyring at first use.
+
+On Guix System, the Home profile supplies GNOME Keyring and its GCR prompter.
+The desktop's greetd PAM stack unlocks (or creates) the =login= keyring using
+the login password; =passwd= updates that keyring's password alongside the
+account password.  Both use optional PAM entries, so a keyring failure does
+not reject a valid login.  A Home Shepherd initialization action runs
+=gnome-keyring-daemon --start --components=secrets= after the graphical session
+and its bus are ready.  This completes startup of the PAM-unlocked daemon
+before its initialization timeout; it does not launch a separate SSH agent.
+D-Bus activation remains available when PAM was not involved, with an unlock
+prompt on first use.  Passwordless/autologin sessions cannot supply a login
+password for automatic unlocking.
+
+This PAM change needs a *system* reconfigure and a fresh greetd login; Home
+reconfigure alone cannot install it or recover a password from a past login.
+An existing keyring labelled =default= is preserved.  Merely giving it the
+same password as the account does not make it the PAM =login= keyring.  After
+the first PAM-enabled login, unlock that existing keyring and select
+"Automatically unlock this on login" if offered: its password is then stored
+in the unlocked =login= keyring.  Alternatively use Seahorse to make =Login=
+the default and save SSH passwords there again.  Changing the default does
+not move existing entries, and no keyring files need to be deleted or renamed.
+
+Home disables the old =gnome-keyring-ssh.desktop= autostart and masks
+=gcr-ssh-agent.socket= / =gcr-ssh-agent.service=.  An existing custom unit at
+either mask path causes activation to fail rather than overwrite it.  These
+masks are activation-created; removing the Home service later does not remove
+them automatically (use =systemctl --user unmask= when intentionally reverting).
+The foreign niri-session wrapper reloads the user manager and stops GCR's SSH
+units, leaving the host password daemon running.  It also replaces inherited
+GCR/Keyring SSH socket paths with the existing gpg-agent socket.  Other agent
+socket paths, including forwarded agents, are preserved.
+
+Reconfigure Home and update the foreign-desktop =keyring,session= tasks, then
+log out and back in.  Home activation alone does not stop an already running
+SSH component inside an older host keyring daemon.  Do not kill the password
+daemon merely to switch askpass: it may hold the unlocked login keyring.
+
+* Passwords and normal use
+
+=SSH_ASKPASS= continues to resolve =ksshaskpass= from the Guix Home profile.
+OpenSSH normally prefers a terminal when one is available.  To save a key's
+password from a graphical host terminal, explicitly use askpass:
+
+#+begin_src sh
+SSH_ASKPASS_REQUIRE=force contained-agent ssh-start /absolute/project/path
+#+end_src
+
+Choose the remember-password option in the dialog.  This reloads the project's
+configured identities (or the shared broker agent, when selected by existing
+policy); it does not broaden their destination constraints.  A restarted
+broker needs the new Home environment and the same session D-Bus address.
+Headless sessions still need an unlocked password store or an interactive
+unlock elsewhere; no password is collected through Paseo.
+
+Old GCR/keyring SSH entries use different attributes from QtKeychain, so expect
+to enter and save each SSH password once again.  Existing keyring files are
+not deleted or migrated.  QtKeychain 0.15 uses =user= (key path), =server=
+(=ksshaskpass=) and =type= (=plaintext=, meaning text rather than binary data).
+The latter is an item format, not a request to store the keyring unencrypted.
+
+* Validation
+
+Build the backport:
+
+#+begin_src sh
+guix build -L src/guix -L src/guile --no-grafts \
+  -e '(@ (uraj packages ssh) ksshaskpass-with-qtkeychain)'
+#+end_src
+
+With that package plus =python=, =gnome-keyring=, =libsecret=, =dbus= and
+=openssh= on PATH, run:
+
+#+begin_src sh
+python3 test/python/uraj/guix/keyring/askpass.py
+#+end_src
+
+The tests use a private temporary HOME, session bus and password daemon.  They
+exercise both direct unlocking and PAM-style =--login= followed by the
+session's =--start --components=secrets=.  Each test
+stores a disposable password with Secret Service, reads it using the actual
+askpass binary, loads an encrypted SSH key with =ssh-add -h=, and verifies that
+an unbound signing request is refused.  Qt's offscreen backend avoids touching
+the desktop.  This validates password lookup and key constraints, not the
+visible save/cancel dialog or an actual host login.  The desktop configuration
+tests additionally check the generated greetd/passwd PAM entries, their
+optional control flags and the Home initialization service.

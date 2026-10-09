@@ -5,7 +5,10 @@ if [ -z "${SSH_AUTH_SOCK:-}" ]; then
     export SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket)"
 fi
 
-# OpenSSH only invokes askpass when no TTY is available and DISPLAY is set.
+# The desktop supplies ksshaskpass with QtKeychain: in niri its libsecret
+# backend uses the session's GNOME Keyring, including a foreign host's daemon.
+# OpenSSH normally uses the TTY when available; do not force graphical prompts
+# in remote shells.  Headless broker launches can use the inherited askpass.
 # Resolve the Guix-profile program dynamically instead of assuming /usr/bin.
 if _ssh_askpass=$(command -v ksshaskpass 2>/dev/null); then
     export SSH_ASKPASS="$_ssh_askpass"

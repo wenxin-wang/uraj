@@ -15,9 +15,11 @@
   #:use-module (uraj home basic-sys)
   #:use-module (uraj home emacs)
   #:use-module (uraj home llm)
+  #:use-module (uraj home keyring)
   #:use-module (uraj packages basic-packages)
   #:use-module (uraj packages input-methods)
   #:use-module (uraj packages rime)
+  #:use-module (uraj packages ssh)
   #:use-module (uraj packages terminals)
   #:use-module (uraj utils file path)
   #:export (basic-desktop-home-services))
@@ -26,6 +28,7 @@
   (cons* glibc-common-locales
          ghostty                        ;terminal emulator
          firefox                        ;Mozilla Firefox from the Nonguix channel
+         ksshaskpass-with-qtkeychain      ;GNOME Keyring on niri, no SSH agent
          (specifications->packages
           '("font-jigmo"
             "font-jetbrains-mono"
@@ -36,10 +39,6 @@
             ;; pinentry-auto selects this in Wayland/X11 sessions; basic-dev
             ;; supplies pinentry-tty for console and SSH sessions.
             "pinentry-qt"
-            ;; Graphical SSH password prompts outside terminal sessions.  It
-            ;; works outside Plasma; its Qt/KDE Frameworks dependencies are
-            ;; part of the package closure.
-            "ksshaskpass"
             ;; Network packet analysis (GUI and command-line tools).
             "wireshark"
             ;; For general desktop settings
@@ -228,6 +227,7 @@ services."
               (input-method-editors (list fcitx5-rime)))))
    (my-dotfiles-services (list (project-path "env/dotfiles/desktop")))
    (basic-dev-home-services)
+   (keyring-home-services)
    (basic-sys-home-services)
    (emacs-home-services)
    (agent-desktop-services)

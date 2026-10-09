@@ -26,9 +26,13 @@ env/playbooks/setup-foreign-desktop.sh
 =ansible-playbook= 来自 Guix Home profile；
 =syntax-check= 与 =--check= 可以预演（=--check= 里 apt 结果只是预测）。
 常用 tag：=foreign-distro=、=basic-system=、=session=、=gdm=、=pcscd=、
-=keyboard=。
+=keyboard=、=keyring=。
 
 roles/foreign-distro 做（foreign distro 专属部分）：
+- 安装宿主 =gnome-keyring= 与 =libpam-gnome-keyring=，保留宿主的
+  Secret Service、登录解锁与密码库。Guix Home 的 askpass 通过用户
+  D-Bus 访问它；只禁用 GNOME/GCR 的 SSH agent。配置与验证见
+  [[file:../../docs/ssh-keyring.org][SSH 密码存储]]。
 - 安装 pcscd（智能卡 / YubiKey，Debian 系；说明见
   src/guix/uraj/home/basic-dev.scm）
 - =/usr/local/bin/niri-session= 与

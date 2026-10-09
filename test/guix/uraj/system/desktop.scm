@@ -78,6 +78,30 @@
        (not (any (lambda (entry) (string-contains (module-name entry) "pam_mount.so"))
                  (append (pam-service-auth pam) (pam-service-session pam)))))))
  '("greetd" "login" "su"))
+
+(define (keyring-entry? entry)
+  (string-contains (module-name entry) "pam_gnome_keyring.so"))
+(define greetd-pam
+  (find (lambda (pam) (string=? "greetd" (pam-service-name pam))) pams))
+(define passwd-pam
+  (find (lambda (pam) (string=? "passwd" (pam-service-name pam))) pams))
+(test-equal "greetd captures the login password exactly once"
+  1 (count keyring-entry? (pam-service-auth greetd-pam)))
+(test-assert "keyring failure cannot reject a valid greetd login"
+  (every (lambda (entry) (string=? "optional" (pam-entry-control entry)))
+         (filter keyring-entry?
+                 (append (pam-service-auth greetd-pam)
+                         (pam-service-session greetd-pam)))))
+(test-equal "greetd starts the password daemon exactly once"
+  '(("auto_start"))
+  (map pam-entry-arguments
+       (filter keyring-entry? (pam-service-session greetd-pam))))
+(test-equal "passwd synchronizes the login keyring password"
+  1 (count keyring-entry? (pam-service-password passwd-pam)))
+(test-assert "su does not unlock or start the desktop keyring"
+  (let ((pam (find (lambda (pam) (string=? "su" (pam-service-name pam))) pams)))
+    (not (any keyring-entry?
+              (append (pam-service-auth pam) (pam-service-session pam))))))
 (test-assert "elogind is retained"
   (find (lambda (s) (eq? (service-kind s) elogind-service-type))
         (operating-system-services os)))
@@ -97,6 +121,10 @@
 (define rotation-services
   (filter (lambda (s) (memq 'log-rotation (shepherd-service-provision s)))
           home-services))
+(test-equal "native Home initializes the PAM keyring once"
+  1 (count (lambda (s) (memq 'gnome-keyring-secrets
+                             (shepherd-service-provision s)))
+           home-services))
 (test-equal "Home has one rotation service for native and external logs"
   1 (length rotation-services))
 (test-assert "niri remains outside Shepherd process management"

@@ -1,0 +1,357 @@
+Backport upstream 46c7a4294babcfed9f0db064e407416b8bfb5b47:
+https://invent.kde.org/plasma/ksshaskpass/-/commit/46c7a4294babcfed9f0db064e407416b8bfb5b47
+
+Rebased onto 6.5.5: adjust context and omit the identifier rename in the
+unknown-host parser, which does not exist in this release. No new logic.
+
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -3,6 +3,7 @@
+ set(PROJECT_VERSION "6.5.5")
+ 
+ set(QT_MIN_VERSION "6.9.0")
++set(QT_KEYCHAIN_MIN_VERSION "0.15.0")
+ set(KF6_MIN_VERSION "6.18.0")
+ set(KDE_COMPILERSETTINGS_LEVEL "5.82")
+ 
+@@ -23,13 +24,13 @@
+ 
+ find_package(Qt6  ${QT_MIN_VERSION} REQUIRED COMPONENTS Core)
+ 
++find_package(Qt6Keychain ${QT_KEYCHAIN_MIN_VERSION} REQUIRED)
+ 
+ add_definitions(-DQT_NO_NARROWING_CONVERSIONS_IN_CONNECT)
+ 
+ find_package(KF6 ${KF6_MIN_VERSION} REQUIRED COMPONENTS
+     CoreAddons
+     I18n
+-    Wallet
+     WidgetsAddons
+ )
+ 
+@@ -45,11 +46,11 @@
+  
+ add_executable(ksshaskpass ${ksshaskpass_SRCS})
+ target_compile_definitions(ksshaskpass PRIVATE -DPROJECT_VERSION="${PROJECT_VERSION}")
+-target_link_libraries(ksshaskpass 
++target_link_libraries(ksshaskpass
+     KF6::CoreAddons
+     KF6::I18n
+-    KF6::Wallet
+     KF6::WidgetsAddons
++    Qt6Keychain::Qt6Keychain
+ )
+ 
+ # add clang-format target for all our real source files
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,7 @@
++0.6.4
++  * Switch password backend from KWallet to QtKeychain
++    (allows reading/storing password from/into different password managers)
++
+ 0.6.0
+   * Port to KF5
+ 
+--- a/src/main.cpp
++++ b/src/main.cpp
+@@ -11,7 +11,6 @@
+ #include <KLocalizedString>
+ #include <KMessageBox>
+ #include <KPasswordDialog>
+-#include <kwallet.h>
+ 
+ #include <QApplication>
+ #include <QCommandLineOption>
+@@ -22,6 +21,8 @@
+ #include <QRegularExpression>
+ #include <QTextStream>
+ 
++#include <qt6keychain/keychain.h>
++
+ Q_LOGGING_CATEGORY(LOG_KSSHASKPASS, "ksshaskpass")
+ 
+ constexpr const char *PROMPT_TYPE_ENV_VAR = "SSH_ASKPASS_PROMPT";
+@@ -41,17 +42,17 @@
+     ConfirmCancel,
+ };
+ 
+-static void parsePrompt(PromptType promptType, const QString &prompt, QString &identifier, bool &ignoreWallet, DisplayType &displayType)
++static void parsePrompt(PromptType promptType, const QString &prompt, QString &identifier, bool &ignoreKeychain, DisplayType &displayType)
+ {
+     if (promptType == PromptType::Confirm) {
+         displayType = DisplayType::Confirm;
+-        ignoreWallet = true;
++        ignoreKeychain = true;
+         return;
+     }
+ 
+     if (promptType == PromptType::None) {
+         displayType = DisplayType::ConfirmCancel;
+-        ignoreWallet = true;
++        ignoreKeychain = true;
+         return;
+     }
+ 
+@@ -65,7 +66,7 @@
+     if (match.hasMatch()) {
+         identifier = match.captured(1);
+         displayType = DisplayType::Password;
+-        ignoreWallet = false;
++        ignoreKeychain = false;
+         return;
+     }
+ 
+@@ -75,7 +76,7 @@
+     if (match.hasMatch()) {
+         identifier = match.captured(2);
+         displayType = DisplayType::Password;
+-        ignoreWallet = true;
++        ignoreKeychain = true;
+         return;
+     }
+ 
+@@ -85,28 +86,28 @@
+     if (match.hasMatch()) {
+         identifier = match.captured(2);
+         displayType = DisplayType::Password;
+-        ignoreWallet = false;
++        ignoreKeychain = false;
+         return;
+     }
+ 
+     // openssh ssh-add.c
+-    // Case: asking for passphrase for a certain keyfile for the first time => we should try a password from the wallet
++    // Case: asking for passphrase for a certain keyfile for the first time => we should try a password from the keychain
+     match = QRegularExpression(QStringLiteral("^Enter passphrase for (.*?)( \\(will confirm each use\\))?: $")).match(prompt);
+     if (match.hasMatch()) {
+         identifier = match.captured(1);
+         displayType = DisplayType::Password;
+-        ignoreWallet = false;
++        ignoreKeychain = false;
+         return;
+     }
+ 
+     // openssh ssh-add.c
+-    // Case: re-asking for passphrase for a certain keyfile => probably we've tried a password from the wallet, no point
++    // Case: re-asking for passphrase for a certain keyfile => probably we’ve tried a password from the keychain, no point
+     // in trying it again
+     match = QRegularExpression(QStringLiteral("^Bad passphrase, try again for (.*?)( \\(will confirm each use\\))?: $")).match(prompt);
+     if (match.hasMatch()) {
+         identifier = match.captured(1);
+         displayType = DisplayType::Password;
+-        ignoreWallet = true;
++        ignoreKeychain = true;
+         return;
+     }
+ 
+@@ -116,7 +117,7 @@
+     if (match.hasMatch()) {
+         identifier = match.captured(1);
+         displayType = DisplayType::Password;
+-        ignoreWallet = false;
++        ignoreKeychain = false;
+         return;
+     }
+ 
+@@ -127,7 +128,7 @@
+     if (match.hasMatch()) {
+         identifier = QStringLiteral("PIN:") + match.captured(3);
+         displayType = DisplayType::Password;
+-        ignoreWallet = true;
++        ignoreKeychain = true;
+         return;
+     }
+ 
+@@ -137,7 +138,7 @@
+     if (match.hasMatch()) {
+         identifier = QString();
+         displayType = DisplayType::ClearText;
+-        ignoreWallet = true;
++        ignoreKeychain = true;
+         return;
+     }
+ 
+@@ -147,7 +148,7 @@
+     if (match.hasMatch()) {
+         identifier = QString();
+         displayType = DisplayType::ClearText;
+-        ignoreWallet = true;
++        ignoreKeychain = true;
+         return;
+     }
+ 
+@@ -157,7 +158,7 @@
+     if (match.hasMatch()) {
+         identifier = QString();
+         displayType = DisplayType::Password;
+-        ignoreWallet = true;
++        ignoreKeychain = true;
+         return;
+     }
+ 
+@@ -167,7 +168,7 @@
+     if (match.hasMatch()) {
+         identifier = match.captured(1);
+         displayType = DisplayType::ClearText;
+-        ignoreWallet = false;
++        ignoreKeychain = false;
+         return;
+     }
+ 
+@@ -177,7 +178,7 @@
+     if (match.hasMatch()) {
+         identifier = match.captured(1);
+         displayType = DisplayType::Password;
+-        ignoreWallet = false;
++        ignoreKeychain = false;
+         return;
+     }
+ 
+@@ -186,7 +187,7 @@
+     if (match.hasMatch()) {
+         identifier = match.captured(1);
+         displayType = DisplayType::ClearText;
+-        ignoreWallet = false;
++        ignoreKeychain = false;
+         return;
+     }
+ 
+@@ -195,13 +196,27 @@
+     if (match.hasMatch()) {
+         identifier = match.captured(1);
+         displayType = DisplayType::Password;
+-        ignoreWallet = false;
++        ignoreKeychain = false;
+         return;
+     }
+ 
+     // Nothing matched; either it was called by some sort of a script with a custom prompt (i.e. not ssh-add), or
+     // strings we're looking for were broken. Issue a warning and continue without identifier.
+     qCWarning(LOG_KSSHASKPASS) << "Unable to parse phrase" << prompt;
++}
++
++static void execQKeychainJobBlocking(QKeychain::Job &job)
++{
++    QEventLoop loop;
++    job.connect(&job, &QKeychain::Job::finished, &loop, &QEventLoop::quit);
++    job.setAutoDelete(false);  // Prevent job from auto-freeing its data after the `Job::finished` signal
++    job.start();
++    loop.exec();
++
++    if (job.error() != QKeychain::NoError && job.error() != QKeychain::EntryNotFound)
++    {
++        qCWarning(LOG_KSSHASKPASS) << "QtKeychain returned unexpected error: " << job.errorString();
++    }
+ }
+ 
+ void cancelDialog(QWidget *parent, const QString &text)
+@@ -252,38 +267,50 @@
+         promptType = PromptType::None;
+     }
+ 
+-    const QString walletFolder = app.applicationName();
+     QString dialog = i18n("Please enter passphrase"); // Default dialog text.
+     QString identifier;
+     QString item;
+-    bool ignoreWallet = false;
++    bool ignoreKeychain = false;
+     DisplayType displayType = DisplayType::Password;
+ 
+     // Parse commandline arguments
+     if (!parser.positionalArguments().isEmpty()) {
+         dialog = parser.positionalArguments().at(0);
+-        parsePrompt(promptType, dialog, identifier, ignoreWallet, displayType);
+-    }
+-
+-    // Open KWallet to see if an item was previously stored
+-    std::unique_ptr<KWallet::Wallet> wallet(ignoreWallet ? nullptr : KWallet::Wallet::openWallet(KWallet::Wallet::NetworkWallet(), 0));
+-
+-    if ((!ignoreWallet) && (!identifier.isNull()) && wallet.get() && wallet->hasFolder(walletFolder)) {
+-        wallet->setFolder(walletFolder);
+-
+-        wallet->readPassword(identifier, item);
+-
+-        if (item.isEmpty()) {
++        parsePrompt(promptType, dialog, identifier, ignoreKeychain, displayType);
++    }
++
++    if ((!ignoreKeychain) && (!identifier.isNull())) {
++        QKeychain::ReadPasswordJob job(app.applicationName());
++        job.setKey(identifier);
++        execQKeychainJobBlocking(job);
++
++        item = job.textData();
++        if (job.error() != QKeychain::NoError) {
+             // There was a bug in previous versions of ksshaskpass that caused it to create keys with single quotes
+             // around the identifier and even older versions have an extra space appended to the identifier.
+             // key file name. Try these keys too, and, if there's a match, ensure that it's properly
+             // replaced with proper one.
+             for (auto templ : QStringList{QStringLiteral("'%0'"), QStringLiteral("%0 "), QStringLiteral("'%0' ")}) {
+                 const QString keyFile = templ.arg(identifier);
+-                wallet->readPassword(keyFile, item);
+-                if (!item.isEmpty()) {
++
++                QKeychain::ReadPasswordJob job(app.applicationName());
++                job.setKey(keyFile);
++                execQKeychainJobBlocking(job);
++
++                item = job.textData();
++                if (job.error() == QKeychain::NoError) {
+                     qCWarning(LOG_KSSHASKPASS) << "Detected legacy key for " << identifier << ", enabling workaround";
+-                    wallet->renameEntry(keyFile, identifier);
++
++                    // Emulate rename using write-then-delete, since QKeychain doens’t support native renames
++                    QKeychain::WritePasswordJob jobWrite(app.applicationName());
++                    jobWrite.setKey(identifier);
++                    jobWrite.setTextData(item);
++                    execQKeychainJobBlocking(jobWrite);
++
++                    QKeychain::DeletePasswordJob jobDelete(app.applicationName());
++                    jobDelete.setKey(keyFile);
++                    execQKeychainJobBlocking(jobDelete);
++
+                     break;
+                 }
+             }
+@@ -295,7 +322,7 @@
+         return 0;
+     }
+ 
+-    // Item could not be retrieved from wallet. Open dialog
++    // Item could not be retrieved from keychain. Open dialog
+     switch (displayType) {
+     case DisplayType::ConfirmCancel: {
+         cancelDialog(nullptr, dialog);
+@@ -320,9 +347,9 @@
+         // other available dialog types don't have a "Keep" checkbox.
+         /* fallthrough */
+     case DisplayType::Password: {
+-        // create the password dialog, but only show "Enable Keep" button, if the wallet is open
++        // create the password dialog, but only show "Enable Keep" button, if the keychain has a working backend available
+         KPasswordDialog::KPasswordDialogFlag flag(KPasswordDialog::NoFlags);
+-        if (wallet.get()) {
++        if (QKeychain::isAvailable()) {
+             flag = KPasswordDialog::ShowKeepPassword;
+         }
+         QPointer<KPasswordDialog> kpd = new KPasswordDialog(nullptr, flag);
+@@ -337,13 +364,12 @@
+ 
+         if (kpd->exec() == QDialog::Accepted) {
+             item = kpd->password();
+-            // If "Enable Keep" is enabled, open/create a folder in KWallet and store the password.
+-            if ((!identifier.isNull()) && wallet.get() && kpd->keepPassword()) {
+-                if (!wallet->hasFolder(walletFolder)) {
+-                    wallet->createFolder(walletFolder);
+-                }
+-                wallet->setFolder(walletFolder);
+-                wallet->writePassword(identifier, item);
++            // If “Enable Keep” is enabled, store the password in keychain
++            if ((!identifier.isNull()) && kpd->keepPassword()) {
++                QKeychain::WritePasswordJob job(app.applicationName());
++                job.setKey(identifier);
++                job.setTextData(item);
++                execQKeychainJobBlocking(job);
+             }
+         } else {
+             // dialog has been canceled

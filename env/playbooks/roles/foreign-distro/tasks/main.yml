@@ -1,4 +1,15 @@
 ---
+- name: Install the host password service and login integration
+  ansible.builtin.apt:
+    name:
+      - gnome-keyring
+      - libpam-gnome-keyring
+    state: present
+    update_cache: true
+    cache_valid_time: 86400
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: [keyring]
+
 - name: Install pcscd (smart card daemon)
   ansible.builtin.apt:
     name: pcscd
