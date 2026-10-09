@@ -1,0 +1,194 @@
+#+title: Arknights automation
+
+* Deployment with redroid
+
+** Design
+
+Hypie runs an Android container named =redroid-maa= under Docker.  Guix
+declares the container and its dependencies; Shepherd manages its lifecycle.
+Android's =/data= is bind-mounted from =/var/lib/redroid/data/maa= on the
+system disk.  Other Android instances must have separate names, data
+directories and IP addresses.  Guix generation rollback does not roll back
+Android data: stop the instance and back up its data before image upgrades.
+
+Use the Intel HD 630 for rendering, not the GTX 1080.  Resolve the Intel
+render device by PCI identity rather than assuming =renderD128=.  The host
+kernel must support Binder; use memfd instead of the removed ashmem driver.
+
+** Networking
+
+Initial addressing (checked against all current IPv4 routing tables on start):
+
+| Object      | Value           |
+|-------------+-----------------|
+| Docker net  | redroid         |
+| Host bridge | br-redroid      |
+| Subnet      | 10.203.0.0/24    |
+| Gateway     | 10.203.0.1      |
+| redroid-maa | 10.203.0.2:5555 |
+
+These are defaults in =(uraj services redroid)=.  If a LAN or VPN overlaps,
+change the network's subnet/gateway and the instance address together.
+
+Use a dedicated Docker bridge with an independent network namespace for
+Android.  Do not use host networking: Android manages routes and networking
+inside its namespace, and its ADB daemon must not listen on the host's LAN
+interfaces.  Do not publish container ports.
+
+Guix owns IPv4 forwarding and a dedicated nftables table for container
+egress masquerading and forwarding restrictions.  Docker's automatic
+iptables/ip6tables, IP forwarding and userland proxy management are disabled.
+The default Docker bridge is disabled; the redroid network is explicitly
+provisioned.  Rules must not flush or replace unrelated host/VPN rules.
+Unsolicited forwarding into redroid is blocked; the host can connect
+directly to the instance's private IP.  The private subnet must not overlap
+the host's LAN or VPN routes.  Wi-Fi and Ethernet use the same routed design.
+
+Only =inet uraj_redroid= and =ip uraj_redroid_nat= are replaced, atomically.
+Stopping =redroid-network= retains the network and its protection; it never
+deletes other instances' network.  Unrelated firewall tables are retained.
+An existing host firewall can still reject forwarding: its policy must also
+permit the intended traffic.  Containers may initiate outgoing connections;
+new connections from the bridge into host services are blocked.  Host-started
+ADB connections and their replies are allowed.  Containers on the same bridge
+are not isolated from one another at layer 2; only trusted Android instances
+should share it.
+
+Android DNS is explicitly set to =223.5.5.5= via the instance's =dns= field,
+not inherited automatically from NetworkManager or the VPN.  Egress follows
+the host's forwarding/routing policy; host-only proxy settings are not
+automatically used by Android.  Split-tunnel VPN behavior needs device testing.
+
+** Control plane
+
+=maa-cli=, MaaCore and adb run outside Android, eventually under a separate
+scheduled job at 05:00, 14:00 and 21:00 Asia/Shanghai.  They connect to the
+private Android IP on port 5555.  Initially validate Android boot, Intel
+rendering, scrcpy, game installation and manual login before enabling MAA.
+Changing the controller to mower later does not require replacing Android
+or its persistent data.
+
+** Implementation and first deployment
+
+- =src/guix/uraj/services/redroid.scm=: Docker settings, network/firewall
+  service and extensible redroid instance service, using Guix's OCI service.
+- =src/guix/uraj/build/redroid.scm=: runtime checks and network provisioning.
+- =env/guix/os/hypie.scm=: enables containerd, Docker, the private network
+  and the MAA instance only on the installed system, not the installer ISO.
+
+The container initially has =(auto-start? #f)=.  Docker and network services
+start at boot, but Android starts only on =herd start redroid-maa=.  After
+validation, change this field to =#t= in hypie's instance declaration.
+Shepherd restarts a failed container; there is no Docker restart policy that
+could bypass the firewall/readiness dependencies.  A live container process
+does not itself prove Android or the game is healthy.
+
+The initial image is =docker.io/redroid/redroid:11.0.0-latest=.  This is a
+bootstrap tag, not an immutable lock.  After successful testing, obtain its
+RepoDigest and set the =image= field to that digest before treating deployment
+as reproducible.  Do not upgrade Android versions against the same data
+directory without a stopped-container backup and a tested recovery path.
+
+Before reconfiguration, on hypie:
+
+#+begin_src sh
+grep binder /proc/filesystems
+ls -l /dev/dri/by-path/pci-0000:00:02.0-render
+ip -4 route show table all
+#+end_src
+
+The pinned Guix x86_64 kernel configurations include Binder and binderfs.
+The running kernel still needs checking.  If binderfs is missing, load
+=binder_linux= if it is a module, or rebuild/boot a kernel with Binder enabled.
+No extra Binder DKMS module or ashmem driver is installed by this service.
+
+The Intel device is bind-mounted at =/dev/dri/intel-render= inside Android.
+The container is privileged, as in the upstream deployment recipe.  A
+small statically linked entrypoint first bind-mounts =/proc/sys/kernel/modprobe=
+read-only inside the container, then executes =/init androidboot.hardware=redroid ...=.
+If that protection fails, Android is not started.  This avoids both Android
+disabling host module autoloading (upstream [[https://github.com/remote-android/redroid-doc/issues/932][issue #932]]) and runc's rejection
+of OCI mounts at that =/proc= path.  Its behavior still needs runtime validation
+against the selected Android image.
+The helper is built from =src/guix/uraj/packages/aux-files/redroid-init.c=.
+It avoids depending on Android's shell/APEX libraries before init has run.
+
+From the repository on hypie, with =TO_ISO= unset:
+
+#+begin_src sh
+sudo guix time-machine -C env/guix/channels-lock.scm -- \
+  system -L src/guix -L src/guile reconfigure env/guix/os/hypie.scm
+sudo herd start redroid-maa
+sudo herd status redroid-maa
+sudo docker logs --tail 100 redroid-maa
+sudo docker network inspect redroid
+sudo nft list table inet uraj_redroid
+sudo nft list table ip uraj_redroid_nat
+#+end_src
+
+Install/use =adb= and =scrcpy= as client-side tools; no Android controller
+is installed by this first deployment:
+
+#+begin_src sh
+guix shell adb scrcpy
+adb connect 10.203.0.2:5555
+adb -s 10.203.0.2:5555 shell getprop sys.boot_completed
+adb -s 10.203.0.2:5555 shell dumpsys SurfaceFlinger
+scrcpy -s 10.203.0.2:5555
+adb -s 10.203.0.2:5555 install /path/to/arknights.apk
+#+end_src
+
+Require boot completion =1=, Intel/Mesa hardware rendering rather than a
+software renderer, working DNS and game login, and intact host networking.
+Check the running container's read-only modprobe mount and compare the host
+=/proc/sys/kernel/modprobe= before/after starting it.  Then record the image:
+
+#+begin_src sh
+sudo docker image inspect docker.io/redroid/redroid:11.0.0-latest \
+  --format '{{json .RepoDigests}}'
+#+end_src
+
+For remote scrcpy, tunnel ADB through SSH instead of exposing it on the LAN:
+
+#+begin_src sh
+ssh -N -L 15555:10.203.0.2:5555 USER@HYPIE
+# In another local terminal:
+adb connect 127.0.0.1:15555
+scrcpy -s 127.0.0.1:15555
+#+end_src
+
+** Validation status
+
+The service graph and subnet/network drift checks have automated tests:
+
+#+begin_src sh
+guix repl -L src/guix -L src/guile test/guix/uraj/services/redroid.scm
+#+end_src
+
+The nftables rules were also loaded twice in an isolated user/network
+namespace: syntax and repeated application passed, and an unrelated table
+survived.  This does not yet verify forwarding packets or Android networking.
+The static entrypoint compiled with warnings treated as errors.  In an
+isolated user/mount namespace it successfully bind-mounted the modprobe
+sysctl read-only (confirmed in mountinfo) and reached =exec /init=; the test
+namespace intentionally has no Android init.  It preserves procfs mount
+safety flags.  The Scheme suite now has 25 passing checks.
+System build and real-device boot/game validation remain pending; the coding
+environment has no usable local Guix daemon socket.  No reconfiguration has
+been applied to hypie.
+
+On 2026-10-09, SSH to =wenxin@hypie.home.labbies.wenxinwang.me= confirmed
+Guix System with kernel =7.2.6=, binderfs, and Intel's render device at
+=pci-0000:00:02.0-render -> renderD128=.  The =10.203.0.0/24= subnet does not
+overlap the observed LAN, local or VPN routes.  The host has roughly 205 GiB
+free on the system disk and a running Guix daemon.  =wenxin= needs a sudo
+password, but the configured =guix-deploy= account accepts the same SSH key
+and its documented passwordless Guix/Guile deployment entrypoints work.
+A clean repository snapshot plus only the redroid changes
+is staged at =/tmp/uraj-redroid-20261009= for a build before activation.
+
+** References
+
+- [[https://github.com/remote-android/redroid-doc][redroid deployment and boot parameters]]
+- [[https://docs.docker.com/engine/network/packet-filtering-firewalls/][Docker firewall behavior]]
+- [[https://github.com/MaaAssistantArknights/maa-cli][maa-cli]]
