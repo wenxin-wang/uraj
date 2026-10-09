@@ -33,17 +33,33 @@ def move_up(request):
         raise RuntimeError("The last workspace is no longer empty; try again")
 
     reference = {"Id": target["id"]}
-    request({"Action": {"MoveColumnToWorkspace": {
-        "reference": reference, "focus": True,
-    }}})
+    request(
+        {
+            "Action": {
+                "MoveColumnToWorkspace": {
+                    "reference": reference,
+                    "focus": True,
+                }
+            }
+        }
+    )
     # A column action can be a no-op (or focus can change between requests).
     # Only reorder the workspace if the original window actually arrived.
     windows = request("Windows")["Windows"]
-    if any(win["id"] == window["id"] and win["workspace_id"] == target["id"]
-           for win in windows):
-        request({"Action": {"MoveWorkspaceToIndex": {
-            "index": 1, "reference": reference,
-        }}})
+    if any(
+        win["id"] == window["id"] and win["workspace_id"] == target["id"]
+        for win in windows
+    ):
+        request(
+            {
+                "Action": {
+                    "MoveWorkspaceToIndex": {
+                        "index": 1,
+                        "reference": reference,
+                    }
+                }
+            }
+        )
 
 
 def main():
@@ -58,6 +74,7 @@ def main():
             stream.settimeout(5)
             stream.connect(socket_path)
             with stream.makefile("rwb") as ipc:
+
                 def request(message):
                     ipc.write(json.dumps(message).encode() + b"\n")
                     ipc.flush()

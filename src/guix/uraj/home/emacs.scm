@@ -98,7 +98,7 @@
       ;; External programs used by lsp-mode, Apheleia, Org and Dired.
       "emacs-lsp-booster"
       "clang"                          ; clangd and clang-format
-      "ruff"
+      "ruff"                           ; Apheleia formatting / Flycheck lint
       "graphviz"                       ; org-roam-graph
       "imagemagick"                    ; image-dired / Dirvish thumbnails
       "poppler")))                     ; pdftoppm / pdftotext previews

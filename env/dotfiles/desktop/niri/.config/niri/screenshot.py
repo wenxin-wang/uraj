@@ -2,13 +2,13 @@
 """Capture with niri, then edit and save the same file with Satty."""
 
 import argparse
-from datetime import datetime
 import json
 import os
-from pathlib import Path
 import socket
 import subprocess
 import time
+from datetime import datetime
+from pathlib import Path
 
 
 def main():
@@ -17,8 +17,12 @@ def main():
     args = parser.parse_args()
     directory = Path.home() / "tmp" / "Pictures" / "Screenshots"
     directory.mkdir(parents=True, exist_ok=True)
-    path = str(directory / (datetime.now().strftime("%Y%m%d-%H%M%S-%f") + ".png"))
-    action = "screenshot" if args.mode == "region" else "screenshot-" + args.mode
+    path = str(
+        directory / (datetime.now().strftime("%Y%m%d-%H%M%S-%f") + ".png")
+    )
+    action = (
+        "screenshot" if args.mode == "region" else "screenshot-" + args.mode
+    )
 
     # Subscribe before capturing, and match our own unique path. This avoids
     # startup races, partial PNG reads, and opening another shortcut's capture.
@@ -46,14 +50,23 @@ def main():
                 except TimeoutError:
                     return
                 if not line:
-                    raise RuntimeError("niri closed the screenshot event stream")
+                    raise RuntimeError(
+                        "niri closed the screenshot event stream"
+                    )
                 event = json.loads(line)
                 if event.get("ScreenshotCaptured", {}).get("path") == path:
                     break
 
     subprocess.run(
-        ["satty", "--filename", path, "--output-filename", path,
-         "--copy-command", "wl-copy"],
+        [
+            "satty",
+            "--filename",
+            path,
+            "--output-filename",
+            path,
+            "--copy-command",
+            "wl-copy",
+        ],
         check=True,
     )
 

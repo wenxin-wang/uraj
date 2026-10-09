@@ -1,0 +1,25 @@
+# Google Python conventions with Ruff's Black-compatible formatter.
+line-length = 80
+indent-width = 4
+extend-exclude = ["vendor"]
+force-exclude = true
+fix = false
+unsafe-fixes = false
+
+[format]
+quote-style = "double"
+indent-style = "space"
+
+[lint]
+# Syntax/errors, unused names, imports, naming, docstrings, common bug patterns.
+# Leave layout to the formatter; E501 would reject some formatter output.
+select = ["E4", "E7", "E9", "F", "I", "N", "D", "B"]
+# Docstrings are optional; validate their style when present.
+ignore = ["D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107"]
+
+[lint.pydocstyle]
+convention = "google"
+
+[lint.isort]
+force-single-line = true
+order-by-type = false

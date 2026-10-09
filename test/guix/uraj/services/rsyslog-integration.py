@@ -3,9 +3,10 @@
 Exercise the production rules with a private socket and temporary destinations.
 Use the caller's UID/groups so the test needs no root privileges.
 """
+
+import functools
 import grp
 import os
-from pathlib import Path
 import pwd
 import signal
 import socket
@@ -13,6 +14,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from pathlib import Path
 
 
 def wait_for(predicate):
@@ -34,9 +36,15 @@ with tempfile.TemporaryDirectory(prefix="uraj-rsyslog-") as temp:
         'module(load="imuxsock")',
         f'module(load="imuxsock" SysSock.Name="{sockpath}")',
     )
-    config = config.replace('fileOwner="root"', f'fileOwner="{pwd.getpwuid(os.getuid()).pw_name}"')
-    config = config.replace('fileGroup="root"', f'fileGroup="{grp.getgrgid(os.getgid()).gr_name}"')
-    config = config.replace('fileGroup="log-readers"', f'fileGroup="{grp.getgrgid(gid).gr_name}"')
+    config = config.replace(
+        'fileOwner="root"', f'fileOwner="{pwd.getpwuid(os.getuid()).pw_name}"'
+    )
+    config = config.replace(
+        'fileGroup="root"', f'fileGroup="{grp.getgrgid(os.getgid()).gr_name}"'
+    )
+    config = config.replace(
+        'fileGroup="log-readers"', f'fileGroup="{grp.getgrgid(gid).gr_name}"'
+    )
     config = config.replace("/var/log/", f"{directory}/")
     config = config.replace("/dev/tty12", f"{directory}/tty12")
     config = config.replace("/dev/console", f"{directory}/console")
@@ -49,14 +57,18 @@ with tempfile.TemporaryDirectory(prefix="uraj-rsyslog-") as temp:
     with errors.open("w") as stderr:
         process = subprocess.Popen(
             [binary, "-n", "-i", str(directory / "pid"), "-f", str(conf)],
-            stdout=subprocess.DEVNULL, stderr=stderr,
+            stdout=subprocess.DEVNULL,
+            stderr=stderr,
         )
         try:
             wait_for(sockpath.exists)
 
             def send(priority, message):
                 with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as sock:
-                    sock.sendto(f"<{priority}>uraj-test: {message}".encode(), str(sockpath))
+                    sock.sendto(
+                        f"<{priority}>uraj-test: {message}".encode(),
+                        str(sockpath),
+                    )
 
             def contains(name, text):
                 file = directory / name
@@ -70,13 +82,16 @@ with tempfile.TemporaryDirectory(prefix="uraj-rsyslog-") as temp:
                 (22, "mail-message", "maillog"),
             ):
                 send(priority, text)
-                wait_for(lambda: contains(target, text))
+                wait_for(functools.partial(contains, target, text))
             send(14, "end-of-routing-check")
             wait_for(lambda: contains("messages", "end-of-routing-check"))
             messages = directory / "messages"
             text = messages.read_text()
             assert "debug-message" in text
-            assert not any(s in text for s in ("auth-message", "private-message", "mail-message"))
+            assert not any(
+                s in text
+                for s in ("auth-message", "private-message", "mail-message")
+            )
             assert messages.stat().st_gid == gid
             assert messages.stat().st_mode & 0o777 == 0o640
             for name in ("secure", "debug", "maillog"):
@@ -85,12 +100,17 @@ with tempfile.TemporaryDirectory(prefix="uraj-rsyslog-") as temp:
 
             # Exercise precisely the copy/truncate primitives used by Shepherd.
             inode = messages.stat().st_ino
-            subprocess.run([
-                "guile", "--no-auto-compile", "-c",
-                '(let ((file (cadr (command-line)))) '
-                '(copy-file file (string-append file ".1")) (truncate-file file 0))',
-                str(messages),
-            ], check=True)
+            subprocess.run(
+                [
+                    "guile",
+                    "--no-auto-compile",
+                    "-c",
+                    "(let ((file (cadr (command-line)))) "
+                    '(copy-file file (string-append file ".1")) (truncate-file file 0))',
+                    str(messages),
+                ],
+                check=True,
+            )
             send(14, "after-rotation")
             wait_for(lambda: contains("messages", "after-rotation"))
             assert messages.stat().st_ino == inode
@@ -114,4 +134,6 @@ with tempfile.TemporaryDirectory(prefix="uraj-rsyslog-") as temp:
                 process.wait()
     assert process.returncode == 0, errors.read_text()
     assert not errors.read_text(), errors.read_text()
-print("PASS: routing, private logs, group permissions, copy/truncate, recreation")
+print(
+    "PASS: routing, private logs, group permissions, copy/truncate, recreation"
+)

@@ -1156,7 +1156,14 @@ dir is the directory of the buffer (param of my/project-try), when it's changed,
 
 (use-package google-c-style
   :demand t
+  :hook (c-mode-common . google-set-c-style)
   :config (c-add-style "Google" google-c-style))
+
+(use-package c-ts-mode
+  :straight (:type built-in)
+  :custom
+  (c-ts-mode-indent-style 'google)
+  (c-ts-mode-indent-offset 2))
 
 (use-package eldoc
   :blackout t
@@ -1172,6 +1179,16 @@ dir is the directory of the buffer (param of my/project-try), when it's changed,
 (use-package apheleia
   :hook (emacs-startup . apheleia-global-mode)
   :config
+  ;; C defaults to Google; Python reads the project's ruff.toml.
+  (setf (alist-get 'clang-format apheleia-formatters)
+        '("clang-format" "--style=file" "--fallback-style=Google"
+          "--assume-filename"
+          (or (apheleia-formatters-local-buffer-file-name) ".c")))
+  ;; Sort imports, then format Python buffers on save.
+  ;; Do not let Apheleia's fill-column override the project's line length.
+  (setf (alist-get 'ruff apheleia-formatters)
+        '("ruff" "format" "--silent" "--no-cache"
+          "--stdin-filename" filepath "-"))
   (setf (alist-get 'python-mode apheleia-mode-alist)
         '(ruff-isort ruff))
   (setf (alist-get 'python-ts-mode apheleia-mode-alist)

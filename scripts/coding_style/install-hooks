@@ -1,0 +1,25 @@
+#!/bin/sh
+set -eu
+cd "$(git rev-parse --show-toplevel)"
+source=scripts/coding_style/hooks/pre-commit
+existing=$(git config --get core.hooksPath || :)
+if [ "$existing" = scripts/coding_style/hooks ]; then
+    exit 0
+fi
+if [ -n "$existing" ]; then
+    echo "Existing core.hooksPath=$existing; integrate $source manually." >&2
+    exit 1
+fi
+hooks=$(git rev-parse --git-path hooks)
+target=$hooks/pre-commit
+if [ -e "$target" ] || [ -L "$target" ]; then
+    if cmp -s "$source" "$target" && [ -x "$target" ]; then
+        exit 0
+    fi
+    echo "Existing hook $target; integrate $source manually." >&2
+    exit 1
+fi
+mkdir -p "$hooks"
+cp "$source" "$target"
+chmod +x "$target"
+echo "Installed read-only coding style pre-commit check."
