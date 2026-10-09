@@ -1,0 +1,49 @@
+#+title: Storie host macvlan network
+
+* Configuration
+
+The =host-macvlan= system service creates =host0= on =enp1s0= in macvlan
+bridge mode, with fixed MAC =02:31:00:00:00:02=. It brings both links up,
+and remains started until stopped. Stopping removes the child interface.
+An existing interface name is an error; it is never overwritten or adopted.
+Docker's macvlan networks continue using =enp1s0= as their parent.
+
+The interface starts automatically before =networking= (Guix's Shepherd
+name for dhcpcd). dhcpcd runs on =host0=, with =denyinterfaces enp1s0=.
+The interface service remains started; it is not a one-shot service, since
+Shepherd reruns one-shot dependencies on later dependent-service starts.
+IPv4 and IPv6 DHCP therefore use =host0=. No IPv6 sysctl is changed;
+link-local IPv6 on the physical parent is permitted. With the current
+radvd configuration not advertising autonomous prefixes, the parent should
+not acquire a global SLAAC address either.
+
+Paseo shares the host network and reaches relay =172.31.0.8:4000= through
+its sibling macvlan interface. No dedicated Paseo IP or namespace is needed.
+
+* Deployment
+
+Prepare the router's DHCP reservation for =02:31:00:00:00:02=, then
+reconfigure and reboot to switch the network and discard old leases/addresses
+on the physical interface. Check the server's DHCP client-ID matching rules
+as well as its MAC reservation; the host address is supplied by DHCP.
+
+Do not restart =networking= or =host-macvlan= casually over SSH: Shepherd
+can stop dependent services, including SSH and Paseo. Apply network changes with reconfigure followed by reboot. Reconfiguration alone does
+not guarantee that the old running network service has been replaced.
+
+After boot, check:
+
+#+begin_src sh
+sudo herd status host-macvlan
+sudo herd status networking
+ip -d link show host0
+ip address show host0
+ip address show enp1s0
+ip route
+curl --max-time 5 http://172.31.0.8:4000/ready
+#+end_src
+
+Expect the host's DHCP addresses and default route on =host0=. The physical
+interface should have no DHCP addresses; a =fe80::= link-local address is
+normal. Pair Paseo through the relay once its log shows
+=relay_control_connected=.

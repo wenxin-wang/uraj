@@ -127,6 +127,7 @@
              (gnu services docker)
              (gnu services linux)
              (gnu services nfs)
+             (gnu services networking)
              (gnu services shepherd)
              (guix gexp)
              (guix packages)
@@ -142,6 +143,7 @@
              (uraj services docker-lan)
              (uraj services paseo-relay)
              (uraj services paseo)
+             (uraj services host-macvlan)
              (uraj system base)
              (uraj system server)
              (uraj system secrets)
@@ -362,6 +364,12 @@
             (service containerd-service-type)
             (service immich-docker-service-type %immich-docker-configuration)
             (service docker-lan-service-type)
+            ;; Prepare host0 before DHCP; enp1s0 is only the macvlan parent.
+            (service host-macvlan-service-type
+              (host-macvlan-configuration
+               (parent "enp1s0")
+               (name "host0")
+               (mac "02:31:00:00:00:02")))
             (service paseo-relay-service-type
               (paseo-relay-configuration (address "172.31.0.8")))
             ;; Both processes use wenxin's existing Home and project roots.
@@ -391,6 +399,16 @@
       (if (getenv "TO_ISO") '()
           (host-sops-services (list %immich-database-secret)))
       (modify-services (operating-system-user-services %server-os)
+        (dhcpcd-service-type config =>
+          (dhcpcd-configuration
+           (inherit config)
+           (interfaces '("host0"))
+           (shepherd-requirement
+            (cons 'host-macvlan (dhcpcd-configuration-shepherd-requirement config)))
+           (extra-content
+            (let ((extra (dhcpcd-configuration-extra-content config)))
+              (string-append (if (string? extra) extra "")
+                             "\ndenyinterfaces enp1s0\n")))))
         (guix-service-type config =>
           (guix-configuration
             (inherit config)
