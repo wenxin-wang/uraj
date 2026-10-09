@@ -310,12 +310,12 @@
      (services
       (append zfs-services
               %hypie-fan-services
-              ;; storie is always on and reachable here, and builds the same
-              ;; channels; prefer it over the public mirrors.
               (trust-substitute-servers
                (operating-system-user-services %desktop-os)
                (list (local-file
-                      (guix-env-path "os/keys/storie-signing-key.pub")))
+                      (guix-env-path "os/keys/storie-signing-key.pub"))
+                     (local-file
+                      (guix-env-path "os/keys/lappie-signing-key.pub")))
                #:urls '("http://172.31.0.5:8080")))))))
 
 (define %vpn-connections
