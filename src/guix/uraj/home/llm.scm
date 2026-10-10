@@ -15,7 +15,9 @@
   #:use-module (uraj home paseo)
   #:use-module (uraj packages llm)
   #:use-module (uraj utils file path)
+  #:use-module ((shika packages ai) #:select (opencode-bin))
   #:export (home-agent-skills-service-type
+            %opencode?
             agent-common-services
             agent-desktop-services agent-headless-services contained-agent))
 
@@ -54,6 +56,10 @@ search paths.")))
 (define llm-agent-packages
   (list agent-browser claude-code codex))
 
+;;; Whether to also install OpenCode.  Bind %opencode? around Home service
+;;; construction; it is only installed on the host, not in contained-agent.
+(define %opencode? (make-parameter #f))
+
 (define %agent-skills
   `(("agent-browser"
      ,(file-append agent-browser "/share/agent-browser/skills/agent-browser"))))
@@ -64,7 +70,9 @@ headless Homes."
   (list
    (simple-service 'llm-agent-packages
                    home-profile-service-type
-                   llm-agent-packages)
+                   (if (%opencode?)
+                       (cons opencode-bin llm-agent-packages)
+                       llm-agent-packages))
    (service home-agent-skills-service-type %agent-skills)))
 
 ;;; contained-agent: each agent runs in a per-project `guix shell
