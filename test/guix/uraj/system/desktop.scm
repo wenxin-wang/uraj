@@ -8,6 +8,7 @@
              (srfi srfi-1) (srfi srfi-13) (srfi srfi-64)
              (uraj system desktop)
              (uraj home niri)
+             (uraj home paseo)
              (uraj services paseo)
              (uraj common context)
              (uraj packages elogind)
@@ -195,6 +196,36 @@
 (test-assert "foreign Home starts Paseo and leaves keyring to the host"
   (and (lookup foreign-services 'paseo)
        (not (lookup foreign-services 'gnome-keyring-secrets))))
+(define unmanaged-home
+  (parameterize ((%home-target (fake-foreign-target '() #t))
+                 (%paseo-setup #f))
+    (home-environment (services (niri-desktop-home-services)))))
+(define unmanaged-services
+  (home-shepherd-configuration-services
+   (service-value
+    (fold-services (home-environment-services unmanaged-home)
+                   #:target-type home-shepherd-service-type))))
+(test-assert "unmanaged Home runs no Paseo daemon or broker"
+  (and (not (lookup unmanaged-services 'paseo))
+       (not (lookup unmanaged-services 'paseo-broker))))
+(test-assert "unmanaged Home installs no Paseo broker files"
+  (not (assoc ".local/bin/paseo-broker"
+              (service-value
+               (fold-services (home-environment-services unmanaged-home)
+                              #:target-type home-files-service-type)))))
+;; The provider settings are written by a home-activation service named
+;; paseo-settings (see (uraj home paseo)); verify both directions.
+(define (paseo-settings-service? s)
+  (let ((kind (service-kind s)))
+    (and (service-type? kind)
+         (eq? (service-type-name kind) 'paseo-settings))))
+(parameterize ((%home-target (fake-foreign-target '() #t)))
+  (test-assert "managed Home activates the Paseo settings"
+    (any paseo-settings-service? (niri-desktop-home-services)))
+  (test-assert "unmanaged Home drops the Paseo settings activation"
+    (not (any paseo-settings-service?
+               (parameterize ((%paseo-setup #f))
+                 (niri-desktop-home-services))))))
 
 (define failures (test-runner-fail-count (test-runner-current)))
 (test-end "desktop-session-lifecycle")

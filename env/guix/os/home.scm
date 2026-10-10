@@ -10,9 +10,17 @@
              (uraj common context)
              (uraj hardware nvidia)
              (uraj home niri)
+             (uraj home paseo)
              (uraj packages local-resources))
 
-(parameterize ((%home-target (foreign-home-target)))
+(parameterize ((%home-target (foreign-home-target))
+               ;; The work machines let the Paseo app run its own daemon
+               ;; and own its provider settings: no broker, no daemon
+               ;; service, no settings activation.
+               (%paseo-setup
+                (if (member (gethostname) '("workie" "workie-lap"))
+                    #f
+                    (paseo-setup))))
   (define base-home
     (home-environment
      ;; Foreign Home is evaluated on the machine it configures, so the

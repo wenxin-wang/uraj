@@ -57,8 +57,7 @@
 ;;; focus round trip to the launcher (Mod+D).
 
 (define* (niri-desktop-home-services
-          #:key (paseo-autostart? #t)
-                (noctalia (noctalia-for-host (current-home-target)))
+          #:key (noctalia (noctalia-for-host (current-home-target)))
                 (portals (if (home-target-systemd? (current-home-target))
                              'shepherd
                              'activation)))
@@ -126,4 +125,4 @@ plain noctalia and D-Bus activation regardless of the builder."
    ;; X11 apps need a live X, and fcitx5's XIM frontend connects to X
    ;; only at startup (see (uraj packages window-managers)).
    (home-niri-session-services)
-   (basic-desktop-home-services #:paseo-autostart? paseo-autostart?)))
+   (basic-desktop-home-services)))

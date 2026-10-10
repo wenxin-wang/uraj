@@ -31,6 +31,7 @@
   #:use-module (uraj common context)
   #:use-module (uraj hardware keyboard)
   #:use-module (uraj home niri)
+  #:use-module (uraj home paseo)
   #:use-module (uraj packages window-managers)
   #:use-module (uraj packages elogind)
   #:use-module (uraj packages wireless)
@@ -59,7 +60,9 @@
    "trusted-channels.scm"))
 
 (define* (desktop-home-environment user #:key (paseo-at-boot? #f))
-  (parameterize ((%home-target (guix-system-home-target user)))
+  (parameterize ((%home-target (guix-system-home-target user))
+                 (%paseo-setup
+                  (paseo-setup (autostart? (not paseo-at-boot?)))))
     (home-environment
      (packages (list network-manager-applet))
      (services
@@ -68,8 +71,7 @@
              home-files-service-type
              `((".config/guix/trusted-channels.scm"
                 ,%desktop-trusted-channels-file)))
-            (niri-desktop-home-services
-             #:paseo-autostart? (not paseo-at-boot?)))))))
+            (niri-desktop-home-services))))))
 
 (define %desktop-tmp-file-system %tmp-file-system)
 

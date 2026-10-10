@@ -160,23 +160,31 @@ or a second user Shepherd broker. Agent settings remain user-managed."
     (simple-service 'contained-agent home-files-service-type
       (contained-agent-home-files)))))
 
-(define* (agent-desktop-services #:key (autostart? #t))
-  (append
-   (agent-common-services)
-   (paseo-broker-home-services
-    contained-agent
-    #:autostart? autostart?
-    #:requirements (if (home-target-foreign? (current-home-target))
-                       '(dbus graphical-session)
-                       '(gnome-keyring-secrets))
-    #:askpass? #t)
-   (paseo-home-services
-    #:autostart? autostart?)
-   (list
-    (simple-service 'llm-desktop-packages
-                    home-profile-service-type
-                    llm-desktop-packages)
-    (simple-service 'contained-agent
-                    home-files-service-type
-                    (contained-agent-home-files)))
-   (my-dotfiles-services (list (project-path "env/dotfiles/llm")))))
+(define (agent-desktop-services)
+  "Return the desktop agent services.  The managed Paseo stack (broker,
+daemon service and settings activation) follows %PASEO-SETUP: when it is
+#f the Paseo app runs its own daemon on the host and owns its provider
+settings."
+  (let ((setup (%paseo-setup)))
+    (append
+     (agent-common-services)
+     (if setup
+         (append
+          (paseo-broker-home-services
+           contained-agent
+           #:autostart? (paseo-setup-autostart? setup)
+           #:requirements (if (home-target-foreign? (current-home-target))
+                              '(dbus graphical-session)
+                              '(gnome-keyring-secrets))
+           #:askpass? #t)
+          (paseo-home-services
+           #:autostart? (paseo-setup-autostart? setup)))
+         '())
+     (list
+      (simple-service 'llm-desktop-packages
+                      home-profile-service-type
+                      llm-desktop-packages)
+      (simple-service 'contained-agent
+                      home-files-service-type
+                      (contained-agent-home-files)))
+     (my-dotfiles-services (list (project-path "env/dotfiles/llm"))))))

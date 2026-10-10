@@ -13,11 +13,27 @@
   #:use-module (gnu services shepherd)
   #:use-module (guix gexp)
   #:use-module (guix profiles)
+  #:use-module (guix records)
   #:use-module (uraj home paseo-broker)
   #:use-module (uraj packages llm)
   #:use-module (uraj utils file path)
-  #:export (paseo-service-program paseo-daemon-profile paseo-home-services
+  #:export (paseo-setup paseo-setup-autostart? %paseo-setup
+            paseo-service-program paseo-daemon-profile paseo-home-services
             paseo-sandbox-program))
+
+;;; How a desktop session treats the Paseo stack.  Bind %paseo-setup around
+;;; Home service construction: a <paseo-setup> record selects the managed
+;;; stack (broker, daemon service and settings activation) and its daemon
+;;; start policy; #f leaves the host app-managed, with the Paseo app
+;;; running its own daemon and owning its provider settings.
+
+(define-record-type* <paseo-setup>
+  paseo-setup make-paseo-setup
+  paseo-setup?
+  (autostart? paseo-setup-autostart?        ;start the daemon at login?
+              (default #t)))
+
+(define %paseo-setup (make-parameter (paseo-setup)))
 
 (define paseo-daemon-profile
   (profile

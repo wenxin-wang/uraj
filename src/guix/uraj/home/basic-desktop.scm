@@ -163,7 +163,7 @@ burn the respawn limit)."
                               (lambda (port)
                                 (display fingerprint port)))))))))
 
-(define* (basic-desktop-home-services #:key (paseo-autostart? #t))
+(define (basic-desktop-home-services)
   "Return the Home services shared by all desktop sessions: the
 basic-desktop packages, fcitx5, the shared dotfiles and the base
 services."
@@ -252,5 +252,5 @@ services."
    (keyring-home-services)
    (basic-sys-home-services)
    (emacs-home-services)
-   (agent-desktop-services #:autostart? paseo-autostart?)
+   (agent-desktop-services)
    %base-home-services))
