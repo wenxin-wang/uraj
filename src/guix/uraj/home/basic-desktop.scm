@@ -1,11 +1,13 @@
 (define-module (uraj home basic-desktop)
   #:use-module (gnu home)
   #:use-module (gnu home services)
+  #:use-module (gnu home services shepherd)
   #:use-module (gnu home services xdg)
   #:use-module (gnu packages)
   #:use-module (gnu packages admin)
   #:use-module (gnu packages base)
   #:use-module (gnu packages fcitx5)
+  #:use-module (gnu packages kde-internet)
   #:use-module (gnu services)
   #:use-module (guix gexp)
   #:use-module (nongnu packages mozilla)
@@ -28,6 +30,7 @@
   (cons* glibc-common-locales
          ghostty                        ;terminal emulator
          firefox                        ;Mozilla Firefox from the Nonguix channel
+         kdeconnect                     ;kdeconnect-app/-cli and plugins
          ksshaskpass-with-qtkeychain      ;GNOME Keyring on niri, no SSH agent
          (specifications->packages
           '("font-jigmo"
@@ -55,6 +58,19 @@ the link extensible: add another terminal package to the list when needed."
                    (map (lambda (package)
                           (file-append package "/share/terminfo"))
                         packages)))
+
+(define %kdeconnect-service
+  (shepherd-service
+   (documentation "Run the KDE Connect daemon in the graphical session.")
+   (provision '(kdeconnect))
+   (requirement '(dbus graphical-session))
+   (modules '((shepherd support)))
+   (start #~(make-forkexec-constructor
+             (list #$(file-append kdeconnect "/bin/kdeconnectd"))
+             #:log-file
+             (in-vicinity %user-log-dir "kdeconnect.log")
+             #:environment-variables (environ)))
+   (stop #~(make-kill-destructor))))
 
 (define rime-user-data-directory ".local/share/fcitx5/rime")
 
@@ -193,6 +209,12 @@ services."
               (publicshare "$HOME/tmp/Public")
               (templates "$HOME/tmp/Templates")
               (videos "$HOME/tmp/Videos")))
+
+    ;; 会话 Shepherd 不处理 XDG autostart，kdeconnect 自带的 autostart
+    ;; 条目不会生效，所以随图形会话显式启动 kdeconnectd。
+    (simple-service 'kdeconnect
+                    home-shepherd-service-type
+                    (list %kdeconnect-service))
 
     ;; 见 merged-terminfo-directory：其它终端包也可以加进这个列表。
     (simple-service 'terminfo

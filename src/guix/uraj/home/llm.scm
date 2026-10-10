@@ -13,7 +13,6 @@
   #:use-module (uraj common context)
   #:use-module (uraj home paseo-broker)
   #:use-module (uraj home paseo)
-  #:use-module (uraj packages codex-desktop)
   #:use-module (uraj packages llm)
   #:use-module (uraj utils file path)
   #:export (home-agent-skills-service-type
@@ -147,7 +146,7 @@ headless Homes."
     (".local/bin/claude" ,(contained-agent-link "claude"))))
 
 (define llm-desktop-packages
-  (list codex-desktop paseo))
+  (list paseo))
 
 (define (agent-headless-services)
   "Install agents and Paseo in the existing user's Home, without desktop apps
