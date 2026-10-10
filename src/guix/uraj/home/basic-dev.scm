@@ -24,7 +24,7 @@
      ;; Python
      "uv"
      ;; Google C/C++ and Python style, also used by commit checks.
-     "python"
+     "python-wrapper"
      "clang"
      "cpplint"
      "ruff"

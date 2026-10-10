@@ -58,8 +58,11 @@ as =contained-agent= the first argument names the agent, or is =allow=.
   (=--preserve=).  =SSL_CERT_FILE= and friends point at the profile's
   =nss-certs=.
 - Packages: =%contained-agent-packages= in =llm.scm=, plus an approved
-  project manifest.  =bubblewrap= is needed by Codex's own command sandbox
-  and by the overlays below.
+  project manifest.  The defaults include Python, Perl, =bc=, =curl=,
+  =wget=, =jq=, =file= and common archive tools, alongside Git and shell
+  utilities.  =bubblewrap= provides =bwrap=, needed by Codex's own command
+  sandbox and by the overlays below.  Changes to the default package list
+  take effect after Home reconfigure and starting a new agent session.
 - The network is still the host's (=--network=).  An allowlisting proxy is
   future work; see [[*Open items]].
 - All agents can read =~/src= when it exists, including other repositories

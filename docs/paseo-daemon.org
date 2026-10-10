@@ -35,9 +35,9 @@ The default desktop mode is session startup. The boot option selects both
 the system services and the matching Home configuration together. No
 lingering Home Shepherd or changes to niri session ownership are needed.
 Desktop machines listen at =127.0.0.1:6767=; storie listens on all interfaces.
-All share =~/src= and =~/Projects= when present. Create these directories
-before starting the service; new projects inside an already mounted root
-require no remount.
+All share =~/src=, =~/Projects= and =~/.local/share/paseo/worktrees= when
+present. Create these directories before starting the service; new projects
+inside an already mounted root require no remount.
 
 When migrating lappie, stop the old system =paseo= and =paseo-broker= (and any
 manually started daemon) before starting their Home replacements. Reconfigure
@@ -62,9 +62,13 @@ running broker or provider probe. It preserves other settings and existing
 passwords, keeps a private =.before-service= backup on the first change, and
 leaves identical files untouched. Malformed JSON and managed symlinks fail
 rather than being overwritten. No daemon password is generated.
-When no worktree root is configured, Home uses
-=~/Projects/paseo-worktrees=, within the broker's authorized roots, and ensures
-=~/Projects= exists. Existing custom roots are preserved and must also be
+When no worktree root is configured, Home uses and creates
+=~/.local/share/paseo/worktrees=. It is an authorized broker root and daemon
+mount, but not one of the agents' common mounts: each agent sees only its own
+worktree, and human project directories stay free of agent worktrees. A root
+equal to the previous default =~/Projects/paseo-worktrees= is moved to the
+new one; worktrees already there keep working, since =~/Projects= remains a
+root. Other custom roots are preserved and must also be
 covered by the configured broker roots and daemon mounts. Storie uses the
 same default as desktop machines.
 
@@ -183,8 +187,8 @@ The user copies agent settings/credentials into =/home/wenxin= separately.
 
 Both system services run as =wenxin:users=. The broker waits for
 =guix-home-wenxin=; the daemon then waits for the broker. Project roots are
-=/home/wenxin/src= and =/home/wenxin/Projects=, with default worktrees under
-=~/Projects/paseo-worktrees=. State lives in =~/.paseo= in wenxin's Home.
+=/home/wenxin/src=, =/home/wenxin/Projects= and the default worktree root
+=~/.local/share/paseo/worktrees=. State lives in =~/.paseo= in wenxin's Home.
 
 There is no dedicated =paseo= account declaration, separate Home activation,
 old-data migration, or host bind mount for =/home/paseo= or =/workspace=.

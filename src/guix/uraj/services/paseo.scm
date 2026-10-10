@@ -16,7 +16,8 @@
   (user paseo-user (default "wenxin"))
   (group paseo-group (default "users"))
   (home paseo-home (default "/home/wenxin"))
-  (roots paseo-roots (default '("/home/wenxin/src" "/home/wenxin/Projects")))
+  (roots paseo-roots (default '("/home/wenxin/src" "/home/wenxin/Projects"
+                                "/home/wenxin/.local/share/paseo/worktrees")))
   (listen paseo-listen (default "127.0.0.1:6767"))
   (environment paseo-environment (default '()))
   (requirements paseo-requirements
@@ -31,7 +32,8 @@
      (group (user-account-group account))
      (home directory)
      (roots (map (lambda (name) (string-append directory "/" name))
-                 '("src" "Projects")))
+                 ;; The last is Paseo's worktree root, apart from human projects.
+                 '("src" "Projects" ".local/share/paseo/worktrees")))
      (listen listen)
      (requirements
       (list 'user-processes 'networking 'guix-daemon

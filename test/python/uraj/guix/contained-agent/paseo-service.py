@@ -38,10 +38,10 @@ class Activation(unittest.TestCase):
         )
         self.assertTrue(all(p.stat().st_mode & 0o077 == 0 for p in files))
         settings = json.loads((self.home / ".paseo/config.json").read_text())
-        self.assertEqual(
-            settings["worktrees"]["root"],
-            str(self.home / "Projects/paseo-worktrees"),
-        )
+        worktrees = self.home / ".local/share/paseo/worktrees"
+        self.assertEqual(settings["worktrees"]["root"], str(worktrees))
+        self.assertTrue(worktrees.is_dir())
+        self.assertFalse((self.home / "Projects").exists())
         self.assertEqual(
             settings["agents"]["providers"]["codex"]["command"],
             [str(self.home / ".guix-home/profile/bin/paseo-codex")],
@@ -137,6 +137,17 @@ class Activation(unittest.TestCase):
                 config.with_name("config.json.before-service").read_text()
             ),
             original,
+        )
+
+    def test_previous_default_worktree_root_moves(self):
+        config = self.home / ".paseo/config.json"
+        config.parent.mkdir()
+        old = str(self.home / "Projects/paseo-worktrees")
+        config.write_text(json.dumps({"worktrees": {"root": old}}))
+        SERVICE.activate(self.home)
+        self.assertEqual(
+            json.loads(config.read_text())["worktrees"]["root"],
+            str(self.home / ".local/share/paseo/worktrees"),
         )
 
     def test_invalid_and_managed_config_are_not_replaced(self):

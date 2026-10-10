@@ -111,10 +111,13 @@ headless Homes."
               "RUST_LOG")))
 
 (define %contained-agent-packages
-  ;; bubblewrap: Codex's own command sandbox.
-  '("bash" "bubblewrap" "coreutils" "diffutils" "findutils" "gawk" "git"
-    "git-lfs" "grep" "gzip" "less" "nss-certs" "patch" "procps" "ripgrep"
-    "sed" "tar" "which" "xz"))
+  ;; bubblewrap provides bwrap for Codex's own command sandbox and overlays.
+  ;; Keep common scripting, download and archive tools available to every agent.
+  ;; python-wrapper supplies both python and python3.
+  '("bash" "bc" "bubblewrap" "bzip2" "coreutils" "curl" "diffutils" "file"
+    "findutils" "gawk" "git" "git-lfs" "grep" "gzip" "jq" "less"
+    "nss-certs" "patch" "perl" "procps" "python-wrapper" "ripgrep" "sed" "tar"
+    "unzip" "wget" "which" "xz" "zip"))
 
 (define contained-agent
   (program-file

@@ -13,6 +13,11 @@ import tempfile
 import time
 from pathlib import Path
 
+# Authorized like a project root, but not among agents' common mounts.
+WORKTREES = ".local/share/paseo/worktrees"
+OLD_WORKTREES = "Projects/paseo-worktrees"
+ROOTS = ("src", "Projects", WORKTREES)
+
 
 def prepare_temporary_directory(home):
     """Create the stable directory also exposed read-only to contained agents."""
@@ -58,7 +63,7 @@ def activate(home, desktop=False, worktrees=None):
     prepare_temporary_directory(home)
     default_worktrees = worktrees is None
     if default_worktrees:
-        worktrees = str(home / "Projects/paseo-worktrees")
+        worktrees = str(home / WORKTREES)
 
     def configure(settings):
         settings.setdefault("version", 1)
@@ -70,13 +75,17 @@ def activate(home, desktop=False, worktrees=None):
                 str(home / ".guix-home/profile/bin" / f"paseo-{provider}")
             ]
         if worktrees:
-            settings.setdefault("worktrees", {}).setdefault("root", worktrees)
+            section = settings.setdefault("worktrees", {})
+            # Move the previous default out of ~/Projects; custom roots stay.
+            if section.get("root") == str(home / OLD_WORKTREES):
+                del section["root"]
+            section.setdefault("root", worktrees)
 
     merge_settings(home / ".paseo/config.json", configure)
     if default_worktrees:
         # Paseo's upstream default is inside .paseo, which agents deliberately
-        # cannot mount. Keep new worktrees inside an authorized project root.
-        (home / "Projects").mkdir(exist_ok=True)
+        # cannot mount. Keep agent worktrees apart from human project roots.
+        (home / WORKTREES).mkdir(parents=True, exist_ok=True)
     if desktop:
 
         def configure_desktop(document):
@@ -290,7 +299,7 @@ def main():
     )
     # Relay pairing supplies authentication; do not add a daemon password.
     os.environ.pop("PASEO_PASSWORD", None)
-    roots = args.root or [str(home / "src"), str(home / "Projects")]
+    roots = args.root or [str(home / root) for root in ROOTS]
     os.chdir(home)
     policy = Path(args.sandbox_config or home / ".config/paseo/sandbox.scm")
     if policy.exists():

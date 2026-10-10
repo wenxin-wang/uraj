@@ -804,7 +804,11 @@ def main():
     try:
         if args.action == "serve":
             if not args.root:
-                args.root = ["~/src", "~/Projects"]
+                args.root = [
+                    "~/src",
+                    "~/Projects",
+                    "~/.local/share/paseo/worktrees",
+                ]
             BrokerServer(args).run_event_loop()
             return 0
         if args.action == "configure":

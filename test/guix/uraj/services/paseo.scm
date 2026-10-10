@@ -55,7 +55,8 @@
                              (home-directory "/srv/test-home")))
        (config (paseo-user-configuration account)))
   (test-equal "project paths derive from target account Home"
-    '("/srv/test-home/src" "/srv/test-home/Projects")
+    '("/srv/test-home/src" "/srv/test-home/Projects"
+      "/srv/test-home/.local/share/paseo/worktrees")
     ((@@ (uraj services paseo) paseo-roots) config))
   (test-equal "Home dependency derives from target account"
     '(user-processes networking guix-daemon guix-home-test-user)

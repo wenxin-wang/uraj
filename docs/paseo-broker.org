@@ -19,7 +19,8 @@ The preferred first implementation uses a trusted outer namespace init with
 PDEATHSIG and a pidfd startup check.  Keep cgroups as an alternative and possible
 future resource-control facility, not a prerequisite for the first broker.
 
-Paseo receives ~/src and ~/Projects at their host absolute paths, plus its
+Paseo receives ~/src, ~/Projects and its worktree root
+~/.local/share/paseo/worktrees at their host absolute paths, plus its
 own state.  New projects below these roots need no remount.  Adding another
 root requires updating the Paseo container.  Extra agent-only mounts are
 resolved on the host for each execution and need no Paseo restart.
@@ -34,7 +35,8 @@ resolved on the host for each execution and need no Paseo restart.
 | =test/python/uraj/guix/contained-agent/paseo-broker.py= | Real-process integration tests with fake providers |
 
 The broker accepts only same-UID peers for now.  It permits project cwd under
-~/src and ~/Projects by default, plus a no-project home cwd for probes.
+~/src, ~/Projects and ~/.local/share/paseo/worktrees by default, plus a
+no-project home cwd for probes.
 Storie uses the same roots under /home/wenxin.  =--root= on the
 server changes the roots.  Cwd is canonicalized, but concurrent host-path
 rename/symlink attacks are not fully hardened; do not yet treat this as the
