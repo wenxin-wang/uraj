@@ -209,6 +209,10 @@ binds {
     XF86MonBrightnessUp   allow-when-locked=true { spawn "noctalia" "msg" "brightness-up"; }
     XF86MonBrightnessDown allow-when-locked=true { spawn "noctalia" "msg" "brightness-down"; }
 
+    // Webcam hardware kill (lappie's F11 sends KEY_CAMERA): announce the
+    // camera's new state, see (uraj home camera).
+    XF86WebCam allow-when-locked=true { spawn "/home/wenxin/.local/bin/camera-privacy-notify"; }
+
     // Windows and workspaces.
     Mod+Q repeat=false { close-window; }
     Mod+A repeat=false { toggle-overview; }

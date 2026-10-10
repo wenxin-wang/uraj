@@ -15,12 +15,19 @@ fill_mode             = "crop"
 position              = "left"
 start                 = ["launcher", "wallpaper", "workspaces"]
 center                = ["clock"]
-end                   = ["media", "tray", "notifications", "clipboard", "network", "bluetooth", "volume", "brightness", "battery", "control-center", "session"]
+end                   = ["privacy", "media", "tray", "notifications", "clipboard", "network", "bluetooth", "volume", "brightness", "battery", "control-center", "session"]
 concave_edge_corners  = false
 auto_hide             = true       # slide out after pointer leaves; reveal from edge trigger strip
 smart_auto_hide       = true       # show when the active workspace is empty; hide when it has windows
 show_on_workspace_switch = true  # with auto_hide: briefly reveal when the active workspace changes
 reserve_space         = false        # reserve compositor exclusive zone / push windows away
+
+# 麦克风/摄像头/屏幕共享占用指示，只认 PipeWire 流：直接打开
+# /dev/video* 的程序（zbar、ffmpeg -f v4l2 等）不会显示，那些靠摄像头
+# 旁的硬件灯。F11 硬件关摄像头的状态见 (uraj home camera) 的通知。
+[widget.privacy]
+type                  = "privacy"
+hide_inactive         = true
 
 [dock]
 enabled               = false

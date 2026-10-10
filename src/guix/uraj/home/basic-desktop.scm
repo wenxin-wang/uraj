@@ -15,6 +15,7 @@
   #:use-module (uraj common basic-services)
   #:use-module (uraj home basic-dev)
   #:use-module (uraj home basic-sys)
+  #:use-module (uraj home camera)
   #:use-module (uraj home emacs)
   #:use-module (uraj home llm)
   #:use-module (uraj home keyring)
@@ -248,6 +249,8 @@ services."
               (themes (list fcitx5-material-color-theme))
               (input-method-editors (list fcitx5-rime)))))
    (my-dotfiles-services (list (project-path "env/dotfiles/desktop")))
+   ;; 笔记本摄像头硬件开关（lappie 的 F11）切换时弹桌面通知。
+   (camera-privacy-home-services)
    (basic-dev-home-services)
    (keyring-home-services)
    (basic-sys-home-services)
