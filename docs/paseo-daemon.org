@@ -127,7 +127,11 @@ Home activation. With no file, the existing daemon mounts remain unchanged.
 With a file, =share=, =expose= and =preserve= use contained-agent's syntax and
 path restrictions. Entries supplement the default mounts; missing paths are
 skipped. This policy belongs to the daemon, independently of each agent's
-project policy. Extra project mounts do not expand the broker's allowed roots.
+project policy. Extra project mounts do not expand the broker's allowed
+roots. Its =preserve= clause covers only the daemon container's own
+environment; variables for provider executions are named separately in
+=~/.config/paseo/broker-sandbox.json= and read by the host broker, as
+described in [[file:paseo-broker.org][the broker policy]].
 
 #+begin_src scheme
 ;; Writable data and read-only GitHub CLI configuration, when present.

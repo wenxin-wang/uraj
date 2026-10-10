@@ -32,7 +32,7 @@ class AskpassEnvironmentTest(unittest.TestCase):
             "DBUS_SESSION_BUS_ADDRESS": "unix:path=/trusted/bus",
         }
         with mock.patch.dict(os.environ, desktop, clear=True):
-            env = broker.launcher_environment("/trusted/home", {})
+            env = broker.launcher_environment("/trusted/home", {}, {})
         for name, value in desktop.items():
             self.assertEqual(env[name], value)
 
@@ -115,7 +115,7 @@ class AskpassEnvironmentTest(unittest.TestCase):
                     },
                     clear=True,
                 ):
-                    env = broker.launcher_environment(root, {})
+                    env = broker.launcher_environment(root, {}, {})
                 # contained-ssh supplies the project socket after env filtering.
                 env["SSH_AUTH_SOCK"] = str(sock)
                 result = subprocess.run(

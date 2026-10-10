@@ -5,6 +5,7 @@ Uses no real credentials, providers or Paseo configuration.
 """
 
 import ctypes
+import importlib.util
 import json
 import os
 import select
@@ -18,6 +19,9 @@ import unittest
 from pathlib import Path
 
 BROKER = Path(__file__).resolve().parents[5] / "src/python/uraj/paseo/broker.py"
+SPEC = importlib.util.spec_from_file_location("paseo_broker_under_test", BROKER)
+broker = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(broker)
 
 
 def wait_until(predicate, timeout=10):
@@ -26,6 +30,87 @@ def wait_until(predicate, timeout=10):
         if time.monotonic() > deadline:
             raise TimeoutError("condition did not complete")
         time.sleep(0.02)
+
+
+class PolicySyntax(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory(prefix="broker-policy-test-")
+        self.root = Path(self.tmp.name)
+        self.policy = self.root / "broker-sandbox.json"
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def load(self, text, mode=0o600):
+        self.policy.write_text(text)
+        self.policy.chmod(mode)
+        return broker.load_policy(self.policy)
+
+    def test_missing_file_selects_nothing(self):
+        self.assertEqual(broker.load_policy(self.policy), [])
+
+    def test_preserve_names(self):
+        patterns = self.load(
+            '{"preserve": ["HTTP_PROXY", "HTTPS_PROXY",'
+            ' "ALL_PROXY", "NO_PROXY"]}\n'
+        )
+        self.assertEqual(
+            [p.pattern for p in patterns],
+            ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY"],
+        )
+
+    def test_preserve_regexp_and_escaped_quote(self):
+        patterns = self.load('{"preserve": ["WANDB_.*", "A\\"B"]}\n')
+        self.assertEqual([p.pattern for p in patterns], ["WANDB_.*", 'A"B'])
+        self.assertEqual(
+            broker.preserved_environment(patterns),
+            {
+                key: value
+                for key, value in os.environ.items()
+                if key in ("WANDB_RUN", 'A"B')
+            },
+        )
+
+    def test_rejected_documents(self):
+        cases = [
+            '["BROKER_TEST"]\n',
+            '{"preserve": "BROKER_TEST"}\n',
+            '{"preserve": [42]}\n',
+            '{"unknown": ["BROKER_TEST"]}\n',
+            '{"preserve": ["A"], "extra": 1}\n',
+            '{"preserve": ["["]}\n',
+            '{"preserve": [""]}\n',
+            "{not json}\n",
+        ]
+        for text in cases:
+            with self.subTest(text=text):
+                with self.assertRaises(ValueError):
+                    self.load(text)
+
+    def test_rejected_permissions(self):
+        with self.assertRaises(ValueError):
+            self.load('{"preserve": ["BROKER_TEST"]}\n', mode=0o666)
+        real = self.root / "real-policy.json"
+        real.write_text('{"preserve": ["BROKER_TEST"]}\n')
+        real.chmod(0o600)
+        self.policy.unlink()
+        self.policy.symlink_to(real)
+        with self.assertRaises(ValueError):
+            broker.load_policy(self.policy)
+
+    def test_preserved_environment_matches_full_names(self):
+        os.environ["POLICY_TEST_EXACT"] = "exact"
+        os.environ["POLICY_TEST_PREFIXED"] = "prefixed"
+        try:
+            patterns = self.load(
+                '{"preserve": ["POLICY_TEST_EXACT", "POLICY_TEST_.*X"]}\n'
+            )
+            preserved = broker.preserved_environment(patterns)
+        finally:
+            del os.environ["POLICY_TEST_EXACT"]
+            del os.environ["POLICY_TEST_PREFIXED"]
+        self.assertEqual(preserved["POLICY_TEST_EXACT"], "exact")
+        self.assertNotIn("POLICY_TEST_PREFIXED", preserved)
 
 
 class Broker(unittest.TestCase):
@@ -62,6 +147,8 @@ if args == ['hang']:
         while True: time.sleep(1)
     print('ready', flush=True)
     while True: time.sleep(1)
+if args and args[0] == 'env':
+    print(os.environ.get(args[1], '<unset>')); sys.exit(0)
 sys.exit(99)
 """
         )
@@ -69,6 +156,9 @@ sys.exit(99)
         self.env = {
             "PATH": "/run/current-system/profile/bin",
             "LANG": "C.UTF-8",
+            "BROKER_TEST_ALPHA": "host-alpha",
+            "BROKER_TEST_BETA": "host-beta",
+            "OPENAI_BROKER_TEST": "host",
         }
         self.prefix = [
             sys.executable,
@@ -90,6 +180,8 @@ sys.exit(99)
                 str(self.launcher),
                 "--root",
                 str(self.root),
+                "--policy",
+                str(self.root / "broker-sandbox.json"),
             ],
             env=self.env,
             stderr=subprocess.PIPE,
@@ -113,10 +205,12 @@ sys.exit(99)
         if self.server.poll() is not None:
             self.fail(self.server.stderr.read().decode())
 
-    def client(self, *args, agent_id=None):
+    def client(self, *args, agent_id=None, env_extra=None):
         env = dict(self.env)
         if agent_id:
             env["PASEO_AGENT_ID"] = agent_id
+        if env_extra:
+            env.update(env_extra)
         proc = subprocess.Popen(
             self.prefix + ["client", "codex", *args],
             cwd=self.root,
@@ -246,6 +340,73 @@ sys.exit(99)
         self.assertEqual(entries[0]["cwd"], str(self.root))
         proc.terminate()
         self.assert_dead(fd)
+
+    def test_policy_preserves_broker_environment(self):
+        policy = self.root / "broker-sandbox.json"
+        policy.write_text('{"preserve": ["BROKER_TEST_ALPHA"]}\n')
+        # The client holds a conflicting value but cannot forward this name.
+        probe = self.client(
+            "env",
+            "BROKER_TEST_ALPHA",
+            env_extra={"BROKER_TEST_ALPHA": "client"},
+        )
+        self.assertEqual(probe.communicate(timeout=10), (b"host-alpha\n", b""))
+        # The policy is read per start: a new clause needs no broker restart.
+        policy.write_text('{"preserve": ["BROKER_TEST_BETA"]}\n')
+        probe = self.client("env", "BROKER_TEST_BETA")
+        self.assertEqual(probe.communicate(timeout=10), (b"host-beta\n", b""))
+        result = subprocess.run(
+            self.prefix + ["status"],
+            env=self.env,
+            capture_output=True,
+            check=True,
+            timeout=5,
+        )
+        self.assertEqual(json.loads(result.stdout)["policy"]["preserve"], 1)
+        self.assertIsNone(json.loads(result.stdout)["policy"]["error"])
+
+    def test_policy_does_not_override_forwarded_values(self):
+        (self.root / "broker-sandbox.json").write_text(
+            '{"preserve": ["OPENAI_BROKER_TEST"]}\n'
+        )
+        probe = self.client(
+            "env",
+            "OPENAI_BROKER_TEST",
+            env_extra={"OPENAI_BROKER_TEST": "client"},
+        )
+        self.assertEqual(probe.communicate(timeout=10), (b"client\n", b""))
+
+    def test_bad_policy_fails_starts_not_broker(self):
+        policy = self.root / "broker-sandbox.json"
+        policy.write_text('{"share": ["~/Projects"]}\n')
+        probe = self.client("--version")
+        _, stderr = probe.communicate(timeout=10)
+        self.assertEqual(probe.returncode, 125)
+        self.assertIn(b"unsupported policy key", stderr)
+        result = subprocess.run(
+            self.prefix + ["status"],
+            env=self.env,
+            capture_output=True,
+            check=True,
+            timeout=5,
+        )
+        self.assertEqual(
+            json.loads(result.stdout)["policy"]["error"],
+            "unsupported policy key 'share'",
+        )
+        policy.write_text('{"preserve": ["BROKER_TEST_ALPHA"]}\n')
+        probe = self.client("env", "BROKER_TEST_ALPHA")
+        self.assertEqual(probe.communicate(timeout=10), (b"host-alpha\n", b""))
+
+    def test_policy_symlink_rejected(self):
+        real = self.root / "real-policy.json"
+        real.write_text('{"preserve": ["BROKER_TEST_ALPHA"]}\n')
+        real.chmod(0o600)
+        (self.root / "broker-sandbox.json").symlink_to(real)
+        probe = self.client("--version")
+        _, stderr = probe.communicate(timeout=10)
+        self.assertEqual(probe.returncode, 125)
+        self.assertIn(b"regular user-owned file", stderr)
 
     def test_parent_death(self):
         command = self.prefix + ["client", "codex", "hang"]

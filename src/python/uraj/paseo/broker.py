@@ -2,6 +2,8 @@
 
 Only the server CLI chooses the launcher and roots. Requests select a provider,
 not a host executable or sandbox flags. Pair with paseo-agent-supervisor.
+The optional sandbox policy names broker-environment variables to preserve
+into executions; values never come from provider clients.
 """
 
 import argparse
@@ -16,6 +18,7 @@ import select
 import shutil
 import signal
 import socket
+import stat
 import struct
 import subprocess
 import sys
@@ -24,6 +27,9 @@ import time
 import uuid
 
 MAX_MESSAGE = 65536
+MAX_POLICY_BYTES = 65536
+MAX_POLICY_PATTERNS = 64
+MAX_POLICY_PATTERN_CHARACTERS = 256
 # Trusted broker environment for host-side SSH unlocking.  Do not add these
 # to ENV: a client must not choose a host executable through SSH_ASKPASS.
 HOST_SETUP_ENVIRONMENT = frozenset(
@@ -72,17 +78,88 @@ def default_runtime_directory():
     return pathlib.Path.home() / ".local/state/paseo-broker"
 
 
-def launcher_environment(home, forwarded):
+def load_policy(path):
+    """Load compiled preserve patterns from the broker sandbox policy.
+
+    A missing file selects nothing. The file is user-private policy data:
+    it must be a regular file owned by this user, not writable by others,
+    and it holds JSON data, never evaluated code.
+    """
+    path = pathlib.Path(path)
+    try:
+        status = path.lstat()
+    except FileNotFoundError:
+        return []
+    if (
+        stat.S_ISLNK(status.st_mode)
+        or not stat.S_ISREG(status.st_mode)
+        or status.st_uid != os.geteuid()
+        or status.st_mode & 0o002
+    ):
+        raise ValueError(
+            "policy must be a regular user-owned file not writable by others"
+        )
+    data = path.read_bytes()
+    if len(data) > MAX_POLICY_BYTES:
+        raise ValueError("policy file too large")
+    try:
+        document = json.loads(data)
+    except json.JSONDecodeError as error:
+        raise ValueError(f"malformed policy JSON: {error}") from error
+    if not isinstance(document, dict):
+        raise ValueError("policy must be a JSON object")
+    unknown = sorted(set(document) - {"preserve"})
+    if unknown:
+        raise ValueError(f"unsupported policy key {unknown[0]!r}")
+    names = document.get("preserve", [])
+    if not isinstance(names, list) or any(
+        not isinstance(name, str) for name in names
+    ):
+        raise ValueError("preserve must be a list of strings")
+    patterns = []
+    for name in names:
+        if (
+            not name
+            or len(name) > MAX_POLICY_PATTERN_CHARACTERS
+            or "\x00" in name
+        ):
+            raise ValueError(f"invalid preserve pattern {name!r}")
+        try:
+            patterns.append(re.compile(name))
+        except re.error as error:
+            raise ValueError(
+                f"invalid preserve pattern {name!r}: {error}"
+            ) from error
+    if len(patterns) > MAX_POLICY_PATTERNS:
+        raise ValueError("too many preserve patterns")
+    return patterns
+
+
+def preserved_environment(patterns):
+    """Broker-environment variables matching compiled preserve PATTERNS."""
+    return {
+        key: value
+        for key, value in os.environ.items()
+        if any(p.fullmatch(key) for p in patterns)
+    }
+
+
+def launcher_environment(home, forwarded, preserved):
     """Build host setup environment from broker settings and validated input.
 
-    Desktop and askpass settings come only from the broker.  The contained-agent
-    launcher applies its separate environment policy when entering the sandbox.
+    Desktop and askpass settings come only from the broker. PRESERVED
+    variables come from the broker's own environment through the sandbox
+    policy; a client-forwarded value for the same name still takes
+    precedence, keeping one channel per concern. The contained-agent
+    launcher applies its separate environment policy when entering the
+    sandbox.
     """
     env = {
         k: v
         for k, v in os.environ.items()
         if k in HOST_SETUP_ENVIRONMENT or ENV.fullmatch(k)
     }
+    env.update(preserved)
     env.update(forwarded)
     env["HOME"] = str(home)
     env.setdefault("PATH", "/run/current-system/profile/bin")
@@ -221,14 +298,16 @@ class SharedSSHPreparation:
     supervisor's parent-death link cleans all agents if the broker dies.
     """
 
-    def __init__(self, args, home, owner):
+    def __init__(self, args, home, owner, policy_path):
         """Start the trusted launcher in shared SSH service mode."""
         # Keep project sockets below sun_path's 107-byte limit with the
         # persistent ~/.local/state/paseo-broker base directory. This private
         # tree also holds the supervisor identity used for safe cleanup.
         self.directory = execution_directory(args.directory, "ssh-")
         self.runtime = self.directory
-        env = launcher_environment(home, {})
+        env = launcher_environment(
+            home, {}, preserved_environment(load_policy(policy_path))
+        )
         env["TMPDIR"] = str(self.directory)
         env["CONTAINED_AGENT_SSH_RUNTIME_DIRECTORY"] = str(self.runtime)
         self.process = subprocess.Popen(
@@ -301,6 +380,12 @@ class BrokerServer:
         self.args = args
         self.home = pathlib.Path(pwd.getpwuid(os.getuid()).pw_dir).resolve()
         self.roots = [pathlib.Path(r).expanduser().resolve() for r in args.root]
+        self.policy_path = (
+            pathlib.Path(args.policy).expanduser()
+            if args.policy
+            else self.home / ".config/paseo/broker-sandbox.json"
+        )
+        self.policy_state = {"preserve": 0, "error": None}
         self.directory = pathlib.Path(args.directory)
         self.directory.mkdir(mode=0o700, parents=True, exist_ok=True)
         st = self.directory.lstat()
@@ -340,6 +425,20 @@ class BrokerServer:
         self.clients = {}
         self.stopping = False
         self.ssh_preparation = None
+        try:
+            self.policy_environment()
+        except ValueError as error:
+            print(f"paseo-broker: {self.policy_path}: {error}", file=sys.stderr)
+
+    def policy_environment(self):
+        """Sandbox-policy variables from the broker environment, with status."""
+        try:
+            patterns = load_policy(self.policy_path)
+        except ValueError as error:
+            self.policy_state = {"preserve": 0, "error": str(error)}
+            raise
+        self.policy_state = {"preserve": len(patterns), "error": None}
+        return preserved_environment(patterns)
 
     def request_execution_stop(self, job):
         """Request graceful termination and set a forced-stop deadline."""
@@ -353,7 +452,9 @@ class BrokerServer:
     def launch_execution(self, connection, job):
         """Start the supervised launcher with the received standard streams."""
         provider, argv, cwd, forwarded, _ = job["request"]
-        env = launcher_environment(self.home, forwarded)
+        env = launcher_environment(
+            self.home, forwarded, self.policy_environment()
+        )
         if self.ssh_preparation is not None:
             env["CONTAINED_AGENT_SSH_PREPARED"] = "1"
             env["CONTAINED_AGENT_SSH_RUNTIME_DIRECTORY"] = str(
@@ -491,6 +592,7 @@ class BrokerServer:
                                                     self.args,
                                                     self.home,
                                                     self.owner,
+                                                    self.policy_path,
                                                 )
                                             )
                                         self.ssh_preparation.prepare(job)
@@ -555,6 +657,10 @@ class BrokerServer:
                                         connection,
                                         {
                                             "type": "status",
+                                            "policy": {
+                                                "path": str(self.policy_path),
+                                                **self.policy_state,
+                                            },
                                             "ssh_preparation": (
                                                 "unlocking"
                                                 if self.ssh_preparation.pending
@@ -785,6 +891,11 @@ def main():
         help="prepare project SSH outside session namespaces",
     )
     server.add_argument("--root", action="append", default=[])
+    server.add_argument(
+        "--policy",
+        help="JSON broker sandbox policy (default: "
+        "~/.config/paseo/broker-sandbox.json)",
+    )
     provider = sub.add_parser("client")
     provider.add_argument("provider", choices=["codex", "claude"])
     provider.add_argument("arguments", nargs=argparse.REMAINDER)

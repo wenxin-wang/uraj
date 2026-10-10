@@ -139,6 +139,37 @@ broker can then be run in the foreground from a desktop terminal to inherit
 that terminal's environment, without restarting Paseo or changing provider
 commands.  Existing clients use the same socket protocol.
 
+** Broker sandbox policy (execution environment)
+
+Provider clients forward only credential and terminal variables; the broker
+contributes desktop/askpass settings from its own service environment. The
+operator names further broker-environment variables for executions in
+=~/.config/paseo/broker-sandbox.json=. Unlike the daemon's Guile-read
+=sandbox.scm=, the broker policy is JSON, parsed by the broker itself:
+
+#+begin_src json
+{"preserve": ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY", "CORP_.*"]}
+#+end_src
+
+=--policy= on the server selects another path. A missing file selects
+nothing. The file must be a regular file owned by the broker user and not
+writable by others; symlinks are refused. On boot services the preserved
+values come from the service =environment= field; desktop Home services
+inherit the session environment. Each preserve entry is a full-match
+regexp against broker environment variable names; values are copied from
+the broker's own environment at each start, never taken from provider clients.
+The policy is read per start, so edits apply to new executions without a
+broker restart. A malformed policy fails new starts with the diagnostic;
+running executions and the broker itself continue. Status reports the policy
+path, pattern count and last error.
+
+A client-forwarded value still takes precedence when a name is also in the
+client forwarding allowlist: =preserve= covers variables outside that
+allowlist; it never overrides the credential channel. The contained-agent
+launcher applies its own =preserve= policy afterwards, so a variable must be
+kept there too (the common spec, the project central policy or a repo-local
+=contained-agent.scm=) to reach the provider.
+
 ** Shared project SSH agents
 
 The bundle enables =--shared-ssh=.  Before a project execution starts, the
@@ -287,6 +318,8 @@ terminate or masquerade as the main session.
 - Construct the host launch environment from trusted defaults.  Do not accept
   client CONTAINED_AGENT_PROJECTS, GUILE_LOAD_PATH, PATH or loader settings as
   host configuration.  Preserve only approved provider values into the sandbox.
+  Extra host variables are named by the operator in the broker sandbox policy,
+  never accepted from clients.
 - Preserve the current state/overlay and Git rules.  Network isolation and
   access to injected Paseo tools remain separate work: today's launcher uses
   host networking.  Adding a broker does not fix that exposure.
