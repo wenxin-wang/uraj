@@ -159,6 +159,16 @@ def container_command(
     return command + ["--", "paseo", "daemon", "run"]
 
 
+def write_all(fd, data):
+    """Write data to fd, waiting when Shepherd's non-blocking pipe is full."""
+    view = memoryview(data)
+    while view:
+        try:
+            view = view[os.write(fd, view) :]
+        except BlockingIOError:
+            select.select([], [fd], [])
+
+
 def run_configured_container(args, home, roots, policy):
     """Own one namespace containing both daemon and its private SSH agents."""
     # Reuse the broker's boot/PID identity checks; never remove live sockets.
@@ -240,8 +250,7 @@ def run_configured_container(args, home, roots, policy):
             process.stdin.close()
             # Stream daemon output instead of accumulating an unbounded log.
             while data := os.read(process.stdout.fileno(), 65536):
-                sys.stdout.buffer.write(data)
-                sys.stdout.buffer.flush()
+                write_all(sys.stdout.fileno(), data)
             return process.wait()
         finally:
             for sig, handler in handlers.items():
