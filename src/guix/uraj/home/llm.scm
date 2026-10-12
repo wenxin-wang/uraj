@@ -81,16 +81,7 @@ headless Homes."
 (define %contained-agent-specs
   #~(list
      (cons "codex"
-           `((program . #$(file-append codex "/bin/codex"))
-             (state "~/.codex")
-             ;; Skills installed in a session last until it ends; keep one
-             ;; through %agent-skills or a host-side install.
-             (overlay "~/.agents/skills" "~/.codex/skills" "~/.codex/plugins"
-                      "~/.codex/.tmp" "~/.codex/vendor_imports"
-                      "~/.codex/ipc" "~/.codex/computer-use")
-             (protect "~/.codex/config.toml" "~/.codex/AGENTS.md"
-                      "~/.codex/rules/")
-             (preserve "CODEX_.*" "OPENAI_.*")))
+           (codex-spec #$(file-append codex "/bin/codex")))
      ;; Everything under ~/.claude is the session's own but for the
      ;; transcripts, memory and history it persists.  ~/.claude.json
      ;; (project trust, MCP servers...) starts from the host's and is

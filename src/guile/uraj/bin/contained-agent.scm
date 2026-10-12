@@ -8,7 +8,7 @@
   #:use-module (srfi srfi-11)
   #:use-module (srfi srfi-26)
   #:use-module (uraj bin contained-ssh)
-  #:export (contained-agent-main read-all clause-options))
+  #:export (contained-agent-main read-all clause-options codex-spec))
 
 ;;; Run a coding agent inside `guix shell --container', sharing only the
 ;;; current project plus the agent's own state.  Arguments, stdio and the
@@ -51,16 +51,9 @@
 ;;; alist per agent with the keys below (all but `program' optional):
 ;;;
 ;;;   program   the real executable
-;;;   state     directories created if missing and shared read-write
+;;;   arguments arguments prepended to the caller's arguments
 ;;;   share     paths shared read-write when they exist
 ;;;   expose    paths exposed read-only when they exist
-;;;   protect   files within `state' read by agents outside the sandbox as
-;;;             configuration (hooks, MCP commands, instructions): created
-;;;             if missing, empty (a directory if the name ends in /), and
-;;;             exposed read-only along with what they link to.  A name
-;;;             ending in * stands for the existing files it prefixes.
-;;;             Mounts follow links, so a link itself cannot be pinned: use
-;;;             `overlay' for directories holding some.
 ;;;   overlay   exposed directories made writable for the session only,
 ;;;             through a tmpfs overlay that is dropped on exit, so nothing
 ;;;             the agent adds, changes or replaces there reaches the host
@@ -388,24 +381,41 @@ approved ones and, once the user agrees, approve them."
 
 ;;; Agents.
 
-(define (protected file)
-  "Return the files that FILE, an entry of a spec's `protect', stands for,
-creating it if need be."
-  (cond ((string-suffix? "*" file)
-         (let ((dir (dirname file))
-               (prefix (basename (string-drop-right file 1))))
-           (map (cut string-append dir "/" <>)
-                (or (scandir dir (cut string-prefix? prefix <>)) '()))))
-        ((string-suffix? "/" file)
-         (mkdir-p file)
-         (list (string-drop-right file 1)))
-        (else
-         (unless (file-exists? file)
-           (close-port (open-output-file file)))
-         (list file))))
-
 (define (spec-ref spec key)
   (map expand-home (or (assq-ref spec key) '())))
+
+(define (codex-spec program)
+  "Return Codex's mounts, keeping configuration private to each session."
+  (let* ((home (expand-home "~/.codex"))
+         (sqlite (string-append home "/contained-sqlite")))
+    (when (and (getenv "CODEX_HOME")
+               (not (string=? (getenv "CODEX_HOME") home)))
+      (die "contained Codex requires CODEX_HOME=~a" home))
+    (mkdir-p home)
+    (unless (file-exists? (string-append sqlite "/state_5.sqlite"))
+      (warn "Codex: first startup indexes existing sessions; let it finish")
+      (warn "interrupting backfill can block retries for 15 minutes"))
+    ;; Create the history mount target without truncating an existing file,
+    ;; including when two launchers start together.
+    (catch 'system-error
+      (lambda ()
+        (close-port (open (string-append home "/history.jsonl")
+                          (logior O_WRONLY O_CREAT O_EXCL) #o600)))
+      (lambda args
+        (unless (= EEXIST (system-error-errno args)) (apply throw args))))
+    (unless (file-exists? (string-append home "/auth.json"))
+      (warn "Codex: no host auth.json; new logins will be session-only"))
+    `((program . ,program)
+      (arguments "-c" ,(string-append "sqlite_home="
+                                     (format #f "~s" sqlite)))
+      (overlay "~/.codex" "~/.agents/skills")
+      ;; auth is rewritten in place; session_index is atomically replaced
+      ;; when a thread is deleted and must not be a single-file mount.
+      (persist "~/.codex/contained-sqlite/" "~/.codex/sqlite/"
+               "~/.codex/sessions/" "~/.codex/archived_sessions/"
+               "~/.codex/thread-writer-locks/" "~/.codex/log/"
+               "~/.codex/auth.json" "~/.codex/history.jsonl")
+      (preserve "CODEX_.*" "OPENAI_.*"))))
 
 (define (persisted spec)
   "Return the existing `persist' paths of SPEC, creating directories."
@@ -429,21 +439,13 @@ creating it if need be."
 
 (define (spec-mounts spec)
   "Return the `guix shell' options for SPEC's mounts."
-  (let* ((protected (append-map protected (spec-ref spec 'protect))))
-    (append
-     (append-map (lambda (dir)
-                   (mkdir-p dir)
-                   (share dir))
-                 (spec-ref spec 'state))
-     (append-map (lambda (file)
-                   (if (file-exists? file) (share file) '()))
-                 (spec-ref spec 'share))
-     (append-map expose (spec-ref spec 'expose))
-     ;; A link's target may be shared under another name.
-     (append-map expose (delete-duplicates
-                         (append protected (map resolve protected))))
-     ;; Overlays are mounted within the container, over what is exposed.
-     (append-map expose (spec-ref spec 'overlay)))))
+  (append
+   (append-map (lambda (file)
+                 (if (file-exists? file) (share file) '()))
+               (spec-ref spec 'share))
+   (append-map expose (spec-ref spec 'expose))
+   ;; Overlays are mounted within the container, over what is exposed.
+   (append-map expose (spec-ref spec 'overlay))))
 
 (define (spec-overlay spec)
   "Return the bubblewrap options that overlay SPEC's `overlay' directories,
@@ -547,6 +549,8 @@ NUL.  All ssh-add output goes to stderr, never into this private protocol."
       (aside (append (persisted spec) (persisted common)) "persist"))
     (apply execlp "guix" "guix" "shell"
            "--container" "--no-cwd" "--network" "--expose=/gnu/store"
+           ;; Shebangs written for other systems, as Guix System has it.
+           "--symlink=/usr/bin/env=bin/env"
            (append
             ;; Broad common mounts (such as read-only ~/src) must precede
             ;; the writable work tree and its nested Git protections.
@@ -618,6 +622,7 @@ exec \"$@\""
                 '("env" "SSH_AUTH_SOCK=/run/contained-agent/ssh.sock")
                 '())
             (list (assq-ref spec 'program))
+            (or (assq-ref spec 'arguments) '())
             args))))
 
 (define* (contained-agent-main command-line

@@ -54,6 +54,8 @@ as =contained-agent= the first argument names the agent, or is =allow=.
 
 - =--container --no-cwd --network --expose=/gnu/store=.  The whole store is
   read-only, so store links in configuration (MCP servers, skills) resolve.
+- =/usr/bin/env= links to the profile's =env= (=--symlink=), as on Guix
+  System, so =#!/usr/bin/env= scripts run.
 - The environment is cleared; agent specs and projects list what to keep
   (=--preserve=).  =SSL_CERT_FILE= and friends point at the profile's
   =nss-certs=.
@@ -113,15 +115,15 @@ shared =.git= and show up on the host at once.
 
 * Agent specs
 
-Specs are alists in =llm.scm=; =~= stands for the home directory.
+Specs are alists in =llm.scm= (Codex uses =codex-spec= in the launcher);
+=~= stands for the home directory.
 
 | Key        | Meaning                                                                                       |
 |------------+-----------------------------------------------------------------------------------------------|
 | =program=  | The real executable                                                                           |
-| =state=    | Directories created if missing and shared read-write                                          |
+| =arguments= | Arguments prepended to the caller's arguments                                                |
 | =share=    | Paths shared read-write when they exist                                                       |
 | =expose=   | Paths exposed read-only when they exist                                                       |
-| =protect=  | Configuration within =state= (created empty if missing, =/= suffix for a directory, =*= suffix for a prefix match) exposed read-only with its link targets |
 | =overlay=  | Directories writable for the session only, through a tmpfs overlay dropped on exit            |
 | =persist=  | Paths within an =overlay= that do reach the host                                              |
 | =seed=     | Files copied into the container's home, writable, dropped on exit                             |
@@ -149,13 +151,59 @@ copied by the launcher script.
 
 ** Codex
 
-Codex keeps SQLite databases at the top of =~/.codex=, so it cannot simply
-be an overlay yet (see [[*Pitfalls]]).  For now:
+The launcher overlays =~/.codex= and =~/.agents/skills=.  Configuration,
+trust decisions, rules, skills and plugins are writable inside a session and
+discarded on exit.  A relative =config.toml -> config.toml.new-api= link works
+because its target is in the same overlay.  Custom =CODEX_HOME= locations are
+rejected.
 
-- =~/.codex= is =state=: shared read-write.
-- =config.toml= (MCP commands, hooks), =AGENTS.md= and =rules/= are
-  protected (read-only).
-- =~/.agents/skills= and =~/.codex/skills= are overlays.
+Codex's runtime databases live in the persistent
+=~/.codex/contained-sqlite/= directory, selected with the =sqlite_home=
+command-line setting.  Keeping the directory as one mount places every
+database beside its WAL, SHM and journal files, preserving SQLite locking
+across concurrent sessions.  The top-level host databases are outside the
+contained runtime.
+
+The following state is shared with the host and other contained sessions:
+
+- =contained-sqlite/= and =sqlite/=;
+- =sessions/=, =archived_sessions/= and =thread-writer-locks/=;
+- =log/= and =history.jsonl=;
+- =auth.json= when it exists before launch.
+
+A missing =history.jsonl= is created with mode =0600=.  When =auth.json= is
+missing, login is valid for the current session only; log in on the host first
+when credentials must persist.  Credential refreshes rewrite an existing
+=auth.json= in place and pass through the bind mount.  =logout= removes the
+file and must therefore run on the host after contained sessions exit.
+
+=session_index.jsonl= remains in the overlay.  Codex replaces it atomically
+when deleting a thread, which is incompatible with a single-file bind mount.
+Thread-name index changes are consequently session-local; the rollout and
+database state remain persistent.
+
+On first startup, Codex indexes the shared active and archived rollouts into
+the contained database before showing the trust screen.  Let this finish.  An
+interrupted worker holds its backfill lease for 15 minutes, while a new process
+waits only 30 seconds.  During that interval startup may report that the
+database appears damaged.  After the worker has stopped and the lease expires,
+start one instance and let it complete the import.  Do not delete the database
+or mark an unfinished import complete.  The =~/.codex= path in the diagnostic
+names the rollout source; the database remains in =contained-sqlite/=.
+
+The integration test uses a temporary HOME, checks two consecutive overlays,
+configuration symlinks, shared SQLite WAL state, credentials and sessions:
+
+#+begin_src sh
+CODEX_TEST_BINARY=/path/to/real/codex \
+  python3 test/python/uraj/guix/contained-agent/contained-agent-codex.py
+#+end_src
+
+With =CODEX_TEST_BINARY= it exercises the real =config/batchWrite= trust
+update and file login with a fake API key, imports active and archived rollout
+fixtures, and resumes an expired backfill lease.  It checks that backfill is
+complete before stopping the server.  Without it, the test checks the mount
+behavior using local file operations.
 
 * Project configuration
 
@@ -546,11 +594,5 @@ guard probes with the expected working directory.
 - Network: give the container its own network namespace and an allowlisting
   proxy reached through a Unix socket.  Until then agents reach the Paseo
   API on =127.0.0.1:6767= and the LAN.
-- Codex: move databases with =sqlite_home= into a directory of their own,
-  check how =auth.json= is written, then make =~/.codex= an overlay with a
-  persist list (=auth.json=, =sessions/=, =archived_sessions/=, the
-  database directory, =session_index.jsonl=, =history.jsonl=, =log/=).
-- Codex overlays for =plugins/=, =.tmp/=, =vendor_imports/=, =ipc/= (the
-  desktop app's socket) and =computer-use/=.
 - =codex-desktop= runs outside the sandbox and reads =~/.codex=.
 - Per-agent SSH agents holding only chosen keys.
