@@ -181,6 +181,16 @@ class Activation(unittest.TestCase):
         self.assertNotIn("--nesting", command)
         self.assertNotIn(f"--share={self.home}", command)
 
+    def test_container_exposes_claude_transcripts_read_only(self):
+        transcripts = self.home / ".claude/projects"
+        command = SERVICE.container_command("guix", "/profile", self.home, [])
+        self.assertNotIn(f"--expose={transcripts}", command)
+        transcripts.mkdir(parents=True)
+        command = SERVICE.container_command("guix", "/profile", self.home, [])
+        self.assertIn(f"--expose={transcripts}", command)
+        self.assertNotIn(f"--share={transcripts}", command)
+        self.assertNotIn(f"--expose={self.home / '.claude'}", command)
+
 
 if __name__ == "__main__":
     unittest.main()
