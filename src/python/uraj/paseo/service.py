@@ -131,7 +131,9 @@ def container_command(
         path = Path(root).expanduser()
         if path.exists():
             command.append(f"--share={path}")
-    for name in (".gitconfig", ".gitconfig.local"):
+    # Paseo itself replays Claude transcripts to rebuild a session's timeline
+    # after a daemon restart; Codex history comes back through its provider.
+    for name in (".gitconfig", ".gitconfig.local", ".claude/projects"):
         path = home / name
         if path.exists():
             command.append(f"--expose={path}")

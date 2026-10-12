@@ -10,6 +10,9 @@ macvlan interface, or dedicated daemon IP.
 
 The daemon has its own persistent =~/.paseo=, read-only store and Home profile,
 project roots at their host paths, and the broker's =connection/= directory.
+It also sees =~/.claude/projects= read-only when present: Paseo replays Claude
+transcripts itself to rebuild a session's timeline after a daemon restart,
+and without them resumed Claude sessions show no earlier history.
 It cannot see the broker's execution records or SSH material, host agent
 credentials, user Shepherd socket, or Guix daemon socket. The host broker
 launches agents through the existing contained-agent policy. Socket peers
