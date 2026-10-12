@@ -10,13 +10,17 @@
   #:use-module (guix packages)
   #:use-module (guix utils)
   #:use-module (nonguix build-system chromium-binary)
+  #:use-module (uraj packages chromium-binary)
   #:use-module ((px packages ai)
                 #:select ((claude-code . pantherx-claude-code)))
   #:use-module ((px packages tools)
                 #:select ((codex . pantherx-codex)))
+  #:use-module ((shika packages ai)
+                #:select ((opencode-bin . shika-opencode-bin)))
   #:export (agent-browser
             claude-code
             codex
+            opencode-bin
             paseo))
 
 ;;; PantherX's package replaces `unpack' and leaves the build-directory root as
@@ -82,6 +86,29 @@
                   (rename-file (string-append bin "/" host)
                                (string-append bin "/codex-code-mode-host")))))))))))
 
+;;; Like the PantherX packages above, Shikanox's package builds the release
+;;; tarball with nonguix's binary-build-system, which has no 'configure phase
+;;; and leaves the build-directory root as the working directory, so
+;;; 'install-license-files' lists ".." to find the source directory; see
+;;; claude-code above for why the phase must go.
+;;;
+;;; Its wrapper also exports LD_LIBRARY_PATH with Guix's glibc, which leaks
+;;; into every shell OpenCode spawns; see (uraj packages chromium-binary).
+;;; The binary needs only libc, which its Guix ld.so finds unaided, so drop
+;;; the variable.
+(define-public opencode-bin
+  (package
+    (inherit shika-opencode-bin)
+    (arguments
+     (substitute-keyword-arguments (package-arguments shika-opencode-bin)
+       ((#:phases phases #~%standard-phases)
+        #~(modify-phases #$phases
+            (delete 'install-license-files)
+            (add-after 'patch-and-wrap 'drop-library-path
+              (lambda _
+                (substitute* (string-append #$output "/bin/opencode")
+                  (("^export LD_LIBRARY_PATH=.*$") ""))))))))))
+
 ;;; Like Claude Code, use the official binary distribution.  The Chromium
 ;;; variant of binary-build-system supplies Electron's runtime dependencies.
 (define-public paseo
@@ -123,33 +150,43 @@
           ("usr/share/applications/" "share/applications/")
           ("usr/share/icons/" "share/icons/"))
       #:phases
-      #~(modify-phases %standard-phases
-          (add-after 'patchelf 'restore-origin-runpath
-            (lambda _
-              ;; patchelf replaces upstream's $ORIGIN; Electron and sherpa
-              ;; still need their co-located shared libraries.
-              (for-each
-               (lambda (file)
-                 (invoke "patchelf" "--add-rpath" "$ORIGIN" file))
-               (cons "opt/Paseo/Paseo.bin"
-                     (find-files "opt/Paseo/resources/app.asar.unpacked"
-                                 "sherpa-onnx.*\\.(node|so)$")))))
-          (add-before 'install 'patch-desktop-entry
-            (lambda _
-              (substitute* "usr/share/applications/Paseo.desktop"
-                (("/opt/Paseo/Paseo")
-                 (string-append #$output "/bin/paseo-desktop")))))
-          (add-before 'install-wrapper 'install-launchers
-            (lambda _
-              (let ((bin (string-append #$output "/bin"))
-                    (app (string-append #$output "/share/paseo")))
-                (mkdir-p bin)
-                ;; Keep the upstream sandbox launcher, which also handles
-                ;; hosts where unprivileged user namespaces are unavailable.
-                (symlink (string-append app "/Paseo")
-                         (string-append bin "/paseo-desktop"))
-                (symlink (string-append app "/resources/bin/paseo")
-                         (string-append bin "/paseo"))))))))
+      (isolate-chromium-wrapper-environment
+       #~(modify-phases %standard-phases
+           (add-after 'patchelf 'patch-sandbox-probe
+             (lambda* (#:key inputs #:allow-other-keys)
+               ;; The wrapper no longer prefixes PATH with util-linux.
+               (substitute* "opt/Paseo/Paseo"
+                 (("\\$\\((unshare|findmnt) " _ command)
+                  (string-append
+                   "$("
+                   (search-input-file inputs (string-append "bin/" command))
+                   " ")))))
+           (add-after 'patchelf 'restore-origin-runpath
+             (lambda _
+               ;; patchelf replaces upstream's $ORIGIN; Electron and sherpa
+               ;; still need their co-located shared libraries.
+               (for-each
+                (lambda (file)
+                  (invoke "patchelf" "--add-rpath" "$ORIGIN" file))
+                (cons "opt/Paseo/Paseo.bin"
+                      (find-files "opt/Paseo/resources/app.asar.unpacked"
+                                  "sherpa-onnx.*\\.(node|so)$")))))
+           (add-before 'install 'patch-desktop-entry
+             (lambda _
+               (substitute* "usr/share/applications/Paseo.desktop"
+                 (("/opt/Paseo/Paseo")
+                  (string-append #$output "/bin/paseo-desktop")))))
+           (add-before 'install-wrapper 'install-launchers
+             (lambda _
+               (let ((bin (string-append #$output "/bin"))
+                     (app (string-append #$output "/share/paseo")))
+                 (mkdir-p bin)
+                 ;; Keep the upstream sandbox launcher, which also handles
+                 ;; hosts where unprivileged user namespaces are unavailable.
+                 (symlink (string-append app "/Paseo")
+                          (string-append bin "/paseo-desktop"))
+                 (symlink (string-append app "/resources/bin/paseo")
+                          (string-append bin "/paseo")))))))))
     ;; The upstream sandbox launcher probes user namespaces with unshare.
     (inputs (list util-linux))
     (supported-systems '("x86_64-linux"))

@@ -15,7 +15,6 @@
   #:use-module (uraj home paseo)
   #:use-module (uraj packages llm)
   #:use-module (uraj utils file path)
-  #:use-module ((shika packages ai) #:select (opencode-bin))
   #:export (home-agent-skills-service-type
             %opencode?
             agent-common-services
