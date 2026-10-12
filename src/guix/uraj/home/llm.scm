@@ -7,6 +7,7 @@
   #:use-module (gnu packages bash)
   #:use-module (gnu services)
   #:use-module (guix gexp)
+  #:use-module (guix profiles)
   #:use-module (ice-9 match)
   #:use-module (srfi srfi-1)
   #:use-module (uraj common basic-services)
@@ -53,8 +54,23 @@
    (description "Link skill directories for coding agents into their skill
 search paths.")))
 
+;;; Tools used by agents belong in both Home and contained-agent.  Keep package
+;;; objects here so the container uses the same build as Home and its skills,
+;;; without resolving package names through the runtime Guix channels.
+(define %agent-tool-packages
+  (list agent-browser))
+
+(define %agent-tools-profile
+  (profile (content (packages->manifest %agent-tool-packages))))
+
+(define %agent-tools-manifest
+  (scheme-file "agent-tools-manifest.scm"
+    #~(begin
+        (use-modules (guix profiles))
+        (profile-manifest #$%agent-tools-profile))))
+
 (define llm-agent-packages
-  (list agent-browser claude-code codex))
+  (append %agent-tool-packages (list claude-code codex)))
 
 ;;; Whether to also install OpenCode.  Bind %opencode? around Home service
 ;;; construction; it is only installed on the host, not in contained-agent.
@@ -126,7 +142,10 @@ headless Homes."
          (contained-agent-main (command-line)
                                #:agents #$%contained-agent-specs
                                #:common '#$%contained-agent-common
-                               #:packages '#$%contained-agent-packages
+                               #:packages
+                               (cons (string-append "--manifest="
+                                                    #$%agent-tools-manifest)
+                                     '#$%contained-agent-packages)
                                #:ssh-tools
                                (list (cons 'ssh-agent #$(file-append openssh "/bin/ssh-agent"))
                                      (cons 'ssh-add #$(file-append openssh "/bin/ssh-add"))
