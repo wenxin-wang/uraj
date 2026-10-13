@@ -21,6 +21,10 @@
 (define (strongswan-daemon-configuration)
   (mixed-text-file "strongswan.conf"
     "charon {
+  # Bringing the outbound link down (NetworkManager does on suspend) flushes
+  # its addresses; charon never reinstalls a lost virtual IP, leaving the SA
+  # up but unusable.  lo is never brought down.
+  install_virtual_ip_on = lo
   load = random nonce aes sha1 sha2 md4 hmac kdf pem pkcs1 pkcs8 x509 constraints pubkey openssl kernel-netlink socket-default vici resolve eap-identity eap-mschapv2 eap-md5 eap-tls eap-ttls eap-peap
   plugins {
     vici {

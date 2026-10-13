@@ -129,6 +129,11 @@ EAP 具体方法由服务端协商，IKE/ESP 使用 strongSwan 默认提案。
 使用者断开。
 这不是按域名分流的 split DNS，多 VPN 的 DNS 仍共享系统解析器。
 
+虚拟 IP 装在 `lo` 上（`charon.install_virtual_ip_on`）。默认会装在出口
+网卡上，而 NetworkManager 在挂起或断开 Wi-Fi 时关掉网卡会清空其地址，
+charon 不会重装丢失的虚拟 IP：IKE 仍是 ESTABLISHED，但源地址没了，
+内网不可达，只能重启连接。网卡恢复后 charon 会自行重装 220 表路由。
+
 休眠后原 IKE 消失时，插件撤销 DNS 条目是正常清理；重新建立 IKE 并收到
 DNS 后会再次注册。DNS 条目消失不应靠长期保留旧 DNS 来掩盖。若隧道
 仍是 ESTABLISHED 但条目缺失，则应另查 openresolv/网络管理器更新，不能
