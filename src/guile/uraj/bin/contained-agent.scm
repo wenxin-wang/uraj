@@ -8,7 +8,8 @@
   #:use-module (srfi srfi-11)
   #:use-module (srfi srfi-26)
   #:use-module (uraj bin contained-ssh)
-  #:export (contained-agent-main read-all clause-options codex-spec))
+  #:export (contained-agent-main read-all clause-options codex-spec
+            credential-clause? credential-options %github-secrets))
 
 ;;; Run a coding agent inside `guix shell --container', sharing only the
 ;;; current project plus the agent's own state.  Arguments, stdio and the
@@ -35,7 +36,13 @@
 ;;;   and from the project itself: `.guix/contained-agent.scm' holds the same
 ;;;   mount/environment clauses at top level.  Only central configuration
 ;;;   may also declare (ssh-agent (identity PATH (destinations HOST ...)));
-;;;   its keys are loaded automatically on the host before entering.
+;;;   its keys are loaded automatically on the host before entering.  It
+;;;   alone may also hand out credentials (see `credential-options'):
+;;;     (env NAME (file FILE))       NAME set to the contents of FILE
+;;;     (github TIER)                git and gh on github.com, TIER being
+;;;                                  public, personal or world
+;;;     (git-credential URL FILE)    git over HTTPS below URL
+;;;   FILE stays on the host or is mounted alone, read-only.
 ;;;   The local file lives next to `.guix/manifest.scm' (or a top-level
 ;;;   `manifest.scm'), whose packages join the container's.  Both are written
 ;;;   by the agent, and the manifest is Scheme that `guix shell' evaluates on
@@ -151,13 +158,14 @@ tree, and the mount options for WORKDIR."
 (define %denied
   ;; Credentials, Paseo's keys (control of every session), our own
   ;; configuration and approvals, the build daemon (use the explicit
-  ;; guix-daemon clause instead), and the user's service managers.
+  ;; guix-daemon clause instead), decrypted SOPS secrets (use the explicit
+  ;; credential clauses instead), and the user's service managers.
   '("~/.paseo" "~/.paseo-password" "~/.ssh" "~/.gnupg" "~/.password-store"
     "~/.config/contained-agent" "~/.local/state/contained-agent"
     "~/.local/state/paseo-broker"
     "~/.config/paseo" "~/.local/state/paseo-sandbox"
     "~/.cache/contained-agent"
-    "/var/guix/daemon-socket" "/run/user"))
+    "/var/guix/daemon-socket" "/run/secrets" "/run/user"))
 
 (define (resolve file)
   (if (file-exists? file) (canonicalize-path file) file))
@@ -221,6 +229,128 @@ The private file is read at runtime, never imported into the Guix store."
    (delete-duplicates
     (list (expand-home (or (getenv "CONTAINED_AGENT_PROJECTS") file))
           (expand-home "~/.config/contained-agent/projects.local.scm")))))
+
+;;; Credentials from host files.
+
+(define %github-secrets
+  ;; Where SOPS decrypts the token of each tier, see secrets/README.org.
+  (make-parameter "/run/secrets/github"))
+
+(define %github-tiers '("public" "personal" "world"))
+
+(define (credential-clause? entry)
+  (match entry
+    ((origin . ((or 'env 'github 'git-credential) _ ...)) #t)
+    (_ #f)))
+
+(define (read-secret origin file what)
+  "Return the trimmed contents of FILE, or #f with a warning if it is missing,
+unreadable or empty."
+  (let ((value (false-if-exception
+                (string-trim-both (call-with-input-file file read-string)))))
+    (cond ((not value)
+           (warn "~a: cannot read ~a; starting without ~a" origin file what)
+           #f)
+          ((string-null? value)
+           (warn "~a: ~a is empty; starting without ~a" origin file what)
+           #f)
+          (else value))))
+
+(define (git-credential-helper file)
+  "A helper answering `get' with the token in FILE, ignoring `store' and
+`erase': FILE is read-only."
+  ;; Shell builtins only: PATH may lack coreutils.
+  (string-append "!f() { test \"$1\" = get || exit 0; "
+                 "IFS= read -r t < " file " || test -n \"$t\"; "
+                 "echo username=x-access-token; "
+                 "printf 'password=%s\\n' \"$t\"; }; f"))
+
+(define (credential-options entries directory)
+  "Apply the central credential clauses among ENTRIES, (ORIGIN . CLAUSE)
+pairs, and return the `guix shell' options that hand them to the container.
+Values travel in the environment or in files mounted alone under DIRECTORY,
+never on a command line.  A missing, unreadable or empty file is skipped
+with a warning, and the host's own value never stands in for it.
+
+Git configuration goes through GIT_CONFIG_COUNT, after the global file the
+agent may edit: an empty credential.helper first drops every helper of
+the host's configuration, such as `gh auth setup-git''s, then each URL gets
+a helper reading its token.  git asks helpers in order, so git-credential
+clauses, usually narrower, come before the github tier.  The gh in the
+container asks git for the current repository's token."
+  (define (variable name)
+    (unless (string-match "^[A-Za-z_][A-Za-z0-9_]*$" name)
+      (die "bad variable name ~s" name))
+    name)
+  (define clauses (filter credential-clause? entries))
+  (define environment
+    (append-map
+     (match-lambda
+       ((origin . ('env (? string? name) ('file (? string? file))))
+        (let* ((name (variable name))
+               (value (read-secret origin (expand-home file) name)))
+          (unsetenv name)
+          (if value
+              (begin
+                (setenv name value)
+                (list (string-append "--preserve=^" name "$")))
+              '())))
+       ((origin . ('env _ ...))
+        (die "~a: expected (env NAME (file FILE))" origin))
+       (_ '()))
+     clauses))
+  (define credentials                   ;(ORIGIN URL FILE), in order
+    (append
+     (filter-map
+      (match-lambda
+        ((origin . ('git-credential (? string? url) (? string? file)))
+         (unless (and (string-prefix? "https://" url)
+                      (not (string-any char-whitespace? url)))
+           (die "~a: git-credential needs an https:// URL: ~s" origin url))
+         (list origin url (expand-home file)))
+        ((origin . ('git-credential _ ...))
+         (die "~a: expected (git-credential URL FILE)" origin))
+        (_ #f))
+      clauses)
+     (match (filter (match-lambda ((_ . ('github _ ...)) #t) (_ #f)) clauses)
+       (() '())
+       (((origin . ('github (? string? tier))))
+        (unless (member tier %github-tiers)
+          (die "~a: unknown GitHub tier ~s, expected one of ~a"
+               origin tier (string-join %github-tiers ", ")))
+        (list (list origin "https://github.com"
+                    (string-append (%github-secrets) "/" tier))))
+       (((origin . clause) . rest)
+        (die "~a: expected a single (github TIER) clause, got ~s"
+             origin clause)))))
+  (define mounted                       ;((URL . TARGET) . OPTION) ...
+    (filter-map
+     (lambda (credential index)
+       (match credential
+         ((origin url file)
+          (and (read-secret origin file url)
+               (let ((target (string-append directory "/git-credential-"
+                                            (number->string index))))
+                 (cons (cons url target)
+                       (string-append "--expose=" file "=" target)))))))
+     credentials (iota (length credentials))))
+  (define config
+    (append
+     '(("credential.helper" . ""))
+     (map (match-lambda
+            (((url . target) . _)
+             (cons (string-append "credential." url ".helper")
+                   (git-credential-helper target))))
+          mounted)))
+  (setenv "GIT_CONFIG_COUNT" (number->string (length config)))
+  (for-each (lambda (entry index)
+              (let ((index (number->string index)))
+                (setenv (string-append "GIT_CONFIG_KEY_" index) (car entry))
+                (setenv (string-append "GIT_CONFIG_VALUE_" index) (cdr entry))))
+            config (iota (length config)))
+  (append environment
+          (map cdr mounted)
+          '("--preserve=^GIT_CONFIG_(COUNT|KEY_[0-9]+|VALUE_[0-9]+)$")))
 
 ;;; Optional Guix daemon access.
 
@@ -528,12 +658,15 @@ NUL.  All ssh-add output goes to stderr, never into this private protocol."
                        (if (getenv "CONTAINED_AGENT_SSH_PREPARED")
                            (ssh-prepared-directory project ssh ssh-tools)
                            (ssh-ensure project ssh ssh-tools))))
+       ;; After every host-side use of the environment, such as SSH askpass.
+       ((credentials) (credential-options central "/run/contained-agent"))
        ((clauses)
         ;; (ORIGIN . CLAUSE), ORIGIN naming the file for messages.
         (append
          (remove (match-lambda
                    ((origin . clause)
-                    (and (pair? clause) (eq? (car clause) 'ssh-agent))))
+                    (or (credential-clause? (cons origin clause))
+                        (and (pair? clause) (eq? (car clause) 'ssh-agent)))))
                  central)
          (match (local-file "contained-agent.scm")
            (#f '())
@@ -583,6 +716,7 @@ NUL.  All ssh-add output goes to stderr, never into this private protocol."
                 '())
             (spec-preserve common)
             (spec-preserve spec)
+            credentials
             (match (local-file "manifest.scm")
               (#f '())
               (manifest (list (string-append "--manifest=" manifest))))
@@ -598,6 +732,17 @@ export GIT_SSL_CAINFO=$SSL_CERT_FILE SSL_CERT_DIR=$GUIX_ENVIRONMENT/etc/ssl/cert
 unset SSH_AUTH_SOCK SSH_AGENT_PID
 cd \"$1\" || exit; n=$2; shift 2
 while [ $n -gt 0 ]; do cp \"$1\" \"$2\" || exit; shift 2; n=$((n - 1)); done
+# The session's own ~/.gitconfig, which the agent may change, on top of any
+# seeded copy.  .git/config is read-only, so `git push -u' cannot record an
+# upstream: push the current branch to its namesake without one.  --file,
+# as --global would write a read-only ~/.config/git/config if mounted.
+c() { git config --file \"$HOME/.gitconfig\" \"$@\" || exit; }
+if [ -e \"$HOME/.gitconfig.local\" ]; then c include.path \"$HOME/.gitconfig.local\"; fi
+c push.default current
+c filter.lfs.clean 'git-lfs clean -- %f'
+c filter.lfs.smudge 'git-lfs smudge -- %f'
+c filter.lfs.process 'git-lfs filter-process'
+c filter.lfs.required true
 exec \"$@\""
                   "contained-agent"
                   home

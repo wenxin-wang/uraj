@@ -23,6 +23,11 @@ creation_rules:
   - path_regex: ^secrets/hosts/hypie/[^/]+\.yaml$
     pgp: *admin
     age: *hypie-age
+  # GitHub token tiers for contained agents and Paseo, on every agent host.
+  # A list lets the rule reuse the hosts' anchors.
+  - path_regex: ^secrets/shared/github\.yaml$
+    pgp: *admin
+    age: [*lappie-age, *storie-age, *hypie-age]
   # Before sharing with hosts, add a specific rule ABOVE this fallback,
   # with only the age recipients of the participating hosts.
   - path_regex: ^secrets/shared/[^/]+\.yaml$

@@ -13,10 +13,19 @@
 ;;;                (destinations "git@github.com" "user@host.example")))
 ;;; Keys load automatically before entering the container.  To reload or
 ;;; unlock them in advance: `contained-agent ssh-start PROJECT' on the host.
+;;; and credentials, skipped with a warning when their file is absent:
+;;;   (github TIER)               git and gh on github.com; TIER is public
+;;;                               (your public repositories), personal (all
+;;;                               yours) or world (all you can reach)
+;;;   (git-credential URL FILE)   git over HTTPS below URL, asked before the
+;;;                               tier; for isolated projects, give only this
+;;;   (env NAME (file FILE))      NAME set to the contents of FILE
 
 (project "~/src/uraj"
   ;; Build/check Home, System, packages and locked channel environments.
   (guix-daemon)
+  ;; Push over HTTPS and open pull requests with `gh'.
+  (github "personal")
   ;; Troubleshooting the System and Home this repository configures.
   (expose
    ;; System: logs (readable ones: messages via log-readers, guix build

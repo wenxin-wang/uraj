@@ -191,6 +191,33 @@ class Activation(unittest.TestCase):
         self.assertNotIn(f"--share={transcripts}", command)
         self.assertNotIn(f"--expose={self.home / '.claude'}", command)
 
+    def test_container_uses_its_own_gh_config(self):
+        host = self.home / ".config/gh"
+        host.mkdir(parents=True)
+        command = SERVICE.container_command("guix", "/profile", self.home, [])
+        self.assertFalse(any(".config/gh" in option for option in command))
+        command = SERVICE.container_command(
+            "guix", "/profile", self.home, [], gh_config="/gnu/store/x-gh"
+        )
+        self.assertIn(f"--expose=/gnu/store/x-gh={host}", command)
+        self.assertNotIn(f"--expose={host}", command)
+        self.assertNotIn(f"--share={host}", command)
+
+    def test_container_git_identity_only(self):
+        (self.home / ".gitconfig").write_text("[alias]\n")
+        command = SERVICE.container_command("guix", "/profile", self.home, [])
+        self.assertFalse(any(".gitconfig" in option for option in command))
+        (self.home / ".gitconfig.local").write_text("[user]\n")
+        command = SERVICE.container_command("guix", "/profile", self.home, [])
+        gitconfig = [option for option in command if ".gitconfig" in option]
+        self.assertEqual(
+            gitconfig,
+            [
+                f"--expose={self.home / '.gitconfig.local'}"
+                f"={self.home / '.gitconfig'}"
+            ],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -92,6 +92,10 @@
           (group "root")
           (permissions #o400)))))
 
+;; GitHub tokens for contained agents and Paseo, see secrets/README.org.
+(define %github-token-secrets
+  (github-token-secrets (user-account-name %main-user)))
+
 (define lappie-os
   (operating-system
   (inherit %desktop-os)
@@ -133,7 +137,9 @@
             (list (local-file
                    (guix-env-path "os/keys/storie-signing-key.pub"))))
            (if (getenv "TO_ISO") '()
-               (append (host-sops-services (map cdr %vpn-connections))
+               (append (host-sops-services
+                        (append (map cdr %vpn-connections)
+                                %github-token-secrets))
                        (strongswan-services %vpn-connections)))
            (list ; %asus-adolbook-air14-panel-replay-service
                  )))))

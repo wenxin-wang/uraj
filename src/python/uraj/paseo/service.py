@@ -107,9 +107,19 @@ def activate(home, desktop=False, worktrees=None):
 
 
 def container_command(
-    guix, profile, home, roots, extra_options=(), ssh_directory=None
+    guix,
+    profile,
+    home,
+    roots,
+    extra_options=(),
+    ssh_directory=None,
+    gh_config=None,
 ):
-    """Keep host paths and UID; expose only the broker connection directory."""
+    """Keep host paths and UID; expose only the broker connection directory.
+
+    GH_CONFIG, the daemon's own read-only GitHub CLI configuration, stands in
+    for the host's ~/.config/gh, which is never mounted.
+    """
     runtime = home / ".local/state/paseo-broker"
     command = [
         guix,
@@ -133,10 +143,16 @@ def container_command(
             command.append(f"--share={path}")
     # Paseo itself replays Claude transcripts to rebuild a session's timeline
     # after a daemon restart; Codex history comes back through its provider.
-    for name in (".gitconfig", ".gitconfig.local", ".claude/projects"):
-        path = home / name
-        if path.exists():
-            command.append(f"--expose={path}")
+    transcripts = home / ".claude/projects"
+    if transcripts.exists():
+        command.append(f"--expose={transcripts}")
+    # Of the host's Git configuration, only the identity serves the daemon:
+    # the rest is preferences, and applications write ~/.gitconfig.
+    identity = home / ".gitconfig.local"
+    if identity.exists():
+        command.append(f"--expose={identity}={home / '.gitconfig'}")
+    if gh_config:
+        command.append(f"--expose={gh_config}={home / '.config/gh'}")
     command.extend(extra_options)
     if ssh_directory:
         for source, target in (
@@ -245,7 +261,13 @@ def run_configured_container(args, home, roots, policy):
             parts = os.fsdecode(bytes(response[:-2])).split("\0")
             ssh_directory, *options = parts
             command = container_command(
-                args.guix, args.profile, home, roots, options, ssh_directory
+                args.guix,
+                args.profile,
+                home,
+                roots,
+                options,
+                ssh_directory,
+                args.gh_config,
             )
             process.stdin.write(os.fsencode("\0".join(command) + "\0\0"))
             process.stdin.flush()
@@ -282,6 +304,7 @@ def main():
     parser.add_argument("--sandbox-helper")
     parser.add_argument("--supervisor")
     parser.add_argument("--sandbox-config")
+    parser.add_argument("--gh-config")
     args = parser.parse_args()
     home = Path.home()
     if args.action == "activate":
@@ -320,7 +343,9 @@ def main():
     command = (
         ["paseo", "daemon", "run"]
         if args.action == "run-host"
-        else container_command(args.guix, args.profile, home, roots)
+        else container_command(
+            args.guix, args.profile, home, roots, gh_config=args.gh_config
+        )
     )
     os.execvp(command[0], command)
 

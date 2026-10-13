@@ -117,6 +117,32 @@ The main work tree of a linked worktree is readable when it is under
 =~/src=; otherwise it is not mounted by default.  Commits land in the
 shared =.git= and show up on the host at once.
 
+Because =config= is read-only, commands writing it fail: =git push -u= pushes
+but warns =could not write config file=, and =git remote add= or
+=git branch -u= fail outright.  Making =config= writable is not an option:
+=core.fsmonitor=, =core.sshCommand=, filters and aliases there make host-side
+git, such as shell prompts and editors, run commands.
+
+The host's Git configuration stays outside, but for the identity in
+=~/.gitconfig.local=, exposed read-only.  Its managed part,
+=~/.config/git/config=, holds preferences (aliases, =core.fsmonitor=, whose
+daemon socket lives in the shared =.git=, =status.aheadBehind = false=), and
+applications write =~/.gitconfig=.  The container's =~/.gitconfig= is its own
+instead, written at startup in the session's tmpfs home and dropped on exit:
+it includes =~/.gitconfig.local= and sets =push.default=current= and the
+Git LFS filter.  The agent may change it, and git reads =branch.*= and
+=remote.*= from any scope, so it stands in for the repository's file for the
+session:
+
+| Instead of               | Run                                                                                          |
+|--------------------------+----------------------------------------------------------------------------------------------|
+| =git push -u origin B=   | =git push origin B=, then =git config --global branch.B.remote origin= and =branch.B.merge refs/heads/B= |
+| =git remote add R URL=   | =git config --global remote.R.url URL= and =remote.R.fetch '+refs/heads/*:refs/remotes/R/*'=   |
+| =git config KEY VALUE=   | =git config --global KEY VALUE=                                                              |
+
+With =push.default=current=, a bare =git push= pushes the current branch to
+its namesake on =origin=, and =@{push}= resolves, without any upstream.
+
 * Agent specs
 
 Specs are alists in =llm.scm= (Codex uses =codex-spec= in the launcher);
@@ -220,6 +246,10 @@ Clauses, in both places below:
 - =(guix-daemon)=: opt into Guix nesting and daemon access, with an isolated
   project cache (details below).
 
+Central configuration only: =(ssh-agent ...)= and the credential clauses
+=(github TIER)=, =(git-credential URL FILE)= and =(env NAME (file FILE))=,
+described below.
+
 Central: =projects.scm=, keyed by the repository's main work tree, so all
 its worktrees share the entry.  It reaches the program through Home, so the
 agent cannot change it, and changing it takes a reconfigure.
@@ -246,6 +276,52 @@ Only one =ssh-agent= clause per project is accepted across the two files;
 duplicates fail instead of silently overriding a policy.  Put that whole
 clause in the private file when its contents are sensitive.
 
+** Credentials
+
+Central files alone may also hand credentials to a project.  Each names a
+host file, read at every launch: one that appears later reaches the next
+session without restarting anything.  A missing, unreadable or empty file is
+skipped with a warning, and nothing of the host's stands in for it.  The
+value never appears on a command line.  A project-local credential clause,
+even approved, is a bad clause.
+
+- =(github TIER)=: git over HTTPS and =gh= on github.com, with the token SOPS
+  decrypts to =/run/secrets/github/TIER=.  Tiers nest:
+
+  | Tier       | Token                                    | Reaches                           |
+  |------------+------------------------------------------+-----------------------------------|
+  | =public=   | fine-grained, selected repositories      | your public repositories          |
+  | =personal= | fine-grained, all repositories           | all your repositories             |
+  | =world=    | classic, =repo= and =workflow= scopes    | every repository you can reach    |
+
+  All may push (including workflow files) and open pull requests;
+  only =world= may fork, or open pull requests on repositories of others.
+- =(git-credential URL FILE)=: git over HTTPS below =URL=, which must start
+  with =https://=.  git matches it as a prefix of whole path segments, so
+  =https://github.com/OWNER= covers that owner's repositories, while
+  =…/REPO.git= misses a remote spelled =…/REPO=.  These come before the tier:
+  give an isolated project only this clause, or narrow one owner of a tier.
+- =(env NAME (file FILE))=: the variable =NAME= set to =FILE='s contents.
+  It overrides =preserve=, which passes the launcher's own environment: the
+  host's value is dropped even when the file is missing.
+
+The token files of =github= and =git-credential= are each mounted alone,
+read-only, at =/run/contained-agent/git-credential-N=.  The launcher
+configures git through =GIT_CONFIG_COUNT=, read after =~/.gitconfig=: an
+empty =credential.helper= drops the host's helpers (such as the one
+=gh auth setup-git= installs), then each URL gets a helper that answers
+=get= from its file and ignores =store= and =erase=.  The container's =gh=
+is a wrapper that runs GitHub CLI with the token git gives for the current
+repository's =origin=, or for github.com outside a repository.  An explicit
+=GH_TOKEN= wins.  =gh -R OTHER/REPO= still uses the current repository's
+token, which is the same one unless a =git-credential= clause applies.
+
+Remotes must use HTTPS for these to apply; SSH remotes keep using the
+=ssh-agent= clause, if any.  The tokens live inside a container with
+network access: treat them as readable by anything the agent runs; their
+scope is the protection.  [[file:../secrets/README.org][secrets/README.org]] covers requesting and rotating
+them.  uraj uses =(github "personal")=.
+
 Project-local: =.guix/contained-agent.scm= (same clauses at top level) and
 =.guix/manifest.scm=, or a top-level =manifest.scm=.  The agent can write
 them, and =guix shell= evaluates a manifest on the host, outside any
@@ -268,14 +344,16 @@ Requests never mount anything under these, nor any directory containing
 one (such as =$HOME= or =/=): =~/.paseo=, =~/.paseo-password=, =~/.ssh=,
 =~/.gnupg=, =~/.password-store=, =~/.config/contained-agent=,
 =~/.local/state/contained-agent=, =~/.local/state/paseo-broker=,
-=/var/guix/daemon-socket=, =/run/user=.
+=/var/guix/daemon-socket=, =/run/secrets=, =/run/user=.
 
 * What agents cannot do
 
 - Use SSH by default.  The optional central =ssh-agent= clause below grants
   access to a project's dedicated agent, not the host's normal agent or
   private key files.  GPG remains unavailable.
-- Use =gh=: =~/.config/gh= is not mounted.
+- Use =gh= or HTTPS git credentials by default, or ever with the host's
+  login: =~/.config/gh= is not mounted and the host's credential helpers are
+  dropped.  The optional central =github= clause above grants a tier.
 - Reach the Guix daemon by default.  Projects opting into =(guix-daemon)=,
   including uraj, can build and use nested Guix environments.
 - Control the user's Shepherd (=/run/user/UID=) or see host processes

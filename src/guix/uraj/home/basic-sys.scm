@@ -69,6 +69,24 @@ for profile in \"$HOME\"/.profile.d/*.sh; do
     [ -r \"$profile\" ] && . \"$profile\"
 done
 unset profile
-"))))
+")))
+    ;; ~/.config/git/config is the managed, read-only Git configuration;
+    ;; ~/.gitconfig stays a plain file for `git config --global' and the
+    ;; applications that write it.  Without one, git would write the
+    ;; managed file instead and fail.  Replace the link to the store that
+    ;; earlier generations installed there; never touch a user's file.
+    (simple-service 'writable-gitconfig
+                    home-activation-service-type
+                    #~(let* ((home (getenv "HOME"))
+                             (file (string-append home "/.gitconfig"))
+                             (target (false-if-exception (readlink file))))
+                        (when (and target
+                                   (or (string-prefix? "/gnu/store/" target)
+                                       (string-prefix?
+                                        (string-append home "/.guix-home/")
+                                        target)))
+                          (delete-file file))
+                        (unless (false-if-exception (lstat file))
+                          (close-port (open-file file "a"))))))
    (my-dotfiles-services
     (list (project-path "env/dotfiles/common")))))

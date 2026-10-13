@@ -1,4 +1,5 @@
-;;; Host-only, data-only policy for the Paseo daemon's mounts and SSH agent.
+;;; Host-only, data-only policy for the Paseo daemon's mounts, credentials and
+;;; SSH agent.
 (define-module (uraj bin paseo-sandbox)
   #:use-module (ice-9 match)
   #:use-module (ice-9 rdelim)
@@ -17,17 +18,23 @@
            (lambda (clause)
              (match clause
                (('ssh-agent _ ...) '())
+               (((or 'env 'github 'git-credential) _ ...) '())
                (('guix-daemon) (error "Paseo does not expose the Guix daemon"))
                (_ (clause-options file clause))))
            clauses))
          (directory
           (and policy
                (ssh-ensure (getenv "HOME") policy tools
-                           (getenv "CONTAINED_AGENT_SSH_RUNTIME_DIRECTORY")))))
+                           (getenv "CONTAINED_AGENT_SSH_RUNTIME_DIRECTORY"))))
+         ;; After SSH unlocking; the daemon command below inherits the
+         ;; environment this sets.
+         (credentials (credential-options
+                       (map (lambda (clause) (cons file clause)) clauses)
+                       "/run/paseo")))
     ;; A NUL-delimited result keeps spaces/newlines literal without evaluating
     ;; config as Scheme or shell. stdout is reserved for this one response.
     (for-each (lambda (value) (display value) (write-char #\nul))
-              (cons (or directory "") options))
+              (cons (or directory "") (append options credentials)))
     (write-char #\nul)
     (force-output)
     ;; Replace this namespace's workload with the daemon. Its SSH agents stay

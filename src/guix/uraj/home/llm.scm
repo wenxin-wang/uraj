@@ -60,7 +60,10 @@ search paths.")))
   (list agent-browser))
 
 (define %agent-tools-profile
-  (profile (content (packages->manifest %agent-tool-packages))))
+  ;; gh-git-credential replaces github-cli in the container only: it would
+  ;; take the host's own gh login out of use.
+  (profile (content (packages->manifest
+                     (cons gh-git-credential %agent-tool-packages)))))
 
 (define %agent-tools-manifest
   (scheme-file "agent-tools-manifest.scm"
@@ -118,15 +121,18 @@ headless Homes."
   '((share "~/.llm-memory")
     ;; Paseo sends Codex localImage paths below its private TMPDIR. Keep the
     ;; same path in both namespaces, including files uploaded after launch.
-    (expose "~/.cache/paseo-tmp"
-            "~/src" "~/.llm-wiki" "~/.gitconfig" "~/.gitconfig.local")
+    ;; Of the host's Git configuration, only the identity in
+    ;; ~/.gitconfig.local: the rest is preferences, and applications write
+    ;; ~/.gitconfig.  The container writes a ~/.gitconfig of its own.
+    (expose "~/.cache/paseo-tmp" "~/src" "~/.llm-wiki" "~/.gitconfig.local")
     (preserve "TERM" "COLORTERM" "LANG" "LC_.*" "NO_COLOR" "PASEO_.*"
               "RUST_LOG")))
 
 (define %contained-agent-packages
   ;; bubblewrap provides bwrap for Codex's own command sandbox and overlays.
   ;; Keep common scripting, download and archive tools available to every agent.
-  ;; python-wrapper supplies both python and python3.
+  ;; python-wrapper supplies both python and python3.  gh comes with the
+  ;; agent tools.
   '("bash" "bc" "bubblewrap" "bzip2" "coreutils" "curl" "diffutils" "file"
     "findutils" "gawk" "git" "git-lfs" "grep" "gzip" "jq" "less"
     "nss-certs" "patch" "perl" "procps" "python-wrapper" "ripgrep" "sed" "tar"

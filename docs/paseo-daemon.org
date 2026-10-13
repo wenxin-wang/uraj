@@ -137,10 +137,9 @@ environment; variables for provider executions are named separately in
 described in [[file:paseo-broker.org][the broker policy]].
 
 #+begin_src scheme
-;; Writable data and read-only GitHub CLI configuration, when present.
+;; Writable data, and clone over HTTPS whatever the host's login reaches.
 (share "~/Projects")
-(expose "~/.config/gh")
-(preserve "GH_TOKEN" "GITHUB_TOKEN")
+(github "world")
 
 (ssh-agent
   (known-hosts "~/.ssh/known_hosts")
@@ -157,8 +156,23 @@ The same =contained-ssh= implementation loads keys with =ssh-add -h= destination
 constraints. Private keys remain outside the daemon container. Only the new
 agent's socket, known_hosts snapshot and literal client config are mounted.
 This agent never shares the desktop GPG agent or the broker's project agents.
-The profile includes =ps= (procps), OpenSSH and GitHub CLI; =gh= authentication
-still requires a configured credential file or an explicitly preserved token.
+The profile includes =ps= (procps), OpenSSH and GitHub CLI.  The policy's
+=github=, =git-credential= and =env= clauses work as in contained-agent,
+mounting token files under =/run/paseo=.  To clone every repository you can
+reach, private ones included, give the daemon =(github "world")=; the SSH
+agent is then optional.  The daemon has a GitHub CLI configuration of its
+own, built by =(uraj home paseo)= and mounted read-only over =~/.config/gh=:
+it only sets =git_protocol: https=, which Paseo reads
+(=gh config get git_protocol=) to pick =https://github.com/= clone URLs.  Its
+=gh= is the same wrapper as the agents', taking the token from git.  The
+host's =~/.config/gh= holds the host login and is never mounted.  Being
+read-only, the daemon's copy cannot gain a login (=gh auth login=) or
+aliases, which can run shell commands.  Do not preserve the host's
+=GH_TOKEN= either.  The broker forwards no =GH_*= or =GIT_CONFIG_*= variable,
+so agents never receive the daemon's token.  Of the host's Git configuration the
+daemon gets only the identity, =~/.gitconfig.local= exposed read-only as its
+=~/.gitconfig=; the preferences in =~/.config/git/config= and what
+applications write to the host's =~/.gitconfig= stay outside.
 
 The host launcher prepares SSH in an owned PID namespace, then starts the
 daemon beneath the same namespace. Normal shutdown, a crashed launcher, and

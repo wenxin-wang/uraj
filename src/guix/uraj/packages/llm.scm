@@ -1,7 +1,10 @@
 (define-module (uraj packages llm)
+  #:use-module (gnu packages base)
   #:use-module (gnu packages bash)
   #:use-module (gnu packages chromium)
   #:use-module (gnu packages linux)
+  #:use-module (gnu packages version-control)
+  #:use-module (guix build-system trivial)
   #:use-module (guix build-system copy)
   #:use-module (guix download)
   #:use-module (guix git-download)
@@ -20,6 +23,7 @@
   #:export (agent-browser
             claude-code
             codex
+            gh-git-credential
             opencode-bin
             paseo))
 
@@ -264,3 +268,46 @@ prints accessibility-tree snapshots with compact element references, for use by
 AI coding agents.  This package repackages the official static Linux binary
 together with its version-matched agent skills.")
     (license license:asl2.0)))
+
+;;; gh reads no git credential helper, only GH_TOKEN or its own login.  In
+;;; containers, which hold no login, ask git for the current repository's
+;;; token instead, so that git and gh use the same one, configured once.
+(define gh-git-credential-script
+  (mixed-text-file "gh"
+    "#!" bash-minimal "/bin/sh
+url=$(" git "/bin/git remote get-url origin 2>/dev/null) || url=
+case $url in
+  https://github.com/*) ;;
+  git@github.com:*) url=https://github.com/${url#git@github.com:} ;;
+  ssh://git@github.com/*) url=https://github.com/${url#ssh://git@github.com/} ;;
+  *) url=https://github.com ;;
+esac
+if [ -z \"${GH_TOKEN-}\" ]; then
+  token=$(printf 'url=%s\\n\\n' \"$url\" |
+    GIT_TERMINAL_PROMPT=0 GIT_ASKPASS= SSH_ASKPASS= \\
+    " git "/bin/git -c credential.interactive=false credential fill 2>/dev/null |
+    " sed "/bin/sed -n 's/^password=//p')
+  if [ -n \"$token\" ]; then export GH_TOKEN=$token; fi
+fi
+exec " github-cli "/bin/gh \"$@\"
+"))
+
+(define-public gh-git-credential
+  (package
+    (name "gh-git-credential")
+    (version (package-version github-cli))
+    (source #f)
+    (build-system trivial-build-system)
+    (arguments
+     (list #:builder
+           #~(let ((bin (string-append #$output "/bin")))
+               (mkdir #$output)
+               (mkdir bin)
+               (copy-file #$gh-git-credential-script (string-append bin "/gh"))
+               (chmod (string-append bin "/gh") #o555))))
+    (home-page (package-home-page github-cli))
+    (synopsis "GitHub CLI authenticated by git's credential helpers")
+    (description "This @command{gh} runs GitHub CLI with the token that git's
+credential helpers give for the current repository's origin, when
+@env{GH_TOKEN} is unset.")
+    (license (package-license github-cli))))

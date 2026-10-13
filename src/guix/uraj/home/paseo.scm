@@ -39,7 +39,19 @@
   (profile
    (content (packages->manifest
              (list paseo paseo-broker-clients bash coreutils git nss-certs
-                   procps openssh github-cli)))))
+                   procps openssh gh-git-credential)))))
+
+;;; The daemon's own GitHub CLI configuration, mounted read-only over
+;;; ~/.config/gh in its container instead of the host's (which holds the
+;;; login).  Paseo only reads git_protocol from it, to pick clone URLs; HTTPS
+;;; ones take the token of the daemon's (github TIER) policy clause.  A
+;;; read-only directory also keeps `gh auth login' and aliases from
+;;; persisting anything.
+(define paseo-gh-config
+  (file-union "paseo-gh-config"
+              `(("config.yml"
+                 ,(plain-file "config.yml"
+                              "version: \"1\"\ngit_protocol: https\n")))))
 
 (define paseo-sandbox-program
   (program-file
@@ -69,7 +81,8 @@
             #$paseo-python-modules
             (append (cdr (command-line))
                     (list "--sandbox-helper" #$paseo-sandbox-program
-                          "--supervisor" #$supervisor)))))
+                          "--supervisor" #$supervisor
+                          "--gh-config" #$paseo-gh-config)))))
 
 (define* (paseo-home-services #:key (desktop? #t) (autostart? #f) worktrees)
   (append

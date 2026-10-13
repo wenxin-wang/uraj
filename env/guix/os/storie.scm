@@ -397,7 +397,9 @@
       %storage-timer-services
       %storie-fan-services
       (if (getenv "TO_ISO") '()
-          (host-sops-services (list %immich-database-secret)))
+          (host-sops-services
+           (cons %immich-database-secret
+                 (github-token-secrets (user-account-name %main-user)))))
       (modify-services (operating-system-user-services %server-os)
         (dhcpcd-service-type config =>
           (dhcpcd-configuration

@@ -5,8 +5,11 @@
   #:use-module (gnu packages golang-crypto)
   #:use-module (gnu packages password-utils)
   #:use-module (guix gexp)
+  #:use-module (sops secrets)
   #:use-module (sops services sops)
-  #:export (%host-sops-age-key-file host-sops-services))
+  #:use-module (uraj utils file path)
+  #:export (%host-sops-age-key-file host-sops-services
+            github-token-secrets))
 
 (define %host-sops-age-key-file "/var/lib/sops/age/keys.txt")
 
@@ -36,3 +39,24 @@ the sops-secrets-host-key service.  No target private key is read at build time.
        (host-ssh-key "/etc/ssh/ssh_host_ed25519_key")
        (age-key-file %host-sops-age-key-file)
        (secrets secrets)))))
+
+(define %github-tokens-file "secrets/shared/github.yaml")
+
+(define* (github-token-secrets user
+                               #:optional (tiers '("public" "personal" "world")))
+  "Return the secrets holding the GitHub token of each of TIERS, readable by
+USER alone at /run/secrets/github/TIER, for the (github TIER) clauses of
+contained-agent and the Paseo daemon.  scripts/secrets/github_token.py writes
+the file; until it exists no secret is declared and agents start without a
+token.  Every tier listed must be in the file."
+  (let ((file (project-path %github-tokens-file)))
+    (if (file-exists? file)
+        (map (lambda (tier)
+               (sops-secret
+                (key (list "github" tier))
+                (file (local-file file))
+                (user user)
+                (group "root")
+                (permissions #o400)))
+             tiers)
+        '())))
