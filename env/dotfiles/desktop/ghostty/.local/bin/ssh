@@ -1,14 +1,28 @@
 #!/usr/bin/env bash
-# ssh wrapper that installs ghostty's terminfo on remote hosts.  It replaces
-# ghostty's own ssh-terminfo/ssh-env shell hook (disabled in the ghostty
-# config): that hook is a shell function, so sshpass, scripts and other
-# shells that exec ssh straight from PATH bypass it; and when its terminfo
-# install fails it drops the multiplexed connection, so the real session
-# authenticates (asks for the password) a second time.  Here the terminfo is
-# installed over a multiplexed connection whose authentication the real ssh
-# always reuses, falling back to TERM=xterm-256color when that is
-# impossible.  Only plain interactive logins are touched: commands, scripts
-# and already-muxed calls pass through.
+# ssh wrapper for interactive logins from ghostty.  Replaces ghostty's own
+# ssh-env/ssh-terminfo shell hook (disabled in the ghostty config): that hook
+# is a shell function, so sshpass, scripts and other shells that exec ssh
+# straight from PATH bypass it, and when its terminfo install fails it drops
+# the multiplexed connection, so the real session authenticates (asks for
+# the password) a second time.
+#
+# Interactive logins install the xterm-ghostty terminfo on the remote host:
+# the check and install run on every connect over a multiplexed connection
+# the session reuses (no extra authentication, no local cache to go stale),
+# so a host that lost its ~/.terminfo heals on the next login; when the
+# install is impossible the session falls back to TERM=xterm-256color.  On a
+# successful install the wrapper also copies itself to the host's
+# ~/.local/bin/ssh (a foreign file already there is left alone), so an ssh
+# chain continuing from there keeps installing down the hops; the session
+# itself starts through a command that puts the wrapper on PATH and re-execs
+# the login shell, so even the first session on the host can chain onwards,
+# and a guarded PATH export in ~/.bashrc covers shells started later.  Opt
+# out for hosts that must not be touched with GHOSTTY_SSH_INSTALL_TERMINFO=0: the
+# session then downgrades to TERM=xterm-256color (which every host has an
+# entry for) and the remote is left alone.  COLORTERM and TERM_PROGRAM are
+# always forwarded for sshd configs that accept them.
+# Only plain interactive logins are touched: commands, scripts and
+# already-muxed calls pass through.
 
 # Find the real ssh: first ssh in PATH outside this wrapper's directory.
 self_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
@@ -72,19 +86,22 @@ while ((idx < ${#args[@]})); do
 done
 [[ $skip == 0 && -n $host && $idx -eq ${#args[@]} ]] || exec "$real_ssh" "$@"
 
-# Keep truecolor/TERM_PROGRAM visible on the remote (ghostty's ssh-env).
+# Keep truecolor/TERM_PROGRAM visible on remotes whose sshd accepts them.
 env_opts=(-o "SetEnv COLORTERM=truecolor" -o "SendEnv TERM_PROGRAM TERM_PROGRAM_VERSION")
 
-# Hosts that already got the terminfo are recorded in ghostty's cache.
-target=$("$real_ssh" -G "$@" 2>/dev/null | awk '/^user /{u=$2} /^hostname /{h=$2} END{if (u != "" && h != "") print u "@" h}')
-has_ghostty=0
-command -v ghostty >/dev/null 2>&1 && has_ghostty=1
-if ((has_ghostty)) && [[ -n $target ]] &&
-    ghostty +ssh-cache --host="$target" >/dev/null 2>&1; then
-    exec "$real_ssh" "${env_opts[@]}" "$@"
+# Opt-out (GHOSTTY_SSH_INSTALL_TERMINFO=0): normalize to a TERM that every
+# host has an entry for and leave the remote untouched.
+if [[ ${GHOSTTY_SSH_INSTALL_TERMINFO-} == 0 ]]; then
+    exec env TERM=xterm-256color "$real_ssh" "${env_opts[@]}" "$@"
 fi
 
-cpath_dir=$(mktemp -d "${TMPDIR:-/tmp}/ghostty-ssh-$(id -u).XXXXXX") || exec "$real_ssh" "$@"
+# Install the xterm-ghostty terminfo over a multiplexed connection, then
+# reuse that connection for the session (one authentication total).
+
+cpath_dir=$(mktemp -d "${TMPDIR:-/tmp}/ghostty-ssh-$(id -u).XXXXXX")
+if [[ -z $cpath_dir ]]; then
+    exec env TERM=xterm-256color "$real_ssh" "${env_opts[@]}" "$@"
+fi
 cpath=$cpath_dir/socket
 
 # Leave stderr alone: sshpass watches the pty output for the password prompt.
@@ -112,10 +129,39 @@ else
 fi
 
 if ((probe_ok)); then
-    if ((has_ghostty)) && [[ -n $target ]]; then
-        ghostty +ssh-cache --add="$target" >/dev/null 2>&1 || true
+    # Bootstrap this wrapper onto the host, so an ssh chain continuing from
+    # there keeps installing down the hops.  A foreign ~/.local/bin/ssh is
+    # left alone; an identical copy skips the rewrite.
+    if ((${#cpath_opt[@]})); then
+        "$real_ssh" -S "$cpath" "$host" '
+                t=$(mktemp) || exit 0
+                cat > "$t" || { rm -f "$t"; exit 0; }
+                if [ -e ~/.local/bin/ssh ] && ! grep -q _GHOSTTY_SSH_WRAPPER ~/.local/bin/ssh; then
+                    rm -f "$t"
+                elif [ -L ~/.local/bin/ssh ] || cmp -s "$t" ~/.local/bin/ssh; then
+                    rm -f "$t"
+                else
+                    mkdir -p ~/.local/bin && chmod 755 "$t" &&
+                        mv -f "$t" ~/.local/bin/ssh || { rm -f "$t"; exit 0; }
+                    echo "ghostty ssh wrapper: installed to ~/.local/bin/ssh"
+                    if ! grep -q GHOSTTY_SSH_WRAPPER_PATH ~/.bashrc 2>/dev/null; then
+                        printf "\n# GHOSTTY_SSH_WRAPPER_PATH\n" >> ~/.bashrc
+                        printf "%s\n" "case :\$PATH: in *\":\$HOME/.local/bin:\"*) ;; *) export PATH=\"\$HOME/.local/bin:\$PATH\";; esac" >> ~/.bashrc
+                    fi
+                fi
+            ' < "${BASH_SOURCE[0]}" 2>/dev/null || true
     fi
-    exec "$real_ssh" "${env_opts[@]}" "${cpath_opt[@]}" "$@"
+    # Start the session through a command that puts the wrapper on PATH and
+    # re-execs the login shell: even the very first session on the host (the
+    # one that ran the bootstrap, before any new shell) can chain onwards.
+    # Shells without -l still inherit the exported PATH, they just skip
+    # login-file sourcing.  "$@" ends with exactly the host argument.
+    session_cmd='export PATH="$HOME/.local/bin:$PATH"
+case "${SHELL##*/}" in
+    bash | zsh | ksh | mksh) exec "$SHELL" -l ;;
+    *) exec "$SHELL" ;;
+esac'
+    exec "$real_ssh" -t "${env_opts[@]}" "${cpath_opt[@]}" "$@" "$session_cmd"
 else
     printf 'ssh: could not set up xterm-ghostty terminfo on %s; using TERM=xterm-256color\n' "$host" >&2
     exec env TERM=xterm-256color "$real_ssh" "${env_opts[@]}" "${cpath_opt[@]}" "$@"
