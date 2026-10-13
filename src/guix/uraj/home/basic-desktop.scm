@@ -40,6 +40,8 @@
             "font-nerd-symbols"
             ;; Color emoji, e.g. Rime emoji candidates in fcitx5.
             "font-google-noto-emoji"
+            ;; Utils
+            "zbar"
             ;; pinentry-auto selects this in Wayland/X11 sessions; basic-dev
             ;; supplies pinentry-tty for console and SSH sessions.
             "pinentry-qt"

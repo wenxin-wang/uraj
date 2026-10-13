@@ -1,0 +1,23 @@
+#!/bin/sh
+# Decode the QR/barcode in the Wayland clipboard and print its contents:
+# screenshot to the clipboard, run qrpaste, and the text (URL, ...) lands
+# on stdout, e.g. `qrpaste | wl-copy` to pass it on.
+
+set -u
+
+tmp=$(mktemp)
+trap 'rm -f "$tmp"' EXIT INT TERM
+
+if ! wl-paste --type image/png >"$tmp" 2>/dev/null; then
+    echo "qrpaste: 剪贴板里没有图片（先截图到剪贴板）" >&2
+    exit 1
+fi
+
+zbarimg --raw -q "$tmp" 2>/dev/null
+case $? in
+    0) ;;
+    4) echo "qrpaste: 截图里没有识别到码" >&2
+       exit 1 ;;
+    *) echo "qrpaste: 解码失败" >&2
+       exit 1 ;;
+esac
