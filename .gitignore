@@ -3,3 +3,5 @@
 .nrepl-port
 .tmp
 __pycache__/
+/output/
+/tmp/
