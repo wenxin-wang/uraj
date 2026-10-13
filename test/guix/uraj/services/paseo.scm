@@ -36,6 +36,9 @@
           (start (gexp->approximate-sexp (shepherd-service-start s))))
      (test-equal (format #f "~a runs as wenxin" name) "wenxin"
        (keyword-value start #:user))
+     (test-equal (format #f "~a can only read syslog" name)
+       '(quote ("log-readers"))
+       (keyword-value start #:supplementary-groups))
      (test-equal (format #f "~a uses wenxin Home" name) "/home/wenxin"
        (keyword-value start #:directory))
      (test-assert (format #f "~a starts at boot" name)

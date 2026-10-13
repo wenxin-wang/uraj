@@ -15,6 +15,9 @@
   paseo-configuration make-paseo-configuration paseo-configuration?
   (user paseo-user (default "wenxin"))
   (group paseo-group (default "users"))
+  ;; Shepherd sets none by default; grant only syslog access, not the
+  ;; root-equivalent groups (wheel, docker) of the login session.
+  (supplementary-groups paseo-supplementary-groups (default '("log-readers")))
   (home paseo-home (default "/home/wenxin"))
   (roots paseo-roots (default '("/home/wenxin/src" "/home/wenxin/Projects"
                                 "/home/wenxin/.local/share/paseo/worktrees")))
@@ -63,7 +66,8 @@
                                       (paseo-roots config)))))))
 
 (define (paseo-shepherd-services config)
-  (let ((user (paseo-user config)) (group (paseo-group config)))
+  (let ((user (paseo-user config)) (group (paseo-group config))
+        (groups (paseo-supplementary-groups config)))
     (list
       (shepherd-service
        (provision '(paseo-broker))
@@ -72,6 +76,7 @@
        (start #~(make-forkexec-constructor
                  (list #$(launch-program config "broker"))
                  #:user #$user #:group #$group
+                 #:supplementary-groups '#$groups
                  #:directory #$(paseo-home config)
                  #:log-file "/var/log/paseo-broker.log"))
        (stop #~(make-kill-destructor)))
@@ -82,6 +87,7 @@
        (start #~(make-forkexec-constructor
                  (list #$(launch-program config "daemon"))
                  #:user #$user #:group #$group
+                 #:supplementary-groups '#$groups
                  #:directory #$(paseo-home config)
                  #:log-file "/var/log/paseo.log"))
        (stop #~(make-kill-destructor))))))
