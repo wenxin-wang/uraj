@@ -19,6 +19,28 @@
   when: ansible_facts['os_family'] == 'Debian'
   tags: [pcscd]
 
+- name: Check for the evince AppArmor profile
+  ansible.builtin.stat:
+    path: /etc/apparmor.d/usr.bin.evince
+  register: evince_apparmor_profile
+  tags: [apparmor]
+
+- name: Let evince read the Guix store
+  ansible.builtin.copy:
+    content: |
+      # Guix Home puts XDG_DATA_DIRS/FONTCONFIG_PATH in ~/.guix-home and
+      # /gnu/store, which the shipped evince profile denies (only
+      # @{HOME}/[^.]** is allowed); GTK then aborts loading the
+      # image-missing icon.
+      /gnu/store/** r,
+    dest: /etc/apparmor.d/local/usr.bin.evince
+    owner: root
+    group: root
+    mode: "0644"
+  when: evince_apparmor_profile.stat.exists
+  notify: Reload the evince AppArmor profile
+  tags: [apparmor]
+
 - name: Install the niri Wayland session desktop entry
   ansible.builtin.copy:
     src: niri.desktop

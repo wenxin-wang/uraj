@@ -26,7 +26,7 @@ env/playbooks/setup-foreign-desktop.sh
 =ansible-playbook= 来自 Guix Home profile；
 =syntax-check= 与 =--check= 可以预演（=--check= 里 apt 结果只是预测）。
 常用 tag：=foreign-distro=、=basic-system=、=session=、=gdm=、=pcscd=、
-=keyboard=、=keyring=。
+=apparmor=、=keyboard=、=keyring=。
 
 roles/foreign-distro 做（foreign distro 专属部分）：
 - 安装宿主 =gnome-keyring= 与 =libpam-gnome-keyring=，保留宿主的
@@ -35,6 +35,11 @@ roles/foreign-distro 做（foreign distro 专属部分）：
   [[file:../../docs/ssh-keyring.org][SSH 密码存储]]。
 - 安装 pcscd（智能卡 / YubiKey，Debian 系；说明见
   src/guix/uraj/home/basic-dev.scm）
+- 允许 evince 读 =/gnu/store/**=（写入
+  =/etc/apparmor.d/local/usr.bin.evince= 后重载 profile）：Guix Home 的
+  =XDG_DATA_DIRS=/=FONTCONFIG_PATH= 让 GTK 的图标与字体查找解析进
+  =/gnu/store=，而 Ubuntu 自带的 evince profile 只放行
+  =@{HOME}/[^.]**=，GTK 读不到 image-missing 图标会直接 abort
 - =/usr/local/bin/niri-session= 与
   =/usr/share/wayland-sessions/niri.desktop=：GDM 会话入口，source
   =~/.guix-home/setup-environment= 后运行 =niri --session=

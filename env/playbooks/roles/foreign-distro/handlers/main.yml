@@ -3,3 +3,7 @@
   ansible.builtin.systemd_service:
     name: gdm3
     state: restarted
+
+- name: Reload the evince AppArmor profile
+  ansible.builtin.command:
+    cmd: apparmor_parser -r /etc/apparmor.d/usr.bin.evince
