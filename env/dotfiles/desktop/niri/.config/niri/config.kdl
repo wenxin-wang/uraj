@@ -179,6 +179,14 @@ window-rule {
     open-floating true
 }
 
+// Brocadesoft print client (Xwayland Qt tray app): the spooled-jobs dialog and
+// its notifications are all dialogs, so none of them want a tile.  Its title is
+// translated ("任务队列" here), so match the locale-independent app-id.
+window-rule {
+    match app-id=r#"^bsprintnotify$"#
+    open-floating true
+}
+
 debug {
     honor-xdg-activation-with-invalid-serial
 }
