@@ -142,10 +142,11 @@ def container_command(
         if path.exists():
             command.append(f"--share={path}")
     # Paseo itself replays Claude transcripts to rebuild a session's timeline
-    # after a daemon restart; Codex history comes back through its provider.
+    # after a daemon restart, and rewinds a conversation by forking its
+    # transcript; Codex history comes back through its provider.
     transcripts = home / ".claude/projects"
     if transcripts.exists():
-        command.append(f"--expose={transcripts}")
+        command.append(f"--share={transcripts}")
     # Of the host's Git configuration, only the identity serves the daemon:
     # the rest is preferences, and applications write ~/.gitconfig.
     identity = home / ".gitconfig.local"
