@@ -17,9 +17,22 @@ Containers (one Compose project, all in the anchor's network namespace):
 
 Storage:
 - =/data/new-api/= (NVMe Btrfs): =postgres/=, =app/= (new-api =/data=),
-  =logs/=, =secrets/= (generated database password and session secret)
+  =logs/=, =secrets/= (generated database password and session secret).
+  =logs/= is =root:log-readers 2750= and =/data/new-api= only lets that
+  group traverse, so log readers (including debug agents) need no sudo
 - =/media-data/new-api/traj-records/= (ZFS =media-data=, single disk):
-  trajectory JSONL; rotated files are zstd-compressed and all are kept
+  trajectory JSONL; rotated files are zstd-compressed and all are kept.
+  Readable by the same group, in the same way as =logs/=
+- =/var/log/new-api/containers.log=: every container's output, sent through
+  syslog and tagged =new-api/CONTAINER=; same group, rotated with the system
+  logs. Its archives stay readable because the directory is setgid
+
+Contained agents see these only when their project exposes the directory,
+e.g. =(expose "/var/log/new-api")=: a sandbox cannot drop =log-readers=, so
+the mounts decide what an agent reads. rsyslog reads its routes only at
+startup, so the first deployment of a route needs =sudo herd restart syslogd=;
+that also restarts the Compose stacks, which require it. Until then their
+output still lands in =/var/log/messages=.
 
 Shepherd checks both mounts before every start and generates the two secrets
 on first start. It refuses to generate a database password when a database
@@ -76,8 +89,8 @@ Only requests whose User-Agent starts with =claude-cli/= are recorded.
 * Operation and updates
 
 #+begin_src sh
-sudo /etc/new-api/compose logs --tail 100 new-api
-sudo ls -l /media-data/new-api/traj-records/
+tail -n 100 /var/log/new-api/containers.log   # no sudo for log-readers
+ls -l /data/new-api/logs/ /media-data/new-api/traj-records/
 sudo herd stop new-api
 sudo herd start new-api
 #+end_src
@@ -88,6 +101,7 @@ To try a build without reconfiguring, load it and restart with its tag
 #+begin_src sh
 sudo herd restart new-api v1.0.0-rc.41-0123456789ab
 sudo herd status new-api   # the running value names the image
+ls -l /data/new-api/logs/
 #+end_src
 
 The tag lasts until the next plain start: a reboot, a dependency restart

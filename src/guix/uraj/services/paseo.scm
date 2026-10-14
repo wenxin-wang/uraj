@@ -9,6 +9,7 @@
   #:use-module (uraj home llm)
   #:use-module (uraj home paseo)
   #:use-module (uraj home paseo-broker)
+  #:use-module (uraj services logs)
   #:export (paseo-configuration paseo-service-type paseo-user-configuration))
 
 (define-record-type* <paseo-configuration>
@@ -78,7 +79,7 @@
                  #:user #$user #:group #$group
                  #:supplementary-groups '#$groups
                  #:directory #$(paseo-home config)
-                 #:log-file "/var/log/paseo-broker.log"))
+                 #:log-file "/var/log/paseo/broker.log"))
        (stop #~(make-kill-destructor)))
       (shepherd-service
        (provision '(paseo))
@@ -89,12 +90,15 @@
                  #:user #$user #:group #$group
                  #:supplementary-groups '#$groups
                  #:directory #$(paseo-home config)
-                 #:log-file "/var/log/paseo.log"))
+                 #:log-file "/var/log/paseo/paseo.log"))
        (stop #~(make-kill-destructor))))))
 
 (define paseo-service-type
   (service-type
    (name 'paseo)
-   (extensions (list (service-extension shepherd-root-service-type paseo-shepherd-services)))
+   (extensions
+    (list (service-extension shepherd-root-service-type paseo-shepherd-services)
+          (service-extension service-log-service-type
+                             (const (list (service-log (name "paseo")))))))
    (default-value (paseo-configuration))
    (description "Paseo application container and host broker for an existing user.")))

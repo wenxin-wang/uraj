@@ -10,6 +10,7 @@
   #:use-module (json)
   #:use-module (srfi srfi-1)
   #:use-module (uraj packages docker)
+  #:use-module (uraj services logs)
   #:export (immich-configuration immich-service-type
             immich-docker-service-type %immich-docker-configuration
             immich-compose-file immich-prepare-program))
@@ -79,7 +80,9 @@
   ;; on-failure restarts crashes but DOES NOT resurrect containers on daemon
   ;; startup: Shepherd must check mounts and secrets before starting them.
   (let* ((data (immich-data-directory config))
-         (common '((network_mode . "service:network") (restart . "on-failure")))
+         (logging (compose-logging "immich"))
+         (common `((network_mode . "service:network") (restart . "on-failure")
+                   ,logging))
          (network-dependency '((network . ((condition . "service_started")))))
          (secret #("db-password")))
     (plain-file
@@ -90,6 +93,7 @@
          ((network .
            ((image . "registry.k8s.io/pause:3.10@sha256:ee6521f290b2168b6e0935a181d4cff9be1ac3f505666ef0e3c98fae8199917a")
             (restart . "on-failure")
+            ,logging
             ;; Docker container network mode inherits the anchor's hosts file.
             ;; Preserve Immich's default ML URL without freezing UI settings.
             (extra_hosts . #("immich-machine-learning=127.0.0.1"))
@@ -224,7 +228,8 @@
     (list
      (shepherd-service
       (provision '(immich))
-      (requirement (append '(dockerd) (immich-requirements config)
+      ;; Containers log to syslog and cannot start without it.
+      (requirement (append '(dockerd syslogd) (immich-requirements config)
                            (immich-secret-requirements config)))
       (documentation "Run Immich after storage and secrets are ready.")
       (start
@@ -251,6 +256,10 @@
    (name 'immich)
    (extensions
     (list (service-extension shepherd-root-service-type immich-shepherd-services)
+          (service-extension service-log-service-type
+                             (lambda (config)
+                               (list (service-log (name "immich")
+                                                  (containers? #t)))))
           (service-extension etc-service-type
                              (lambda (config)
                                `(("immich/compose.json" ,(immich-compose-file config))

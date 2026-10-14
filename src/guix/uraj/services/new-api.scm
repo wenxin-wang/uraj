@@ -9,6 +9,7 @@
   #:use-module (guix records)
   #:use-module (json)
   #:use-module (uraj packages docker)
+  #:use-module (uraj services logs)
   #:export (new-api-configuration new-api-service-type
             new-api-compose-file new-api-prepare-program))
 
@@ -46,7 +47,9 @@
   ;; loopback.  on-failure restarts crashes without resurrecting containers
   ;; at daemon startup: Shepherd checks mounts and secrets first.
   (let* ((data (new-api-data-directory config))
-         (common '((network_mode . "service:network") (restart . "on-failure")))
+         (logging (compose-logging "new-api"))
+         (common `((network_mode . "service:network") (restart . "on-failure")
+                   ,logging))
          (network-dependency '((network . ((condition . "service_started"))))))
     (plain-file
      "new-api-compose.json"
@@ -56,6 +59,7 @@
          ((network .
            ((image . "registry.k8s.io/pause:3.10@sha256:ee6521f290b2168b6e0935a181d4cff9be1ac3f505666ef0e3c98fae8199917a")
             (restart . "on-failure")
+            ,logging
             (networks . ((lan . ((ipv4_address . ,(new-api-address config))))))))
           (new-api .
            (,@common
@@ -116,6 +120,12 @@
           (session-secret . ((file . "/run/new-api/session-secret"))))))))))
 
 (define (new-api-prepare-program config)
+  ;; Preparation restricts the parent to log-readers; never let that be the
+  ;; pool itself.
+  (unless (string-prefix? (string-append (new-api-traj-mount config) "/")
+                          (dirname (new-api-traj-directory config)))
+    (error "new-api trajectories need their own parent directory"
+           (new-api-traj-directory config)))
   (program-file
    "new-api-prepare"
    (with-imported-modules '((guix build utils) (guix build syscalls))
@@ -138,12 +148,23 @@
                       (mounted? #$(new-api-traj-mount config) "zfs"
                                 #$(new-api-traj-dataset config)))
            (error "new-api storage mounts are missing; refusing to create directories"))
+         (define logs (string-append data "/logs"))
+         (define traj #$(new-api-traj-directory config))
          (umask #o077)
          (for-each mkdir-p
-                   (list secrets #$(new-api-traj-directory config)
-                         (string-append data "/app") (string-append data "/logs")
+                   (list secrets traj
+                         (string-append data "/app") logs
                          (string-append data "/postgres")))
-         (chmod data #o700)
+         ;; log-readers may only traverse the parents and read LOGS and TRAJ;
+         ;; setgid keeps files created by the container in the group.
+         (let ((gid (group:gid (getgrnam "log-readers"))))
+           (for-each (lambda (directory mode)
+                       (chown directory 0 gid)
+                       (chmod directory mode))
+                     (list data logs (dirname traj) traj)
+                     '(#o710 #o2750 #o710 #o2750)))
+         (chmod secrets #o700)
+         (chmod (string-append data "/app") #o700)
          (define (ensure-secret name may-generate?)
            (let ((file (string-append secrets "/" name)))
              (unless (file-exists? file)
@@ -188,7 +209,8 @@
     (list
      (shepherd-service
       (provision '(new-api))
-      (requirement (cons 'dockerd (new-api-requirements config)))
+      ;; Containers log to syslog and cannot start without it.
+      (requirement (cons* 'dockerd 'syslogd (new-api-requirements config)))
       (documentation "Run new-api after storage and the shared network are ready.")
       ;; `herd restart new-api TAG' runs another tag of the configured
       ;; repository until the next plain (re)start, such as after a reboot
@@ -227,6 +249,10 @@
    (name 'new-api)
    (extensions
     (list (service-extension shepherd-root-service-type new-api-shepherd-services)
+          (service-extension service-log-service-type
+                             (lambda (config)
+                               (list (service-log (name "new-api")
+                                                  (containers? #t)))))
           (service-extension etc-service-type
                              (lambda (config)
                                `(("new-api/compose.json" ,(new-api-compose-file config))

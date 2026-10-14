@@ -28,7 +28,22 @@ def wait_for(predicate):
 
 binary = sys.argv[1]
 source = Path("src/guix/uraj/services/rsyslog.conf").read_text()
-gid = next((g for g in os.getgroups() if g != os.getgid()), os.getgid())
+
+
+def chownable(group):
+    """Unmapped groups in a user namespace show up but cannot be used."""
+    with tempfile.NamedTemporaryFile() as probe:
+        try:
+            os.chown(probe.name, -1, group)
+        except OSError:
+            return False
+    return True
+
+
+gid = next(
+    (g for g in os.getgroups() if g != os.getgid() and chownable(g)),
+    os.getgid(),
+)
 with tempfile.TemporaryDirectory(prefix="uraj-rsyslog-") as temp:
     directory = Path(temp)
     sockpath = directory / "socket"
@@ -46,6 +61,22 @@ with tempfile.TemporaryDirectory(prefix="uraj-rsyslog-") as temp:
         'fileGroup="log-readers"', f'fileGroup="{grp.getgrgid(gid).gr_name}"'
     )
     config = config.replace("/var/log/", f"{directory}/")
+    # A route as written by (uraj services logs), in a setgid directory.
+    routes = directory / "rsyslog.d"
+    routes.mkdir()
+    config = config.replace("/etc/rsyslog.d/", f"{routes}/")
+    service = directory / "svc"
+    service.mkdir()
+    os.chown(service, -1, gid)
+    service.chmod(0o2750)
+    (routes / "svc.conf").write_text(
+        'if $syslogfacility-text == "local0" and $syslogtag startswith "svc/"'
+        " then {\n"
+        f'  action(type="omfile" file="{service}/containers.log"'
+        f' fileGroup="{grp.getgrgid(gid).gr_name}")\n'
+        "  stop\n"
+        "}\n"
+    )
     config = config.replace("/dev/tty12", f"{directory}/tty12")
     config = config.replace("/dev/console", f"{directory}/console")
     conf = directory / "rsyslog.conf"
@@ -63,10 +94,10 @@ with tempfile.TemporaryDirectory(prefix="uraj-rsyslog-") as temp:
         try:
             wait_for(sockpath.exists)
 
-            def send(priority, message):
+            def send(priority, message, tag="uraj-test"):
                 with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as sock:
                     sock.sendto(
-                        f"<{priority}>uraj-test: {message}".encode(),
+                        f"<{priority}>{tag}: {message}".encode(),
                         str(sockpath),
                     )
 
@@ -83,11 +114,25 @@ with tempfile.TemporaryDirectory(prefix="uraj-rsyslog-") as temp:
             ):
                 send(priority, text)
                 wait_for(functools.partial(contains, target, text))
+            # Docker's syslog driver: local0, rfc3164, PROJECT/CONTAINER tag.
+            send(134, "container-message", "svc/svc-db-1[42]")
+            wait_for(
+                functools.partial(
+                    contains, "svc/containers.log", "container-message"
+                )
+            )
+            send(134, "unrouted-container", "other/x-1[42]")
             send(14, "end-of-routing-check")
             wait_for(lambda: contains("messages", "end-of-routing-check"))
             messages = directory / "messages"
             text = messages.read_text()
             assert "debug-message" in text
+            assert "unrouted-container" in text
+            assert "container-message" not in text
+            assert "container-message" not in (directory / "tty12").read_text()
+            containers = service / "containers.log"
+            assert containers.stat().st_gid == gid
+            assert containers.stat().st_mode & 0o777 == 0o640
             assert not any(
                 s in text
                 for s in ("auth-message", "private-message", "mail-message")
@@ -116,6 +161,20 @@ with tempfile.TemporaryDirectory(prefix="uraj-rsyslog-") as temp:
             assert messages.stat().st_ino == inode
             assert messages.stat().st_gid == gid
             assert "ordinary-message" in (directory / "messages.1").read_text()
+            subprocess.run(
+                [
+                    "guile",
+                    "--no-auto-compile",
+                    "-c",
+                    "(let ((file (cadr (command-line)))) "
+                    '(copy-file file (string-append file ".1")) (truncate-file file 0))',
+                    str(containers),
+                ],
+                check=True,
+            )
+            archive = service / "containers.log.1"
+            assert "container-message" in archive.read_text()
+            assert archive.stat().st_gid == gid
 
             # A missing live log is recreated with the configured group.
             messages.unlink()
@@ -135,5 +194,6 @@ with tempfile.TemporaryDirectory(prefix="uraj-rsyslog-") as temp:
     assert process.returncode == 0, errors.read_text()
     assert not errors.read_text(), errors.read_text()
 print(
-    "PASS: routing, private logs, group permissions, copy/truncate, recreation"
+    "PASS: routing, service routes, private logs, group permissions,"
+    " copy/truncate, setgid archives, recreation"
 )

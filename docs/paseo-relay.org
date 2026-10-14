@@ -68,7 +68,7 @@ curl --fail http://172.31.0.8:4000/ready
 * Operation and updates
 
 #+begin_src sh
-sudo /etc/paseo-relay/compose logs --tail 100 relay
+tail -n 100 /var/log/paseo-relay/containers.log   # no sudo for log-readers
 sudo herd stop paseo-relay
 sudo herd start paseo-relay
 #+end_src
