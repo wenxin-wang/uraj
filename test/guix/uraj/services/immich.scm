@@ -71,6 +71,41 @@
   (assoc-ref (assoc-ref (assoc-ref relay "networks") "lan") "ipv4_address"))
 (test-equal "build works without Docker's default bridge" "host"
   (assoc-ref (assoc-ref relay "build") "network"))
+(define relay-commit (paseo-relay-commit (paseo-relay-configuration)))
+(test-equal "start chooses the relay commit, configured one as fallback"
+  (list (string-append "paseo-relay:${PASEO_RELAY_COMMIT:-" relay-commit "}")
+        (string-append "https://github.com/getpaseo/paseo-relay.git#${PASEO_RELAY_COMMIT:-"
+                       relay-commit "}"))
+  (list (assoc-ref relay "image") (assoc-ref (assoc-ref relay "build") "context")))
+
+;; Run the real start procedure with stubbed commands, as in the new-api test.
+(define (start-relay . args)
+  (let ((m (make-fresh-user-module)) (calls '()))
+    (module-define! m '*approximate* (lambda () 'program))
+    (module-define! m 'invoke
+                    (lambda command (set! calls (cons command calls)) #t))
+    (let* ((proc (eval (gexp->approximate-sexp
+                        (shepherd-service-start (lookup installed 'paseo-relay)))
+                       m))
+           (value (catch #t (lambda () (apply proc args)) (lambda _ #f))))
+      (list value (filter-map (lambda (c)
+                                (find (lambda (a)
+                                        (and (string? a)
+                                             (string-prefix? "PASEO_RELAY_COMMIT=" a)))
+                                      c))
+                              (reverse calls))))))
+(test-equal "plain relay start builds the configured commit"
+  (list relay-commit (list (string-append "PASEO_RELAY_COMMIT=" relay-commit)))
+  (start-relay))
+(define other-commit (make-string 40 #\a))
+(test-equal "a commit argument swaps the relay build"
+  (list other-commit (list (string-append "PASEO_RELAY_COMMIT=" other-commit)))
+  (start-relay other-commit))
+(for-each (lambda (commit)
+            (test-equal (string-append "rejected relay commit " commit) '(#f ())
+              (start-relay commit)))
+          (list "" "main" "3fc41c9" (string-upcase other-commit)
+                (string-append other-commit "a")))
 (define manifest
   (json-string->scm (plain-file-content (immich-compose-file (immich-configuration)))))
 (define containers (assoc-ref manifest "services"))

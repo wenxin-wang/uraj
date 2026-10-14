@@ -82,6 +82,20 @@ sudo herd stop new-api
 sudo herd start new-api
 #+end_src
 
+To try a build without reconfiguring, load it and restart with its tag
+(same repository as the configured image):
+
+#+begin_src sh
+sudo herd restart new-api v1.0.0-rc.41-0123456789ab
+sudo herd status new-api   # the running value names the image
+#+end_src
+
+The tag lasts until the next plain start: a reboot, a dependency restart
+(e.g. =dockerd=) or =sudo herd restart new-api= return to the configured
+image. A reconfigure does not restart a running service, so restart after
+deploying. An invalid or missing tag leaves new-api stopped; restart without
+a tag to recover.
+
 To update new-api or the plugin: change =UPSTREAM_TAG= or the plugin in
 traj-record, run =build.sh --load storie.home.labbies.wenxinwang.me=, set the printed tag in
 =storie.scm=, reconfigure and restart. Keep the previous image for rollback.

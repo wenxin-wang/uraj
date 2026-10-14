@@ -5,26 +5,31 @@
   #:use-module (guix gexp)
   #:use-module (guix records)
   #:use-module (json)
+  #:use-module (gnu packages base)
   #:use-module (uraj packages docker)
   #:export (paseo-relay-configuration paseo-relay-service-type
-            paseo-relay-compose-file paseo-relay-command))
+            paseo-relay-commit paseo-relay-compose-file paseo-relay-command))
 
 (define-record-type* <paseo-relay-configuration>
   paseo-relay-configuration make-paseo-relay-configuration paseo-relay-configuration?
+  ;; Full commit; `herd restart paseo-relay COMMIT' builds and runs another.
   (commit paseo-relay-commit (default "3fc41c96c8c63f3a7109e832899cc57d473c4531"))
   (network paseo-relay-network (default "docker_lan"))
   (address paseo-relay-address (default "172.31.0.8")))
 
 (define (paseo-relay-compose-file config)
+  ;; The start action sets the commit; manual Compose calls fall back.
+  (define commit
+    (string-append "${PASEO_RELAY_COMMIT:-" (paseo-relay-commit config) "}"))
   (plain-file
    "paseo-relay-compose.json"
    (scm->json-string
     `((name . "paseo-relay")
       (services .
        ((relay .
-         ((image . ,(string-append "paseo-relay:" (paseo-relay-commit config)))
+         ((image . ,(string-append "paseo-relay:" commit))
           (build . ((context . ,(string-append "https://github.com/getpaseo/paseo-relay.git#"
-                                              (paseo-relay-commit config)))
+                                              commit))
                     ;; Storie deliberately disables the default Docker bridge.
                     (network . "host")))
           (restart . "on-failure")
@@ -59,12 +64,20 @@
       ;; Compose builds missing images from the pinned context.  An existing
       ;; commit-tagged image is reused; do not force --build on every boot.
       ;; --pull never applies to the service image, not build dependencies.
-      (start #~(lambda _
+      ;; A commit argument lasts until the next plain (re)start, such as after
+      ;; a reboot or a deployment.  The running value names the commit.
+      (start #~(lambda* (#:optional (commit #$(paseo-relay-commit config)))
+                 (unless (and (= 40 (string-length commit))
+                              (string-every (string->char-set "0123456789abcdef")
+                                            commit))
+                   (error "paseo-relay needs a full lowercase commit" commit))
                  (catch #t
                    (lambda ()
-                     (invoke #$command "up" "-d" "--pull" "never"
+                     (invoke #$(file-append coreutils "/bin/env")
+                             (string-append "PASEO_RELAY_COMMIT=" commit)
+                             #$command "up" "-d" "--pull" "never"
                              "--force-recreate" "--wait" "--wait-timeout" "60")
-                     #t)
+                     commit)
                    (lambda args
                      (system* #$command "stop" "--timeout" "30")
                      (apply throw args)))))
