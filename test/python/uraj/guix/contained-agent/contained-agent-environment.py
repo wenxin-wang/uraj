@@ -311,6 +311,37 @@ class GitCredentials(Launcher):
             lines[3], f"include.path={self.home / '.gitconfig.local'}"
         )
 
+    def test_git_hooks(self):
+        # .git/hooks is read-only inside: the clause points git at the work
+        # tree's hooks through the session's own ~/.gitconfig.
+        hooks = self.project / "hooks"
+        hooks.mkdir()
+        hook = hooks / "pre-commit"
+        hook.write_text("#!/bin/sh\necho checked >&2\nexit 1\n")
+        hook.chmod(0o755)
+        (self.project / "sub").mkdir()
+        self.policy('(git-hooks "hooks")')
+        result, argv, environment = self.launch("git", "--version")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        entry = argv[argv.index("--") + 1 :]
+        program = entry.index(self.tools["git"])
+        entry[program:] = [
+            "sh",
+            "-c",
+            "cd sub && git -c user.name=T -c user.email=t@x "
+            "commit -q --allow-empty -m m",
+        ]
+        inside = subprocess.run(
+            entry, env=environment, text=True, capture_output=True, timeout=15
+        )
+        self.assertNotEqual(inside.returncode, 0)
+        self.assertIn("checked", inside.stderr)
+
+        self.policy('(git-hooks "a")', '(git-hooks "b")')
+        result, argv, environment = self.launch()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("single (git-hooks DIR)", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

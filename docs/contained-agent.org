@@ -141,6 +141,13 @@ session:
 | =git remote add R URL=   | =git config --global remote.R.url URL= and =remote.R.fetch '+refs/heads/*:refs/remotes/R/*'=   |
 | =git config KEY VALUE=   | =git config --global KEY VALUE=                                                              |
 
+A =git-hooks= clause (see [[*Project configuration]]) sets =core.hooksPath=
+in the same file, as hooks cannot be installed in the read-only =hooks/=.
+uraj's host-side hook, which =scripts/coding_style/install-hooks= links
+into the main work tree, is a deliberate exception to the read-only
+=hooks/=: host-side commits run the work tree's check, which agents can
+change.
+
 With =push.default=current=, a bare =git push= pushes the current branch to
 its namesake on =origin=, and =@{push}= resolves, without any upstream.
 
@@ -246,6 +253,11 @@ Clauses, in both places below:
   set.
 - =(guix-daemon)=: opt into Guix nesting and daemon access, with an isolated
   project cache (details below).
+- =(git-hooks DIR)=: =core.hooksPath= in the session's own =~/.gitconfig=,
+  so git inside the container runs the hooks in =DIR=, relative to the work
+  tree, instead of =.git/hooks=.  The read-only =.git/hooks= cannot take
+  them, and host-side git keeps its own hooks.  uraj uses
+  =(git-hooks "scripts/coding_style/hooks")=.
 
 Central configuration only: =(ssh-agent ...)= and the credential clauses
 =(github TIER)=, =(git-credential URL FILE)= and =(env NAME (file FILE))=,

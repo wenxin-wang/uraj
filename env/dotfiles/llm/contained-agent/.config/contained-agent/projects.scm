@@ -2,7 +2,7 @@
 ;;; repository's main work tree).  Only `read', never evaluated; ~ is the home
 ;;; directory, missing paths and unset variables are skipped.
 ;;;   (project ROOT (expose PATH ...) (share PATH ...) (preserve REGEXP ...)
-;;;                 (guix-daemon))
+;;;                 (guix-daemon) (git-hooks DIR))
 ;;; Projects may add the same clauses in .guix/contained-agent.scm, which
 ;;; count after `contained-agent allow'; see docs/contained-agent.org.
 ;;; Host-private additions (same project syntax, no reconfigure needed):
@@ -24,6 +24,8 @@
 (project "~/src/uraj"
   ;; Build/check Home, System, packages and locked channel environments.
   (guix-daemon)
+  ;; The coding style pre-commit check; .git/hooks is read-only inside.
+  (git-hooks "scripts/coding_style/hooks")
   ;; Push over HTTPS and open pull requests with `gh'.
   (github "personal")
   ;; Troubleshooting the System and Home this repository configures.
