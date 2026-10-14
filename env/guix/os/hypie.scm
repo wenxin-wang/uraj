@@ -171,6 +171,7 @@
              (uraj packages wireless)
              (uraj services strongswan)
              ;; (uraj services redroid)
+             ;; (uraj services restricted-network)
              (uraj system base)
              (uraj system desktop)
              (uraj system initrd)
@@ -370,7 +371,11 @@
     ;; (list (service containerd-service-type)
     ;;       (service docker-service-type %redroid-docker-configuration)
     ;;       (service oci-service-type (oci-configuration (runtime 'docker)))
-    ;;       (service redroid-network-service-type)
+    ;;       (service restricted-network-service-type)
+    ;;       (service redroid-network-service-type
+    ;;         ;; Replace YOUR_UPLINK with the actual interface(s) before enabling.
+    ;;         (redroid-network-configuration
+    ;;           (egress-interfaces '("YOUR_UPLINK"))))
     ;;       (service redroid-service-type
     ;;                (redroid-configuration (auto-start? #f))))
     (host-sops-services (append (map cdr %vpn-connections)

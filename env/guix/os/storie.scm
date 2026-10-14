@@ -141,6 +141,8 @@
              (uraj services immich)
              (uraj services new-api)
              (uraj services docker-lan)
+             (uraj network-policy)
+             (uraj services restricted-network)
              (uraj services paseo-relay)
              (uraj services paseo)
              (uraj services host-macvlan)
@@ -364,6 +366,24 @@
             (service containerd-service-type)
             (service immich-docker-service-type %immich-docker-configuration)
             (service docker-lan-service-type)
+            ;; Applications wait for restricted-network and attach exclusively
+            ;; to the external Docker network agents, with explicit DNS.
+            (service restricted-network-service-type
+              (restricted-network-configuration
+                (networks
+                 (list
+                  (restricted-network
+                    (name "agents") (bridge "br-agents")
+                    (subnet "10.204.0.0/24") (gateway "10.204.0.1")
+                    (egress-interfaces '("host0"))
+                    (policy
+                     (network-policy
+                       (dns-servers '("223.5.5.5"))
+                       (public-egress '((tcp 80 443)))
+                       (forward-exceptions
+                        (list (network-access
+                                (address "172.31.0.9")
+                                (ports '(3000))))))))))))
             ;; Prepare host0 before DHCP; enp1s0 is only the macvlan parent.
             (service host-macvlan-service-type
               (host-macvlan-configuration
