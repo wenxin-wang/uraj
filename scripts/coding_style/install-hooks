@@ -10,16 +10,27 @@ if [ -n "$existing" ]; then
     echo "Existing core.hooksPath=$existing; integrate $source manually." >&2
     exit 1
 fi
-hooks=$(git rev-parse --git-path hooks)
-target=$hooks/pre-commit
-if [ -e "$target" ] || [ -L "$target" ]; then
-    if cmp -s "$source" "$target" && [ -x "$target" ]; then
-        exit 0
-    fi
-    echo "Existing hook $target; integrate $source manually." >&2
+common=$(git rev-parse --path-format=absolute --git-common-dir)
+if [ "${common##*/}" != .git ]; then
+    echo "No main work tree around $common; integrate $source manually." >&2
     exit 1
 fi
+# A link into the main work tree, so every worktree and later changes to
+# the hook share it; relative, so the repository may move.
+link=../../$source
+hooks=$common/hooks
+target=$hooks/pre-commit
+if [ -L "$target" ] && [ "$(readlink "$target")" = "$link" ]; then
+    exit 0
+fi
+if [ -e "$target" ] || [ -L "$target" ]; then
+    # Earlier versions installed a copy.
+    if [ -L "$target" ] || ! cmp -s "$source" "$target"; then
+        echo "Existing hook $target; integrate $source manually." >&2
+        exit 1
+    fi
+    rm "$target"
+fi
 mkdir -p "$hooks"
-cp "$source" "$target"
-chmod +x "$target"
+ln -s "$link" "$target"
 echo "Installed read-only coding style pre-commit check."

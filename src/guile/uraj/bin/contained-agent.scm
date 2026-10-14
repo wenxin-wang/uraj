@@ -32,7 +32,8 @@
 ;;;     (project "~/src/uraj"
 ;;;       (expose "/var/log" "~/.local/state/shepherd")
 ;;;       (share PATH ...)
-;;;       (preserve "HF_TOKEN" "WANDB_.*"))
+;;;       (preserve "HF_TOKEN" "WANDB_.*")
+;;;       (git-hooks "scripts/hooks"))   ;core.hooksPath inside only
 ;;;
 ;;;   and from the project itself: `.guix/contained-agent.scm' holds the same
 ;;;   mount/environment clauses at top level.  Only central configuration
@@ -196,6 +197,8 @@ tree, and the mount options for WORKDIR."
   (match clause
     ;; Applied after ordinary mappings so cache/GC-root mounts take priority.
     (('guix-daemon) '())
+    ;; Written to the session's ~/.gitconfig, see `git-hooks'.
+    (('git-hooks (? string?)) '())
     (('expose files ...) (append-map (requested expose origin) files))
     (('share files ...) (append-map (requested share origin) files))
     ;; Host environment variables, by name regexp, passed when set.
@@ -260,6 +263,19 @@ The private files are read at runtime, never imported into the Guix store."
        (list (expand-home (or (getenv "CONTAINED_AGENT_PROJECTS") file))
              secret
              (expand-home "~/.config/contained-agent/projects.local.scm")))))))
+
+(define (git-hooks clauses)
+  "Return the DIR of the (git-hooks DIR) clause among CLAUSES, (ORIGIN .
+CLAUSE) pairs, or #f.  It becomes core.hooksPath in the session's own
+~/.gitconfig: .git/hooks is read-only in the container, and a relative DIR
+names hooks in each work tree."
+  (match (filter-map (match-lambda
+                       ((_ . ('git-hooks (? string? directory))) directory)
+                       (_ #f))
+                     clauses)
+    (() #f)
+    ((directory) directory)
+    (_ (die "expected a single (git-hooks DIR) clause"))))
 
 ;;; Credentials from host files.
 
@@ -771,7 +787,7 @@ chmod 700 -- \"$1\" || exit; shift
 export SSL_CERT_FILE=$GUIX_ENVIRONMENT/etc/ssl/certs/ca-certificates.crt
 export GIT_SSL_CAINFO=$SSL_CERT_FILE SSL_CERT_DIR=$GUIX_ENVIRONMENT/etc/ssl/certs
 unset SSH_AUTH_SOCK SSH_AGENT_PID
-cd \"$1\" || exit; n=$2; shift 2
+cd \"$1\" || exit; hooks=$2 n=$3; shift 3
 while [ $n -gt 0 ]; do cp \"$1\" \"$2\" || exit; shift 2; n=$((n - 1)); done
 # The session's own ~/.gitconfig, which the agent may change, on top of any
 # seeded copy.  .git/config is read-only, so `git push -u' cannot record an
@@ -784,10 +800,12 @@ c filter.lfs.clean 'git-lfs clean -- %f'
 c filter.lfs.smudge 'git-lfs smudge -- %f'
 c filter.lfs.process 'git-lfs filter-process'
 c filter.lfs.required true
+if [ -n \"$hooks\" ]; then c core.hooksPath \"$hooks\"; fi
 exec \"$@\""
                   "contained-agent"
                   home
                   (if project workdir home)
+                  (or (git-hooks clauses) "")
                   (number->string (length seeded)))
             (append-map (match-lambda
                           ((source . target) (list target source)))

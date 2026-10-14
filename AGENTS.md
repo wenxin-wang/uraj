@@ -6,7 +6,8 @@
 - C/C++ 使用 clang-format 和 cpplint；Python 使用 Ruff 格式化和 lint，
   80 列、双引号；不强制 docstring，已有 docstring 按 Google 风格检查。
   Ruff 只覆盖部分 Google 规则，其余靠审查。
-- 首次开发运行 `scripts/coding_style/install-hooks`。提交前运行
+- 首次开发运行 `scripts/coding_style/install-hooks`（contained-agent 会话
+  已通过 `core.hooksPath` 启用，脚本直接返回）。提交前运行
   `scripts/coding_style/check --staged`；检查只报错，不修改文件或暂存区。
 - 可显式运行 `scripts/coding_style/fix <file.py> ...` 应用 Ruff 安全修复，
   剩余 lint 按诊断手动修复；需要格式化时显式运行

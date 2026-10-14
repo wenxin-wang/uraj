@@ -21,6 +21,7 @@
                (('ssh-agent _ ...) '())
                (((or 'env 'github 'git-credential) _ ...) '())
                (('guix-daemon) (error "Paseo does not expose the Guix daemon"))
+               (('git-hooks _ ...) (error "Paseo does not set Git hooks"))
                (_ (clause-options file clause))))
            clauses))
          (directory
