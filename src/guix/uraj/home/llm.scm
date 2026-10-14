@@ -84,15 +84,16 @@ search paths.")))
      ,(file-append agent-browser "/share/agent-browser/skills/agent-browser"))))
 
 (define (agent-common-services)
-  "Return the coding agents and their skills, shared by desktop Homes and the
-headless Homes."
-  (list
+  "Return the coding agents, their skills and dotfiles, shared by desktop
+Homes and the headless Homes."
+  (cons*
    (simple-service 'llm-agent-packages
                    home-profile-service-type
                    (if (%opencode?)
                        (cons opencode-bin llm-agent-packages)
                        llm-agent-packages))
-   (service home-agent-skills-service-type %agent-skills)))
+   (service home-agent-skills-service-type %agent-skills)
+   (my-dotfiles-services (list (project-path "env/dotfiles/llm")))))
 
 ;;; contained-agent: each agent runs in a per-project `guix shell
 ;;; --container' (see (uraj bin contained-agent)).  Specs are data; ~ is the
@@ -213,5 +214,4 @@ settings."
                       llm-desktop-packages)
       (simple-service 'contained-agent
                       home-files-service-type
-                      (contained-agent-home-files)))
-     (my-dotfiles-services (list (project-path "env/dotfiles/llm"))))))
+                      (contained-agent-home-files))))))

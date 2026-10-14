@@ -211,9 +211,11 @@ not provide GitHub API authentication for =gh=.
 
 Storie uses the existing =wenxin= account and its existing Guix Home, just like
 the desktop machines. The server Home additionally installs headless agent
-packages, broker clients, Paseo CLI and contained-agent wrappers. It does not
-install desktop applications or manage the user's agent configuration files.
-The user copies agent settings/credentials into =/home/wenxin= separately.
+packages, broker clients, Paseo CLI and contained-agent wrappers, and, like
+the desktop Homes, the dotfiles in =env/dotfiles/llm= (contained-agent's
+central =projects.scm=, a Codex config block). It does not install desktop
+applications. The user copies other agent settings/credentials into
+=/home/wenxin= separately.
 
 Both system services run as =wenxin:users=. The broker waits for
 =guix-home-wenxin=; the daemon then waits for the broker. Project roots are
