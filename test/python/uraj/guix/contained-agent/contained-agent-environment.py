@@ -9,6 +9,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 
@@ -50,11 +51,15 @@ class Launcher(unittest.TestCase):
         git = json.dumps(self.tools["git"])
         driver.write_text(
             "(use-modules (uraj bin contained-agent))\n"
-            f"(parameterize ((%github-secrets {json.dumps(str(self.secrets))}))\n"
+            f"(parameterize ((%github-secrets {json.dumps(str(self.secrets))})\n"
+            "               (%secret-timeout 1))\n"
             ' (contained-agent-main (cons "contained-agent" (cdr (command-line)))\n'
             '  #:agents \'(("probe" (program . "/bin/true"))\n'
             f'             ("git" (program . {git})))\n'
-            f"  #:common '() #:packages '() #:git {git}))\n"
+            f"  #:common '() #:packages '() #:git {git}\n"
+            '  #:github-secrets (and (not (getenv "TEST_NO_GITHUB"))\n'
+            "                       (%github-secrets))\n"
+            '  #:projects-secret (getenv "TEST_PROJECTS_SECRET")))\n'
         )
         self.env = dict(
             os.environ,
@@ -127,6 +132,26 @@ class Environment(Launcher):
             self.assertIn("starting without GH_TOKEN", result.stderr)
             self.assertNotIn("GH_TOKEN", environment)
             self.assertNotIn("--preserve=^GH_TOKEN$", argv)
+
+    def test_projects_secret_is_waited_for_and_required(self):
+        self.policy()
+        secret = self.secrets / "projects.scm"
+        self.env["TEST_PROJECTS_SECRET"] = str(secret)
+        result, argv, _ = self.launch()
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn(f"{secret} is still missing after 1 s", result.stderr)
+        self.assertIsNone(argv)
+        # SOPS finishing during the wait.
+        timer = threading.Timer(
+            0.3,
+            secret.write_text,
+            [f'(project "{self.project}" (preserve "FROM_SECRET"))'],
+        )
+        timer.start()
+        self.addCleanup(timer.cancel)
+        result, argv, _ = self.launch()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("--preserve=^FROM_SECRET$", argv)
 
     def test_bad_clauses_fail(self):
         self.secret.write_text(SECRET)
@@ -224,11 +249,32 @@ class GitCredentials(Launcher):
         ):
             self.assertEqual(self.fill(environment, argv, url), token, url)
 
-    def test_missing_tier_token_leaves_no_helper(self):
+    def test_missing_tier_token_fails(self):
         self.policy('(github "world")')
+        result, argv, _ = self.launch()
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn(
+            f"{self.secrets / 'world'} is still missing after 1 s",
+            result.stderr,
+        )
+        self.assertIsNone(argv)
+
+    def test_host_without_tokens_starts_without(self):
+        # Foreign distros run the same projects file without SOPS.
+        self.policy('(github "world")')
+        result, argv, _ = self.launch(TEST_NO_GITHUB="1")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("no GitHub tokens on this host", result.stderr)
+        self.assertFalse(any("git-credential-" in a for a in argv))
+
+    def test_empty_tier_token_leaves_no_helper(self):
+        self.policy('(github "world")')
+        (self.secrets / "world").write_text("\n")
         result, argv, environment = self.launch()
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("starting without https://github.com", result.stderr)
+        self.assertIn(
+            "is empty; starting without https://github.com", result.stderr
+        )
         self.assertFalse(any("git-credential-" in a for a in argv))
         self.assertIsNone(
             self.fill(environment, argv, "https://github.com/me/x.git")

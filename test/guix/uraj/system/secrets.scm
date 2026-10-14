@@ -7,11 +7,36 @@
              (sops secrets)
              (srfi srfi-1)
              (srfi srfi-64)
-             (uraj system secrets))
+             (uraj common agent-secrets)
+             (uraj system secrets)
+             (uraj utils file path))
 
 (define (of-kind os kind)
   (filter (lambda (s) (eq? (service-kind s) kind))
           (operating-system-user-services os)))
+
+(define (key<? a b)
+  (string<? (string-join a "/") (string-join b "/")))
+
+(define (expected-secrets host)
+  "HOST's own secrets, then those of its agents: the GitHub tiers once
+scripts/secrets/github_token.py has written them, and the sandbox policies
+whose files exist."
+  (sort
+   (append
+    (assoc-ref '(("lappie" ("strongswan" "fwd2home"))
+                 ("hypie" ("strongswan" "fwd2home"))
+                 ("storie" ("immich" "db-password")))
+               host)
+    (if (file-exists? (project-path "secrets/shared/github.yaml"))
+        (map (lambda (tier) (list "github" tier))
+             '("public" "personal" "world"))
+        '())
+    (filter-map (lambda (policy)
+                  (and (member host (sandbox-policy-hosts (first policy)))
+                       (third policy)))
+                %sandbox-policies))
+   key<?))
 
 (test-begin "machine-sops-identities")
 (for-each
@@ -43,24 +68,37 @@
        (test-equal "persistent identity path"
          "/var/lib/sops/age/keys.txt"
          (sops-service-configuration-age-key-file config))
-       (test-equal "only the host's declared business secrets"
-         (if (string=? host "storie") '(("immich" "db-password"))
-             '(("strongswan" "fwd2home")))
-         (map sops-secret-key (sops-service-configuration-secrets config)))
+       (test-equal "only the host's declared secrets"
+         (expected-secrets host)
+         (sort (map sops-secret-key
+                    (sops-service-configuration-secrets config))
+               key<?))
+       (test-assert "agent secrets belong to the main user alone"
+         (every (lambda (secret)
+                  (or (not (member (first (sops-secret-key secret))
+                                   '("github" "contained-agent" "paseo")))
+                      (and (string=? "wenxin" (sops-secret-user secret))
+                           (= #o400 (sops-secret-permissions secret)))))
+                (sops-service-configuration-secrets config)))
        (test-assert "key generation waits until after system activation"
          (memq 'user-processes (shepherd-service-requirement key-service)))
        (test-assert "key generation starts automatically"
          (shepherd-service-auto-start? key-service)))
      (setenv "TO_ISO" "1")
      (let ((live (load file)))
-       (test-equal "live installer does not derive SOPS identities" '()
-         (of-kind live sops-secrets-service-type))
+       ;; hypie's installer decrypts its VPN secret with the
+       ;; administrator's card instead.
+       (test-assert "live installer does not derive SOPS identities"
+         (not (any (lambda (s)
+                     (sops-service-configuration-generate-key?
+                      (service-value s)))
+                   (of-kind live sops-secrets-service-type))))
        (test-assert "live installer has no SOPS private-state activation"
          (not (any (lambda (s)
                      (eq? 'host-sops-private-state
                           (service-type-name (service-kind s))))
                    (operating-system-user-services live)))))))
- '("lappie" "storie"))
+ '("lappie" "hypie" "storie"))
 (unsetenv "TO_ISO")
 (define failures (test-runner-fail-count (test-runner-current)))
 (test-end "machine-sops-identities")

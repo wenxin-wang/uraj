@@ -17,6 +17,9 @@ from pathlib import Path
 WORKTREES = ".local/share/paseo/worktrees"
 OLD_WORKTREES = "Projects/paseo-worktrees"
 ROOTS = ("src", "Projects", WORKTREES)
+# Seconds to wait for a policy SOPS decrypts: at boot the daemon may start
+# before SOPS is done.
+SECRET_TIMEOUT = 10
 
 
 def prepare_temporary_directory(home):
@@ -188,6 +191,29 @@ def write_all(fd, data):
             select.select([], [fd], [])
 
 
+def sandbox_policy(args, home):
+    """Return the daemon's sandbox policy file, or None for the defaults.
+
+    A host-private policy that SOPS decrypts is waited for and required, and
+    excludes the unmanaged one.
+    """
+    local = Path(args.sandbox_config or home / ".config/paseo/sandbox.scm")
+    if not args.sandbox_secret:
+        return local if local.exists() else None
+    secret = Path(args.sandbox_secret)
+    if local.exists():
+        raise ValueError(f"{local} conflicts with this host's policy {secret}")
+    deadline = time.monotonic() + SECRET_TIMEOUT
+    while not secret.exists():
+        if time.monotonic() >= deadline:
+            raise FileNotFoundError(
+                f"{secret} is still missing after {SECRET_TIMEOUT} s; "
+                "check `sudo herd status sops-secrets'"
+            )
+        time.sleep(0.2)
+    return secret
+
+
 def run_configured_container(args, home, roots, policy):
     """Own one namespace containing both daemon and its private SSH agents."""
     # Reuse the broker's boot/PID identity checks; never remove live sockets.
@@ -305,6 +331,7 @@ def main():
     parser.add_argument("--sandbox-helper")
     parser.add_argument("--supervisor")
     parser.add_argument("--sandbox-config")
+    parser.add_argument("--sandbox-secret")
     parser.add_argument("--gh-config")
     args = parser.parse_args()
     home = Path.home()
@@ -336,8 +363,8 @@ def main():
     os.environ.pop("PASEO_PASSWORD", None)
     roots = args.root or [str(home / root) for root in ROOTS]
     os.chdir(home)
-    policy = Path(args.sandbox_config or home / ".config/paseo/sandbox.scm")
-    if policy.exists():
+    policy = sandbox_policy(args, home)
+    if policy:
         if args.action == "run-host":
             raise ValueError("Sandbox policy requires container mode")
         raise SystemExit(run_configured_container(args, home, roots, policy))

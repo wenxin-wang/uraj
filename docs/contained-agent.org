@@ -21,6 +21,7 @@ cooperation.
 | =env/dotfiles/llm/contained-agent/.config/contained-agent/projects.scm= | Per-project clauses, owned by the user                      |
 | =~/.local/state/contained-agent/=                          | Approved copies of project-local files                       |
 | =~/.config/contained-agent/projects.local.scm=              | Optional host-private central additions, never Home-managed  |
+| =/run/secrets/contained-agent/projects.scm=                 | Optional host-private central additions, decrypted by SOPS   |
 
 The program calls the =guix= command (=guix shell -C ...=) rather than Guix
 modules.  =llm.scm= generates the entry point with =program-file= and passes
@@ -268,11 +269,20 @@ entries from both files are appended; neither replaces the other's entry.
 If absent, it is skipped.  Edits are read on the next launch, without Home
 reconfigure or =contained-agent allow=.
 
+A host can also keep such additions encrypted in the repository, as
+=secrets/hosts/HOST/contained-agent.yaml=, which SOPS decrypts to
+=/run/secrets/contained-agent/projects.scm= (see
+[[file:../secrets/README.org][secrets/README.org]]).  It joins the other two
+files with the same syntax and rules.  The launcher knows, from build time,
+which hosts have one: there, it waits up to 10 seconds for the file, as an
+agent may start at boot before SOPS is done, then fails rather than start
+without it.
+
 This is user-level central policy, *not* project-local configuration.  Keep
 private paths, SSH identities and destinations here instead of in the public
 repository.  The program reads it at runtime; Home does not import it into
 the store.  Its parent directory is denied to container mount requests.
-Only one =ssh-agent= clause per project is accepted across the two files;
+Only one =ssh-agent= clause per project is accepted across these files;
 duplicates fail instead of silently overriding a policy.  Put that whole
 clause in the private file when its contents are sensitive.
 
@@ -286,7 +296,11 @@ value never appears on a command line.  A project-local credential clause,
 even approved, is a bad clause.
 
 - =(github TIER)=: git over HTTPS and =gh= on github.com, with the token SOPS
-  decrypts to =/run/secrets/github/TIER=.  Tiers nest:
+  decrypts to =/run/secrets/github/TIER=.  Unlike other credential files,
+  on Guix System, whose agent hosts all declare the tokens, a missing one
+  is waited for, up to 10 seconds, and then fails the launch; on foreign
+  distros, which have no SOPS service, the clause is skipped with a
+  warning.  Tiers nest:
 
   | Tier       | Token                                    | Reaches                           |
   |------------+------------------------------------------+-----------------------------------|

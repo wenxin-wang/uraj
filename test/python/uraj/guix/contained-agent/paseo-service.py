@@ -1,9 +1,11 @@
 """Paseo activation preserves user state and confines daemon mounts."""
 
+import argparse
 import importlib.util
 import json
 import os
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -218,6 +220,46 @@ class Activation(unittest.TestCase):
                 f"={self.home / '.gitconfig'}"
             ],
         )
+
+
+class SandboxPolicy(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.home = Path(temporary.name)
+        self.local = self.home / ".config/paseo/sandbox.scm"
+        self.secret = self.home / "run/secrets/paseo/sandbox.scm"
+        self.secret.parent.mkdir(parents=True)
+        patch = mock.patch.object(SERVICE, "SECRET_TIMEOUT", 0.5)
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def policy(self, secret=None):
+        args = argparse.Namespace(
+            sandbox_config=None, sandbox_secret=secret and str(secret)
+        )
+        return SERVICE.sandbox_policy(args, self.home)
+
+    def test_unmanaged_policy_is_optional(self):
+        self.assertIsNone(self.policy())
+        self.local.parent.mkdir(parents=True)
+        self.local.write_text('(share "~/Projects")\n')
+        self.assertEqual(self.policy(), self.local)
+
+    def test_secret_policy_is_waited_for_and_required(self):
+        with self.assertRaisesRegex(FileNotFoundError, "still missing"):
+            self.policy(self.secret)
+        timer = threading.Timer(0.1, self.secret.write_text, ["\n"])
+        timer.start()
+        self.addCleanup(timer.cancel)
+        self.assertEqual(self.policy(self.secret), self.secret)
+
+    def test_secret_policy_excludes_unmanaged_one(self):
+        self.secret.write_text("\n")
+        self.local.parent.mkdir(parents=True)
+        self.local.write_text("\n")
+        with self.assertRaisesRegex(ValueError, "conflicts"):
+            self.policy(self.secret)
 
 
 if __name__ == "__main__":

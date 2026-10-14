@@ -92,9 +92,12 @@
           (group "root")
           (permissions #o400)))))
 
-;; GitHub tokens for contained agents and Paseo, see secrets/README.org.
-(define %github-token-secrets
-  (github-token-secrets (user-account-name %main-user)))
+;; GitHub tokens and private sandbox policies for contained agents and
+;; Paseo, see secrets/README.org.
+(define %agent-secrets
+  (let ((user (user-account-name %main-user)))
+    (append (github-token-secrets user)
+            (sandbox-policy-secrets user "lappie"))))
 
 (define lappie-os
   (operating-system
@@ -139,7 +142,7 @@
            (if (getenv "TO_ISO") '()
                (append (host-sops-services
                         (append (map cdr %vpn-connections)
-                                %github-token-secrets))
+                                %agent-secrets))
                        (strongswan-services %vpn-connections)))
            (list ; %asus-adolbook-air14-panel-replay-service
                  )))))

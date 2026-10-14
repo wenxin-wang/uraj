@@ -14,6 +14,7 @@
   #:use-module (guix gexp)
   #:use-module (guix profiles)
   #:use-module (guix records)
+  #:use-module (uraj common agent-secrets)
   #:use-module (uraj home paseo-broker)
   #:use-module (uraj packages llm)
   #:use-module (uraj utils file path)
@@ -65,7 +66,8 @@
           (list (cons 'ssh-agent #$(file-append openssh "/bin/ssh-agent"))
                 (cons 'ssh-add #$(file-append openssh "/bin/ssh-add"))
                 (cons 'sha256sum #$(file-append coreutils "/bin/sha256sum"))
-                (cons 'bash #$(file-append bash "/bin/bash"))))))))
+                (cons 'bash #$(file-append bash "/bin/bash")))
+          #:github-secrets #$(github-token-directory))))))
 
 (define paseo-python-modules
   (file-union
@@ -82,7 +84,9 @@
             (append (cdr (command-line))
                     (list "--sandbox-helper" #$paseo-sandbox-program
                           "--supervisor" #$supervisor
-                          "--gh-config" #$paseo-gh-config)))))
+                          "--gh-config" #$paseo-gh-config)
+                    (let ((policy #$(sandbox-policy-secret 'paseo)))
+                      (if policy (list "--sandbox-secret" policy) '()))))))
 
 (define* (paseo-home-services #:key (desktop? #t) (autostart? #f) worktrees)
   (append

@@ -8,7 +8,8 @@
   #:use-module (uraj bin contained-ssh)
   #:export (paseo-sandbox-main))
 
-(define (paseo-sandbox-main file tools)
+(define* (paseo-sandbox-main file tools
+                             #:key (github-secrets (%github-secrets)))
   (let* ((clauses (read-all file))
          (policy (ssh-policy clauses))
          ;; Validate all mounts before loading any key. The same denied paths
@@ -28,9 +29,10 @@
                            (getenv "CONTAINED_AGENT_SSH_RUNTIME_DIRECTORY"))))
          ;; After SSH unlocking; the daemon command below inherits the
          ;; environment this sets.
-         (credentials (credential-options
-                       (map (lambda (clause) (cons file clause)) clauses)
-                       "/run/paseo")))
+         (credentials (parameterize ((%github-secrets github-secrets))
+                        (credential-options
+                         (map (lambda (clause) (cons file clause)) clauses)
+                         "/run/paseo"))))
     ;; A NUL-delimited result keeps spaces/newlines literal without evaluating
     ;; config as Scheme or shell. stdout is reserved for this one response.
     (for-each (lambda (value) (display value) (write-char #\nul))

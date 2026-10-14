@@ -331,9 +331,12 @@
           (group "root")
           (permissions #o400)))))
 
-;; GitHub tokens for contained agents and Paseo, see secrets/README.org.
-(define %github-token-secrets
-  (github-token-secrets (user-account-name %main-user)))
+;; GitHub tokens and private sandbox policies for contained agents and
+;; Paseo, see secrets/README.org.
+(define %agent-secrets
+  (let ((user (user-account-name %main-user)))
+    (append (github-token-secrets user)
+            (sandbox-policy-secrets user "hypie"))))
 
 (define hypie-installed-os
   (hypie-os
@@ -352,7 +355,7 @@
     ;;       (service redroid-service-type
     ;;                (redroid-configuration (auto-start? #f))))
     (host-sops-services (append (map cdr %vpn-connections)
-                                %github-token-secrets))
+                                %agent-secrets))
     (strongswan-services %vpn-connections #:at-boot '("fwd2home")))))
 
 ;; The live system has no host key that SOPS secrets are encrypted to,

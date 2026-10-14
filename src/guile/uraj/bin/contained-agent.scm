@@ -9,7 +9,8 @@
   #:use-module (srfi srfi-26)
   #:use-module (uraj bin contained-ssh)
   #:export (contained-agent-main read-all clause-options codex-spec
-            credential-clause? credential-options %github-secrets))
+            credential-clause? credential-options %github-secrets
+            %secret-timeout))
 
 ;;; Run a coding agent inside `guix shell --container', sharing only the
 ;;; current project plus the agent's own state.  Arguments, stdio and the
@@ -220,20 +221,51 @@ tree, and the mount options for WORKDIR."
        (read-all file))
       '()))
 
+(define %secret-timeout
+  ;; Seconds to wait for a file SOPS decrypts: agents and Paseo may start
+  ;; at boot before SOPS is done.
+  (make-parameter 10))
+
+(define (wait-for-secret origin file)
+  "Wait for FILE, a secret this host declares, and fail if it does not
+appear in time rather than start without it."
+  (let loop ((polls (* 5 (%secret-timeout))))
+    (unless (file-exists? file)
+      (when (<= polls 0)
+        ;; Caught like SSH failures: the broker's ssh-service replies with
+        ;; it and keeps serving.
+        (throw 'contained-ssh-error
+               (format #f "~a: ~a is still missing after ~a s; \
+check `sudo herd status sops-secrets'"
+                       origin file (%secret-timeout))))
+      (usleep 200000)
+      (loop (- polls 1)))))
+
+(define %projects-secret
+  ;; The host-private projects file SOPS decrypts, or #f if this host has
+  ;; none.
+  (make-parameter #f))
+
 (define (central-entries file project)
   "Append managed and host-private central clauses, preserving their origins.
-The private file is read at runtime, never imported into the Guix store."
-  (append-map
-   (lambda (source)
-     (map (cut cons source <>) (central-clauses source project)))
-   (delete-duplicates
-    (list (expand-home (or (getenv "CONTAINED_AGENT_PROJECTS") file))
-          (expand-home "~/.config/contained-agent/projects.local.scm")))))
+The private files are read at runtime, never imported into the Guix store."
+  (let ((secret (%projects-secret)))
+    (when secret (wait-for-secret "contained-agent" secret))
+    (append-map
+     (lambda (source)
+       (map (cut cons source <>) (central-clauses source project)))
+     (delete-duplicates
+      (filter-map
+       identity
+       (list (expand-home (or (getenv "CONTAINED_AGENT_PROJECTS") file))
+             secret
+             (expand-home "~/.config/contained-agent/projects.local.scm")))))))
 
 ;;; Credentials from host files.
 
 (define %github-secrets
-  ;; Where SOPS decrypts the token of each tier, see secrets/README.org.
+  ;; Where SOPS decrypts the token of each tier, see secrets/README.org, or
+  ;; #f if this host has no tokens.
   (make-parameter "/run/secrets/github"))
 
 (define %github-tiers '("public" "personal" "world"))
@@ -270,7 +302,9 @@ unreadable or empty."
 pairs, and return the `guix shell' options that hand them to the container.
 Values travel in the environment or in files mounted alone under DIRECTORY,
 never on a command line.  A missing, unreadable or empty file is skipped
-with a warning, and the host's own value never stands in for it.
+with a warning, and the host's own value never stands in for it; but the
+token of a (github TIER) clause is a SOPS secret, waited for and required on
+hosts that have the tokens.
 
 Git configuration goes through GIT_CONFIG_COUNT, after the global file the
 agent may edit: an empty credential.helper first drops every helper of
@@ -318,8 +352,15 @@ container asks git for the current repository's token."
         (unless (member tier %github-tiers)
           (die "~a: unknown GitHub tier ~s, expected one of ~a"
                origin tier (string-join %github-tiers ", ")))
-        (list (list origin "https://github.com"
-                    (string-append (%github-secrets) "/" tier))))
+        (match (%github-secrets)
+          (#f
+           (warn "~a: no GitHub tokens on this host; starting without ~a"
+                 origin "https://github.com")
+           '())
+          (directory
+           (let ((file (string-append directory "/" tier)))
+             (wait-for-secret origin file)
+             (list (list origin "https://github.com" file))))))
        (((origin . clause) . rest)
         (die "~a: expected a single (github TIER) clause, got ~s"
              origin clause)))))
@@ -774,14 +815,20 @@ exec \"$@\""
                                #:key agents common packages git
                                (ssh-tools '())
                                (projects-file
-                                "~/.config/contained-agent/projects.scm"))
+                                "~/.config/contained-agent/projects.scm")
+                               (github-secrets (%github-secrets))
+                               projects-secret)
   "Run the agent named by COMMAND-LINE in a container, or approve a project's
 local files with `contained-agent allow [DIRECTORY]'.  AGENTS maps agent names
 to specs and COMMON is a spec for every agent (see the commentary); PACKAGES
 are the specifications installed in the container; GIT is the git executable
-used to inspect the project."
+used to inspect the project.  GITHUB-SECRETS is the directory of the
+GitHub token tiers, or #f if this host has none, and PROJECTS-SECRET, if not
+#f, is a host-private projects file; SOPS decrypts both."
   (catch 'contained-ssh-error
    (lambda ()
+    (parameterize ((%github-secrets github-secrets)
+                   (%projects-secret projects-secret))
     (match command-line
     ((program args ...)
      (match (cons (program-name program) args)
@@ -816,5 +863,5 @@ used to inspect the project."
        (("contained-agent")
         (die "usage: contained-agent AGENT [ARGS...] | allow|ssh-start|ssh-stop|ssh-socket [DIRECTORY]"))
        ((name args ...)
-        (run-agent name args agents common packages git projects-file ssh-tools))))))
+        (run-agent name args agents common packages git projects-file ssh-tools)))))))
    (lambda (_ message) (die "~a" message))))

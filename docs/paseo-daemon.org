@@ -128,6 +128,14 @@ on the provider or broker does not change where Paseo writes images.
 The daemon's host-only policy file is =~/.config/paseo/sandbox.scm=.
 It is read as data, never evaluated, and is not managed or overwritten by
 Home activation. With no file, the existing daemon mounts remain unchanged.
+A host can instead keep its policy encrypted in the repository, as
+=secrets/hosts/HOST/paseo.yaml=, which SOPS decrypts to
+=/run/secrets/paseo/sandbox.scm= (see [[file:../secrets/README.org][secrets/README.org]]).  It then
+replaces the unmanaged file, whose presence fails the start so that it is
+never silently ignored.  The service launcher knows, from build time,
+which hosts have an encrypted policy: there, it waits up to 10 seconds for
+the file, as the daemon may start at boot before SOPS is done, then fails
+rather than start without it.
 With a file, =share=, =expose= and =preserve= use contained-agent's syntax and
 path restrictions. Entries supplement the default mounts; missing paths are
 skipped. This policy belongs to the daemon, independently of each agent's

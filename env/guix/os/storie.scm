@@ -399,7 +399,9 @@
       (if (getenv "TO_ISO") '()
           (host-sops-services
            (cons %immich-database-secret
-                 (github-token-secrets (user-account-name %main-user)))))
+                 (let ((user (user-account-name %main-user)))
+                   (append (github-token-secrets user)
+                           (sandbox-policy-secrets user "storie"))))))
       (modify-services (operating-system-user-services %server-os)
         (dhcpcd-service-type config =>
           (dhcpcd-configuration

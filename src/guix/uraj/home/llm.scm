@@ -12,6 +12,7 @@
   #:use-module (srfi srfi-1)
   #:use-module (uraj common basic-services)
   #:use-module (uraj common context)
+  #:use-module (uraj common agent-secrets)
   #:use-module (uraj home paseo-broker)
   #:use-module (uraj home paseo)
   #:use-module (uraj packages llm)
@@ -156,7 +157,10 @@ headless Homes."
                                      (cons 'ssh-add #$(file-append openssh "/bin/ssh-add"))
                                      (cons 'sha256sum #$(file-append coreutils "/bin/sha256sum"))
                                      (cons 'bash #$(file-append bash-minimal "/bin/bash")))
-                               #:git #$(file-append git "/bin/git"))))))
+                               #:git #$(file-append git "/bin/git")
+                               #:github-secrets #$(github-token-directory)
+                               #:projects-secret
+                               #$(sandbox-policy-secret 'contained-agent))))))
 
 (define (contained-agent-link name)
   ;; A store item that is itself a link, so every name resolves to the one

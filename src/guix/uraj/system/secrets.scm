@@ -7,9 +7,11 @@
   #:use-module (guix gexp)
   #:use-module (sops secrets)
   #:use-module (sops services sops)
+  #:use-module (srfi srfi-1)
+  #:use-module (uraj common agent-secrets)
   #:use-module (uraj utils file path)
   #:export (%host-sops-age-key-file host-sops-services
-            github-token-secrets))
+            github-token-secrets sandbox-policy-secrets))
 
 (define %host-sops-age-key-file "/var/lib/sops/age/keys.txt")
 
@@ -46,9 +48,10 @@ the sops-secrets-host-key service.  No target private key is read at build time.
                                #:optional (tiers '("public" "personal" "world")))
   "Return the secrets holding the GitHub token of each of TIERS, readable by
 USER alone at /run/secrets/github/TIER, for the (github TIER) clauses of
-contained-agent and the Paseo daemon.  scripts/secrets/github_token.py writes
-the file; until it exists no secret is declared and agents start without a
-token.  Every tier listed must be in the file."
+contained-agent and the Paseo daemon.  Every Guix System host running them
+must declare these: there, they wait for the tokens.
+scripts/secrets/github_token.py writes the file; until it exists no secret
+is declared.  Every tier listed must be in the file."
   (let ((file (project-path %github-tokens-file)))
     (if (file-exists? file)
         (map (lambda (tier)
@@ -60,3 +63,21 @@ token.  Every tier listed must be in the file."
                 (permissions #o400)))
              tiers)
         '())))
+
+(define (sandbox-policy-secrets user host)
+  "Return the secrets holding HOST's private sandbox policies, readable by
+USER alone, for contained-agent and the Paseo daemon; see (uraj common
+sandbox-secrets).  A policy is declared only when its file exists."
+  (filter-map
+   (lambda (entry)
+     (let* ((name (first entry))
+            (key (third entry))
+            (file (sandbox-policy-file host name)))
+       (and (file-exists? file)
+            (sops-secret
+             (key key)
+             (file (local-file file))
+             (user user)
+             (group "root")
+             (permissions #o400)))))
+   %sandbox-policies))

@@ -101,7 +101,7 @@ class SandboxTest(unittest.TestCase):
             process.stdout.close()
             process.stderr.close()
 
-    def launch(self):
+    def launch(self, *extra):
         process = subprocess.Popen(
             [
                 str(self.artifacts / "service"),
@@ -114,6 +114,7 @@ class SandboxTest(unittest.TestCase):
                 str(self.artifacts / "supervisor"),
                 "--sandbox-helper",
                 str(self.artifacts / "sandbox-helper"),
+                *extra,
             ],
             env=self.env,
             stdout=subprocess.PIPE,
@@ -160,6 +161,24 @@ class SandboxTest(unittest.TestCase):
         self.assertFalse(
             list((self.home / ".local/state/paseo-sandbox").glob("ssh-*"))
         )
+
+    def test_secret_policy_replaces_unmanaged_one(self):
+        other = self.home / "from-secret"
+        other.mkdir()
+        secret = self.home / "secret-sandbox.scm"
+        secret.write_text(
+            self.policy.read_text().replace(str(self.shared), str(other))
+        )
+        process = self.launch("--sandbox-secret", str(secret))
+        process.wait(timeout=15)
+        self.assertNotEqual(process.returncode, 0)
+        self.assertIn(b"conflicts", process.stderr.read())
+        self.assertFalse(self.record.exists())
+        self.policy.unlink()
+        process = self.launch("--sandbox-secret", str(secret))
+        record = self.wait_for_record(process)
+        self.assertIn(f"--share={other}", record["args"])
+        self.assertNotIn(f"--share={self.shared}", record["args"])
 
     def test_owner_death_and_restart(self):
         process = self.launch()
