@@ -32,7 +32,7 @@
 (test-begin "new-api")
 (test-assert "new-api waits for Docker, the shared network and storage"
   (every (lambda (r) (memq r (ancestors installed 'new-api)))
-         '(dockerd docker-lan zfs-data-ready file-system-/data)))
+         '(dockerd syslogd docker-lan zfs-data-ready file-system-/data)))
 (test-assert "new-api is independent of Immich and SOPS"
   (not (any (lambda (r) (memq r '(immich sops-secrets)))
             (ancestors installed 'new-api))))
@@ -59,7 +59,13 @@
  (lambda (entry)
    (test-equal "no Docker reboot auto-start bypass" "on-failure"
      (assoc-ref (cdr entry) "restart"))
-   (test-assert "no host published ports" (not (assoc-ref (cdr entry) "ports"))))
+   (test-assert "no host published ports" (not (assoc-ref (cdr entry) "ports")))
+   (test-equal "output goes to new-api's own syslog file"
+     '("syslog" "local0" "new-api/{{.Name}}")
+     (let ((logging (assoc-ref (cdr entry) "logging")))
+       (cons (assoc-ref logging "driver")
+             (map (cut assoc-ref (assoc-ref logging "options") <>)
+                  '("syslog-facility" "tag"))))))
  containers)
 (for-each (lambda (name)
             (test-equal "containers share the anchor namespace" "service:network"
@@ -78,7 +84,7 @@
 ;; Execute the real preparation body with fake filesystem operations, as in
 ;; the Immich test: guards must run before any directory is created.
 (define (prepare mounts present)
-  (let ((m (make-fresh-user-module)) (writes '()) (generated '()))
+  (let ((m (make-fresh-user-module)) (writes '()) (generated '()) (modes '()))
     (for-each (lambda (interface) (module-use! m (resolve-interface interface)))
               '((srfi srfi-1) (ice-9 format) (rnrs io ports) (rnrs bytevectors)))
     (define (define! name value) (module-define! m name value))
@@ -89,7 +95,11 @@
     (define! 'file-exists? (lambda (p) (member p present)))
     (define! 'umask (lambda _ #t))
     (define! 'mkdir-p (lambda (p) (set! writes (cons p writes))))
-    (define! 'chmod (lambda _ #t))
+    (define! 'chmod (lambda (p mode) (set! modes (cons (list p mode) modes))))
+    (define! 'chown
+      (lambda (p uid gid) (set! modes (cons (list p uid gid) modes))))
+    (define! 'getgrnam (lambda (name) (and (equal? name "log-readers") 42)))
+    (define! 'group:gid identity)
     (define! 'stat (lambda _ 64))
     (define! 'stat:size identity)
     (define! 'copy-file (lambda _ #t))
@@ -102,18 +112,29 @@
            (ok? (catch #t
                   (lambda () (eval `(begin ,@(cddr body)) m) #t)
                   (lambda _ #f))))
-      (list ok? (reverse writes) generated))))
+      (list ok? (reverse writes) generated (reverse modes)))))
 (define mounted '(("/data" "btrfs" "/dev/nvme0n1p3")
                   ("/media-data" "zfs" "media-data")))
-(test-equal "missing ZFS never creates directories" '(#f () ())
+(test-equal "missing ZFS never creates directories" '(#f () () ())
   (prepare (take mounted 1) '()))
-(test-equal "wrong dataset never creates directories" '(#f () ())
+(test-equal "wrong dataset never creates directories" '(#f () () ())
   (prepare '(("/data" "btrfs" "nvme") ("/media-data" "zfs" "wrong")) '()))
-(test-equal "missing NVMe never creates directories" '(#f () ())
+(test-equal "missing NVMe never creates directories" '(#f () () ())
   (prepare (drop mounted 1) '()))
 (let ((result (prepare mounted '())))
   (test-assert "fresh secrets generated" (car result))
-  (test-equal "two 256-bit hex secrets" '(64 64) (map string-length (caddr result))))
+  (test-equal "two 256-bit hex secrets" '(64 64) (map string-length (caddr result)))
+  (test-equal "log-readers read logs and trajectories; secrets stay private"
+    '(("/data/new-api" 0 42) ("/data/new-api" #o710)
+      ("/data/new-api/logs" 0 42) ("/data/new-api/logs" #o2750)
+      ("/media-data/new-api" 0 42) ("/media-data/new-api" #o710)
+      ("/media-data/new-api/traj-records" 0 42)
+      ("/media-data/new-api/traj-records" #o2750)
+      ("/data/new-api/secrets" #o700) ("/data/new-api/app" #o700))
+    (take (cadddr result) 10)))
+(test-error "trajectories directly in the pool are refused" #t
+  (new-api-prepare-program
+   (new-api-configuration (inherit config) (traj-directory "/media-data/traj"))))
 (let ((result (prepare mounted '("/data/new-api/secrets/db-password"
                                  "/data/new-api/secrets/session-secret"))))
   (test-assert "existing secrets reused" (and (car result) (null? (caddr result)))))

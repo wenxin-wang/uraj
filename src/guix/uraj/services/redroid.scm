@@ -12,6 +12,7 @@
   #:use-module (guix modules)
   #:use-module (guix records)
   #:use-module (uraj packages redroid)
+  #:use-module (uraj services logs)
   #:export (%redroid-docker-configuration
             redroid-network-configuration redroid-network-service-type
             redroid-firewall-rules redroid-network-program
@@ -141,7 +142,8 @@
     (auto-start? (redroid-auto-start? config))
     (respawn? #t)
     (entrypoint "/redroid-init")
-    (log-file (string-append "/var/log/" (redroid-name config) ".log"))
+    (log-file (string-append "/var/log/" (redroid-name config) "/"
+                             (redroid-name config) ".log"))
     ;; No ports, host networking, or Docker restart policy.  Shepherd owns
     ;; startup ordering, including after a daemon restart.
     (extra-arguments
@@ -175,6 +177,8 @@
      (list
       (service-extension oci-service-type
         (lambda (config) (oci-extension (containers (list (redroid-container config))))))
+      (service-extension service-log-service-type
+        (lambda (config) (list (service-log (name (redroid-name config))))))
       (service-extension shepherd-root-service-type
         (lambda (config)
           (list

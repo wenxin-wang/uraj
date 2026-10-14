@@ -34,7 +34,7 @@
   (ancestors installed 'dockerd))
 (test-assert "Immich waits for storage and Docker"
   (every (lambda (r) (memq r (ancestors installed 'immich)))
-         '(dockerd zfs-data-ready file-system-/data)))
+         '(dockerd syslogd zfs-data-ready file-system-/data)))
 (test-assert "Immich waits for SOPS password decryption"
   (every (lambda (r) (memq r (ancestors installed 'immich)))
          '(sops-secrets sops-secret-immich/db-password sops-secrets-host-key)))
@@ -77,6 +77,9 @@
         (string-append "https://github.com/getpaseo/paseo-relay.git#${PASEO_RELAY_COMMIT:-"
                        relay-commit "}"))
   (list (assoc-ref relay "image") (assoc-ref (assoc-ref relay "build") "context")))
+(test-equal "relay output goes to its own syslog file" "paseo-relay/{{.Name}}"
+  (assoc-ref (assoc-ref (assoc-ref relay "logging") "options") "tag"))
+(test-assert "relay waits for syslog" (memq 'syslogd (ancestors installed 'paseo-relay)))
 
 ;; Run the real start procedure with stubbed commands, as in the new-api test.
 (define (start-relay . args)
@@ -115,7 +118,9 @@
  (lambda (entry)
    (test-equal "no Docker reboot auto-start bypass" "on-failure"
      (assoc-ref (cdr entry) "restart"))
-   (test-assert "no host published ports" (not (assoc-ref (cdr entry) "ports"))))
+   (test-assert "no host published ports" (not (assoc-ref (cdr entry) "ports")))
+   (test-equal "output goes to Immich's own syslog file" "immich/{{.Name}}"
+     (assoc-ref (assoc-ref (assoc-ref (cdr entry) "logging") "options") "tag")))
  containers)
 (for-each (lambda (name)
             (test-equal "application containers share anchor namespace" "service:network"

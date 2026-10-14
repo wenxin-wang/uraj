@@ -193,7 +193,7 @@ cannot be mounted by agent project clauses.
 
 Restart Paseo to apply policy changes. A bad policy or failed key unlock
 prevents this configured daemon from starting; diagnostic output goes to
-=/var/log/paseo.log= for the system service. Encrypted keys need a usable
+=/var/log/paseo/paseo.log= for the system service. Encrypted keys need a usable
 host-side =SSH_ASKPASS= environment at startup; boot does not provide a desktop
 session or keyring. Preparation has a 120-second timeout.
 
@@ -254,8 +254,8 @@ definitions through the normal reconfiguration workflow before starting them:
 sudo herd start paseo
 sudo herd status paseo-broker
 sudo herd status paseo
-sudo tail -n 100 /var/log/paseo-broker.log
-sudo tail -n 100 /var/log/paseo.log
+tail -n 100 /var/log/paseo/broker.log   # no sudo for log-readers
+tail -n 100 /var/log/paseo/paseo.log
 #+end_src
 
 On a desktop machine, also stop any manually loaded trial/user broker before

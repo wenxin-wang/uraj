@@ -7,6 +7,7 @@
   #:use-module (json)
   #:use-module (gnu packages base)
   #:use-module (uraj packages docker)
+  #:use-module (uraj services logs)
   #:export (paseo-relay-configuration paseo-relay-service-type
             paseo-relay-commit paseo-relay-compose-file paseo-relay-command))
 
@@ -33,6 +34,7 @@
                     ;; Storie deliberately disables the default Docker bridge.
                     (network . "host")))
           (restart . "on-failure")
+          ,(compose-logging "paseo-relay")
           ;; Probe HTTP readiness using the release's own Erlang runtime;
           ;; upstream's slim runtime image has neither curl nor wget.
           (healthcheck .
@@ -59,7 +61,8 @@
     (list
      (shepherd-service
       (provision '(paseo-relay))
-      (requirement '(docker-lan))
+      ;; The container logs to syslog and cannot start without it.
+      (requirement '(docker-lan syslogd))
       (documentation "Run the official Paseo relay on its own LAN address.")
       ;; Compose builds missing images from the pinned context.  An existing
       ;; commit-tagged image is reused; do not force --build on every boot.
@@ -89,6 +92,9 @@
    (name 'paseo-relay)
    (extensions
     (list (service-extension shepherd-root-service-type paseo-relay-services)
+          (service-extension service-log-service-type
+            (lambda (config)
+              (list (service-log (name "paseo-relay") (containers? #t)))))
           (service-extension etc-service-type
             (lambda (config)
               `(("paseo-relay/compose.json" ,(paseo-relay-compose-file config))
