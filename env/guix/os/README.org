@@ -237,10 +237,12 @@ sudo -E guix time-machine -C env/guix/channels-lock.scm -- \
 #+begin_src sh
 unset TO_ISO
 guix time-machine -C env/guix/channels-lock.scm -- \
-  deploy -L src/guix -L src/guile --dry-run env/guix/deploy/storie.scm
+  deploy -L src/guix -L src/guile --dry-run env/guix/os/deploy/storie.scm
 guix time-machine -C env/guix/channels-lock.scm -- \
-  deploy -L src/guix -L src/guile env/guix/deploy/storie.scm
+  deploy -L src/guix -L src/guile env/guix/os/deploy/storie.scm
 #+end_src
+
+也可用 Home 安装的 =uraj-deploy storie=，它经 maak 直接部署，不预演。
 
 入口固定 storie 的 Ed25519 主机公钥，使用端口 23333、guix-deploy
 账户和开发机 =$HOME/.ssh/simple= 私钥。本地构建，SSH 传输并激活；
@@ -253,7 +255,7 @@ guix time-machine -C env/guix/channels-lock.scm -- \
 
 #+begin_src sh
 guix time-machine -C env/guix/channels-lock.scm -- \
-  deploy -L src/guix -L src/guile --roll-back env/guix/deploy/storie.scm
+  deploy -L src/guix -L src/guile --roll-back env/guix/os/deploy/storie.scm
 #+end_src
 
 系统代回滚不恢复数据库、照片或 ZFS 数据。
