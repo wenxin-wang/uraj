@@ -11,6 +11,7 @@
   #:use-module (guix gexp)
   #:use-module ((guix licenses) #:prefix license:)
   #:use-module (guix packages)
+  #:use-module ((guix search-paths) #:select ($SSL_CERT_DIR $SSL_CERT_FILE))
   #:use-module (guix utils)
   #:use-module (nonguix build-system chromium-binary)
   #:use-module (uraj packages chromium-binary)
@@ -305,6 +306,10 @@ exec " github-cli "/bin/gh \"$@\"
                (mkdir bin)
                (copy-file #$gh-git-credential-script (string-append bin "/gh"))
                (chmod (string-append bin "/gh") #o555))))
+    ;; gh, in Go, finds CA certificates through these, which github-cli does
+    ;; not declare: without them a profile with nss-certs but no OpenSSL
+    ;; package, such as the Paseo daemon's, leaves gh unable to verify TLS.
+    (native-search-paths (list $SSL_CERT_DIR $SSL_CERT_FILE))
     (home-page (package-home-page github-cli))
     (synopsis "GitHub CLI authenticated by git's credential helpers")
     (description "This @command{gh} runs GitHub CLI with the token that git's
