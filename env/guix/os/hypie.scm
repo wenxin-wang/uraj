@@ -1,7 +1,7 @@
 ;;; hypie.scm -- desktop with an NVIDIA GTX 1080 and an existing ZFS pool.
 ;;;
 ;;; Same desktop as lappie (see (uraj system desktop)); adds NVIDIA's
-;;; proprietary driver over the whole system, the "data" ZFS pool, a
+;;; proprietary driver for the GTX 1080 alone, the "data" ZFS pool, a
 ;;; driver for its USB Wi-Fi adapter, and the fwd2home VPN, connected at
 ;;; boot.
 ;;;
@@ -161,8 +161,8 @@
              (guix utils)
              (nongnu packages linux)
              (nongnu packages nvidia)
+             (nongnu services nvidia)
              (nongnu system linux-initrd)
-             (nonguix transformations)
              (rosenthal services file-systems)
              (sops secrets)
              (sops services sops)
@@ -272,54 +272,73 @@
                        #:log-file "/var/log/fancontrol.log"))
              (stop #~(make-kill-destructor)))))))
 
+;; The desktop runs on the Intel GPU, so only the GTX 1080's driver is set
+;; up -- the closed 580 module, its firmware, udev rules and nvda's
+;; libraries (libcuda, nvidia-smi) in the system profile -- without
+;; nonguix-transformation-nvidia grafting nvda over mesa everywhere.
+;; Programs dlopening libcuda find it there.  A Guix package built against
+;; nvidia-driver matches the module while nonguix's default nvidia-driver
+;; is the 580 branch; once it is not, graft that package alone with
+;; (replace-mesa package #:driver nvda-580).
+(define %hypie-nvidia-service
+  (service nvidia-service-type
+    (nvidia-configuration
+      (driver nvda-580)
+      (firmware nvidia-firmware-580)
+      (module nvidia-module-580)
+      (modprobe nvidia-modprobe-580)
+      ;; Dynamic Boost is for laptops.
+      (powerd #f))))
+
 (define (hypie-os zfs-services)
-  ;; Graft nvda over mesa in every package and service, the embedded Home
-  ;; included, and load the closed 580 module.  nvda still carries mesa's
-  ;; own drivers, so the Intel GPU keeps working for the desktop.
-  ((nonguix-transformation-nvidia #:driver nvda-580)
-   (operating-system
-     (inherit %desktop-os)
-     (host-name "hypie")
+  (operating-system
+    (inherit %desktop-os)
+    (host-name "hypie")
 
-     (initrd (lambda (file-systems . rest)
-               (apply microcode-initrd file-systems
-                      #:initrd zstd-zswap-initrd rest)))
+    (initrd (lambda (file-systems . rest)
+              (apply microcode-initrd file-systems
+                     #:initrd zstd-zswap-initrd rest)))
 
-     (kernel-arguments
-      (append %default-kernel-arguments
-              ;; zstd is a module in this kernel.  Select it in the initrd
-              ;; after loading the module; early zswap initialization uses
-              ;; the built-in default compressor.
-              (list "zswap.enabled=1"
-                    "zswap.max_pool_percent=20")))
+    (kernel-arguments
+     (append %default-kernel-arguments
+             ;; zstd is a module in this kernel.  Select it in the initrd
+             ;; after loading the module; early zswap initialization uses
+             ;; the built-in default compressor.
+             (list "zswap.enabled=1"
+                   "zswap.max_pool_percent=20"
+                   ;; As nonguix-transformation-nvidia sets them.
+                   "modprobe.blacklist=nouveau"
+                   "modprobe.blacklist=nova_core,nova_drm"
+                   "nvidia_drm.modeset=1")))
 
-     (kernel-loadable-modules
-      (cons* (mt7921u-linux-module (operating-system-kernel %desktop-os))
-             (it87-linux-module (operating-system-kernel %desktop-os))
-             (operating-system-kernel-loadable-modules %desktop-os)))
+    (kernel-loadable-modules
+     (cons* (mt7921u-linux-module (operating-system-kernel %desktop-os))
+            (it87-linux-module (operating-system-kernel %desktop-os))
+            (operating-system-kernel-loadable-modules %desktop-os)))
 
-     (bootloader
-      (bootloader-configuration
-       (bootloader grub-efi-bootloader)
-       (targets (list "/boot/efi"))))
+    (bootloader
+     (bootloader-configuration
+      (bootloader grub-efi-bootloader)
+      (targets (list "/boot/efi"))))
 
-     ;; /data belongs to the ZFS pool.
-     (file-systems
-      (remove (lambda (file-system)
-                (string=? (file-system-mount-point file-system) "/data"))
-              (btrfs-root-file-systems "hypie")))
-     (swap-devices %nvme-swap-devices)
+    ;; /data belongs to the ZFS pool.
+    (file-systems
+     (remove (lambda (file-system)
+               (string=? (file-system-mount-point file-system) "/data"))
+             (btrfs-root-file-systems "hypie")))
+    (swap-devices %nvme-swap-devices)
 
-     (services
-      (append zfs-services
-              %hypie-fan-services
-              (trust-substitute-servers
-               (operating-system-user-services %desktop-os)
-               (list (local-file
-                      (guix-env-path "os/keys/storie-signing-key.pub"))
-                     (local-file
-                      (guix-env-path "os/keys/lappie-signing-key.pub")))
-               #:urls '("http://172.31.0.5:8080")))))))
+    (services
+     (append zfs-services
+             (list %hypie-nvidia-service)
+             %hypie-fan-services
+             (trust-substitute-servers
+              (operating-system-user-services %desktop-os)
+              (list (local-file
+                     (guix-env-path "os/keys/storie-signing-key.pub"))
+                    (local-file
+                     (guix-env-path "os/keys/lappie-signing-key.pub")))
+              #:urls '("http://172.31.0.5:8080"))))))
 
 (define %vpn-connections
   (list
