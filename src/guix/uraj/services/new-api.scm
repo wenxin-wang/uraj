@@ -2,6 +2,7 @@
 ;;; address.  The image is the official release plus the traj_record plugin,
 ;;; built elsewhere with podman and loaded into Docker (see docs/new-api.org).
 (define-module (uraj services new-api)
+  #:use-module (gnu packages base)
   #:use-module (gnu services)
   #:use-module (gnu services shepherd)
   #:use-module (guix gexp)
@@ -14,6 +15,7 @@
 (define-record-type* <new-api-configuration>
   new-api-configuration make-new-api-configuration new-api-configuration?
   ;; Locally built, never pulled: a missing image fails startup visibly.
+  ;; Must carry a tag; `herd restart new-api TAG' swaps only the tag.
   (image new-api-image)
   ;; Database, application data and generated secrets (NVMe Btrfs @data).
   (data-directory new-api-data-directory (default "/data/new-api"))
@@ -25,6 +27,14 @@
   (address new-api-address (default "172.31.0.9"))
   (requirements new-api-requirements
                 (default '(docker-lan zfs-data-ready file-system-/data))))
+
+(define (new-api-repository config)
+  "Return the image of CONFIG without its tag."
+  (let* ((image (new-api-image config))
+         (colon (string-rindex image #\:)))
+    (unless (and colon (> colon (or (string-rindex image #\/) -1)))
+      (error "new-api image needs a tag" image))
+    (substring image 0 colon)))
 
 (define (bind source target)
   `((type . "bind") (source . ,source) (target . ,target)
@@ -49,7 +59,9 @@
             (networks . ((lan . ((ipv4_address . ,(new-api-address config))))))))
           (new-api .
            (,@common
-            (image . ,(new-api-image config))
+            ;; The start action sets it; manual Compose calls fall back.
+            (image . ,(string-append "${NEW_API_IMAGE:-"
+                                     (new-api-image config) "}"))
             ;; The image only reads credentials from the environment.  Build
             ;; them from secret files at startup so the Compose file (in the
             ;; store) never contains them.  $$ is Compose's escape for $.
@@ -178,16 +190,32 @@
       (provision '(new-api))
       (requirement (cons 'dockerd (new-api-requirements config)))
       (documentation "Run new-api after storage and the shared network are ready.")
+      ;; `herd restart new-api TAG' runs another tag of the configured
+      ;; repository until the next plain (re)start, such as after a reboot
+      ;; or a deployment.  The running value names the image.
       (start
-       #~(lambda _
+       #~(lambda* (#:optional tag)
+           (define tag-chars
+             (string->char-set
+              "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-"))
+           (define image
+             (cond ((not tag) #$(new-api-image config))
+                   ;; Docker's tag syntax: [A-Za-z0-9_][A-Za-z0-9_.-]{0,127}.
+                   ((and (<= 1 (string-length tag) 128)
+                         (string-every tag-chars tag)
+                         (not (memv (string-ref tag 0) '(#\. #\-))))
+                    (string-append #$(new-api-repository config) ":" tag))
+                   (else (error "Invalid new-api image tag" tag))))
            (invoke #$(new-api-prepare-program config))
            (catch #t
              (lambda ()
                ;; The new-api image is never pulled; the databases and the
                ;; anchor are pulled once by digest.
-               (invoke #$command "up" "-d" "--pull" "missing" "--force-recreate"
+               (invoke #$(file-append coreutils "/bin/env")
+                       (string-append "NEW_API_IMAGE=" image)
+                       #$command "up" "-d" "--pull" "missing" "--force-recreate"
                        "--wait" "--wait-timeout" "300")
-               #t)
+               image)
              (lambda args
                (system* #$command "stop" "--timeout" "30")
                (apply throw args)))))

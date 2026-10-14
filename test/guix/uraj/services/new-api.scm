@@ -1,7 +1,7 @@
 ;;; guix time-machine -C env/guix/channels-lock.scm -- repl test/guix/uraj/services/new-api.scm
 (use-modules (gnu) (gnu services) (gnu services shepherd)
              (gnu image) (gnu system image)
-             (guix gexp) (json) (srfi srfi-1) (srfi srfi-64)
+             (guix gexp) (json) (srfi srfi-1) (srfi srfi-26) (srfi srfi-64)
              (uraj services new-api) (uraj services paseo-relay))
 
 (define (services os)
@@ -52,7 +52,8 @@
   (lan relay-manifest) (lan manifest))
 (test-equal "new-api uses .9, after Immich .6, daemon .7 and relay .8" "172.31.0.9"
   (assoc-ref (assoc-ref (assoc-ref (container "network") "networks") "lan") "ipv4_address"))
-(test-equal "configured image is used as is" "localhost/new-api-traj:test"
+(test-equal "start chooses the image, configured one as fallback"
+  "${NEW_API_IMAGE:-localhost/new-api-traj:test}"
   (assoc-ref (container "new-api") "image"))
 (for-each
  (lambda (entry)
@@ -118,6 +119,33 @@
   (test-assert "existing secrets reused" (and (car result) (null? (caddr result)))))
 (test-assert "existing database without password refuses replacement"
   (not (car (prepare mounted '("/data/new-api/postgres/PG_VERSION")))))
+
+;; Run the real start procedure with stubbed commands; references to store
+;; items are approximated, so each command shows up as (*approximate*).
+(define (start . args)
+  (let ((m (make-fresh-user-module)) (calls '()))
+    (module-define! m '*approximate* (lambda () 'program))
+    (module-define! m 'invoke
+                    (lambda command (set! calls (cons command calls)) #t))
+    (let* ((proc (eval (gexp->approximate-sexp
+                        (shepherd-service-start (lookup installed 'new-api)))
+                       m))
+           (value (catch #t (lambda () (apply proc args)) (lambda _ #f))))
+      (list value (map (lambda (c) (find (cut string-prefix? "NEW_API_IMAGE=" <>)
+                                         (filter string? c)))
+                       (reverse calls))))))
+(let ((result (start)))
+  (test-assert "plain start runs the configured image"
+    (and (string-prefix? "localhost/new-api-traj:" (car result))
+         (equal? (list #f (string-append "NEW_API_IMAGE=" (car result)))
+                 (cadr result)))))
+(test-equal "a tag argument swaps only the tag"
+  '("localhost/new-api-traj:dev" (#f "NEW_API_IMAGE=localhost/new-api-traj:dev"))
+  (start "dev"))
+(for-each (lambda (tag)
+            (test-equal (string-append "rejected tag " tag) '(#f ())
+              (start tag)))
+          '("" "-x" ".x" "a:b" "a/b" "a b" "x@sha256"))
 (define failures (test-runner-fail-count (test-runner-current)))
 (test-end "new-api")
 (exit (if (zero? failures) 0 1))

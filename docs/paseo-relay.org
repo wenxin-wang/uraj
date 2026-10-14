@@ -79,6 +79,17 @@ the current tag deliberately, run =sudo /etc/paseo-relay/compose build= before
 restarting. Existing relay connections reconnect after restart. Keep the
 previous image available for rollback.
 
+To try another upstream commit without reconfiguring, pass its full hash;
+a missing image is built first:
+
+#+begin_src sh
+sudo herd restart paseo-relay 0123456789abcdef0123456789abcdef01234567
+sudo herd status paseo-relay   # the running value names the commit
+#+end_src
+
+The commit lasts until the next plain start: a reboot, a dependency restart
+or =sudo herd restart paseo-relay= return to the configured one.
+
 The network service refuses incompatible existing settings and never deletes
 the network to repair them. Inspect the mismatch before changing anything.
 After migration, use the current =/etc/immich/compose= wrapper; an old generation's
