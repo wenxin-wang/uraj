@@ -1,0 +1,44 @@
+#+title: Editing BQN in Emacs
+
+The Emacs overlay installs =museoa/bqn-mode= through straight and enables
+the =BQN-Z= input method automatically in =.bqn= files. Restart Emacs after
+the updated overlay is linked into your Emacs configuration; straight needs
+network access on the first start to install the package.
+
+* Entering symbols
+
+In this configuration, press =e= to enter Meow insert mode (=i= moves back
+one word). Type a backslash followed by a key, sequentially, without holding
+Ctrl or Alt:
+
+| Keys          | Result | Meaning           |
+|---------------+--------+-------------------|
+| =\x=          | 𝕩      | Right argument    |
+| =\w=          | 𝕨      | Left argument     |
+| =\[=          | ←      | Assignment        |
+| =\q=          | ⌽      | Reverse           |
+| =\a=          | ⍉      | Transpose         |
+| =\(=          | ⟨      | Begin list        |
+| =\)=          | ⟩      | End list          |
+| Backslash SPC | ‿      | Strand separator  |
+| =\\=          | \      | Literal backslash |
+
+For example, type =e= to enter insert mode, then type =a\[1\ 2\ 3=.
+The resulting text is =a←1‿2‿3=. Press Escape to return to normal mode.
+
+Press =C-c C-k= in a BQN source buffer, or run
+=M-x bqn-keymap-mode-show-keyboard=, to see the complete keyboard layout.
+
+* If symbols do not appear
+
+- Confirm the buffer uses =bqn-mode= and Meow is in insert mode.
+- Run =M-x set-input-method RET BQN-Z RET= to select the input method.
+  =C-\= toggles it off and on in the current buffer.
+- If =bqn-mode= is unavailable, check that the updated =post-init.el= is
+  loaded and straight successfully installed the package.
+- If symbols insert but display as boxes, configure a font with BQN glyph
+  coverage, such as BQN386. This is separate from input-method setup.
+
+Symbol entry does not require a BQN interpreter. Running programs or using
+the BQN REPL additionally requires an interpreter such as CBQN; the mode
+expects an executable named =bqn= by default.

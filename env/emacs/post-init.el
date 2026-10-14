@@ -1154,6 +1154,15 @@ dir is the directory of the buffer (param of my/project-try), when it's changed,
 
 (use-package jsonnet-mode)
 
+(use-package bqn-mode
+  :straight (:host github :repo "museoa/bqn-mode")
+  :mode "\\.bqn\\'"
+  :custom
+  (bqn-use-input-method t)
+  (bqn-glyph-prefix ?\\)
+  :bind (:map bqn-mode-map
+              ("C-c C-k" . bqn-keymap-mode-show-keyboard)))
+
 (use-package google-c-style
   :demand t
   :hook (c-mode-common . google-set-c-style)
