@@ -78,7 +78,7 @@ prefixes and public addresses that hairpin to private services must be added
 to the policy's =blocked-destinations=.  The container network name comes
 from the same record.  Docker's =--dns= options and Android's numbered DNS
 boot arguments both use its policy's =dns-servers= list, which defaults to
-='("223.5.5.5")=.  Redroid requires an explicit nonempty IPv4 list: =host=
+='("114.114.114.114")=.  Redroid requires an explicit nonempty IPv4 list: =host=
 snapshots are unavailable when its Android boot arguments are generated.
 Egress follows the host's forwarding/routing policy; host-only proxy settings
 are not automatically used by Android.  Split-tunnel VPN behavior needs

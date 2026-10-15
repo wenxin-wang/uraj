@@ -37,7 +37,7 @@
     (egress-interfaces '())
     (policy
      (network-policy
-       (dns-servers '("223.5.5.5"))
+       (dns-servers '("114.114.114.114"))
        ;; Game traffic is not limited to HTTP.  Private destinations and
        ;; unsolicited inbound connections remain blocked on every port.
        (public-egress '((tcp . all) (udp . all)))))))
