@@ -18,6 +18,11 @@
 	      ;; guix-os/guix-home.
               "nss-certs"
               "sops"
+              ;; Google C/C++ and Python style; see docs/coding-style.org.
+              "python-wrapper"
+              "clang"
+              "cpplint"
+              "ruff"
               ;; For Guix System installer.
               "guile-newt"
               "guile-parted"

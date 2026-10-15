@@ -23,11 +23,6 @@
      "github-cli"
      ;; Python
      "uv"
-     ;; Google C/C++ and Python style, also used by commit checks.
-     "python-wrapper"
-     "clang"
-     "cpplint"
-     "ruff"
      ;; Containers.  Guix System hosts get subids, cgroup delegation and
      ;; /etc/containers from rootless-podman-service-type (see (uraj
      ;; system desktop)); podman-compose drives the podman CLI directly,
