@@ -2,7 +2,7 @@
 (define-module (uraj build redroid)
   #:use-module (guix build utils)
   #:use-module (ice-9 textual-ports)
-  #:export (prepare-redroid))
+  #:export (prepare-redroid ensure-redroid-image))
 
 (define (prepare-redroid data render-node)
   (unless (string-contains (call-with-input-file "/proc/filesystems" get-string-all)
@@ -16,3 +16,10 @@
   (umask #o077)
   (mkdir-p (dirname data))
   (mkdir-p data))
+
+(define (ensure-redroid-image docker tag context)
+  ;; TAG names every input of CONTEXT, so an existing tag is never rebuilt.
+  ;; The base image is referenced by digest and is pulled if missing.
+  (setenv "DOCKER_HOST" "unix:///var/run/docker.sock")
+  (unless (zero? (system* docker "image" "inspect" "--format" "{{.Id}}" tag))
+    (invoke docker "build" "--network" "none" "--tag" tag context)))
