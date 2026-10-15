@@ -7,7 +7,7 @@
 (test-begin "network-policy")
 (define agents
   (restricted-network
-    (name "agents") (bridge "br-agents")
+    (name "static-agent") (bridge "br-static-agent")
     (subnet "10.204.0.0/24") (gateway "10.204.0.1")
     (egress-interfaces '("uplink" "br-code"))
     (policy
@@ -26,6 +26,19 @@
     (egress-interfaces '("uplink"))))
 (define networks (list agents code))
 (test-assert "valid policy" (validate-networks "restricted_network" networks))
+(define agents-any-egress
+  (restricted-network (inherit agents) (egress-interfaces #t)))
+(define agents-no-egress
+  (restricted-network (inherit agents) (egress-interfaces '())))
+(test-assert "any and empty egress validate"
+  (and (validate-networks "restricted_network" (list agents-any-egress code))
+       (validate-networks "restricted_network" (list agents-no-egress code))))
+(for-each
+ (lambda (egress)
+   (test-error "reject invalid egress selector" #t
+     (validate-networks "restricted_network"
+       (list (restricted-network (inherit agents) (egress-interfaces egress))))))
+ '(#f "uplink" ("uplink" . "br-code") ("bad*")))
 (test-error "reject duplicate bridge" #t
   (validate-networks "restricted_network" (list agents agents)))
 (test-error "reject overlapping subnets" #t
@@ -59,7 +72,7 @@
   '((("dst" . "10.204.0.7") ("dev" . "vpn0")))
   (conflicting-routes
    '#((("dst" . "default") ("dev" . "uplink"))
-      (("dst" . "10.204.0.0/24") ("dev" . "br-agents"))
+      (("dst" . "10.204.0.0/24") ("dev" . "br-static-agent"))
       (("dst" . "10.204.0.7") ("dev" . "vpn0")))
    (network-topology agents)))
 (define previous (list "restricted_network" (list (network-topology agents))))
@@ -72,12 +85,12 @@
   (check-topology-transition previous "other" (map network-topology networks)))
 (test-error "refuse renumbering" #t
   (check-topology-transition previous "restricted_network"
-    '(("agents" docker "br-agents" "10.206.0.0/24" "10.206.0.1"))))
+    '(("static-agent" docker "br-static-agent" "10.206.0.0/24" "10.206.0.1"))))
 
 (define docker-net
-  '(("Name" . "agents") ("Driver" . "bridge")
+  '(("Name" . "static-agent") ("Driver" . "bridge")
     ("Internal" . #f) ("EnableIPv6" . #f)
-    ("Options" . (("com.docker.network.bridge.name" . "br-agents")
+    ("Options" . (("com.docker.network.bridge.name" . "br-static-agent")
                   ("com.docker.network.bridge.enable_ip_masquerade" . "false")))
     ("IPAM" . (("Config" . #((("Subnet" . "10.204.0.0/24")
                                ("Gateway" . "10.204.0.1"))))))))
@@ -119,10 +132,26 @@
      (call-with-output-file (string-append (cadr (command-line)) (car entry))
        (lambda (p) (display (cdr entry) p))))
    (list (cons "" rules)
+         (cons ".any-egress" (restricted-network-rules "restricted_network"
+                              (list agents-any-egress code)))
+         (cons ".any-egress-ingress"
+               (restricted-network-rules "restricted_network"
+                 (list agents-any-egress code-with-ingress)))
+         (cons ".no-egress" (restricted-network-rules "restricted_network"
+                             (list agents-no-egress code-with-ingress)))
          (cons ".ingress" (restricted-network-rules "restricted_network"
                            (list agents code-with-ingress)))
          (cons ".redroid" (restricted-network-rules "restricted_network"
-                           (list agents-with-redroid-policy code))))))
+                           (list agents-with-redroid-policy code)))
+         (cons ".host-dns"
+               (string-append
+                (restricted-network-rules "restricted_network"
+                  (list (restricted-network
+                          (inherit agents)
+                          (policy (network-policy
+                                    (inherit (network-policy-of agents))
+                                    (dns-servers 'host)))) code))
+                "add element inet restricted_network host_dns { 172.31.0.10 }\n")))))
 (define failures (test-runner-fail-count (test-runner-current)))
 (test-end "network-policy")
 (exit (if (zero? failures) 0 1))

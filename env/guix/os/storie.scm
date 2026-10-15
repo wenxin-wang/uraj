@@ -367,18 +367,18 @@
             (service immich-docker-service-type %immich-docker-configuration)
             (service docker-lan-service-type)
             ;; Applications wait for restricted-network and attach exclusively
-            ;; to the external Docker network agents, with explicit DNS.
+            ;; to the external Docker network static-agent, with explicit DNS.
             (service restricted-network-service-type
               (restricted-network-configuration
                 (networks
                  (list
                   (restricted-network
-                    (name "agents") (bridge "br-agents")
+                    (name "static-agent") (bridge "br-static-agent")
                     (subnet "10.204.0.0/24") (gateway "10.204.0.1")
-                    (egress-interfaces '("host0"))
+                    (egress-interfaces #t)
                     (policy
                      (network-policy
-                       (dns-servers '("223.5.5.5"))
+                       (dns-servers 'host)
                        (public-egress '((tcp 80 443)))
                        (forward-exceptions
                         (list (network-access

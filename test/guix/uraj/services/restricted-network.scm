@@ -11,9 +11,11 @@
 (define config
   (service-value (fold-services services #:target-type restricted-network-service-type)))
 (define agents (car (restricted-network-config-networks config)))
-(test-equal "storie network name" "agents" (network-name agents))
-(test-equal "storie bridge name" "br-agents" (network-bridge agents))
-(test-equal "storie routes through host0" '("host0") (network-egress agents))
+(test-equal "storie network name" "static-agent" (network-name agents))
+(test-equal "storie bridge name" "br-static-agent" (network-bridge agents))
+(test-equal "storie permits any routed interface" #t (network-egress agents))
+(test-equal "storie inherits host DNS at service start" 'host
+  (policy-dns (network-policy-of agents)))
 (test-equal "table has no project prefix" "restricted_network"
   (restricted-network-config-table config))
 (test-equal "only new-api is an internal forwarding exception" '("172.31.0.9")
@@ -40,7 +42,7 @@
             (redroid-network-configuration (egress-interfaces '("host0"))))
           services)
     #:target-type restricted-network-service-type)))
-(test-equal "redroid contributes to the same owner" '("agents" "redroid")
+(test-equal "redroid contributes to the same owner" '("static-agent" "redroid")
   (map network-name (restricted-network-config-networks combined)))
 (test-assert "combined policy validates"
   (validate-networks (restricted-network-config-table combined)

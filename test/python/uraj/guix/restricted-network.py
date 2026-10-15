@@ -174,7 +174,11 @@ class NetworkTest:
             run("nft", "-f", str(rules))
         run("nft", "list", "table", "inet", "unrelated_test")
         self.link(
-            "agent-veth", agents, "10.204.0.2/24", "10.204.0.1/24", "br-agents"
+            "agent-veth",
+            agents,
+            "10.204.0.2/24",
+            "10.204.0.1/24",
+            "br-static-agent",
         )
         self.link(
             "code-veth", code, "10.205.0.2/24", "10.205.0.1/24", "br-code"
@@ -189,7 +193,9 @@ class NetworkTest:
             "100.64.0.2",
         ):
             self.ip(outside, "addr", "add", address + "/32", "dev", "eth0")
-        self.ip(None, "-6", "addr", "add", "fd00:1::1/64", "dev", "br-agents")
+        self.ip(
+            None, "-6", "addr", "add", "fd00:1::1/64", "dev", "br-static-agent"
+        )
         self.ip(
             agents, "-6", "addr", "add", "fd00:1::2/64", "dev", "eth0", "nodad"
         )
@@ -269,6 +275,75 @@ class NetworkTest:
         self.check(
             "failed reload keeps LAN blocked", agents, "172.31.0.10", 80, False
         )
+        # Keep the same route but change its interface name: only #t follows it.
+        self.ip(None, "link", "set", "uplink", "name", "alternate")
+        self.check(
+            "explicit egress rejects new uplink", agents, "8.0.0.2", 80, False
+        )
+        run("nft", "-f", str(rules) + ".any-egress")
+        self.check(
+            "any egress follows route with NAT",
+            agents,
+            "8.0.0.2",
+            80,
+            True,
+            source="8.0.0.1",
+        )
+        self.check(
+            "any egress retains LAN denial", agents, "172.31.0.10", 80, False
+        )
+        self.check(
+            "any egress retains port denial", agents, "8.0.0.2", 8001, False
+        )
+        self.check(
+            "any egress retains DNS denial", agents, "9.9.9.10", 53, False
+        )
+        self.check(
+            "any egress cannot bypass destination ingress",
+            agents,
+            "10.205.0.2",
+            8000,
+            False,
+        )
+        run("nft", "-f", str(rules) + ".any-egress-ingress")
+        self.check(
+            "any egress avoids NAT between registered bridges",
+            agents,
+            "10.205.0.2",
+            8000,
+            True,
+            source="10.204.0.2",
+        )
+        run("nft", "-f", str(rules) + ".no-egress")
+        self.check(
+            "empty egress blocks public HTTP", agents, "8.0.0.2", 80, False
+        )
+        self.check(
+            "empty egress blocks LAN exception",
+            agents,
+            "172.31.0.9",
+            3000,
+            False,
+        )
+        self.check("empty egress blocks DNS", agents, "9.9.9.9", 53, False)
+        self.check(
+            "empty egress blocks other bridges",
+            agents,
+            "10.205.0.2",
+            8000,
+            False,
+        )
+        self.check(
+            "empty egress keeps host grants", agents, "10.204.0.1", 8080, True
+        )
+        self.check(
+            "empty egress keeps host-initiated replies",
+            None,
+            "10.204.0.2",
+            8000,
+            True,
+        )
+        self.ip(None, "link", "set", "alternate", "name", "uplink")
         run("nft", "-f", str(rules) + ".redroid")
         self.check(
             "redroid arbitrary public TCP", agents, "8.0.0.2", 8001, True
@@ -287,6 +362,19 @@ class NetworkTest:
         self.check(
             "redroid host-initiated ADB replies", None, "10.204.0.2", 8000, True
         )
+        run("nft", "-f", str(rules) + ".host-dns")
+        self.check(
+            "inherited LAN DNS UDP", agents, "172.31.0.10", 53, True, udp=True
+        )
+        self.check("inherited LAN DNS TCP", agents, "172.31.0.10", 53, True)
+        self.check(
+            "inherited DNS grants no gateway HTTP",
+            agents,
+            "172.31.0.10",
+            80,
+            False,
+        )
+        self.check("previous DNS revoked", agents, "9.9.9.9", 53, False)
         run("nft", "list", "table", "inet", "unrelated_test")
         print(
             f"{self.passed} packet checks passed; reload and unrelated-table checks passed."

@@ -5,14 +5,18 @@ tool=${0##*/}
 printf '%s %s\n' "$tool" "$*" >> "$RESTRICTED_MOCK_DIR/log"
 case "$tool $1" in
     'ip -j')
-        printf '[]\n'
+        if [ "${5:-}" = default ] && [ -f "$RESTRICTED_MOCK_DIR/route-ready" ]; then
+            printf '[{"dst":"default","dev":"lo"}]\n'
+        else
+            printf '[]\n'
+        fi
         ;;
     'docker network')
         case "$2" in
             ls)
                 [ "${RESTRICTED_MOCK_FAILURE:-}" != docker ] || exit 1
                 if [ -f "$RESTRICTED_MOCK_DIR/exists" ]; then
-                    printf 'agents\n'
+                    printf 'static-agent\n'
                 fi
                 ;;
             inspect)

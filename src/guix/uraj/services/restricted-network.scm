@@ -41,7 +41,17 @@
                #$(restricted-network-firewall-file config)
                #$(restricted-network-config-table config)
                '#$(map network-topology networks)
-               '#$(delete-duplicates (append-map network-egress networks)))))))))
+               '#$(delete-duplicates
+                    (append-map (lambda (net)
+                                  (let ((egress (network-egress net)))
+                                    (if (eq? egress #t) '() egress)))
+                                networks))
+               #:any-egress?
+               #$(any (lambda (net) (eq? (network-egress net) #t)) networks)
+               #:inherit-host-dns?
+               #$(any (lambda (net)
+                        (eq? (policy-dns (network-policy-of net)) 'host))
+                      networks))))))))
 
 (define (restricted-network-shepherd-services config)
   (list

@@ -1,6 +1,7 @@
 ;;; guix repl -L src/guix test/guix/uraj/restricted-network-runtime.scm
 (use-modules (guix build utils) (ice-9 textual-ports) (json)
              (srfi srfi-1) (srfi srfi-64)
+             (uraj network-policy)
              (uraj build restricted-network))
 
 (test-begin "restricted-network-runtime")
@@ -12,9 +13,9 @@
    (let ((path (string-append tools "/" name)))
      (copy-file "test/guix/uraj/restricted-network-command.sh" path)
      (chmod path #o700))) '("docker" "nft" "ip"))
-(define topology '("agents" docker "br-policy-test" "10.204.0.0/24" "10.204.0.1"))
+(define topology '("static-agent" docker "br-policy-test" "10.204.0.0/24" "10.204.0.1"))
 (define network
-  '#((("Name" . "agents") ("Driver" . "bridge")
+  '#((("Name" . "static-agent") ("Driver" . "bridge")
       ("Internal" . #f) ("EnableIPv6" . #f)
       ("Options" . (("com.docker.network.bridge.name" . "br-policy-test")
                     ("com.docker.network.bridge.enable_ip_masquerade" . "false")))
@@ -64,6 +65,80 @@
   (list "restricted_network" (list topology)) (state retry))
 (unsetenv "RESTRICTED_MOCK_FAILURE")
 (test-assert "retry after failed load succeeds" (begin (ensure retry) #t))
+(define dns (fixture "dns"))
+(mkdir (string-append dns "/lo"))
+(define resolver (string-append dns "/resolv.conf"))
+(define (write-text file contents)
+  (call-with-output-file file (lambda (port) (display contents port))))
+(write-text resolver "# DHCP\nsearch home\nnameserver 172.31.0.1 # gateway\nnameserver 172.31.0.1\nnameserver 10.0.0.53\n")
+(test-equal "parse and deduplicate upstream resolvers"
+  '("172.31.0.1" "10.0.0.53") (read-host-dns resolver))
+(for-each
+ (lambda (contents)
+   (write-text resolver contents)
+   (test-error "reject missing, stub, IPv6 or malformed upstream DNS" #t
+     (read-host-dns resolver)))
+ '("search home\n" "nameserver 127.0.0.53\n" "nameserver ::1\n"
+   "nameserver 172.31.0.1 extra\n" "nameserver invalid\n"))
+(test-error "missing resolver file rejected" #t
+  (read-host-dns (string-append dns "/missing")))
+(write-text resolver "nameserver 172.31.0.1\n")
+(test-error "valid resolver alone does not mean networking is ready" #t
+  (wait-for-host-dns (string-append tools "/ip") '("lo") resolver #:attempts 1))
+(test-error "any egress still waits for a default route" #t
+  (wait-for-host-dns (string-append tools "/ip") #t resolver #:attempts 1))
+(test-equal "wait for DHCP route before taking snapshot" '("172.31.0.1")
+  (wait-for-host-dns (string-append tools "/ip") '("lo") resolver
+    #:attempts 2
+    #:pause (lambda (_) (write-text (string-append dns "/route-ready") ""))))
+(test-equal "any egress accepts the available route" '("172.31.0.1")
+  (wait-for-host-dns (string-append tools "/ip") #t resolver #:attempts 1))
+(test-error "empty egress grants no routed DNS" #t
+  (wait-for-host-dns (string-append tools "/ip") '() resolver #:attempts 1))
+(test-error "explicit egress rejects a route through another interface" #t
+  (wait-for-host-dns (string-append tools "/ip") '("other") resolver #:attempts 1))
+(write-text resolver "")
+(test-equal "wait for DNS after route appears" '("172.31.0.1")
+  (wait-for-host-dns (string-append tools "/ip") '("lo") resolver
+    #:attempts 2
+    #:pause (lambda (_) (write-text resolver "nameserver 172.31.0.1\n"))))
+(define rules (string-append dns "/template.nft"))
+(write-text rules
+  (restricted-network-rules "restricted_network"
+    (list (restricted-network
+            (name "static-agent") (bridge "br-policy-test")
+            (subnet "10.204.0.0/24") (gateway "10.204.0.1")
+            (egress-interfaces '("lo"))
+            (policy (network-policy (dns-servers 'host)))))))
+(define* (ensure-dns #:optional (any-egress? #f))
+  (ensure-restricted-networks
+   (string-append tools "/docker") (string-append tools "/nft")
+   (string-append tools "/ip") rules "restricted_network" (list topology)
+   (if any-egress? '() '("lo"))
+   #:any-egress? any-egress?
+   #:state-directory (string-append dns "/state")
+   #:interface-directory dns
+   #:runtime-directory (string-append dns "/run")
+   #:inherit-host-dns? #t #:resolv-conf resolver #:dns-attempts 1))
+(define snapshot (string-append dns "/run/resolv.conf"))
+(test-assert "provision using host DNS" (begin (ensure-dns) #t))
+(test-equal "publish resolver snapshot" "nameserver 172.31.0.1\n"
+  (call-with-input-file snapshot get-string-all))
+(test-assert "firewall transaction uses same resolver"
+  (string-contains
+   (call-with-input-file (string-append dns "/state/rules.nft.new") get-string-all)
+   "add element inet restricted_network host_dns { 172.31.0.1 }"))
+(write-text resolver "nameserver 10.0.0.53\n")
+(test-equal "host edits do not change running snapshot" "nameserver 172.31.0.1\n"
+  (call-with-input-file snapshot get-string-all))
+(setenv "RESTRICTED_MOCK_FAILURE" "load")
+(test-error "failed DNS reload aborts" #t (ensure-dns))
+(test-equal "failed reload preserves published snapshot" "nameserver 172.31.0.1\n"
+  (call-with-input-file snapshot get-string-all))
+(unsetenv "RESTRICTED_MOCK_FAILURE")
+(ensure-dns #t)
+(test-equal "next successful start refreshes DNS" "nameserver 10.0.0.53\n"
+  (call-with-input-file snapshot get-string-all))
 (define failures (test-runner-fail-count (test-runner-current)))
 (test-end "restricted-network-runtime")
 ;; Only this freshly created directory is removed; real state is never used.

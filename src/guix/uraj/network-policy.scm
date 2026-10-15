@@ -45,6 +45,7 @@
   (bridge network-bridge)
   (subnet network-subnet)
   (gateway network-gateway)
+  ;; Empty means no initiated forwarding; #t permits any routed interface.
   (egress-interfaces network-egress (default '()))
   (policy network-policy-of (default (network-policy))))
 
@@ -102,8 +103,12 @@
      (unless (and (identifier? (network-name net) 63)
                   (identifier? (network-bridge net) 15)
                   (eq? (network-backend net) 'docker)
-                  (every (lambda (i) (identifier? i 15)) (network-egress net))
-                  (not (member (network-bridge net) (network-egress net))))
+                  (or (eq? (network-egress net) #t)
+                      (and (list? (network-egress net))
+                           (every (lambda (i) (identifier? i 15))
+                                  (network-egress net))
+                           (not (member (network-bridge net)
+                                        (network-egress net))))))
        (error "Invalid network identity, backend or egress" net))
      (let* ((cidr (network-subnet net))
             (range (ipv4-range cidr))
@@ -120,7 +125,8 @@
      (let ((policy (network-policy-of net)))
        (unless (network-policy? policy) (error "Invalid policy" policy))
        (for-each ipv4-range (policy-blocked policy))
-       (for-each (lambda (ip) (inet-pton AF_INET ip)) (policy-dns policy))
+       (unless (eq? (policy-dns policy) 'host)
+         (for-each (lambda (ip) (inet-pton AF_INET ip)) (policy-dns policy)))
        (for-each (lambda (entry) (validate-ports (car entry) (cdr entry)))
                  (policy-public policy))
        (for-each validate-access
@@ -171,9 +177,11 @@
        (format #f " chain n~a_out {\n" index) source-guard
        ;; Replies to authorized inbound flows do not need an egress grant.
        "  ct direction reply ct state established,related return\n"
-       (if (null? (network-egress net)) "  counter drop\n"
-           (format #f "  oifname != ~a counter drop\n"
-                   (nft-set (map quoted (network-egress net)))))
+       (cond ((eq? (network-egress net) #t) "")
+             ((null? (network-egress net)) "  counter drop\n")
+             (else
+              (format #f "  oifname != ~a counter drop\n"
+                      (nft-set (map quoted (network-egress net))))))
        (string-concatenate
         (map (lambda (a) (endpoint-rule a "daddr" "return"))
              (append (policy-exceptions policy)
@@ -182,7 +190,11 @@
                         (map (lambda (protocol)
                                (network-access (address ip) (protocol protocol)
                                                (ports '(53)))) '(tcp udp)))
-                      (policy-dns policy)))))
+                      (if (eq? (policy-dns policy) 'host)
+                          '() (policy-dns policy))))))
+       (if (eq? (policy-dns policy) 'host)
+           "  ip daddr @host_dns udp dport 53 counter return\n  ip daddr @host_dns tcp dport 53 counter return\n"
+           "")
        ;; Named interval sets with auto-merge accept nested/overlapping CIDRs.
        (format #f "  ip daddr @n~a_blocked counter drop\n" index)
        "  udp dport 53 counter drop\n  tcp dport 53 counter drop\n"
@@ -203,6 +215,9 @@
   (string-append
    (format #f "add table inet ~a\nflush table inet ~a\ntable inet ~a {\n"
            table table table)
+   (if (any (lambda (net) (eq? (policy-dns (network-policy-of net)) 'host))
+            networks)
+       " set host_dns { type ipv4_addr; }\n" "")
    (string-concatenate (map chains networks (iota (length networks))))
    " chain input {\n  type filter hook input priority -10; policy accept;\n"
    (dispatch "iifname" "host") " }\n"
@@ -214,10 +229,15 @@
    " chain postrouting {\n  type nat hook postrouting priority srcnat; policy accept;\n"
    (string-concatenate
     (map (lambda (net)
-           (let ((external (lset-difference equal? (network-egress net)
-                                            (map network-bridge networks))))
-             (if (null? external) ""
-                 (format #f "  iifname ~s oifname ~a ip saddr ~a masquerade\n"
-                         (network-bridge net) (nft-set (map quoted external))
-                         (network-subnet net))))) networks))
+           (if (eq? (network-egress net) #t)
+               (format #f "  iifname ~s oifname != ~a ip saddr ~a masquerade\n"
+                       (network-bridge net)
+                       (nft-set (map (compose quoted network-bridge) networks))
+                       (network-subnet net))
+               (let ((external (lset-difference equal? (network-egress net)
+                                                (map network-bridge networks))))
+                 (if (null? external) ""
+                     (format #f "  iifname ~s oifname ~a ip saddr ~a masquerade\n"
+                             (network-bridge net) (nft-set (map quoted external))
+                             (network-subnet net)))))) networks))
    " }\n}\n"))
