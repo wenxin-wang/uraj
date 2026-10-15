@@ -219,8 +219,10 @@ It uses the production gexps' module metadata, loads the real runtime modules
 and replaces only the side-effecting entry functions before executing the
 generated bodies.  It needs no Docker daemon, firewall access or Android
 devices.  Building a =program-file= alone does not test module loading.
-The module closure selector must include =uraj= as well as =guix= / =gnu=;
-Guix's default selector excludes third-party modules, even the root module.
+Both entry points use =with-uraj-modules= from =(uraj gexp)= to collect
+=uraj= as well as =guix= / =gnu= dependencies. Guix's default closure
+selector excludes third-party modules, even the root module. See
+[[file:coding-style.org::*Guix runtime modules][Guix runtime modules]] for the shared convention and its limits.
 
 The packet test needs =nft=, =ip=, =unshare=, =nsenter=, =sysctl=, Python and
 Guix on PATH.  It creates its own user/network namespaces and virtual peers;

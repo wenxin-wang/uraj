@@ -6,6 +6,7 @@
   #:use-module (ice-9 ftw)
   #:use-module (ice-9 regex)
   #:use-module (srfi srfi-1)
+  #:use-module (uraj gexp)
   #:use-module (uraj utils file path)
   #:export (block-in-file-activation-service
             block-in-files-activation-service
@@ -52,7 +53,7 @@ snapshotted into the store at reconfigure time, like
 effect only after the next reconfigure."
   (simple-service name
                   home-activation-service-type
-                  (with-imported-modules '((uraj utils file template))
+                  (with-uraj-modules '((uraj utils file template))
                     #~(begin
                         (use-modules (uraj utils file template))
                         (ensure-template-block-in-file
@@ -113,7 +114,7 @@ made after reconfigure take effect only after the next reconfigure."
   (let ((templates (find-block-templates dotfiles-dir)))
     (simple-service name
                     home-activation-service-type
-                    (with-imported-modules '((uraj utils file template))
+                    (with-uraj-modules '((uraj utils file template))
                       #~(begin
                           (use-modules (uraj utils file template))
                           #$@(map (lambda (template)

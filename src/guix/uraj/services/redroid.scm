@@ -5,9 +5,9 @@
   #:use-module (gnu services docker)
   #:use-module (gnu services shepherd)
   #:use-module (guix gexp)
-  #:use-module (guix modules)
   #:use-module (guix records)
   #:use-module (srfi srfi-1)
+  #:use-module (uraj gexp)
   #:use-module (uraj network-policy)
   #:use-module (uraj services restricted-network)
   #:use-module (uraj packages redroid)
@@ -57,11 +57,7 @@
 
 (define (redroid-prepare-program config)
   (program-file (string-append (redroid-name config) "-prepare")
-    (with-imported-modules
-        (source-module-closure '((uraj build redroid))
-          #:select? (lambda (module)
-                      (or (guix-module-name? module)
-                          (eq? (car module) 'uraj))))
+    (with-uraj-modules '((uraj build redroid))
       #~(begin
           (use-modules (uraj build redroid))
           (prepare-redroid #$(redroid-data-directory config)

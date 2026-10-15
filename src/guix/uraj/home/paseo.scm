@@ -15,6 +15,7 @@
   #:use-module (guix profiles)
   #:use-module (guix records)
   #:use-module (uraj common agent-secrets)
+  #:use-module (uraj gexp)
   #:use-module (uraj home paseo-broker)
   #:use-module (uraj packages llm)
   #:use-module (uraj utils file path)
@@ -57,8 +58,7 @@
 (define paseo-sandbox-program
   (program-file
    "paseo-sandbox"
-   (with-imported-modules '((uraj bin paseo-sandbox) (uraj bin contained-agent)
-                           (uraj bin contained-ssh))
+   (with-uraj-modules '((uraj bin paseo-sandbox))
      #~(begin
          (use-modules (uraj bin paseo-sandbox))
          (paseo-sandbox-main
