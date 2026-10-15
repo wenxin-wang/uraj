@@ -340,7 +340,9 @@
                      (guix-env-path "os/keys/storie-signing-key.pub"))
                     (local-file
                      (guix-env-path "os/keys/lappie-signing-key.pub")))
-              #:urls '("http://172.31.0.5:8080"))))))
+              #:urls '("http://172.31.0.5:8080")
+              ;; lappie has no fixed address; find it through Avahi.
+              #:discover? #t)))))
 
 (define %vpn-connections
   (list
