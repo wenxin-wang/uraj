@@ -153,8 +153,8 @@
              ((gnu packages linux) #:select (lm-sensors))
              (gnu packages password-utils)
              (gnu services linux)
-             ;; (gnu services containers)
-             ;; (gnu services docker)
+             (gnu services containers)
+             (gnu services docker)
              (gnu services shepherd)
              (guix gexp)
              (guix packages)
@@ -170,9 +170,9 @@
              (uraj packages hwmon)
              (uraj packages wireless)
              (uraj services strongswan)
-             ;; (uraj services redroid)
-             ;; (uraj services restricted-network)
-             ;; (uraj network-policy)
+             (uraj services redroid)
+             (uraj services restricted-network)
+             (uraj network-policy)
              (uraj system base)
              (uraj system desktop)
              (uraj system initrd)
@@ -367,19 +367,20 @@
           (zfs-data-ready-service
            '(("data" . "/data")
              ("data/wenxin" . "/data/wenxin"))))
-    ;; Disabled pending a separate redroid deployment.  Uncomment the imports
-    ;; above along with this block to enable it on the installed system only.
-    ;; (list (service containerd-service-type)
-    ;;       (service docker-service-type %redroid-docker-configuration)
-    ;;       (service oci-service-type (oci-configuration (runtime 'docker)))
-    ;;       (service restricted-network-service-type)
-    ;;       (service redroid-service-type
-    ;;         (redroid-configuration
-    ;;           (network
-    ;;            (restricted-network
-    ;;              (inherit %redroid-network)
-    ;;              (egress-interfaces #t)))
-    ;;           (auto-start? #f))))
+    ;; redroid-maa for MAA (docs/maa.org); started manually until validated.
+    (list (service containerd-service-type)
+          (service docker-service-type %redroid-docker-configuration)
+          (service oci-service-type (oci-configuration (runtime 'docker)))
+          ;; fwd2home is a full tunnel (strongSwan, rule priority 220).
+          (service restricted-network-service-type
+            (restricted-network-configuration (vpn-bypass-priority 200)))
+          (service redroid-service-type
+            (redroid-configuration
+              (network
+               (restricted-network
+                 (inherit %redroid-network)
+                 (egress-interfaces #t)))
+              (auto-start? #f))))
     (host-sops-services (append (map cdr %vpn-connections)
                                 %agent-secrets))
     (strongswan-services %vpn-connections #:at-boot '("fwd2home")))))

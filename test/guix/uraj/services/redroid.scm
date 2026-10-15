@@ -14,24 +14,7 @@
     (every (lambda (module) (member module modules))
            '((uraj build redroid) (guix build utils)))))
 (define (load-hypie)
-  ;; Deployment is intentionally commented out in hypie.scm.  Exercise an
-  ;; opted-in installed-system fixture without enabling it on the real host.
-  (let ((os (load (string-append (getcwd) "/env/guix/os/hypie.scm"))))
-    (if (getenv "TO_ISO") os
-        (operating-system
-          (inherit os)
-          (services
-           (append
-            (list (service containerd-service-type)
-                  (service docker-service-type %redroid-docker-configuration)
-                  (service oci-service-type (oci-configuration (runtime 'docker)))
-                  (service restricted-network-service-type)
-                  (service redroid-service-type
-                    (redroid-configuration
-                      (network (restricted-network
-                                 (inherit %redroid-network)
-                                 (egress-interfaces '("uplink")))))))
-            (operating-system-user-services os)))))))
+  (load (string-append (getcwd) "/env/guix/os/hypie.scm")))
 (define (services os)
   (shepherd-configuration-services
    (service-value (fold-services (operating-system-services os)
@@ -76,6 +59,8 @@
 (define restricted
   (service-value (fold-services (operating-system-services installed-os)
                                 #:target-type restricted-network-service-type)))
+(test-equal "hypie routes bridges ahead of fwd2home's rule" 200
+  (restricted-network-config-vpn-bypass-priority restricted))
 (define redroid-policy
   (network-policy-of (car (restricted-network-config-networks restricted))))
 (test-equal "redroid uses the common firewall" "restricted_network"

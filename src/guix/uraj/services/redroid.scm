@@ -45,8 +45,10 @@
 (define-record-type* <redroid-configuration>
   redroid-configuration make-redroid-configuration redroid-configuration?
   (name redroid-name (default "redroid-maa"))
-  ;; Bootstrap tag: pin the working registry digest after device validation.
-  (image redroid-image (default "docker.io/redroid/redroid:11.0.0-latest"))
+  ;; docker.io/redroid/redroid:11.0.0-latest as of 2026-10-11 (still on
+  ;; 2026-10-15); refresh with `oci-digest' on that tag.
+  (image redroid-image
+         (default "docker.io/redroid/redroid@sha256:60b0810684be4578733a847be3314c50b70f73bc92405b5a627ebe9b633ebb5e"))
   (data-directory redroid-data-directory (default "/var/lib/redroid/data/maa"))
   (network redroid-network (default %redroid-network))
   (address redroid-address (default "10.203.0.2"))
