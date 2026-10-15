@@ -99,6 +99,41 @@ class Launcher(unittest.TestCase):
         return result, argv, environment
 
 
+class VersionProbe(Launcher):
+    def test_version_skips_project_and_container_preparation(self):
+        # Cold-start probes must not wait for SOPS, inspect a stale session
+        # directory, or ask Guix to build the agent's environment.
+        self.config.write_text("not valid scheme (")
+        result, argv, _ = self.launch(
+            "git",
+            "--version",
+            TEST_PROJECTS_SECRET=str(self.secrets / "missing"),
+            PASEO_AGENT_CWD=str(self.root / "missing-project"),
+        )
+        expected = subprocess.check_output(
+            [self.tools["git"], "--version"], text=True
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, expected)
+        self.assertIsNone(argv)
+
+    def test_only_exact_version_probe_skips_container(self):
+        for args in (("--version", "extra"), ("auth", "status"), ()):
+            with self.subTest(args=args):
+                result, argv, _ = self.launch("git", *args)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn("--container", argv)
+                self.assertEqual(
+                    argv[-1 - len(args) :], [self.tools["git"], *args]
+                )
+
+    def test_unknown_provider_version_still_fails(self):
+        result, argv, _ = self.launch("unknown", "--version")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("unknown agent unknown", result.stderr)
+        self.assertIsNone(argv)
+
+
 class Environment(Launcher):
     def test_value_travels_in_the_environment_only(self):
         self.policy(f'(env "GH_TOKEN" (file "{self.secret}"))')
@@ -291,7 +326,7 @@ class GitCredentials(Launcher):
             "for k in user.name push.default filter.lfs.required; do "
             'git config --get "$k"; done; git config --global --list'
         )
-        result, argv, environment = self.launch("git", "--version")
+        result, argv, environment = self.launch("git")
         self.assertEqual(result.returncode, 0, result.stderr)
         entry = argv[argv.index("--") + 1 :]
         program = entry.index(self.tools["git"])
@@ -323,7 +358,7 @@ class GitCredentials(Launcher):
         hook.chmod(0o755)
         (self.project / "sub").mkdir()
         self.policy('(git-hooks "hooks")')
-        result, argv, environment = self.launch("git", "--version")
+        result, argv, environment = self.launch("git")
         self.assertEqual(result.returncode, 0, result.stderr)
         entry = argv[argv.index("--") + 1 :]
         program = entry.index(self.tools["git"])
@@ -374,9 +409,7 @@ class Direnv(Launcher):
 
     def approval(self, directory):
         """The approval written by the entry script, or None."""
-        result, argv, environment = self.launch(
-            "git", "--version", cwd=directory
-        )
+        result, argv, environment = self.launch("git", cwd=directory)
         self.assertEqual(result.returncode, 0, result.stderr)
         # The container's home starts without the host's approvals.
         shutil.rmtree(self.allowed, ignore_errors=True)
@@ -420,7 +453,7 @@ class Direnv(Launcher):
             'printf "export FROM_DIRENV=%q\\n" "$PWD"\n'
         )
         direnv.chmod(0o755)
-        result, argv, environment = self.launch("git", "--version")
+        result, argv, environment = self.launch("git")
         self.assertEqual(result.returncode, 0, result.stderr)
         entry = argv[argv.index("--") + 1 :]
         program = entry.index(self.tools["git"])

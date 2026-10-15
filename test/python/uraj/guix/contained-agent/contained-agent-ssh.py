@@ -27,6 +27,7 @@ class ProjectSSH(unittest.TestCase):
                 "ssh-add",
                 "ssh-keygen",
                 "ssh",
+                "true",
             )
         }
         self.assertTrue(all(tools.values()), tools)
@@ -96,7 +97,9 @@ class ProjectSSH(unittest.TestCase):
             driver.write_text(
                 """(use-modules (uraj bin contained-agent))
 (contained-agent-main (cons "contained-agent" (cdr (command-line)))
- #:agents '(("probe" (program . "/bin/true"))) #:common '() #:packages '()
+ #:agents '(("probe" (program . """
+                + json.dumps(tools["true"])
+                + """))) #:common '() #:packages '()
  #:git """
                 + json.dumps(tools["git"])
                 + " #:ssh-tools '("
@@ -438,6 +441,9 @@ class ProjectSSH(unittest.TestCase):
                         "contained-agent",
                         real_home,
                         str(projects[0]),
+                        "",  # No project Git hooks.
+                        "",  # No direnv approval.
+                        "",  # No approved .envrc path.
                         "0",
                         tools["ssh"],
                         "-G",
@@ -480,7 +486,11 @@ class ProjectSSH(unittest.TestCase):
                 original = state.read_text()
 
                 policy("b.example.test")
+                capture.unlink()
                 run("probe", "--version", cwd=projects[0])
+                self.assertEqual(original, state.read_text())
+                self.assertFalse(capture.exists())
+                run("probe", "auth", "status", cwd=projects[0])
                 self.assertEqual(original, state.read_text())
                 self.assertNotIn(
                     "SSH_AUTH_SOCK=/run/contained-agent/ssh.sock",
