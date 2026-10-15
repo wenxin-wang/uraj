@@ -4,7 +4,8 @@
 
 ** Design
 
-Hypie runs an Android container named =redroid-maa= under Docker.  Guix
+The hypie deployment template runs =redroid-maa= under Docker; its imports
+and service block currently remain commented out pending deployment.  Guix
 declares the container and its dependencies; Shepherd manages its lifecycle.
 Android's =/data= is bind-mounted from =/var/lib/redroid/data/maa= on the
 system disk.  Other Android instances must have separate names, data
@@ -35,8 +36,8 @@ Android.  Do not use host networking: Android manages routes and networking
 inside its namespace, and its ADB daemon must not listen on the host's LAN
 interfaces.  Do not publish container ports.
 
-Guix owns IPv4 forwarding and a dedicated nftables table for container
-egress masquerading and forwarding restrictions.  Docker's automatic
+Guix's shared [[file:restricted-network.org][restricted-network service]] owns IPv4 forwarding and
+nftables tables for egress masquerading and filtering.  Docker's automatic
 iptables/ip6tables, IP forwarding and userland proxy management are disabled.
 The default Docker bridge is disabled; the redroid network is explicitly
 provisioned.  Rules must not flush or replace unrelated host/VPN rules.
@@ -44,20 +45,44 @@ Unsolicited forwarding into redroid is blocked; the host can connect
 directly to the instance's private IP.  The private subnet must not overlap
 the host's LAN or VPN routes.  Wi-Fi and Ethernet use the same routed design.
 
-Only =inet uraj_redroid= and =ip uraj_redroid_nat= are replaced, atomically.
-Stopping =redroid-network= retains the network and its protection; it never
+Only =inet restricted_network= and =ip restricted_network= are replaced,
+atomically.  Stopping the network services retains protection; it never
 deletes other instances' network.  Unrelated firewall tables are retained.
 An existing host firewall can still reject forwarding: its policy must also
-permit the intended traffic.  Containers may initiate outgoing connections;
-new connections from the bridge into host services are blocked.  Host-started
+permit the intended traffic.  Containers may initiate public TCP/UDP
+connections, but cannot access LAN/VPN/private destinations or host services.
+DNS on TCP/UDP 53 is restricted to the configured resolver.  Host-started
 ADB connections and their replies are allowed.  Containers on the same bridge
 are not isolated from one another at layer 2; only trusted Android instances
 should share it.
 
-Android DNS is explicitly set to =223.5.5.5= via the instance's =dns= field,
-not inherited automatically from NetworkManager or the VPN.  Egress follows
-the host's forwarding/routing policy; host-only proxy settings are not
-automatically used by Android.  Split-tunnel VPN behavior needs device testing.
+The =network= field of =redroid-configuration= holds a =restricted-network=
+record, defaulting to =%redroid-network=.  The redroid service contributes
+this record directly to =restricted-network-service-type=; no separate
+redroid network service or field-conversion layer is needed.
+
+#+begin_src scheme
+(service restricted-network-service-type)
+(service redroid-service-type
+  (redroid-configuration
+    (network
+     (restricted-network
+       (inherit %redroid-network)
+       (egress-interfaces #t)))
+    (auto-start? #f)))
+#+end_src
+
+Set the embedded network's =egress-interfaces= to =#t= or the actual uplink
+list; the empty default permits no new outbound traffic.  Public LAN/VPN
+prefixes and public addresses that hairpin to private services must be added
+to the policy's =blocked-destinations=.  The container network name comes
+from the same record.  Docker's =--dns= options and Android's numbered DNS
+boot arguments both use its policy's =dns-servers= list, which defaults to
+='("114.114.114.114")=.  Redroid requires an explicit nonempty IPv4 list: =host=
+snapshots are unavailable when its Android boot arguments are generated.
+Egress follows the host's forwarding/routing policy; host-only proxy settings
+are not automatically used by Android.  Split-tunnel VPN behavior needs
+device testing.
 
 ** Control plane
 
@@ -70,11 +95,12 @@ or its persistent data.
 
 ** Implementation and first deployment
 
-- =src/guix/uraj/services/redroid.scm=: Docker settings, network/firewall
-  service and extensible redroid instance service, using Guix's OCI service.
-- =src/guix/uraj/build/redroid.scm=: runtime checks and network provisioning.
-- =env/guix/os/hypie.scm=: enables containerd, Docker, the private network
-  and the MAA instance only on the installed system, not the installer ISO.
+- =src/guix/uraj/services/redroid.scm=: Docker settings, public-only network
+  policy contribution and Android instance service using Guix's OCI service.
+- =src/guix/uraj/build/redroid.scm=: Android runtime checks.
+- =env/guix/os/hypie.scm=: opt-in deployment block, still disabled.  Enable
+  its imports, base =restricted-network-service-type= and redroid services
+  together, and configure permitted egress before starting the instance.
 
 The container initially has =(auto-start? #f)=.  Docker and network services
 start at boot, but Android starts only on =herd start redroid-maa=.  After
@@ -122,8 +148,8 @@ sudo herd start redroid-maa
 sudo herd status redroid-maa
 sudo docker logs --tail 100 redroid-maa
 sudo docker network inspect redroid
-sudo nft list table inet uraj_redroid
-sudo nft list table ip uraj_redroid_nat
+sudo nft list table inet restricted_network
+sudo nft list table ip restricted_network
 #+end_src
 
 Install/use =adb= and =scrcpy= as client-side tools; no Android controller
@@ -158,6 +184,11 @@ scrcpy -s 127.0.0.1:15555
 #+end_src
 
 ** Validation status
+
+The network implementation now uses the shared restricted-network service;
+see [[file:restricted-network.org][its tests and migration instructions]].  The following records describe
+the earlier redroid-specific implementation and are historical, not proof of
+the new policy's deployment on hypie.
 
 The service graph and subnet/network drift checks have automated tests:
 
