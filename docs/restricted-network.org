@@ -171,7 +171,20 @@ traffic permitted here.  Do not globally flush rules during firewall reloads.
 On start, the program checks all IPv4 routing tables for subnet conflicts,
 checks declared uplinks and existing Docker network settings, then validates
 the nft transaction.  It reserves topology on disk, loads both tables in one
-transaction, and only then creates missing Docker bridges.  A failed load
+transaction, and only then creates missing Docker bridges.  Finally it checks
+that each subnet resolves through its bridge.
+
+A full-tunnel VPN such as strongSwan's =from all lookup 220= (priority 220)
+puts a default route in its own table that captures bridge traffic in both
+directions; that table never names the subnet, so the route-conflict check
+cannot see it.  On such hosts set =vpn-bypass-priority= to a priority ahead
+of the VPN's rule, e.g. =(restricted-network-configuration
+(vpn-bypass-priority 200))=; the service then adds =to SUBNET lookup main= at
+that priority for each network.  Host traffic still uses the tunnel, and
+masqueraded workload traffic does not match the tunnel's source-address
+policy.  Any other rule at that priority is refused rather than replaced.
+The default =#f= adds no rule; a captured subnet still fails the bridge
+route check.  A failed load
 keeps the old rules.  A failed create can leave a protected network or reserved
 topology for retry; it never deletes an existing network to repair drift.
 
@@ -183,7 +196,8 @@ subnet/gateway.  Additions and policy updates are allowed.  Removal,
 renumbering, bridge/backend changes and table renaming are refused even if a
 bridge happens to be absent.  For such a change, first stop all dependent
 workloads, inspect Docker endpoints, remove only the intended empty networks,
-then reconcile the saved topology and owned tables offline.  Do not delete
+then reconcile the saved topology, owned tables and any VPN bypass rule
+for the subnet offline.  Do not delete
 the state merely to make a live reconfiguration pass.  Guix rollback does
 not automatically reverse network topology.
 
@@ -306,3 +320,9 @@ empty-list egress denial.  Ruff checks passed and the generated Guix
 provisioning program was built successfully.  Both generated entry points
 also passed the isolated module-loading test.  No live system reconfiguration
 was performed.
+
+The VPN bypass has mock runtime tests (added once, refused when a foreign
+rule holds the priority, absent by default, and capture detected with or
+without it).  It was also run with real =ip= in a user/network namespace with
+a simulated strongSwan table 220: before, the subnet resolved via table 220;
+after two runs, through its bridge.

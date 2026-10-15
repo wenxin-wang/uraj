@@ -7,7 +7,7 @@
   #:use-module (uraj network-policy)
   #:use-module (uraj build restricted-network-docker)
   #:export (conflicting-routes check-topology-transition read-host-dns
-            wait-for-host-dns
+            wait-for-host-dns bypass-rule-subnet
             ensure-restricted-networks))
 
 (define (dns-ipv4-upstream address)
@@ -84,6 +84,48 @@
             (ipv4-overlap? (list-ref topology 3) dst))))
    (vector->list routes)))
 
+;; A full-tunnel VPN such as strongSwan ("from all lookup 220", pref 220)
+;; puts a default route in its own table, which captures bridge subnets in
+;; both directions.  That table never names the subnets, so conflicting-routes
+;; cannot see it; an opt-in rule ahead of it keeps them in the main table.
+(define (bypass-rule-subnet rule)
+  ;; Subnet of an unconditional "to SUBNET lookup main" rule, otherwise #f.
+  (let ((dst (assoc-ref rule "dst")) (len (assoc-ref rule "dstlen")))
+    (and dst len
+         (equal? (assoc-ref rule "table") "main")
+         (member (assoc-ref rule "src") (list #f "all"))
+         (not (assoc-ref rule "iif")) (not (assoc-ref rule "oif"))
+         (not (assoc-ref rule "fwmark"))
+         (string-append dst "/" (number->string len)))))
+
+(define (ensure-bypass-rules ip priority topologies)
+  (let* ((priority (number->string priority))
+         (subnets (map (lambda (t) (list-ref t 3)) topologies))
+         (rules (vector->list
+                 (read-command-json ip "-j" "-4" "rule" "show"
+                                    "pref" priority)))
+         (existing (map bypass-rule-subnet rules)))
+    (unless (every (lambda (subnet) (and subnet (member subnet subnets)))
+                   existing)
+      (error "Routing rule priority already in use" priority rules))
+    (for-each (lambda (subnet)
+                (unless (member subnet existing)
+                  (invoke ip "-4" "rule" "add" "pref" priority
+                          "to" subnet "lookup" "main")))
+              subnets)))
+
+(define (check-bridge-routes ip topologies)
+  ;; Also without a bypass: fail loudly rather than run a capture-routed net.
+  (for-each
+   (lambda (topology)
+     (let* ((probe (car (string-split (list-ref topology 3) #\/)))
+            (route (vector-ref (read-command-json ip "-j" "-4" "route" "get" probe)
+                               0)))
+       (unless (equal? (assoc-ref route "dev") (list-ref topology 2))
+         (error "Restricted subnet does not route through its bridge"
+                topology route))))
+   topologies))
+
 (define (check-topology-transition previous table topologies)
   (match previous
     ((old-table old-topologies)
@@ -96,6 +138,7 @@
 (define* (ensure-restricted-networks docker nft ip rules table topologies egress
                                     #:key (state-directory "/var/lib/restricted-network")
                                     (any-egress? #f)
+                                    (vpn-bypass-priority #f)
                                     (inherit-host-dns? #f)
                                     (resolv-conf "/etc/resolv.conf")
                                     (dns-attempts 30)
@@ -154,6 +197,9 @@
           (invoke nft "--file" effective-rules)
           (for-each (lambda (topology) (ensure-docker-network docker topology))
                     topologies)
+          (when vpn-bypass-priority
+            (ensure-bypass-rules ip vpn-bypass-priority topologies))
+          (check-bridge-routes ip topologies)
           (when servers
             (rename-file (string-append runtime-directory "/resolv.conf.new")
                          (string-append runtime-directory "/resolv.conf")))))

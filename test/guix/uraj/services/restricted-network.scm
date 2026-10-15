@@ -17,6 +17,8 @@
 (test-equal "storie permits any routed interface" #t (network-egress agents))
 (test-equal "storie inherits host DNS at service start" 'host
   (policy-dns (network-policy-of agents)))
+(test-equal "storie has no full-tunnel VPN bypass" #f
+  (restricted-network-config-vpn-bypass-priority config))
 (test-equal "table has no project prefix" "restricted_network"
   (restricted-network-config-table config))
 (test-assert "startup program carries local modules and their Guix dependencies"

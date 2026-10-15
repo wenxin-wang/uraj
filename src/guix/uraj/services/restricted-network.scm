@@ -13,13 +13,18 @@
   #:use-module (uraj packages docker)
   #:export (restricted-network-configuration restricted-network-service-type
             restricted-network-config-table restricted-network-config-networks
+            restricted-network-config-vpn-bypass-priority
             restricted-network-firewall-file restricted-network-program))
 
 (define-record-type* <restricted-network-configuration>
   restricted-network-configuration make-restricted-network-configuration
   restricted-network-configuration?
   (table-name restricted-network-config-table (default "restricted_network"))
-  (networks restricted-network-config-networks (default '())))
+  (networks restricted-network-config-networks (default '()))
+  ;; Routing rule priority for "to SUBNET lookup main", needed below a
+  ;; full-tunnel VPN's catch-all rule (e.g. 200 for strongSwan's 220).
+  (vpn-bypass-priority restricted-network-config-vpn-bypass-priority
+                       (default #f)))
 
 (define (restricted-network-firewall-file config)
   (plain-file "restricted-network.nft"
@@ -45,6 +50,8 @@
                                   (let ((egress (network-egress net)))
                                     (if (eq? egress #t) '() egress)))
                                 networks))
+               #:vpn-bypass-priority
+               #$(restricted-network-config-vpn-bypass-priority config)
                #:any-egress?
                #$(any (lambda (net) (eq? (network-egress net) #t)) networks)
                #:inherit-host-dns?
