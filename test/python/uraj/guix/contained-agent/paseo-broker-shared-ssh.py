@@ -91,13 +91,16 @@ class SharedSSHTest(unittest.TestCase):
             "print('test-password')\n"
         )
         askpass.chmod(0o700)
+        agent = self.root / "agent"
+        agent.write_text(f"#!{sys.executable}\nprint('probe 1.0')\n")
+        agent.chmod(0o700)
         driver = self.root / "driver.scm"
         tool_names = ("ssh-agent", "ssh-add", "bash", "sha256sum")
         driver.write_text(
             "(use-modules (uraj bin contained-agent))\n"
             f'(setenv "HOME" {json.dumps(str(self.home))})\n'
             '(contained-agent-main (cons "contained-agent" (cdr (command-line)))\n'
-            ' #:agents \'(("codex" (program . "/bin/true")))\n'
+            f' #:agents \'(("codex" (program . {json.dumps(str(agent))})))\n'
             " #:common '() #:packages '()\n"
             f" #:projects-file {json.dumps(str(self.policy))}\n"
             f" #:git {json.dumps(self.tools['git'])}\n"
@@ -229,7 +232,7 @@ if 'hold' in sys.argv:
         return output.decode().strip()
 
     def test_concurrent_and_later_sessions_reuse_one_unlock(self):
-        self.assertEqual(self.result(self.client("--version")), "no-ssh")
+        self.assertEqual(self.result(self.client("--version")), "probe 1.0")
         self.assertEqual(self.result(self.client("auth", "status")), "no-ssh")
         self.assertFalse(self.prompts.exists())
         self.assertFalse(list(self.broker_directory.glob("ssh-*")))
@@ -239,7 +242,7 @@ if 'hold' in sys.argv:
         self.assertEqual(self.result(second), sock)
         self.assertEqual(self.result(self.client()), sock)
         self.assertEqual(self.prompts.read_text().splitlines(), ["prompt"])
-        self.assertEqual(self.result(self.client("--version")), "no-ssh")
+        self.assertEqual(self.result(self.client("--version")), "probe 1.0")
         self.assertEqual(self.result(self.client("auth", "status")), "no-ssh")
         # A still-running session must retain its socket when another starts.
         held = self.client("hold")

@@ -724,10 +724,21 @@ NUL.  All ssh-add output goes to stderr, never into this private protocol."
         (loop)))))
 
 (define (run-agent name args agents common packages git projects-file ssh-tools)
+  (let* ((spec (or (assoc-ref agents name)
+                  (die "unknown agent ~a" name)))
+         (program (assq-ref spec 'program)))
+    ;; Paseo gives --version only five seconds and caches a failed probe as
+    ;; unsupported features. This exact invocation needs no project policy,
+    ;; credentials, overlays or Guix profile; run the configured binary.
+    ;; All other arguments, including auth status, still use the container.
+    (if (equal? args '("--version"))
+        (execl program program "--version")
+        (run-agent-container spec args common packages git projects-file
+                             ssh-tools))))
+
+(define (run-agent-container spec args common packages git projects-file ssh-tools)
   (let*-values
-      (((spec) (or (assoc-ref agents name)
-                   (die "unknown agent ~a" name)))
-       ((home) (getenv "HOME"))
+      (((home) (getenv "HOME"))
        ((workdir) (working-directory))
        ((project top mounts)
         ;; Paseo's helper app-servers (model lists etc.) and stray launches
