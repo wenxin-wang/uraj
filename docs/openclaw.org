@@ -289,7 +289,9 @@ Guix 在服务热更新失败后仍可能打印 =successfully deployed=；这时
 系统配置已切换，运行中的 Shepherd 服务可能仍是旧配置。
 
 初版集成可能出现 =no code for module (uraj build openclaw)=。修复后的
-启动闭包只使用 Guile 自带模块，准备程序独立加载自己的依赖。更新到
+启动闭包只使用 Guile 自带模块。准备程序使用 =with-uraj-modules=
+打包本地模块及依赖，避免 =source-module-closure= 的默认过滤条件漏掉
+=uraj= 模块；否则直接执行 =openclaw-prepare= 也会报同样的错误。更新到
 包含修复的仓库版本后，在 lappie 再运行 =uraj-deploy storie=，然后在
 storie 检查：
 
@@ -307,6 +309,7 @@ sudo /etc/openclaw/compose ps
 #+begin_src sh
 guix repl -L src/guix -L src/guile test/guix/uraj/services/openclaw.scm
 guix repl -L src/guix test/guix/uraj/openclaw-runtime.scm
+guix build -L src/guix -L src/guile -f test/guix/uraj/openclaw-program.scm
 #+end_src
 
 服务测试检查 Guix/SOPS 组合、权限、网络、SecretRef、镜像选择和失败
@@ -323,16 +326,20 @@ guix repl -L src/guix test/guix/uraj/openclaw-runtime.scm
 storie 上的镜像内容、凭据有效性或飞书授权，也未执行主机 reconfigure。
 镜像运行时的 schema 检查与端到端验收在部署时执行。
 
-本轮验证：77 项服务断言、35 项运行时断言、33 项 SOPS 回归断言及
-42 项 new-api 回归断言全部通过（共 187 项）。Guix 成功构建最终声明
+本轮验证：78 项服务断言、35 项运行时断言、33 项 SOPS 回归断言及
+42 项 new-api 回归断言全部通过（共 188 项）。Guix 成功构建最终声明
 对应的配置、Compose 文件和 =openclaw-prepare= 程序。仓库风格检查器
 只覆盖 C/C++/Python，不支持本次 Scheme 文件；Scheme 由上述测试加载
 并检查，补充执行 =git diff --check=。
 
-修复热更新加载问题后，77 项服务断言通过，并在使用临时 socket 的
+修复热更新加载问题后，78 项服务断言通过，并在使用临时 socket 的
 独立 Shepherd 1.0.9 中，通过 =root eval= 加载、注册生成的服务文件，
 确认 =openclaw= 存在且为 stopped。此检查未启动容器或修改系统 Shepherd；
 storie 上的实际热更新仍需重新部署确认。
+
+准备程序另有 Guix 构建隔离测试：使用生产 gexp 自带的模块元数据，
+清除外部 Guile 搜索路径，加载真实运行时模块后替换文件操作入口，
+验证生成程序能调用该入口；不读取秘密、不写入主机数据目录。
 
 * 参考
 
