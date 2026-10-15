@@ -41,6 +41,9 @@ for tool in adb scrcpy curl ssh; do
         exit 127
     fi
 done
+# scrcpy embeds Guix's adb, whose server crashes; use the one in PATH
+# (android-platform-tools) so both talk to the same server.
+export ADB=${ADB:-$(command -v adb)}
 
 ctl=
 cleanup() {

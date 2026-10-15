@@ -20,6 +20,7 @@
   #:use-module (uraj home llm)
   #:use-module (uraj home keyring)
   #:use-module (small-guix packages scrcpy)
+  #:use-module (uraj packages android)
   #:use-module (uraj packages basic-packages)
   #:use-module (uraj packages input-methods)
   #:use-module (uraj packages rime)
@@ -35,6 +36,7 @@
          kdeconnect                     ;kdeconnect-app/-cli and plugins
          ksshaskpass-with-qtkeychain      ;GNOME Keyring on niri, no SSH agent
          scrcpy                         ;hypie-maa screen/login
+         android-platform-tools         ;adb for hypie-maa; Guix's crashes
          (specifications->packages
           '("font-jigmo"
             "font-jetbrains-mono"
@@ -50,9 +52,7 @@
             ;; Network packet analysis (GUI and command-line tools).
             "wireshark"
             ;; For general desktop settings
-            "evtest"
-            ;; hypie-maa: ADB to the hypie redroid instance.
-            "adb"))))
+            "evtest"))))
 
 (define (merged-terminfo-directory packages)
   "Return a directory merging the `share/terminfo' trees of PACKAGES, each
