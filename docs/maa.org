@@ -56,14 +56,33 @@ ADB connections and their replies are allowed.  Containers on the same bridge
 are not isolated from one another at layer 2; only trusted Android instances
 should share it.
 
-Set =egress-interfaces= on =redroid-network-configuration= to the actual
-uplink(s); the empty default permits no new outbound traffic.  Public LAN/VPN
+The =network= field of =redroid-configuration= holds a =restricted-network=
+record, defaulting to =%redroid-network=.  The redroid service contributes
+this record directly to =restricted-network-service-type=; no separate
+redroid network service or field-conversion layer is needed.
+
+#+begin_src scheme
+(service restricted-network-service-type)
+(service redroid-service-type
+  (redroid-configuration
+    (network
+     (restricted-network
+       (inherit %redroid-network)
+       (egress-interfaces #t)))
+    (auto-start? #f)))
+#+end_src
+
+Set the embedded network's =egress-interfaces= to =#t= or the actual uplink
+list; the empty default permits no new outbound traffic.  Public LAN/VPN
 prefixes and public addresses that hairpin to private services must be added
-to =blocked-destinations=.  Android and Docker DNS are explicitly set to
-=223.5.5.5= via the instance's =dns= field; keep the network configuration's
-=dns= field in sync.  DNS is not inherited from NetworkManager or the VPN.  Egress follows
-the host's forwarding/routing policy; host-only proxy settings are not
-automatically used by Android.  Split-tunnel VPN behavior needs device testing.
+to the policy's =blocked-destinations=.  The container network name comes
+from the same record.  Docker's =--dns= options and Android's numbered DNS
+boot arguments both use its policy's =dns-servers= list, which defaults to
+='("223.5.5.5")=.  Redroid requires an explicit nonempty IPv4 list: =host=
+snapshots are unavailable when its Android boot arguments are generated.
+Egress follows the host's forwarding/routing policy; host-only proxy settings
+are not automatically used by Android.  Split-tunnel VPN behavior needs
+device testing.
 
 ** Control plane
 
@@ -81,7 +100,7 @@ or its persistent data.
 - =src/guix/uraj/build/redroid.scm=: Android runtime checks.
 - =env/guix/os/hypie.scm=: opt-in deployment block, still disabled.  Enable
   its imports, base =restricted-network-service-type= and redroid services
-  together, and configure actual uplinks before starting the instance.
+  together, and configure permitted egress before starting the instance.
 
 The container initially has =(auto-start? #f)=.  Docker and network services
 start at boot, but Android starts only on =herd start redroid-maa=.  After

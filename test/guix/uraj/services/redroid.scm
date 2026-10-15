@@ -20,9 +20,11 @@
                   (service docker-service-type %redroid-docker-configuration)
                   (service oci-service-type (oci-configuration (runtime 'docker)))
                   (service restricted-network-service-type)
-                  (service redroid-network-service-type
-                    (redroid-network-configuration (egress-interfaces '("uplink"))))
-                  (service redroid-service-type))
+                  (service redroid-service-type
+                    (redroid-configuration
+                      (network (restricted-network
+                                 (inherit %redroid-network)
+                                 (egress-interfaces '("uplink")))))))
             (operating-system-user-services os)))))))
 (define (services os)
   (shepherd-configuration-services
@@ -44,7 +46,7 @@
 (define installed (services installed-os))
 (test-assert "Android waits for networking, firewall, sysctl, devices and Docker"
   (every (lambda (r) (memq r (ancestors installed 'redroid-maa)))
-         '(restricted-network redroid-network redroid-maa-ready sysctl udev dockerd)))
+         '(restricted-network redroid-maa-ready sysctl udev dockerd)))
 (test-assert "Android is independent of data pools and VPN secrets"
   (not (any (lambda (r) (memq r '(zfs-data-ready zfs-mount sops-secrets vpn-fwd2home)))
             (ancestors installed 'redroid-maa))))
@@ -63,7 +65,7 @@
 (for-each
  (lambda (name)
    (test-assert (format #f "installer omits ~a" name) (not (lookup live name))))
- '(containerd dockerd restricted-network redroid-network redroid-maa redroid-maa-ready))
+ '(containerd dockerd restricted-network redroid-maa redroid-maa-ready))
 
 (define restricted
   (service-value (fold-services (operating-system-services installed-os)
@@ -93,6 +95,51 @@
           (oci-container-configuration-command container)))
 (test-equal "wrapper runs before Android without APEX dependencies" "/redroid-init"
   (oci-container-configuration-entrypoint container))
+
+(define custom-network
+  (restricted-network
+    (inherit %redroid-network)
+    (name "android-test") (bridge "br-android-test")
+    (subnet "10.207.0.0/24") (gateway "10.207.0.1")
+    (egress-interfaces #t)
+    (policy (network-policy
+              (inherit (network-policy-of %redroid-network))
+              (dns-servers '("172.31.0.53" "172.31.0.54"))
+              (public-egress '((tcp 443)))))))
+(define custom-config
+  (redroid-configuration (network custom-network) (address "10.207.0.2")))
+(define custom-container (redroid-container custom-config))
+(define custom-restricted
+  (service-value
+   (fold-services
+    (map (lambda (entry)
+           (if (eq? (service-kind entry) redroid-service-type)
+               (service redroid-service-type custom-config)
+               entry))
+         (operating-system-services installed-os))
+    #:target-type restricted-network-service-type)))
+(test-eq "service contributes the embedded network unchanged" custom-network
+  (car (restricted-network-config-networks custom-restricted)))
+(test-equal "container uses the embedded network name" "android-test"
+  (oci-container-configuration-network custom-container))
+(test-equal "Docker DNS comes from the network policy"
+  '("--dns" "172.31.0.53" "--dns" "172.31.0.54" "--privileged" "--ip" "10.207.0.2")
+  (take (oci-container-configuration-extra-arguments custom-container) 7))
+(test-equal "Android DNS comes from the same network policy"
+  '("androidboot.redroid_net_ndns=2"
+    "androidboot.redroid_net_dns1=172.31.0.53"
+    "androidboot.redroid_net_dns2=172.31.0.54")
+  (filter (lambda (arg) (string-prefix? "androidboot.redroid_net_" arg))
+          (oci-container-configuration-command custom-container)))
+(for-each
+ (lambda (dns)
+   (test-error "reject DNS that cannot populate Android boot arguments" #t
+     (redroid-container
+      (redroid-configuration
+        (network (restricted-network
+                   (inherit %redroid-network)
+                   (policy (network-policy (dns-servers dns)))))))))
+ '(host () ("::1") ("invalid")))
 
 (define failures (test-runner-fail-count (test-runner-current)))
 (test-end "redroid")

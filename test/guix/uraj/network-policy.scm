@@ -123,9 +123,9 @@
   (restricted-network
     (inherit agents)
     (egress-interfaces '("uplink"))
-    (policy (network-policy-of
-             (redroid-restricted-network
-              (redroid-network-configuration (dns "9.9.9.9")))))))
+    (policy (network-policy
+              (inherit (network-policy-of %redroid-network))
+              (dns-servers '("9.9.9.9"))))))
 (when (> (length (command-line)) 1)
   (for-each
    (lambda (entry)

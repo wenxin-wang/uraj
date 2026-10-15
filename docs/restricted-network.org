@@ -83,11 +83,15 @@ this interface-based policy.  Direct TCP/UDP DNS from a workload is allowed
 only to the declared servers (or an explicit forwarding exception).  HTTPS
 egress includes DoH and is not a domain allowlist.
 
-Redroid contributes a separate =redroid= / =br-redroid= network to the same
-service.  Its policy permits public TCP/UDP on all ports, except DNS which
+Redroid embeds a =restricted-network= record in =redroid-configuration='s
+=network= field and contributes it directly to the same service.  The default
+=%redroid-network= declares =redroid= / =br-redroid=.  Its policy permits
+public TCP/UDP on all ports, except DNS which
 is limited to its declared resolver; it grants no private-network, host or
 inbound exceptions.  Host-initiated ADB and replies remain possible.  Set
-=egress-interfaces= explicitly when enabling it.  Hypie's deployment block
+=egress-interfaces= on the embedded record when enabling it.  Docker network
+selection and Docker/Android DNS use the same record; redroid requires an
+explicit IPv4 DNS list for its boot arguments.  Hypie's deployment block
 remains commented out; the service is available without enabling Android.
 
 * Configuration and composition
@@ -224,7 +228,7 @@ only to the intended network, using the configured DNS, before attaching
 accounts or data.  The actual subnet is checked against host/VPN routes on
 startup; later routing changes still require operator review.
 
-Validation: 96 Scheme assertions and 45 packet checks passed, including the
+Validation: 103 Scheme assertions and 45 packet checks passed, including the
 redroid profile, inherited LAN DNS, unrestricted interface selection and
 empty-list egress denial.  Ruff checks passed and the generated Guix
 provisioning program was built successfully.  No live system reconfiguration

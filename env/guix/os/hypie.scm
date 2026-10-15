@@ -172,6 +172,7 @@
              (uraj services strongswan)
              ;; (uraj services redroid)
              ;; (uraj services restricted-network)
+             ;; (uraj network-policy)
              (uraj system base)
              (uraj system desktop)
              (uraj system initrd)
@@ -372,12 +373,13 @@
     ;;       (service docker-service-type %redroid-docker-configuration)
     ;;       (service oci-service-type (oci-configuration (runtime 'docker)))
     ;;       (service restricted-network-service-type)
-    ;;       (service redroid-network-service-type
-    ;;         ;; Replace YOUR_UPLINK with the actual interface(s) before enabling.
-    ;;         (redroid-network-configuration
-    ;;           (egress-interfaces '("YOUR_UPLINK"))))
     ;;       (service redroid-service-type
-    ;;                (redroid-configuration (auto-start? #f))))
+    ;;         (redroid-configuration
+    ;;           (network
+    ;;            (restricted-network
+    ;;              (inherit %redroid-network)
+    ;;              (egress-interfaces #t)))
+    ;;           (auto-start? #f))))
     (host-sops-services (append (map cdr %vpn-connections)
                                 %agent-secrets))
     (strongswan-services %vpn-connections #:at-boot '("fwd2home")))))

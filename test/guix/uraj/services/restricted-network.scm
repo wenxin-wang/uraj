@@ -1,6 +1,6 @@
 ;;; guix repl -L src/guix -L src/guile test/guix/uraj/services/restricted-network.scm
-(use-modules (gnu) (gnu services) (gnu services shepherd)
-             (gnu services sysctl) (srfi srfi-1) (srfi srfi-64)
+(use-modules (gnu) (gnu services) (gnu services containers) (gnu services shepherd)
+             (gnu services sysctl) (gnu system shadow) (srfi srfi-1) (srfi srfi-64)
              (uraj network-policy) (uraj services restricted-network)
              (uraj services redroid))
 
@@ -38,9 +38,14 @@
 (define combined
   (service-value
    (fold-services
-    (cons (service redroid-network-service-type
-            (redroid-network-configuration (egress-interfaces '("host0"))))
-          services)
+    (cons* (service subids-service-type)
+           (service oci-service-type (oci-configuration (runtime 'docker)))
+           (service redroid-service-type
+             (redroid-configuration
+               (network (restricted-network
+                          (inherit %redroid-network)
+                          (egress-interfaces '("host0"))))))
+           services)
     #:target-type restricted-network-service-type)))
 (test-equal "redroid contributes to the same owner" '("static-agent" "redroid")
   (map network-name (restricted-network-config-networks combined)))
