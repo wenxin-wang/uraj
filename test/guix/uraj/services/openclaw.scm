@@ -186,11 +186,16 @@
   (every (lambda (s) (and (equal? "root" (sops-secret-user s))
                           (= #o400 (sops-secret-permissions s)))) secrets))
 
+;; A hot upgrade must not import repository modules into the running daemon.
+(test-equal "start closure needs no imported module tree" '()
+  (gexp-modules (shepherd-service-start service)))
+
 ;; Execute the generated start closure without Docker or real credentials.
 (define* (start tag #:key (missing? #f) (fail-up? #f) (fail-validation? #f))
   (let ((m (make-fresh-user-module)) (calls '()) (stopped? #f))
     (for-each (lambda (interface) (module-use! m (resolve-interface interface)))
-              '((uraj build openclaw) (ice-9 popen) (ice-9 rdelim)))
+              (remove (lambda (interface) (member interface %default-modules))
+                      (shepherd-service-modules service)))
     (module-define! m '*approximate* (lambda () 'program))
     (module-define! m 'open-pipe*
       (lambda args (open-input-string "sha256:resolved-local-image\n")))

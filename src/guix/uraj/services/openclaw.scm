@@ -238,41 +238,53 @@
        (provision '(openclaw))
        (requirement '(dockerd restricted-network sops-secrets syslogd file-system-/data))
        (documentation "Run the private Feishu OpenClaw Gateway.")
+       ;; Hot upgrades evaluate this closure in the existing Shepherd process.
+       ;; Keep its dependencies in Guile; preparation has its own module paths.
+       (modules (append '((ice-9 popen) (ice-9 rdelim) (ice-9 regex))
+                        %default-modules))
        (start
-        (with-extensions (list guile-json-4)
-          (with-imported-modules (source-module-closure '((uraj build openclaw)))
-            #~(begin
-                (use-modules (uraj build openclaw) (ice-9 popen) (ice-9 rdelim))
-                (lambda* (#:optional tag)
-                  (let* ((image (openclaw-image-for-tag #$(openclaw-image config) tag
-                                                       #$(openclaw-image-repository config)))
-                         ;; Resolve the local image once. Run its immutable ID so
-                         ;; a tag update between inspect and up cannot change it.
-                         (port (open-pipe* OPEN_READ #$(file-append docker-full "/bin/docker")
-                                           "--host" "unix:///var/run/docker.sock"
-                                           "image" "inspect" "--format" "{{.Id}}" image))
-                         (id (read-line port))
-                         (status (close-pipe port)))
-                    (unless (and (zero? status) (string? id)
-                                 (string-prefix? "sha256:" id))
-                      (error "OpenClaw image must already exist locally" image))
-                    (invoke #$(openclaw-prepare-program config))
-                    (catch #t
-                      (lambda ()
-                        ;; Validate with the chosen image's own plugin schemas,
-                        ;; before starting the long-lived Gateway.
-                        (invoke #$(file-append coreutils "/bin/env")
-                                (string-append "OPENCLAW_IMAGE=" id)
-                                #$command "run" "--rm" "--no-deps" "--pull" "never"
-                                "gateway" "node" "openclaw.mjs" "config" "validate")
-                        (invoke #$(file-append coreutils "/bin/env")
-                                (string-append "OPENCLAW_IMAGE=" id)
-                                #$command "up" "-d" "--pull" "never" "--no-build"
-                                "--force-recreate" "--wait" "--wait-timeout" "180")
-                        (list image id))
-                      (lambda args
-                        (system* #$command "stop" "--timeout" "30")
-                        (apply throw args)))))))))
+        #~(lambda* (#:optional tag)
+            (define pinned #$(openclaw-image config))
+            (define base (car (string-split pinned #\@)))
+            (define colon (string-rindex base #\:))
+            (define slash (or (string-rindex base #\/) -1))
+            (define repository
+              (if (string-prefix? "sha256:" pinned)
+                  #$(openclaw-image-repository config)
+                  (if (and colon (> colon slash))
+                      (substring base 0 colon) base)))
+            (when tag
+              (unless (and (string? tag)
+                           (string-match "^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$" tag))
+                (error "Invalid OpenClaw image tag" tag)))
+            (let* ((image (if tag (string-append repository ":" tag) pinned))
+                   ;; Resolve the local image once. Run its immutable ID so
+                   ;; a tag update between inspect and up cannot change it.
+                   (port (open-pipe* OPEN_READ #$(file-append docker-full "/bin/docker")
+                                     "--host" "unix:///var/run/docker.sock"
+                                     "image" "inspect" "--format" "{{.Id}}" image))
+                   (id (read-line port))
+                   (status (close-pipe port)))
+              (unless (and (zero? status) (string? id)
+                           (string-prefix? "sha256:" id))
+                (error "OpenClaw image must already exist locally" image))
+              (invoke #$(openclaw-prepare-program config))
+              (catch #t
+                (lambda ()
+                  ;; Validate with the chosen image's own plugin schemas,
+                  ;; before starting the long-lived Gateway.
+                  (invoke #$(file-append coreutils "/bin/env")
+                          (string-append "OPENCLAW_IMAGE=" id)
+                          #$command "run" "--rm" "--no-deps" "--pull" "never"
+                          "gateway" "node" "openclaw.mjs" "config" "validate")
+                  (invoke #$(file-append coreutils "/bin/env")
+                          (string-append "OPENCLAW_IMAGE=" id)
+                          #$command "up" "-d" "--pull" "never" "--no-build"
+                          "--force-recreate" "--wait" "--wait-timeout" "180")
+                  (list image id))
+                (lambda args
+                  (system* #$command "stop" "--timeout" "30")
+                  (apply throw args))))))
        (stop #~(lambda _ (invoke #$command "stop" "--timeout" "30") #f))
        (actions (list (shepherd-configuration-action (openclaw-compose-file config))))))))
 
