@@ -135,8 +135,8 @@ Homes and the headless Homes."
   ;; Keep common scripting, download and archive tools available to every agent.
   ;; python-wrapper supplies both python and python3.  gh comes with the
   ;; agent tools.
-  '("bash" "bc" "bubblewrap" "bzip2" "coreutils" "curl" "diffutils" "file"
-    "findutils" "gawk" "git" "git-lfs" "grep" "gzip" "jq" "less"
+  '("bash" "bc" "bubblewrap" "bzip2" "coreutils" "curl" "diffutils" "direnv"
+    "file" "findutils" "gawk" "git" "git-lfs" "grep" "gzip" "jq" "less"
     "nss-certs" "patch" "perl" "procps" "python-wrapper" "ripgrep" "sed" "tar"
     "unzip" "wget" "which" "xz" "zip"))
 

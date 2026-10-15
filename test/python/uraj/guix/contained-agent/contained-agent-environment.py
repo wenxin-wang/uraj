@@ -4,6 +4,7 @@ Run with python3 test/python/uraj/guix/contained-agent/contained-agent-environme
 PATH needs Guile 3, Git and Bash.  No Guix daemon or network is needed.
 """
 
+import hashlib
 import json
 import os
 import shutil
@@ -68,6 +69,7 @@ class Launcher(unittest.TestCase):
             CONTAINED_AGENT_PROJECTS=str(self.config),
         )
         self.env.pop("PASEO_AGENT_CWD", None)
+        self.env.pop("XDG_DATA_HOME", None)
         self.command = [
             self.tools["guile"],
             "--no-auto-compile",
@@ -81,12 +83,12 @@ class Launcher(unittest.TestCase):
             f'(project "{self.project}" {" ".join(clauses)})'
         )
 
-    def launch(self, *args, **env):
+    def launch(self, *args, cwd=None, **env):
         self.record.unlink(missing_ok=True)
         result = subprocess.run(
             self.command + list(args or ["probe"]),
             env=dict(self.env, **env),
-            cwd=self.project,
+            cwd=cwd or self.project,
             text=True,
             capture_output=True,
             timeout=15,
@@ -341,6 +343,104 @@ class GitCredentials(Launcher):
         result, argv, environment = self.launch()
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("single (git-hooks DIR)", result.stderr)
+
+
+class Direnv(Launcher):
+    def setUp(self):
+        super().setUp()
+        self.config.write_text("")
+        self.allowed = self.home / ".local/share/direnv/allow"
+        (self.project / ".envrc").write_text("export A=1\n")
+        self.worktree = self.root / "worktrees/w"
+        for args in (
+            ["add", ".envrc"],
+            ["-c", "user.name=T", "-c", "user.email=t@x", "commit", "-qm", "m"],
+            ["worktree", "add", "-q", str(self.worktree)],
+        ):
+            subprocess.run(
+                [self.tools["git"], "-C", str(self.project), *args], check=True
+            )
+
+    @staticmethod
+    def name(envrc, contents):
+        """The approval's name as direnv computes it."""
+        data = f"{envrc}\n".encode() + Path(contents).read_bytes()
+        return hashlib.sha256(data).hexdigest()
+
+    def allow(self, directory):
+        envrc = directory / ".envrc"
+        self.allowed.mkdir(parents=True, exist_ok=True)
+        (self.allowed / self.name(envrc, envrc)).write_text(f"{envrc}\n")
+
+    def approval(self, directory):
+        """The approval written by the entry script, or None."""
+        result, argv, environment = self.launch(
+            "git", "--version", cwd=directory
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        # The container's home starts without the host's approvals.
+        shutil.rmtree(self.allowed, ignore_errors=True)
+        entry = argv[argv.index("--") + 1 :]
+        program = entry.index(self.tools["git"])
+        entry[program:] = ["true"]
+        inside = subprocess.run(
+            entry, env=environment, text=True, capture_output=True, timeout=15
+        )
+        self.assertEqual(inside.returncode, 0, inside.stderr)
+        files = list(self.allowed.iterdir()) if self.allowed.exists() else []
+        self.assertLessEqual(len(files), 1, files)
+        return (files[0].name, files[0].read_text()) if files else None
+
+    def test_host_approval_is_copied(self):
+        self.assertIsNone(self.approval(self.project))
+        self.allow(self.project)
+        envrc = self.project / ".envrc"
+        self.assertEqual(
+            self.approval(self.project),
+            (self.name(envrc, envrc), f"{envrc}\n"),
+        )
+
+    def test_worktree_inherits_main_approval_of_same_contents(self):
+        envrc = self.worktree / ".envrc"
+        self.allow(self.project)
+        self.assertEqual(
+            self.approval(self.worktree),
+            (self.name(envrc, envrc), f"{envrc}\n"),
+        )
+        # Contents the main work tree never approved.
+        envrc.write_text("export A=2\n")
+        self.allow(self.project)
+        self.assertIsNone(self.approval(self.worktree))
+
+    def test_environment_loads_for_the_agent_and_each_command(self):
+        # A direnv exporting the directory it runs in.
+        direnv = self.root / "bin/direnv"
+        direnv.write_text(
+            "#!" + shutil.which("bash") + "\n"
+            'printf "export FROM_DIRENV=%q\\n" "$PWD"\n'
+        )
+        direnv.chmod(0o755)
+        result, argv, environment = self.launch("git", "--version")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        entry = argv[argv.index("--") + 1 :]
+        program = entry.index(self.tools["git"])
+        # sh reads no BASH_ENV; the bash below stands for a command.
+        entry[program:] = [
+            "sh",
+            "-c",
+            'echo "$FROM_DIRENV"; cd / && bash -c \'echo "$FROM_DIRENV"\'',
+        ]
+        for claude, expected in ((None, "/"), ("1", str(self.project))):
+            env = dict(environment, CLAUDECODE=claude or "")
+            inside = subprocess.run(
+                entry, env=env, text=True, capture_output=True, timeout=15
+            )
+            self.assertEqual(inside.returncode, 0, inside.stderr)
+            self.assertEqual(
+                inside.stdout.splitlines(), [str(self.project), expected]
+            )
+        hook = self.home / ".local/share/contained-agent/direnv.bash"
+        self.assertIn("direnv export bash", hook.read_text())
 
 
 if __name__ == "__main__":

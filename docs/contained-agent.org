@@ -151,6 +151,38 @@ change.
 With =push.default=current=, a bare =git push= pushes the current branch to
 its namesake on =origin=, and =@{push}= resolves, without any upstream.
 
+** direnv
+
+=direnv= is among the container packages.  Its approvals live in the
+tmpfs home, so they start empty; the launcher carries over a single one,
+for the work tree's top-level =.envrc=, when the host approved it:
+
+- at the work tree's own path; or
+- for a linked worktree, such as Paseo's, at the main work tree's path with
+  the same contents.  The worktree's =.envrc= must be byte-identical to
+  what was allowed there, so a branch that changed it needs its own
+  =direnv allow= on the host.
+
+The approval is written as direnv records it, under
+=~/.local/share/direnv/allow/=, and is dropped on exit; one the agent adds
+stays inside the session.
+
+The environment loads automatically:
+
+- at startup, in the working directory, for the agent itself, so its own
+  processes (MCP servers, Codex's app-server) and shell snapshots see it.
+  A slow =.envrc= delays the agent's start; a blocked one only logs an
+  error;
+- again before each command, which may run in another directory or after
+  =.envrc= changed.  Claude Code sources =$CLAUDE_ENV_FILE= after its shell
+  snapshot, which would otherwise reset =PATH=; other agents' =bash -c= or
+  =bash -lc= reads =BASH_ENV=, which steps aside when =CLAUDECODE= is set.
+  Both run =direnv export bash= with status messages off; errors, such as
+  a blocked =.envrc=, still show.  =sh= does not read =BASH_ENV=.
+
+direnv 2.37 honours =DIRENV_LOG_FORMAT= only when it has a configuration
+file, so the session gets an empty =~/.config/direnv/direnv.toml=.
+
 * Agent specs
 
 Specs are alists in =llm.scm= (Codex uses =codex-spec= in the launcher);
