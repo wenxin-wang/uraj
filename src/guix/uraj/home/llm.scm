@@ -13,7 +13,7 @@
   #:use-module (uraj common basic-services)
   #:use-module (uraj common context)
   #:use-module (uraj common agent-secrets)
-  #:use-module (uraj gexp)
+  #:use-module (uraj utils gexp)
   #:use-module (uraj home paseo-broker)
   #:use-module (uraj home paseo)
   #:use-module (uraj packages llm)

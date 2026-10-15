@@ -63,7 +63,7 @@ read-only.
 
 * Guix runtime modules
 
-Use =(uraj gexp)= when a generated program or activation gexp imports local
+Use =(uraj utils gexp)= when a generated program or activation gexp imports local
 modules. List the runtime entry modules; =with-uraj-modules= collects their
 transitive =uraj=, =guix= and =gnu= dependencies from =define-module= forms:
 
@@ -93,6 +93,6 @@ Validate module metadata and execute the network entry points in the build
 sandbox (building a =program-file= alone does not execute its body):
 
 #+begin_src sh
-guix repl -L src/guix -L src/guile test/guix/uraj/gexp.scm
+guix repl -L src/guix -L src/guile test/guix/uraj/utils/gexp.scm
 guix build -L src/guix -L src/guile -f test/guix/uraj/restricted-network-programs.scm
 #+end_src

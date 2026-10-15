@@ -15,7 +15,7 @@
   #:use-module (guix profiles)
   #:use-module (guix records)
   #:use-module (uraj common agent-secrets)
-  #:use-module (uraj gexp)
+  #:use-module (uraj utils gexp)
   #:use-module (uraj home paseo-broker)
   #:use-module (uraj packages llm)
   #:use-module (uraj utils file path)

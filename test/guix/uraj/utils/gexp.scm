@@ -1,10 +1,10 @@
-;;; guix repl -L src/guix -L src/guile test/guix/uraj/gexp.scm
+;;; guix repl -L src/guix -L src/guile test/guix/uraj/utils/gexp.scm
 (use-modules (gnu services) (guix gexp) (guix modules)
              (srfi srfi-1) (srfi srfi-34) (srfi srfi-64)
-             (uraj gexp) (uraj common basic-services)
+             (uraj utils gexp) (uraj common basic-services)
              (uraj home llm) (uraj home paseo))
 
-(test-begin "uraj-gexp")
+(test-begin "uraj-utils-gexp")
 
 (define runtime-modules
   (gexp-modules
@@ -51,5 +51,5 @@
              (string-append (getcwd) "/env/dotfiles/llm"))))))
 
 (define failures (test-runner-fail-count (test-runner-current)))
-(test-end "uraj-gexp")
+(test-end "uraj-utils-gexp")
 (exit (if (zero? failures) 0 1))

@@ -6,7 +6,7 @@
   #:use-module (ice-9 ftw)
   #:use-module (ice-9 regex)
   #:use-module (srfi srfi-1)
-  #:use-module (uraj gexp)
+  #:use-module (uraj utils gexp)
   #:use-module (uraj utils file path)
   #:export (block-in-file-activation-service
             block-in-files-activation-service

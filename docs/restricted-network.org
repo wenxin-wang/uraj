@@ -219,7 +219,7 @@ It uses the production gexps' module metadata, loads the real runtime modules
 and replaces only the side-effecting entry functions before executing the
 generated bodies.  It needs no Docker daemon, firewall access or Android
 devices.  Building a =program-file= alone does not test module loading.
-Both entry points use =with-uraj-modules= from =(uraj gexp)= to collect
+Both entry points use =with-uraj-modules= from =(uraj utils gexp)= to collect
 =uraj= as well as =guix= / =gnu= dependencies. Guix's default closure
 selector excludes third-party modules, even the root module. See
 [[file:coding-style.org::*Guix runtime modules][Guix runtime modules]] for the shared convention and its limits.

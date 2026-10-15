@@ -1,4 +1,4 @@
-(define-module (uraj gexp)
+(define-module (uraj utils gexp)
   #:use-module (guix gexp)
   #:use-module (guix modules)
   #:export (with-uraj-modules))

@@ -7,7 +7,7 @@
   #:use-module (guix gexp)
   #:use-module (guix records)
   #:use-module (srfi srfi-1)
-  #:use-module (uraj gexp)
+  #:use-module (uraj utils gexp)
   #:use-module (uraj network-policy)
   #:use-module (uraj services restricted-network)
   #:use-module (uraj packages redroid)
