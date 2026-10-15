@@ -45,4 +45,23 @@
         (make-channel-introduction
          "fe3b5f72aa676c69f4d43507bdd18fb051906917"
          (openpgp-fingerprint
-          "7C9E 7EBA 828C 58DF DACE  5BED 4DCC 7AB7 FC75 319B")))))
+          "7C9E 7EBA 828C 58DF DACE  5BED 4DCC 7AB7 FC75 319B"))))
+      (channel
+       (name 'small-guix)
+       (url "https://codeberg.org/fishinthecalculator/small-guix.git")
+       (branch "main")
+       (introduction
+        (make-channel-introduction
+         "f260da13666cd41ae3202270784e61e062a3999c"
+         (openpgp-fingerprint
+          "8D10 60B9 6BB8 292E 829B  7249 AED4 1CC1 93B7 01E2"))))
+      ;; small-guix's dependency, listed so that it is pinned too.
+      (channel
+       (name 'gocix)
+       (url "https://github.com/fishinthecalculator/gocix")
+       (branch "main")
+       (introduction
+        (make-channel-introduction
+         "cdb78996334c4f63304ecce224e95bb96bfd4c7d"
+         (openpgp-fingerprint
+          "8D10 60B9 6BB8 292E 829B  7249 AED4 1CC1 93B7 01E2")))))

@@ -19,6 +19,7 @@
   #:use-module (uraj home emacs)
   #:use-module (uraj home llm)
   #:use-module (uraj home keyring)
+  #:use-module (small-guix packages scrcpy)
   #:use-module (uraj packages basic-packages)
   #:use-module (uraj packages input-methods)
   #:use-module (uraj packages rime)
@@ -33,6 +34,7 @@
          firefox                        ;Mozilla Firefox from the Nonguix channel
          kdeconnect                     ;kdeconnect-app/-cli and plugins
          ksshaskpass-with-qtkeychain      ;GNOME Keyring on niri, no SSH agent
+         scrcpy                         ;hypie-maa screen/login
          (specifications->packages
           '("font-jigmo"
             "font-jetbrains-mono"
@@ -48,7 +50,9 @@
             ;; Network packet analysis (GUI and command-line tools).
             "wireshark"
             ;; For general desktop settings
-            "evtest"))))
+            "evtest"
+            ;; hypie-maa: ADB to the hypie redroid instance.
+            "adb"))))
 
 (define (merged-terminfo-directory packages)
   "Return a directory merging the `share/terminfo' trees of PACKAGES, each

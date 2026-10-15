@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Print the digest a registry currently serves for an image tag, e.g.
+#   oci-digest docker.io/redroid/redroid:11.0.0-latest
+# The manifest is fetched from the registry itself, not through dockerd or a
+# mirror, and hashed locally: for a multi-arch tag this is the index digest,
+# the same value `docker images --digests` reports after a pull.
+
+set -euo pipefail
+
+if [[ $# -ne 1 || $1 == -* ]]; then
+    printf 'Usage: oci-digest REGISTRY/REPOSITORY:TAG\n' >&2
+    exit 2
+fi
+
+if command -v skopeo >/dev/null; then
+    skopeo=(skopeo)
+else
+    skopeo=(guix shell skopeo -- skopeo)
+fi
+
+digest=$("${skopeo[@]}" inspect --raw "docker://$1" | sha256sum)
+printf '%s@sha256:%s\n' "$1" "${digest%% *}"
