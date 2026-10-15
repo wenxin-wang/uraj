@@ -61,10 +61,13 @@ resolver configuration is also accepted.
 
 The accepted DNS list is read once and used for both the atomic firewall
 transaction and =/run/restricted-network/resolv.conf=.  Only TCP/UDP 53 is
-granted to those addresses; other gateway services remain blocked.  Missing,
-empty, malformed, loopback, link-local or IPv6 resolver entries prevent startup
-after the timeout.  This mode requires directly reachable IPv4 upstreams,
-not a local DNS stub.  Other host services remain subject to =host-services=.
+granted to those addresses; other gateway services remain blocked. Valid IPv6
+entries, including scoped addresses such as =fe80::1%host0=, are skipped;
+dual-stack hosts contribute only their IPv4 nameservers. Missing, empty or
+IPv6-only resolver files, malformed entries, and loopback or link-local IPv4
+resolvers prevent startup after the timeout. The timeout includes the last
+route or resolver error. This mode requires directly reachable IPv4 upstreams,
+not a local DNS stub. Other host services remain subject to =host-services=.
 
 The application should bind-mount this generated file read-only over
 =/etc/resolv.conf=, or have its launcher read the snapshot to populate Docker
@@ -197,6 +200,63 @@ tables are not silently deleted.  Apply the new protection first, then remove
 those exact legacy tables during a stopped-workload maintenance window, or
 reboot into the new system configuration.  Keep unrelated tables intact.
 The shared service manages only =restricted_network=.
+
+** Updating only the running Shepherd service
+
+For a runtime-code-only fix, build the service definition and its referenced
+program without building a complete OS generation. From the repository root,
+save this as =/tmp/uraj-restricted-network-service.scm= (change the OS path for
+another host):
+
+#+begin_src scheme
+(use-modules (gnu) (gnu services) (gnu services shepherd)
+             (guix gexp) (srfi srfi-1))
+
+(unsetenv "TO_ISO")
+(define os (load (string-append (getcwd) "/env/guix/os/storie.scm")))
+(define services
+  (shepherd-configuration-services
+   (service-value
+    (fold-services (operating-system-services os)
+                   #:target-type shepherd-root-service-type))))
+(define target
+  (find (lambda (service)
+          (memq 'restricted-network (shepherd-service-provision service)))
+        services))
+(unless target (error "No restricted-network service in this OS"))
+
+(scheme-file "load-restricted-network.scm"
+  #~(begin
+      (use-modules (shepherd service))
+      (register-services
+       (list (primitive-load #$(shepherd-service-file target))))))
+#+end_src
+
+Build it with the same Guix channels used for the system; if needed, replace
+=guix build= with =guix time-machine -C env/guix/channels-lock.scm -- build=.
+The GC root keeps the new code alive while it is used outside a system
+generation:
+
+#+begin_src sh
+guix build -L src/guix -L src/guile \
+  -f /tmp/uraj-restricted-network-service.scm \
+  --root=/tmp/uraj-restricted-network-loader
+sudo herd load root "$(readlink -f /tmp/uraj-restricted-network-loader)"
+sudo herd start restricted-network
+sudo herd status restricted-network
+#+end_src
+
+These commands assume the service is stopped, as after a failed start.
+=load root= replaces a stopped service immediately. If it is running, the
+replacement is deferred until it stops; stop dependent workloads and the
+service before starting the replacement. A plain =herd restart= without
+loading the new definition still runs the old store executable.
+
+This updates only the current Shepherd instance, not the boot generation,
+activation scripts, accounts, kernel, or other services. Use a full system
+reconfigure later to persist the fix across reboots, then remove the temporary
+GC root. This shortcut assumes the declared dependencies already exist in
+the running system; it is not a general substitute for system reconfiguration.
 
 * Verification
 
