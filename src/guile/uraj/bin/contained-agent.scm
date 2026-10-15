@@ -566,6 +566,39 @@ approved ones and, once the user agrees, approve them."
             (system* "rm" "-rf" staging)
             (die "not allowed"))))))
 
+;;; direnv approvals.
+
+(define (direnv-allow-name tools envrc contents)
+  "Return the name direnv gives its approval of ENVRC, an absolute file name,
+holding the contents of the file CONTENTS: the SHA-256 of ENVRC, a newline
+and those contents."
+  (define (tool name) (or (assq-ref tools name) (symbol->string name)))
+  (match (command-lines (tool 'bash) "-c"
+                        "{ printf '%s\\n' \"$1\" && cat -- \"$2\"; } | \"$3\""
+                        "direnv-allow-name" envrc contents (tool 'sha256sum))
+    ((line) (string-take line 64))
+    (_ (die "cannot hash ~a" contents))))
+
+(define (direnv-allowed top project tools)
+  "Return the name of the direnv approval of work tree TOP's .envrc if the
+host has approved it, or approved the same contents in PROJECT, TOP's main
+work tree, as for Paseo's worktrees; otherwise #f."
+  (let ((envrc (string-append top "/.envrc"))
+        (allowed (string-append (match (getenv "XDG_DATA_HOME")
+                                  ((or #f "") (expand-home "~/.local/share"))
+                                  (data data))
+                                "/direnv/allow/")))
+    (and (eq? 'regular (and=> (stat envrc #f) stat:type))
+         (let ((name (direnv-allow-name tools envrc envrc))
+               (main (string-append project "/.envrc")))
+           (and (or (file-exists? (string-append allowed name))
+                    (and (not (string=? main envrc))
+                         (file-exists?
+                          (string-append allowed
+                                         (direnv-allow-name tools main
+                                                            envrc)))))
+                name)))))
+
 ;;; Agents.
 
 (define (spec-ref spec key)
@@ -705,6 +738,7 @@ NUL.  All ssh-add output goes to stderr, never into this private protocol."
        ((projects-file) (expand-home (or (getenv "CONTAINED_AGENT_PROJECTS")
                                          projects-file)))
        ((local) (and top (approved-local top)))
+       ((direnv) (and top (direnv-allowed top project ssh-tools)))
        ((local-file) (lambda (name)
                        (let ((file (and local (string-append local "/" name))))
                          (and file (file-exists? file) file))))
@@ -787,7 +821,7 @@ chmod 700 -- \"$1\" || exit; shift
 export SSL_CERT_FILE=$GUIX_ENVIRONMENT/etc/ssl/certs/ca-certificates.crt
 export GIT_SSL_CAINFO=$SSL_CERT_FILE SSL_CERT_DIR=$GUIX_ENVIRONMENT/etc/ssl/certs
 unset SSH_AUTH_SOCK SSH_AGENT_PID
-cd \"$1\" || exit; hooks=$2 n=$3; shift 3
+cd \"$1\" || exit; hooks=$2 allow=$3 envrc=$4 n=$5; shift 5
 while [ $n -gt 0 ]; do cp \"$1\" \"$2\" || exit; shift 2; n=$((n - 1)); done
 # The session's own ~/.gitconfig, which the agent may change, on top of any
 # seeded copy.  .git/config is read-only, so `git push -u' cannot record an
@@ -801,11 +835,37 @@ c filter.lfs.smudge 'git-lfs smudge -- %f'
 c filter.lfs.process 'git-lfs filter-process'
 c filter.lfs.required true
 if [ -n \"$hooks\" ]; then c core.hooksPath \"$hooks\"; fi
+# The host's direnv approval of the work tree's .envrc, as direnv records it.
+if [ -n \"$allow\" ]; then
+  d=${XDG_DATA_HOME:-$HOME/.local/share}/direnv/allow
+  mkdir -p -- \"$d\" && printf '%s\\n' \"$envrc\" > \"$d/$allow\" || exit
+fi
+# Load direnv for the agent itself, then again before each of its commands,
+# which may run elsewhere or after .envrc changed.  Claude Code runs
+# $CLAUDE_ENV_FILE after its shell snapshot, which resets PATH, so BASH_ENV,
+# read by other agents' bash, leaves Claude alone.  BASH_ENV is unset first,
+# as direnv evaluates .envrc with bash.  Those commands log errors only:
+# direnv 2.37 reads DIRENV_LOG_FORMAT only when it has a configuration file.
+if command -v direnv >/dev/null; then
+  eval \"$(direnv export bash)\"
+  d=${XDG_CONFIG_HOME:-$HOME/.config}/direnv
+  mkdir -p -- \"$d\" && : >> \"$d/direnv.toml\" || exit
+  d=$HOME/.local/share/contained-agent
+  mkdir -p -- \"$d\" || exit
+  printf '%s\\n' 'eval \"$(DIRENV_LOG_FORMAT= direnv export bash)\"' \\
+    > \"$d/direnv.bash\" || exit
+  printf '%s\\n' 'unset BASH_ENV' \\
+    '[ -n \"${CLAUDECODE-}\" ] || . \"$HOME/.local/share/contained-agent/direnv.bash\"' \\
+    > \"$d/bash-env\" || exit
+  export CLAUDE_ENV_FILE=$d/direnv.bash BASH_ENV=$d/bash-env
+fi
 exec \"$@\""
                   "contained-agent"
                   home
                   (if project workdir home)
                   (or (git-hooks clauses) "")
+                  (or direnv "")
+                  (if direnv (string-append top "/.envrc") "")
                   (number->string (length seeded)))
             (append-map (match-lambda
                           ((source . target) (list target source)))
