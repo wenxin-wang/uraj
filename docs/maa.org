@@ -4,9 +4,8 @@
 
 ** Design
 
-The hypie deployment template runs =redroid-maa= under Docker; its imports
-and service block currently remain commented out pending deployment.  Guix
-declares the container and its dependencies; Shepherd manages its lifecycle.
+hypie's installed system runs =redroid-maa= under Docker (not the live
+installer).  Guix declares the container and its dependencies; Shepherd manages its lifecycle.
 Android's =/data= is bind-mounted from =/var/lib/redroid/data/maa= on the
 system disk.  Other Android instances must have separate names, data
 directories and IP addresses.  Guix generation rollback does not roll back
@@ -44,6 +43,14 @@ provisioned.  Rules must not flush or replace unrelated host/VPN rules.
 Unsolicited forwarding into redroid is blocked; the host can connect
 directly to the instance's private IP.  The private subnet must not overlap
 the host's LAN or VPN routes.  Wi-Fi and Ethernet use the same routed design.
+
+hypie's fwd2home is a full tunnel (strongSwan's =from all lookup 220=), which
+captured the bridge subnet in both directions: ADB from the host timed out
+and Android's DNS failed.  hypie therefore sets =vpn-bypass-priority= to
+200, so the restricted-network service adds =to 10.203.0.0/24 lookup main=
+ahead of it; startup checks that the subnet routes through =br-redroid=.  Reconfiguration does not restart the
+running service; apply such changes with =sudo herd restart
+restricted-network=, then start the dependent redroid instance again.
 
 Only =inet restricted_network= and =ip restricted_network= are replaced,
 atomically.  Stopping the network services retains protection; it never
@@ -98,9 +105,8 @@ or its persistent data.
 - =src/guix/uraj/services/redroid.scm=: Docker settings, public-only network
   policy contribution and Android instance service using Guix's OCI service.
 - =src/guix/uraj/build/redroid.scm=: Android runtime checks.
-- =env/guix/os/hypie.scm=: opt-in deployment block, still disabled.  Enable
-  its imports, base =restricted-network-service-type= and redroid services
-  together, and configure permitted egress before starting the instance.
+- =env/guix/os/hypie.scm=: Docker, =restricted-network-service-type= (with
+  the fwd2home bypass) and the redroid service, any egress interface.
 
 The container initially has =(auto-start? #f)=.  Docker and network services
 start at boot, but Android starts only on =herd start redroid-maa=.  After
@@ -109,10 +115,11 @@ Shepherd restarts a failed container; there is no Docker restart policy that
 could bypass the firewall/readiness dependencies.  A live container process
 does not itself prove Android or the game is healthy.
 
-The initial image is =docker.io/redroid/redroid:11.0.0-latest=.  This is a
-bootstrap tag, not an immutable lock.  After successful testing, obtain its
-RepoDigest and set the =image= field to that digest before treating deployment
-as reproducible.  Do not upgrade Android versions against the same data
+The image is pinned by digest, with the tag it was taken from recorded in
+a comment: =11.0.0-latest= at =sha256:60b08106…= (Docker Hub, 2026-10-11,
+unchanged on 2026-10-15).  To update, print what Docker Hub now serves for
+the tag with =oci-digest docker.io/redroid/redroid:11.0.0-latest=, replace
+the digest and the comment's date, and commit.  Do not upgrade Android versions against the same data
 directory without a stopped-container backup and a tested recovery path.
 
 Before reconfiguration, on hypie:
@@ -167,21 +174,30 @@ adb -s 10.203.0.2:5555 install /path/to/arknights.apk
 Require boot completion =1=, Intel/Mesa hardware rendering rather than a
 software renderer, working DNS and game login, and intact host networking.
 Check the running container's read-only modprobe mount and compare the host
-=/proc/sys/kernel/modprobe= before/after starting it.  Then record the image:
+=/proc/sys/kernel/modprobe= before/after starting it.
 
 #+begin_src sh
-sudo docker image inspect docker.io/redroid/redroid:11.0.0-latest \
-  --format '{{json .RepoDigests}}'
+oci-digest docker.io/redroid/redroid:11.0.0-latest   # tag moved upstream?
+sudo docker images --digests redroid/redroid          # on hypie
 #+end_src
 
 For remote scrcpy, tunnel ADB through SSH instead of exposing it on the LAN:
+=hypie-maa= (=env/dotfiles/desktop/apps/.local/bin=) runs on another machine
+that can SSH to hypie; =adb= and =scrcpy= come from the desktop home profile
+(scrcpy from the small-guix channel, since Guix lacks it).
 
 #+begin_src sh
-ssh -N -L 15555:10.203.0.2:5555 USER@HYPIE
-# In another local terminal:
-adb connect 127.0.0.1:15555
-scrcpy -s 127.0.0.1:15555
+hypie-maa login                     # scrcpy: log in to the game once
+hypie-maa install arknights.apk     # install or update from a local APK
+hypie-maa upgrade                   # download the official APK, install it
+hypie-maa status                    # boot state and game version
+hypie-maa adb shell ...             # anything else
+hypie-maa connect                   # keep the forward open for other tools
 #+end_src
+
+MAA's StartUp task neither installs the game nor enters credentials, and can
+only switch between accounts that are already logged in, so the first login
+is manual.  The session persists in the data directory.
 
 ** Validation status
 

@@ -29,11 +29,13 @@
     (setenv "RESTRICTED_MOCK_DIR" dir)
     (unsetenv "RESTRICTED_MOCK_FAILURE")
     dir))
-(define* (ensure dir #:optional (topologies (list topology)))
+(define* (ensure dir #:optional (topologies (list topology))
+                 #:key (bypass 200))
   (ensure-restricted-networks
    (string-append tools "/docker") (string-append tools "/nft")
    (string-append tools "/ip") "/unused-test-rules.nft"
    "restricted_network" topologies '()
+   #:vpn-bypass-priority bypass
    #:state-directory (string-append dir "/state")))
 (define (log dir)
   (call-with-input-file (string-append dir "/log") get-string-all))
@@ -49,6 +51,40 @@
 (test-equal "network created only once" 1
   (count (lambda (line) (string-prefix? "docker network create" line))
          (string-split (log clean) #\newline)))
+;; strongSwan's full tunnel (from all lookup 220) would otherwise capture it.
+(define (bypass-adds dir)
+  (count (lambda (line)
+           (string=? line "ip -4 rule add pref 200 to 10.204.0.0/24 lookup main"))
+         (string-split (log dir) #\newline)))
+(test-equal "bypass rule added only once" 1 (bypass-adds clean))
+(test-assert "bypass rule added after firewall load"
+  (< (string-contains (log clean) "nft --file")
+     (string-contains (log clean) "ip -4 rule add")))
+;; As printed by `ip -j -4 rule show pref 200' (iproute2 7.0).
+(test-equal "own bypass rule recognized" "10.204.0.0/24"
+  (bypass-rule-subnet '(("priority" . 200) ("src" . "all")
+                        ("dst" . "10.204.0.0") ("dstlen" . 24)
+                        ("table" . "main"))))
+(test-assert "source-restricted rule is not a bypass"
+  (not (bypass-rule-subnet '(("priority" . 200) ("src" . "172.31.0.7")
+                             ("srclen" . 32) ("dst" . "10.204.0.0")
+                             ("dstlen" . 24) ("table" . "main")))))
+(define foreign (fixture "foreign-rule"))
+(call-with-output-file (string-append foreign "/rules.json")
+  (lambda (port)
+    (display "[{\"priority\":200,\"src\":\"all\",\"dst\":\"10.204.0.0\",\"dstlen\":24,\"table\":\"220\"}]" port)))
+(test-error "foreign rule at bypass priority aborts" #t (ensure foreign))
+(test-equal "foreign rule is not overridden" 0 (bypass-adds foreign))
+(define hijacked (fixture "hijacked"))
+(call-with-output-file (string-append hijacked "/route-hijacked") (const #t))
+(test-error "subnet not routed through its bridge aborts" #t (ensure hijacked))
+(define no-bypass (fixture "no-bypass"))
+(test-assert "provisioning without VPN bypass" (begin (ensure no-bypass #:bypass #f) #t))
+(test-equal "no routing rule without VPN bypass" 0 (bypass-adds no-bypass))
+(define hijacked-no-bypass (fixture "hijacked-no-bypass"))
+(call-with-output-file (string-append hijacked-no-bypass "/route-hijacked") (const #t))
+(test-error "capture is still detected without VPN bypass" #t
+  (ensure hijacked-no-bypass #:bypass #f))
 (test-error "removal rejected before commands" #t (ensure clean '()))
 (test-equal "failed removal retains state"
   (list "restricted_network" (list topology)) (state clean))
