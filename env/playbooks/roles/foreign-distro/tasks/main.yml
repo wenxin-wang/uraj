@@ -74,3 +74,36 @@
   when: gdm_custom_conf.stat.exists
   notify: Restart gdm3
   tags: [gdm]
+
+# Make the user's pulled Guix the lock's, as base-services does for the
+# system guix on Guix System, so plain `guix' behaves like `guix
+# time-machine -C env/guix/channels-lock.scm --'.  Pulls only when
+# `guix describe' differs from the lock, which it prints verbatim.
+- name: Pin the user's Guix to the channel lock
+  become: false
+  vars:
+    guix_channels_lock: "{{ playbook_dir }}/../guix/channels-lock.scm"
+    guix_current: "{{ lookup('ansible.builtin.env', 'HOME') }}/.config/guix/current"
+  tags: [guix]
+  block:
+    - name: Describe the pulled Guix
+      ansible.builtin.command:
+        argv: ["{{ guix_current }}/bin/guix", describe, --format=channels]
+      register: guix_described
+      failed_when: false
+      changed_when: false
+      check_mode: false
+
+    - name: Pull the locked channels
+      ansible.builtin.command:
+        # The lock may move back (a revert, an older checkout); pull
+        # refuses that without --allow-downgrades.
+        argv:
+          - guix
+          - pull
+          - "--channels={{ guix_channels_lock }}"
+          - --allow-downgrades
+      when: >-
+        guix_described.rc != 0 or
+        guix_described.stdout != lookup('ansible.builtin.file',
+                                        guix_channels_lock)
