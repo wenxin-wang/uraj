@@ -31,7 +31,11 @@
     (program-file "restricted-network-ensure"
       (with-extensions (list guile-json-4)
         (with-imported-modules
-            (source-module-closure '((uraj build restricted-network)))
+            ;; The default selector only includes guix/gnu modules.
+            (source-module-closure '((uraj build restricted-network))
+              #:select? (lambda (module)
+                          (or (guix-module-name? module)
+                              (eq? (car module) 'uraj))))
           #~(begin
               (use-modules (uraj build restricted-network))
               (ensure-restricted-networks

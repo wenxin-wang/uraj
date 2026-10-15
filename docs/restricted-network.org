@@ -205,12 +205,22 @@ guix repl -L src/guix -L src/guile test/guix/uraj/network-policy.scm
 guix repl -L src/guix test/guix/uraj/restricted-network-runtime.scm
 guix repl -L src/guix -L src/guile test/guix/uraj/services/restricted-network.scm
 guix repl -L src/guix -L src/guile test/guix/uraj/services/redroid.scm
+guix build -L src/guix -L src/guile -f test/guix/uraj/restricted-network-programs.scm
 python3 test/python/uraj/guix/restricted-network.py
 #+end_src
 
 The runtime test uses fake Docker/nft/ip executables and a temporary state
 directory to check ordering, idempotence, failed preflight/load, retry and
 refused removal without invoking the real tools.
+
+The program test builds and runs both generated entry points in the Guix
+build sandbox with =GUILE_LOAD_PATH= and =GUILE_LOAD_COMPILED_PATH= unset.
+It uses the production gexps' module metadata, loads the real runtime modules
+and replaces only the side-effecting entry functions before executing the
+generated bodies.  It needs no Docker daemon, firewall access or Android
+devices.  Building a =program-file= alone does not test module loading.
+The module closure selector must include =uraj= as well as =guix= / =gnu=;
+Guix's default selector excludes third-party modules, even the root module.
 
 The packet test needs =nft=, =ip=, =unshare=, =nsenter=, =sysctl=, Python and
 Guix on PATH.  It creates its own user/network namespaces and virtual peers;
@@ -228,8 +238,9 @@ only to the intended network, using the configured DNS, before attaching
 accounts or data.  The actual subnet is checked against host/VPN routes on
 startup; later routing changes still require operator review.
 
-Validation: 103 Scheme assertions and 45 packet checks passed, including the
+Validation: 105 Scheme assertions and 45 packet checks passed, including the
 redroid profile, inherited LAN DNS, unrestricted interface selection and
 empty-list egress denial.  Ruff checks passed and the generated Guix
-provisioning program was built successfully.  No live system reconfiguration
+provisioning program was built successfully.  Both generated entry points
+also passed the isolated module-loading test.  No live system reconfiguration
 was performed.

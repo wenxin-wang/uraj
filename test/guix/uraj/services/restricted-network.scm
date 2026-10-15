@@ -1,6 +1,7 @@
 ;;; guix repl -L src/guix -L src/guile test/guix/uraj/services/restricted-network.scm
 (use-modules (gnu) (gnu services) (gnu services containers) (gnu services shepherd)
              (gnu services sysctl) (gnu system shadow) (srfi srfi-1) (srfi srfi-64)
+             (guix gexp)
              (uraj network-policy) (uraj services restricted-network)
              (uraj services redroid))
 
@@ -18,6 +19,15 @@
   (policy-dns (network-policy-of agents)))
 (test-equal "table has no project prefix" "restricted_network"
   (restricted-network-config-table config))
+(test-assert "startup program carries local modules and their Guix dependencies"
+  (let ((modules (gexp-modules
+                  (program-file-gexp (restricted-network-program config)))))
+    (every (lambda (module) (member module modules))
+           '((uraj build restricted-network)
+             (uraj build restricted-network-docker)
+             (uraj network-policy)
+             (guix build utils)
+             (guix records)))))
 (test-equal "only new-api is an internal forwarding exception" '("172.31.0.9")
   (map access-address (policy-exceptions (network-policy-of agents))))
 (test-assert "no host or inbound grants"

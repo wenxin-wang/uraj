@@ -57,7 +57,11 @@
 
 (define (redroid-prepare-program config)
   (program-file (string-append (redroid-name config) "-prepare")
-    (with-imported-modules (source-module-closure '((uraj build redroid)))
+    (with-imported-modules
+        (source-module-closure '((uraj build redroid))
+          #:select? (lambda (module)
+                      (or (guix-module-name? module)
+                          (eq? (car module) 'uraj))))
       #~(begin
           (use-modules (uraj build redroid))
           (prepare-redroid #$(redroid-data-directory config)
