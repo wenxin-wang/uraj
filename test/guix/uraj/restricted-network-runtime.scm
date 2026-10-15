@@ -73,13 +73,22 @@
 (write-text resolver "# DHCP\nsearch home\nnameserver 172.31.0.1 # gateway\nnameserver 172.31.0.1\nnameserver 10.0.0.53\n")
 (test-equal "parse and deduplicate upstream resolvers"
   '("172.31.0.1" "10.0.0.53") (read-host-dns resolver))
+(define mixed-resolver
+  "nameserver 2001:db8::53\nnameserver 172.31.0.1\nnameserver fe80::1%host0\nnameserver 172.31.0.1\n")
+(write-text resolver mixed-resolver)
+(test-equal "dual-stack host DNS keeps IPv4 and skips IPv6 including scoped entries"
+  '("172.31.0.1") (read-host-dns resolver))
 (for-each
  (lambda (contents)
    (write-text resolver contents)
    (test-error "reject missing, stub, IPv6 or malformed upstream DNS" #t
      (read-host-dns resolver)))
  '("search home\n" "nameserver 127.0.0.53\n" "nameserver ::1\n"
-   "nameserver 172.31.0.1 extra\n" "nameserver invalid\n"))
+   "nameserver 2001:db8::53\nnameserver fe80::1%host0\n"
+   "nameserver 172.31.0.1 extra\n" "nameserver invalid\n"
+   "nameserver 172.31.0.1\nnameserver invalid\n"
+   "nameserver 172.31.0.1\nnameserver invalid::ip\n"
+   "nameserver 172.31.0.1\nnameserver 127.0.0.53\n"))
 (test-error "missing resolver file rejected" #t
   (read-host-dns (string-append dns "/missing")))
 (write-text resolver "nameserver 172.31.0.1\n")
@@ -87,6 +96,16 @@
   (wait-for-host-dns (string-append tools "/ip") '("lo") resolver #:attempts 1))
 (test-error "any egress still waits for a default route" #t
   (wait-for-host-dns (string-append tools "/ip") #t resolver #:attempts 1))
+(define (failure-details thunk)
+  (catch #t
+    (lambda () (thunk) "")
+    (lambda (key . args) (format #f "~s" (cons key args)))))
+(test-assert "timeout explains missing default route"
+  (string-contains
+   (failure-details
+    (lambda ()
+      (wait-for-host-dns (string-append tools "/ip") #t resolver #:attempts 1)))
+   "No default IPv4 route on an allowed egress interface"))
 (test-equal "wait for DHCP route before taking snapshot" '("172.31.0.1")
   (wait-for-host-dns (string-append tools "/ip") '("lo") resolver
     #:attempts 2
@@ -98,6 +117,12 @@
 (test-error "explicit egress rejects a route through another interface" #t
   (wait-for-host-dns (string-append tools "/ip") '("other") resolver #:attempts 1))
 (write-text resolver "")
+(test-assert "timeout preserves the resolver failure"
+  (string-contains
+   (failure-details
+    (lambda ()
+      (wait-for-host-dns (string-append tools "/ip") #t resolver #:attempts 1)))
+   "No IPv4 nameservers in host resolver file"))
 (test-equal "wait for DNS after route appears" '("172.31.0.1")
   (wait-for-host-dns (string-append tools "/ip") '("lo") resolver
     #:attempts 2
@@ -121,6 +146,7 @@
    #:runtime-directory (string-append dns "/run")
    #:inherit-host-dns? #t #:resolv-conf resolver #:dns-attempts 1))
 (define snapshot (string-append dns "/run/resolv.conf"))
+(write-text resolver mixed-resolver)
 (test-assert "provision using host DNS" (begin (ensure-dns) #t))
 (test-equal "publish resolver snapshot" "nameserver 172.31.0.1\n"
   (call-with-input-file snapshot get-string-all))

@@ -10,6 +10,27 @@
             wait-for-host-dns
             ensure-restricted-networks))
 
+(define (dns-ipv4-upstream address)
+  (if (string-index address #\:)
+      (begin
+        ;; Dual-stack resolv.conf may include an IPv6 scope such as %host0.
+        ;; Validate the address, but do not grant IPv6 in an IPv4-only network.
+        (match (string-split address #\%)
+          ((ip) (inet-pton AF_INET6 ip))
+          ((ip scope)
+           (when (string-null? scope)
+             (error "Empty IPv6 DNS scope" address))
+           (inet-pton AF_INET6 ip))
+          (_ (error "Malformed IPv6 DNS address" address)))
+        #f)
+      (begin
+        (inet-pton AF_INET address)
+        (when (any (lambda (range) (ipv4-overlap? address range))
+                   '("0.0.0.0/8" "127.0.0.0/8" "169.254.0.0/16"
+                     "224.0.0.0/4" "240.0.0.0/4"))
+          (error "Host DNS must be a reachable IPv4 upstream" address))
+        address)))
+
 (define (read-host-dns file)
   ;; Read once: both firewall grants and the workload snapshot use this list.
   (let ((servers
@@ -21,12 +42,7 @@
                             (if comment (substring line 0 comment) line))))
                (match words
                  (("nameserver" address)
-                  (inet-pton AF_INET address)
-                  (when (any (lambda (range) (ipv4-overlap? address range))
-                             '("0.0.0.0/8" "127.0.0.0/8" "169.254.0.0/16"
-                               "224.0.0.0/4" "240.0.0.0/4"))
-                    (error "Host DNS must be a reachable IPv4 upstream" address))
-                  address)
+                  (dns-ipv4-upstream address))
                  (("nameserver" . _) (error "Malformed nameserver line" line))
                  (_ #f))))
            (string-split (call-with-input-file file get-string-all) #\newline)))))
@@ -38,20 +54,25 @@
   ;; for a default IPv4 route on an uplink and usable resolver contents.
   ;; EGRESS may be #t to accept any routed interface.
   (let loop ((remaining attempts))
-    (let ((servers
-           (catch #t
-             (lambda ()
-               (and (any (lambda (route)
-                           (and (assoc-ref route "dev")
-                                (or (eq? egress #t)
-                                    (member (assoc-ref route "dev") egress))))
-                         (vector->list
-                          (read-command-json ip "-j" "-4" "route" "show" "default")))
-                    (read-host-dns file)))
-             (lambda _ #f))))
+    (let* ((failure #f)
+           (servers
+            (catch #t
+              (lambda ()
+                (unless (any (lambda (route)
+                               (and (assoc-ref route "dev")
+                                    (or (eq? egress #t)
+                                        (member (assoc-ref route "dev") egress))))
+                             (vector->list
+                              (read-command-json ip "-j" "-4" "route" "show" "default")))
+                  (error "No default IPv4 route on an allowed egress interface" egress))
+                (read-host-dns file))
+              (lambda (key . args)
+                (set! failure (cons key args))
+                #f))))
       (cond (servers servers)
             ((<= remaining 1)
-             (error "Timed out waiting for IPv4 uplink and upstream DNS" egress file))
+             (error "Timed out waiting for IPv4 uplink and upstream DNS"
+                    egress file "Last failure:" failure))
             (else (pause 1) (loop (- remaining 1)))))))
 
 (define (conflicting-routes routes topology)
