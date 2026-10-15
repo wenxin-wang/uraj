@@ -177,7 +177,9 @@
           (user . "1000:1000") (read_only . #t)
           (cap_drop . #("ALL")) (security_opt . #("no-new-privileges:true"))
           (pids_limit . 512) (mem_limit . "4g")
-          (tmpfs . #("/tmp:rw,nosuid,nodev,size=512m,mode=1777"))
+          (tmpfs . #("/tmp:rw,nosuid,nodev,size=512m,mode=1777"
+                     ;; OpenClaw's secure-temp resolver may fall back here.
+                     "/home/node/.cache:rw,nosuid,nodev,size=128m,uid=1000,gid=1000,mode=0700"))
           ,(compose-logging "openclaw")
           (environment . ((HOME . "/home/node")
                           (OPENCLAW_STATE_DIR . "/home/node/.openclaw")
