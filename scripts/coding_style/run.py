@@ -78,8 +78,8 @@ def run_tools(root, names, action):
             if not shutil.which(command[0]):
                 print(
                     f"Missing tool: {command[0]}.\n"
-                    "Reconfigure basic-dev, or run:\n"
-                    "  guix shell python clang cpplint ruff",
+                    "Enter the environment of manifest.scm, e.g.:\n"
+                    "  guix shell -m manifest.scm",
                     file=sys.stderr,
                 )
                 failed = True

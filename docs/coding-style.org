@@ -18,10 +18,11 @@ imposed here; version-dependent modernization rules are not enabled.
 This is not a complete replacement for Pylint's analysis or the Google guide.
 See [[https://docs.astral.sh/ruff/formatter/][Ruff formatter]] and [[https://docs.astral.sh/ruff/settings/#lintpydocstyle_convention][Google docstring convention]].
 
-=basic-dev= provides the tools. For a temporary environment:
+The top-level =manifest.scm= provides the tools, through direnv's =.envrc=
+or contained-agent sessions. Otherwise:
 
 #+begin_src sh
-guix shell python clang cpplint ruff
+guix shell -m manifest.scm
 scripts/coding_style/install-hooks
 scripts/coding_style/check --staged
 #+end_src
