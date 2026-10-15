@@ -13,6 +13,7 @@
   #:use-module (uraj common basic-services)
   #:use-module (uraj common context)
   #:use-module (uraj common agent-secrets)
+  #:use-module (uraj utils gexp)
   #:use-module (uraj home paseo-broker)
   #:use-module (uraj home paseo)
   #:use-module (uraj packages llm)
@@ -143,7 +144,7 @@ Homes and the headless Homes."
 (define contained-agent
   (program-file
    "contained-agent"
-   (with-imported-modules '((uraj bin contained-agent) (uraj bin contained-ssh))
+   (with-uraj-modules '((uraj bin contained-agent))
      #~(begin
          (use-modules (uraj bin contained-agent))
          (contained-agent-main (command-line)

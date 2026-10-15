@@ -7,6 +7,12 @@
              (uraj services redroid))
 
 (test-begin "redroid")
+(test-assert "prepare program carries its local module and Guix dependencies"
+  (let ((modules (gexp-modules
+                  (program-file-gexp
+                   (redroid-prepare-program (redroid-configuration))))))
+    (every (lambda (module) (member module modules))
+           '((uraj build redroid) (guix build utils)))))
 (define (load-hypie)
   ;; Deployment is intentionally commented out in hypie.scm.  Exercise an
   ;; opted-in installed-system fixture without enabling it on the real host.

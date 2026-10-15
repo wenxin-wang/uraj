@@ -6,9 +6,9 @@
   #:use-module (gnu packages guile)
   #:use-module (gnu packages linux)
   #:use-module (guix gexp)
-  #:use-module (guix modules)
   #:use-module (guix records)
   #:use-module (srfi srfi-1)
+  #:use-module (uraj utils gexp)
   #:use-module (uraj network-policy)
   #:use-module (uraj packages docker)
   #:export (restricted-network-configuration restricted-network-service-type
@@ -30,8 +30,7 @@
   (let ((networks (restricted-network-config-networks config)))
     (program-file "restricted-network-ensure"
       (with-extensions (list guile-json-4)
-        (with-imported-modules
-            (source-module-closure '((uraj build restricted-network)))
+        (with-uraj-modules '((uraj build restricted-network))
           #~(begin
               (use-modules (uraj build restricted-network))
               (ensure-restricted-networks
