@@ -1,0 +1,4 @@
+#!/bin/sh
+# direnv must inherit the caller's environment. In an SSH session, Bash
+# can source /etc/bashrc even with -c; Guix then resets PATH via /etc/profile.
+exec bash --norc "$@"
