@@ -6,13 +6,13 @@
   #:use-module (gnu services)
   #:use-module (gnu services shepherd)
   #:use-module (guix gexp)
-  #:use-module (guix modules)
   #:use-module (guix records)
   #:use-module (ice-9 regex)
   #:use-module (json)
   #:use-module (sops secrets)
   #:use-module (sops services sops)
   #:use-module (srfi srfi-1)
+  #:use-module (uraj utils gexp)
   #:use-module (uraj packages docker)
   #:use-module (uraj services logs)
   #:export (openclaw-provider openclaw-configuration
@@ -211,7 +211,7 @@
   (program-file
    "openclaw-prepare"
    (with-extensions (list guile-json-4)
-     (with-imported-modules (source-module-closure '((uraj build openclaw)))
+     (with-uraj-modules '((uraj build openclaw))
        #~(begin
            (use-modules (uraj build openclaw))
            (prepare-openclaw

@@ -186,6 +186,12 @@
   (every (lambda (s) (and (equal? "root" (sops-secret-user s))
                           (= #o400 (sops-secret-permissions s)))) secrets))
 
+(test-assert "preparation bundles its runtime module and Guix dependencies"
+  (let ((modules (gexp-modules
+                  (program-file-gexp (openclaw-prepare-program config)))))
+    (every (lambda (name) (member name modules))
+           '((uraj build openclaw) (guix build syscalls)))))
+
 ;; A hot upgrade must not import repository modules into the running daemon.
 (test-equal "start closure needs no imported module tree" '()
   (gexp-modules (shepherd-service-start service)))
