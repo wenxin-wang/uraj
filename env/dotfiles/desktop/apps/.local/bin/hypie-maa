@@ -100,7 +100,8 @@ cmd=${1:-}
 case $cmd in
     screen | login)
         open_forward
-        scrcpy -s "$serial" --window-title "hypie redroid-maa" "$@"
+        # redroid has no opus encoder, and audio capture aborts the server.
+        scrcpy -s "$serial" --window-title "hypie redroid-maa" --no-audio "$@"
         ;;
     install)
         [[ $# -eq 1 && -f $1 ]] || { usage >&2; exit 2; }
