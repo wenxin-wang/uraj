@@ -217,7 +217,9 @@ new-api 的 token 权限、模型名称及协议均可用。不要以 Gateway �
 state、auth-key、workspace 都是私有数据，不赋予 =log-readers= 读取权限。
 容器 stdout/stderr 遵循现有日志组规则；它们也可能带有聊天相关诊断信息。
 不要开启含凭据或完整消息的调试日志。应用自己的临时文件日志在容器
-=/tmp=，不作长期保存。
+=/tmp=，不作长期保存。=/home/node/.cache= 另挂载 128 MiB tmpfs，
+由容器 UID/GID 1000 拥有、权限 0700，支持 OpenClaw 的安全临时目录
+fallback（例如 =openclaw-1000=）；缓存随容器销毁，不进入持久数据目录。
 
 Shepherd 等待 =dockerd=、=restricted-network=、=sops-secrets=、
 =syslogd= 和 =file-system-/data=。每次 start 再检查 /data 确为 Btrfs
