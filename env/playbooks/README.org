@@ -26,7 +26,7 @@ env/playbooks/setup-foreign-desktop.sh
 =ansible-playbook= 来自 Guix Home profile；
 =syntax-check= 与 =--check= 可以预演（=--check= 里 apt 结果只是预测）。
 常用 tag：=foreign-distro=、=basic-system=、=session=、=gdm=、=pcscd=、
-=apparmor=、=keyboard=、=keyring=。
+=apparmor=、=keyboard=、=keyring=、=guix=。
 
 roles/foreign-distro 做（foreign distro 专属部分）：
 - 安装宿主 =gnome-keyring= 与 =libpam-gnome-keyring=，保留宿主的
@@ -46,6 +46,16 @@ roles/foreign-distro 做（foreign distro 专属部分）：
 - =/etc/gdm3/custom.conf=：把 =WaylandEnable= 注释回默认（Ubuntu 默认
   启用 Wayland）。机器上存在该文件才执行；只有内容变化才重启 gdm3，
   重启会杀掉当前图形会话
+- 把当前用户 =guix pull= 出的 Guix（=~/.config/guix/current=）钉到
+  =env/guix/channels-lock.scm=，相当于 Guix System 上 base-services 对
+  系统 guix 做的事：之后裸 =guix= 就等于
+  =guix time-machine -C env/guix/channels-lock.scm --=，=uraj-guix= 只在
+  分支改了 lock 或用 =MY_FORK= 时才需要。用的是运行 playbook 的那份
+  checkout 的 lock；=guix describe -f channels= 与 lock 逐字相同时跳过，
+  否则 =guix pull --allow-downgrades=（lock 可能回退）。只管用户，不管
+  root 和 daemon。之后不要裸跑 =guix pull=，它会按
+  =~/.config/guix/channels.scm= 拉到未钉住的版本；更新 lock 后用
+  =--tags guix= 重跑
 
 通用 role（不限 foreign distro，其它类机器的 playbook 也可以复用）：
 
