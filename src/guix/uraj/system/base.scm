@@ -192,18 +192,30 @@ MAIN-USER and the deployment account log in with SSH-KEY."
                (cons %nonguix-signing-key
                      (guix-configuration-authorized-keys config))))))))
 
-(define* (trust-substitute-servers services keys #:key (urls '()))
+(define* (trust-substitute-servers services keys
+                                   #:key (urls '()) discover?)
   "Make the Guix daemon in SERVICES accept substitutes signed by KEYS, a list
-of file-like public keys, and query URLS before its other servers.  The
-daemon still queries discovered servers first."
-  (modify-services services
-    (guix-service-type config =>
-      (guix-configuration
-        (inherit config)
-        (substitute-urls
-         (append urls (guix-configuration-substitute-urls config)))
-        (authorized-keys
-         (append keys (guix-configuration-authorized-keys config)))))))
+of file-like public keys, and query URLS before its other servers.  When
+DISCOVER? is true, the daemon also discovers servers advertised over Avahi
+and queries them first."
+  (define trusted
+    (modify-services services
+      (guix-service-type config =>
+        (guix-configuration
+          (inherit config)
+          (substitute-urls
+           (append urls (guix-configuration-substitute-urls config)))
+          (authorized-keys
+           (append keys (guix-configuration-authorized-keys config)))))))
+  ;; (gnu services base) does not export the discover? accessor, so leave
+  ;; the field untouched unless discovery is requested.
+  (if discover?
+      (modify-services trusted
+        (guix-service-type config =>
+          (guix-configuration
+            (inherit config)
+            (discover? #t))))
+      trusted))
 
 (define (base-os main-user ssh-key)
   "Return the headless foundation administered by MAIN-USER, a
