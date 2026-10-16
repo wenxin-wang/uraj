@@ -73,3 +73,32 @@ trial container and permanently discard only its game/account data:
 sudo docker rm redroid-houdini-test
 sudo docker volume rm redroid-houdini-test-data
 #+end_src
+
+* First game tests, 2026-10-16
+
+The new instance at =10.203.0.3= initially had no game installed. A crash at
+14:40:05 UTC belonged to the old NDK instance at =10.203.0.2=, not this trial.
+The same official APK was transferred from the old instance and installed
+successfully with =pm install --abi arm64-v8a= in the new one.
+
+The Houdini trial then failed too. At 14:42:50 UTC, after the first-launch
+consent screen, Android recorded =tombstone_00=: =sm-thread-http2=,
+=SIGSEGV/SEGV_MAPERR= at =0xdead0000=, with six frames in
+=system/lib64/libhoudini.so=. The first frame is offset =0x302827=, BuildId
+=175be4145090761a44b39a50455fd4976d2d8d3c=. Disassembly shows an intentional
+write to the constant address in an internal failure path; the condition
+leading to that path has not been identified.
+
+Houdini also logged a linker namespace denial when loading =libart.so=.
+A temporary experiment added only =libart.so= to the system default
+namespace's link to =com_android_art= in =/linkerconfig/ld.config.txt=,
+then restarted zygote. The denial disappeared, but startup still failed:
+CrashSight's =tomb_1792161901322.txt= at 14:45:01 UTC records
+=FMODAudioDevice=, =SIGILL/SI_USER=, with frames in =boot.oat= and
+=system/lib64/arm64/nb/libtcb.so=. This does not establish timebomb expiry
+as the cause, nor does it prove the namespace change caused that signal.
+
+The original linker configuration was restored and zygote restarted. No
+Houdini binary patch was applied. The game remains installed in the separate
+test volume; no login or MAA daily tasks were completed. This image has not
+passed startup validation.
