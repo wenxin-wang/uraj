@@ -1,0 +1,62 @@
+#+title: Unmodified codysk Android 13 NDK trial
+
+* Purpose and image
+
+Test the prebuilt =ghcr.io/codysk/redroid:13_ndk= image after the custom
+Android 11 NDK build and ERSTT Android 11 Houdini trial failed to start the
+current Arknights version reliably. No binary or linker namespace patches
+are applied in this trial.
+
+The May 24, 2025 report at
+https://nightspace.org/2025/05/24/在linux上（并不）优雅地玩明日方舟和使用maa/
+reports success with this image on a Ryzen 6800H. That is a reason to test
+it, not verification for our Intel GPU/CPU or the current game version.
+The next candidate is =erstt/redroid:13.0.0_ndk_ChromeOS=.
+
+The script pins the registry manifest for =13_ndk= to:
+
+=sha256:cf9ea7e5a4f7dfbba6e433382abc18ca1e5a0555bea24e579d0ff5117e461d79=
+
+The two compressed layers total 825,406,747 bytes. Runtime settings retain
+our Intel host rendering, 1280x720 resolution and 30 FPS for comparison.
+The existing =/redroid-init= helper is reused to protect host configuration.
+
+* Deploy from lappie
+
+The script is on the existing =redroid-houdini-trial= branch. No Guix System
+reconfiguration is required. From a checkout already on that branch:
+
+#+begin_src sh
+git pull --ff-only origin redroid-houdini-trial
+scp scripts/redroid/start-codysk-test hypie.home.labbies.wenxinwang.me:/tmp/uraj-start-codysk-test
+ssh -t hypie.home.labbies.wenxinwang.me 'sudo sh /tmp/uraj-start-codysk-test'
+#+end_src
+
+This starts =redroid-codysk-test= at =10.203.0.4:5555= with a new named
+volume =redroid-codysk-test-data=. Existing test names, data volumes or IP
+allocations cause the script to stop. Original game data is not mounted.
+No host ports are published; the existing redroid bridge policy applies.
+
+* Validation after deployment
+
+Connect with ADB, wait for =sys.boot_completed=, and verify Android version,
+native bridge properties and the actual loaded translator. Install the same
+ARM64 APK as the previous tests. Monitor screenshots alongside process
+liveness, logcat and tombstones: a frozen loading frame is not success.
+
+First test startup and resource loading, then login and battle loading.
+Only after those pass should MAA daily tasks run. Record successful screen
+transitions and crashes for repeated cold starts. The script has been syntax
+checked; the new container still requires deployment and runtime validation.
+
+* Stop or resume
+
+On hypie:
+
+#+begin_src sh
+sudo docker stop redroid-codysk-test
+sudo docker start redroid-codysk-test
+#+end_src
+
+There is no automatic restart policy. Keep the separate test data for
+inspection until the comparison is finished.
