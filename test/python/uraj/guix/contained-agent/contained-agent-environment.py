@@ -211,7 +211,10 @@ class Environment(Launcher):
         local = self.project / ".guix"
         local.mkdir()
         approved = (
-            self.home / ".local/state/contained-agent/approved/test-approved"
+            self.home
+            / ".local/state/contained-agent/approved"
+            / str(self.project).replace("%", "%25").replace("/", "%2F")
+            / "test-approved"
         )
         for clause in (
             f'(env "GH_TOKEN" (file "{self.secret}"))',
@@ -433,9 +436,11 @@ class Direnv(Launcher):
             (self.name(envrc, envrc), f"{envrc}\n"),
         )
 
-    def test_worktree_inherits_main_approval_of_same_contents(self):
+    def test_worktree_requires_own_approval(self):
         envrc = self.worktree / ".envrc"
         self.allow(self.project)
+        self.assertIsNone(self.approval(self.worktree))
+        self.allow(self.worktree)
         self.assertEqual(
             self.approval(self.worktree),
             (self.name(envrc, envrc), f"{envrc}\n"),
@@ -444,6 +449,42 @@ class Direnv(Launcher):
         envrc.write_text("export A=2\n")
         self.allow(self.project)
         self.assertIsNone(self.approval(self.worktree))
+
+    def test_worktree_policy_matches_own_root_without_fallback(self):
+        self.secret.write_text(SECRET)
+        clause = f'(env "WORKTREE_SECRET" (file "{self.secret}"))'
+        self.policy(clause)
+        result, _, environment = self.launch(cwd=self.worktree)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("WORKTREE_SECRET", environment)
+        self.config.write_text(f'(project "{self.worktree}" {clause})')
+        nested = self.worktree / "nested"
+        nested.mkdir()
+        result, _, environment = self.launch(cwd=nested)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(environment["WORKTREE_SECRET"], SECRET)
+        result, _, environment = self.launch(cwd=self.project)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("WORKTREE_SECRET", environment)
+
+    def test_local_approval_does_not_cross_worktrees(self):
+        for directory in (self.project, self.worktree):
+            local = directory / ".guix"
+            local.mkdir()
+            (local / "contained-agent.scm").write_text('(preserve "LOCAL_OK")')
+        approved = (
+            self.home
+            / ".local/state/contained-agent/approved"
+            / str(self.project).replace("%", "%25").replace("/", "%2F")
+            / "test-approved"
+        )
+        shutil.copytree(self.project / ".guix", approved)
+        result, argv, _ = self.launch(cwd=self.project)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("--preserve=^LOCAL_OK$", argv)
+        result, argv, _ = self.launch(cwd=self.worktree)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("--preserve=^LOCAL_OK$", argv)
 
     def test_environment_loads_for_the_agent_and_each_command(self):
         # A direnv exporting the directory it runs in.

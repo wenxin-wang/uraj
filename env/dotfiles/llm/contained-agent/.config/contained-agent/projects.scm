@@ -1,5 +1,5 @@
 ;;; Extra mounts and environment for contained-agent, per project (the
-;;; repository's main work tree).  Only `read', never evaluated; ~ is the home
+;;; current work tree's canonical root).  Only `read', never evaluated; ~ is the home
 ;;; directory, missing paths and unset variables are skipped.
 ;;;   (project ROOT (expose PATH ...) (share PATH ...) (preserve REGEXP ...)
 ;;;                 (guix-daemon) (git-hooks DIR))

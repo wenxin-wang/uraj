@@ -258,7 +258,7 @@ if 'hold' in sys.argv:
         self.assertEqual(self.result(self.client()), sock)
         self.assertEqual(len(self.prompts.read_text().splitlines()), 2)
 
-    def test_worktree_shares_keys_but_other_project_is_separate(self):
+    def test_worktree_and_other_project_have_separate_keys(self):
         subprocess.run(
             [
                 self.tools["git"],
@@ -292,8 +292,15 @@ if 'hold' in sys.argv:
             check=True,
         )
         sock = self.result(self.client())
-        self.assertEqual(self.result(self.client(cwd=worktree)), sock)
-        self.assertEqual(len(self.prompts.read_text().splitlines()), 1)
+        self.assertEqual(self.result(self.client(cwd=worktree)), "no-ssh")
+        with self.policy.open("a") as policy:
+            policy.write(
+                self.policy.read_text().replace(
+                    str(self.project), str(worktree)
+                )
+            )
+        self.assertNotEqual(self.result(self.client(cwd=worktree)), sock)
+        self.assertEqual(len(self.prompts.read_text().splitlines()), 2)
         other = self.home / "src/other"
         other.mkdir()
         subprocess.run(
@@ -305,7 +312,7 @@ if 'hold' in sys.argv:
             )
         self.assertNotEqual(self.result(self.client(cwd=other)), sock)
         self.assertEqual(self.result(self.client()), sock)
-        self.assertEqual(len(self.prompts.read_text().splitlines()), 2)
+        self.assertEqual(len(self.prompts.read_text().splitlines()), 3)
 
     def test_broker_death_cleans_shared_namespace_and_restart(self):
         self.result(self.client())

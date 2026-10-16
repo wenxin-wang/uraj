@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -lt 2 || $# -gt 3 ]]; then
+    echo "Usage: fork-worktree REPO NAME [TARGET]" >&2
+    exit 2
+fi
+
+repo=$(cd -- "$1" && pwd -P)
+name=$2
+target=${3-"$repo-$name"}
+
+# Resolve relative targets from the caller's directory, before git -C.
+if [[ $target != /* ]]; then
+    target=$PWD/$target
+fi
+
+exec git -C "$repo" worktree add -b "$name" -- "$target" HEAD

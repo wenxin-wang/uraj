@@ -27,7 +27,7 @@
 ;;;   host-side git run code or read other files, so the agent must not be
 ;;;   able to swap them, and a mount point cannot be renamed away (EBUSY).
 ;;; - Extra per-project clauses come from the projects file, which the
-;;;   sandbox cannot see, keyed by the repository's main work tree:
+;;;   sandbox cannot see, keyed by the current work tree's canonical root:
 ;;;
 ;;;     (project "~/src/uraj"
 ;;;       (expose "/var/log" "~/.local/state/shepherd")
@@ -149,7 +149,7 @@ tree, and the mount options for WORKDIR."
   (match (command-lines git "-C" workdir "rev-parse" "--path-format=absolute"
                         "--show-toplevel" "--git-common-dir" "--git-dir")
     ((top common gitdir)
-     (values (if (string-suffix? "/.git" common) (dirname common) top)
+     (values top
              top
              (git-mounts git top common gitdir)))
     (_
@@ -467,7 +467,13 @@ container asks git for the current repository's token."
                "/"))
 
 (define (project-key project)
-  (string-map (lambda (c) (if (char=? c #\/) #\% c)) project))
+  (string-concatenate
+   (map (lambda (c)
+          (case c
+            ((#\%) "%25")
+            ((#\/) "%2F")
+            (else (string c))))
+        (string->list project))))
 
 (define (local-files top)
   "Return the name of work tree TOP's project-local files, `.guix' or
@@ -507,7 +513,8 @@ reviewed, so refuse them."
     (#f #f)
     (name
      (let* ((source (string-append top "/" name))
-            (copy (state-directory "approved" (nar-hash source))))
+            (copy (state-directory "approved" (project-key top)
+                                   (nar-hash source))))
        (if (file-exists? copy)
            copy
            (begin
@@ -527,7 +534,7 @@ approved ones and, once the user agrees, approve them."
                 ((staging) (state-directory
                             (string-append "staging-"
                                            (number->string (getpid))))))
-    (mkdir-p (state-directory "approved"))
+    (mkdir-p (state-directory "approved" (project-key top)))
     (mkdir-p (state-directory "projects"))
     ;; Review and keep a copy: the work tree may change meanwhile.  Its hash
     ;; equals that of SOURCE as long as they are identical.
@@ -540,7 +547,7 @@ approved ones and, once the user agrees, approve them."
                                           (if (directory? source)
                                               ""
                                               (string-append "/" name)))))
-           (target (state-directory "approved" hash)))
+           (target (state-directory "approved" (project-key top) hash)))
       (unless (directory? source)
         (rename-file (string-append staging "/" name)
                      (string-append staging "/manifest.scm")))
@@ -579,25 +586,16 @@ and those contents."
     ((line) (string-take line 64))
     (_ (die "cannot hash ~a" contents))))
 
-(define (direnv-allowed top project tools)
-  "Return the name of the direnv approval of work tree TOP's .envrc if the
-host has approved it, or approved the same contents in PROJECT, TOP's main
-work tree, as for Paseo's worktrees; otherwise #f."
+(define (direnv-allowed top tools)
+  "Return TOP's direnv approval only when the host approved this exact path."
   (let ((envrc (string-append top "/.envrc"))
         (allowed (string-append (match (getenv "XDG_DATA_HOME")
                                   ((or #f "") (expand-home "~/.local/share"))
                                   (data data))
                                 "/direnv/allow/")))
     (and (eq? 'regular (and=> (stat envrc #f) stat:type))
-         (let ((name (direnv-allow-name tools envrc envrc))
-               (main (string-append project "/.envrc")))
-           (and (or (file-exists? (string-append allowed name))
-                    (and (not (string=? main envrc))
-                         (file-exists?
-                          (string-append allowed
-                                         (direnv-allow-name tools main
-                                                            envrc)))))
-                name)))))
+         (let ((name (direnv-allow-name tools envrc envrc)))
+           (and (file-exists? (string-append allowed name)) name)))))
 
 ;;; Agents.
 
@@ -749,7 +747,7 @@ NUL.  All ssh-add output goes to stderr, never into this private protocol."
        ((projects-file) (expand-home (or (getenv "CONTAINED_AGENT_PROJECTS")
                                          projects-file)))
        ((local) (and top (approved-local top)))
-       ((direnv) (and top (direnv-allowed top project ssh-tools)))
+       ((direnv) (and top (direnv-allowed top ssh-tools)))
        ((local-file) (lambda (name)
                        (let ((file (and local (string-append local "/" name))))
                          (and file (file-exists? file) file))))
@@ -935,9 +933,7 @@ GitHub token tiers, or #f if this host has none, and PROJECTS-SECRET, if not
                                     "--path-format=absolute" "--show-toplevel"
                                     "--git-common-dir"))
                (project (match info
-                          ((top common)
-                           (resolve (if (string-suffix? "/.git" common)
-                                        (dirname common) top)))
+                          ((top common) (resolve top))
                           (_ directory)))
                (policy (and (string=? action "ssh-start")
                             (ssh-policy (map cdr (central-entries projects-file project))))))
