@@ -102,3 +102,35 @@ The original linker configuration was restored and zygote restarted. No
 Houdini binary patch was applied. The game remains installed in the separate
 test volume; no login or MAA daily tasks were completed. This image has not
 passed startup validation.
+
+* Candidate timebomb branch experiment
+
+On 2026-10-16, the read-only pattern finder from
+https://github.com/Vvamp/Libhoudini-hpe-14-timebomb-patch/blob/master/trace.sh
+matched one candidate in this exact library: compare at =0x1082dd=, six-byte
+=jae= at file offset =0x1082e4= (=0f 83 ef 0d 00 00=), targeting the failure
+loop at =0x1090d9=. This heuristic match does not establish that the state
+being compared represents expiry in this build.
+
+For a reversible experiment only, those six branch bytes were replaced with
+NOPs. The resulting SHA-256 was
+=30cac3039f23dc85bd8b48e4addbc0e8d3213708816e66acebe5be8fde1b3181=.
+The file was bind-mounted in the test container, zygote restarted, and its
+actual mapped file hash checked before the tests.
+
+- Candidate patch alone: startup failed at 14:51:54 UTC; =tombstone_01=
+  again reports =0xdead0000= through offsets =0x302827=, =0x1e9e30= and
+  =0x108ac3=, this time on the main thread.
+- Candidate patch plus the earlier =libart.so= namespace change: startup
+  failed at 14:52:50 UTC with =SIGILL/SI_USER=; the ADB screenshot returned
+  to the launcher. The patched mapping hash was verified again.
+
+Disassembly of the immediate failure path shows that =0x1e9c98= calls
+=0x30e170=, which looks up address/page bits (shifts by 32, 17 and 12,
+then a bit test). A zero result branches to the intentional crash helper.
+This is a more specific lead than the sentinel address alone; it does not
+exclude an earlier expiry-related state change.
+
+Both experiments failed, so neither change is included in the startup
+script. The bind mount was removed, original linker configuration restored,
+and zygote restarted. Both original hashes were verified after restoration.
