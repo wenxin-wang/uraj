@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 
 target=$1
+if [[ "$target" != */* ]]; then
+    $target=~/src/uraj/env/guix/os/deploy/$target.scm
+fi
 
 eval "$(cd ~/src/uraj; direnv export bash)"
-maak -f ~/src/uraj/env/guix/os/maak.scm deploy ~/src/uraj/env/guix/os/deploy/$target.scm
+maak -f ~/src/uraj/env/guix/os/maak.scm deploy $target
