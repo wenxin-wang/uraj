@@ -160,11 +160,60 @@ hypie's CPU is Intel.  The package records this in its license field.
 On 2026-10-16 the package was checked against Google's official
 =chromeos_15359.58.0_guybrush_recovery= image: its ROOT-A partition's
 =/opt/google/vms/android/system.raw.img= was extracted without mounting, and
-all 172 libraries, linkers and app_process binaries matched byte for byte.
+all 172 libraries, linkers and app_process binaries matched byte for byte
+(before the =mprotect= fix below).
 The two =etc/cpuinfo.arm*.txt= files in the prebuilt repository are not in
 Google's image and are no longer installed; ndk_translation emulates
 =/proc/cpuinfo= with the verified =lib*/arm*/cpuinfo= helpers.  The pinned
 Guix hash detects any later replacement upstream.
+
+*** Host code made non-executable by guest =mprotect=
+
+With the guybrush build, about one cold start in four still died in the
+hot-update stage (05:09–11:38 on 2026-10-16, then 5 of 21 test launches).
+CrashSight handles the SIGSEGV itself, so =/data/tombstones= stays empty; its
+own records are in
+=/data/data/com.hypergryph.arknights/app_crashSight/tomb_*.txt=.  All were
+=SEGV_ACCERR= at an address inside ART's =boot.oat= text, on varying threads.
+
+A tracefs instance (strace makes the game exit) showed the order: a
+=sm-thread-http*= thread of the Shumei SDK (=libsmsdk.so=) mprotects
+=boot.oat= and =boot-framework.oat= text pages one by one; 64 ms later two
+threads fault on the first of them, which holds the JNI stub shared by many
+native methods.  ndk_translation's =MprotectForGuest= (=ToHostProt= in its
+open-source successor, berberis) maps guest =PROT_EXEC= to host =PROT_READ=
+and protects only =libc.so= from guest mprotect, so the host pages become
+=rw-=.  On ARM hardware the same call is harmless.  The SDK does not run
+this scan on every launch, which is why some sessions lasted hours.
+
+The package therefore changes one byte of =system/lib64/libndk_translation.so=:
+the mask at virtual address =0x207dd1= becomes =and $0xffffffff=, so a guest
+request with EXEC keeps host EXEC (plus READ).  Guest execution is still
+decided by the translator's own executable bitmap.  The build checks the
+original instruction bytes and the patched file's SHA-256 (=2db5af23…=).  With
+the patched file bind-mounted in place, 20 cold starts in a row reached the
+title screen; unpatched, the control run crashed again on its fifth launch.
+This is not an end-to-end pass: a later MAA daily test at 14:07:07 UTC on
+2026-10-16 crashed during startup, before recruitment or base rotation.
+ADB screenshots showed the launcher after the game exited.  CrashSight's
+=tomb_1792159627201.txt= reports =sm-thread-http2=, =SEGV_ACCERR=, and
+PC/fault address =0x7d17e4c64540=, unlike the earlier =boot.oat= addresses.
+The file backing zygote64's actual translator mapping was verified to have
+the patched SHA-256.  The faulting mapping was not captured, so the cause
+of this later crash remains unresolved; the patch is not yet ready for
+deployment as a verified fix.
+The 32-bit =system/lib= translator is unchanged: Arknights installs its
+=arm64-v8a= libraries.
+
+Each launch also leaves zero to two orphaned =com.hypergryph.arknights=
+processes (parent PID 1, one thread, 1–1.6 GB resident).  They are
+=fork()= children of the same SDK thread that block forever in
+=TranslationCache::AddAndLockForTranslation=: another thread held the lock
+when the process forked.  They do not crash the game but hold memory until
+killed or Android restarts.
+
+TODO: once MAA runs on a schedule, have that job kill orphaned app
+processes (parent PID 1, app UID ≥ 10000) in =redroid-maa= after =CloseDown=.
 
 Before reconfiguration, on hypie:
 
