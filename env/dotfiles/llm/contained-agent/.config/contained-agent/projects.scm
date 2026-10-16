@@ -9,6 +9,9 @@
 ;;; ~/.config/contained-agent/projects.local.scm.  Keep identities and host
 ;;; names there; it is not deployed by Home or stored in this repository.
 ;;; Central configuration only may also declare:
+;;;   (manifest ".guix/maa-manifest.scm") ; relative to this worktree root
+;;; `contained-agent allow' reviews all of .guix for a manifest inside it;
+;;; a manifest elsewhere is approved alone.  Selection does not grant approval.
 ;;;   (ssh-agent (identity "~/.ssh/project-key"
 ;;;                (destinations "git@github.com" "user@host.example")))
 ;;; Keys load automatically before entering the container.  To reload or

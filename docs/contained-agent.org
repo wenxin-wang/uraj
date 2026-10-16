@@ -421,7 +421,34 @@ network access: treat them as readable by anything the agent runs; their
 scope is the protection.  [[file:../secrets/README.org][secrets/README.org]] covers requesting and rotating
 them.  uraj uses =(github "personal")=.
 
-Project-local: =.guix/contained-agent.scm= (same clauses at top level) and
+Central configuration can select a manifest for this worktree:
+
+#+begin_src scheme
+(project "~/src/uraj-maa"
+  (manifest ".guix/maa-manifest.scm"))
+#+end_src
+
+The =manifest= clause is accepted only in the managed or host-private
+central project configuration.  Its path is relative to the worktree root,
+not the launch directory.  Absolute paths, =.= or =..= components, symlinks,
+missing files and multiple manifest clauses are errors, without fallback.
+Both =contained-agent allow [DIRECTORY]= and session startup read the same
+central selection.  Selecting a manifest does not approve its contents.
+
+For a selection inside =.guix/=, approval still covers the whole =.guix/=
+directory, including =contained-agent.scm= and sibling Scheme files, and
+Guix uses the selected filename in the approved copy.  A selection elsewhere,
+such as =(manifest "maa-manifest.scm")=, approves that file alone instead of
+=.guix/=; it is copied to =manifest.scm= in the approval directory.  Any files
+it loads are not covered by that approval.  Put related files under =.guix/=
+when they need to be reviewed and copied together.
+
+After editing the central selection, run =contained-agent allow= in that
+worktree and restart the session.  Changed or unapproved contents are left
+out with a warning; the launcher never falls back to the default manifest.
+
+Without an explicit manifest selection, project-local files are
+=.guix/contained-agent.scm= (same clauses at top level) and
 =.guix/manifest.scm=, or a top-level =manifest.scm=.  The agent can write
 them, and =guix shell= evaluates a manifest on the host, outside any
 sandbox.  So they count only once approved:
