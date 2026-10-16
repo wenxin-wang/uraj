@@ -88,3 +88,45 @@ The downloaded amd64 BusyBox was checked for absence of PT_INTERP and run
 inside an otherwise empty chroot in the test container. Shell execution,
 file cleanup and self-removal succeeded without Android libraries or APEX.
 Full Docker build remains to be rerun on the host.
+
+* Initial runtime checks, 2026-10-16
+
+The host build with static BusyBox succeeded and the new container booted.
+ADB confirmed =libhoudini.so= was selected and mapped by zygote64, with the
+expected =5ef64035...= hash. SurfaceFlinger used Intel HD 630 / Mesa 24.0.8.
+The same ARM64 version 2.7.81 APK was installed.
+
+The first game launch failed at 16:49:21 UTC before the consent screen:
+Houdini initialized but the system default linker namespace denied access
+to =/system/lib64/arm64/libtcb.so=. Houdini logged error =0x0190015a= and
+aborted. This was an integration issue before game startup.
+
+For the runtime experiment, the original =/linkerconfig/ld.config.txt= was
+saved and the following line appended at the end of its =[system]= section
+(after all existing default permitted-path assignments):
+
+#+begin_example
+namespace.default.permitted.paths += /system/${LIB}/arm64:/system/${LIB}/arm
+#+end_example
+
+After restarting zygote and waiting for activity services, the game reached
+the consent screen and then resource selection. No game crash record or
+orphan game process was observed in that launch. This change is temporary:
+container boot regenerates linkerconfig. The image startup script does not
+yet include this integration fix. No binary patches were applied.
+
+With the namespace correction, five manual cold launches reached either
+resource selection or active resource updating. No new game native crash
+was observed, and the final process snapshot had no orphan game processes.
+These are startup observations with differing resource states, not a
+controlled stability benchmark. Login and battle remain untested.
+
+Bundles and HGGameUpdate were copied from the original instance, then their
+ownership corrected to the new app UID (10077). The game still requested
+resource updating. Two reversible experiments did not eliminate that update:
+copying only the V078 resource-grading preference, and regenerating the
+HGGameUpdate cache. Both experiments were rolled back. At 17:05 UTC the
+last launch remained alive, updating at 2660 / 14942 MB (18%). The game was
+left running to continue the update. No account data was copied and no MAA
+account tasks ran. The namespace correction remains only in the running
+container and must be reapplied after container restart.
