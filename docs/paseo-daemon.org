@@ -50,15 +50,30 @@ session environment. Do not run both service owners against the same state.
 
 * Configuration
 
-Home activation merges only the two provider commands into writable
-=~/.paseo/config.json=:
+Home activation maintains six providers in writable =~/.paseo/config.json=:
 
-#+begin_src json
-{"agents":{"providers":{
-  "codex":{"command":["/home/wenxin/.guix-home/profile/bin/paseo-codex"]},
-  "claude":{"command":["/home/wenxin/.guix-home/profile/bin/paseo-claude"]}
-}}}
-#+end_src
+| Provider ID | Label | Broker tier |
+|-------------+-------+-------------|
+| claude | 日常沙箱 claude | daily |
+| claude-system | 系统沙箱 claude | system |
+| claude-host | 宿主 claude | host |
+| codex | 日常沙箱 codex | daily |
+| codex-system | 系统沙箱 codex | system |
+| codex-host | 宿主 codex | host |
+
+The default =claude=/=codex= IDs call =paseo-AGENT-daily=. Derived providers
+use =extends: "claude"= or ="codex"= and call =paseo-AGENT-system/host=.
+All commands are absolute paths under =~/.guix-home/profile/bin=, computed
+on the target machine. The clients are also in the daemon profile. Legacy
+=paseo-claude= and =paseo-codex= remain aliases for daily. Terminal
+=~/.local/bin/claude= and =codex= remain the existing contained-agent overrides.
+Mobile clients >=0.1.45 can select custom providers when creating an agent;
+older clients hide them. This is not a live-session sandbox switch.
+
+System currently uses exactly the daily launcher and project permissions.
+Host runs the Guix package's real binary outside namespaces as the broker user;
+it does not bypass the agent's own permission settings or grant root. See
+[[file:paseo-broker.org::*Execution tiers][broker execution tiers]] for lifetime and authorization limits.
 
 The home prefix is computed on the target machine. Clients are installed in
 the profile; no store hash is written to this config. Activation needs no

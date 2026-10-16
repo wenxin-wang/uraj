@@ -74,9 +74,27 @@ def activate(home, desktop=False, worktrees=None):
             "providers", {}
         )
         for provider in ("codex", "claude"):
-            providers.setdefault(provider, {})["command"] = [
-                str(home / ".guix-home/profile/bin" / f"paseo-{provider}")
-            ]
+            for tier, label in (
+                ("daily", "日常沙箱"),
+                ("system", "系统沙箱"),
+                ("host", "宿主"),
+            ):
+                name = provider if tier == "daily" else f"{provider}-{tier}"
+                entry = providers.setdefault(name, {})
+                entry.update(
+                    {
+                        "label": f"{label} {provider}",
+                        "command": [
+                            str(
+                                home
+                                / ".guix-home/profile/bin"
+                                / f"paseo-{provider}-{tier}"
+                            )
+                        ],
+                    }
+                )
+                if tier != "daily":
+                    entry["extends"] = provider
         if worktrees:
             section = settings.setdefault("worktrees", {})
             # Move the previous default out of ~/Projects; custom roots stay.

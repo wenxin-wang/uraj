@@ -122,11 +122,59 @@ static void run_namespace_init(char** command, int result) {
     nanosleep(&delay, NULL);
   }
 }
+/* Host mode intentionally has no namespace boundary. Termination cleans the
+ * workload's process group; descendants that call setsid can outlive it. */
+static void run_host_init(char** command, int result) {
+  install_signal_handlers();
+  int myself = open_process_handle(getpid());
+  pid_t leader = fork();
+  if (leader < 0) exit_with_error("fork host workload");
+  if (!leader) {
+    exit_when_parent_dies(myself);
+    close(myself);
+    close(result);
+    if (setsid() < 0) exit_with_error("host setsid");
+    signal(SIGTERM, SIG_DFL);
+    signal(SIGINT, SIG_DFL);
+    signal(SIGHUP, SIG_DFL);
+    execvp(command[0], command);
+    exit_with_error("exec host workload");
+  }
+  close(myself);
+  int64_t deadline = 0;
+  for (;;) {
+    if (stopping && !deadline) {
+      kill(-leader, SIGTERM);
+      kill(leader, SIGTERM);
+      deadline = monotonic_milliseconds() + 2000;
+    }
+    if (deadline && monotonic_milliseconds() >= deadline) {
+      kill(-leader, SIGKILL);
+      kill(leader, SIGKILL);
+    }
+    int status;
+    pid_t done = waitpid(leader, &status, WNOHANG);
+    if (done == leader) {
+      kill(-leader, SIGKILL);
+      if (send(result, &status, sizeof status, MSG_NOSIGNAL) != sizeof status)
+        exit_with_error("send host status");
+      _exit(0);
+    }
+    if (done < 0 && errno != EINTR) exit_with_error("wait host workload");
+    struct timespec delay = {.tv_nsec = 10000000};
+    nanosleep(&delay, NULL);
+  }
+}
 int main(int argc, char** argv) {
+  int host = argc > 1 && !strcmp(argv[1], "--host");
+  if (host) {
+    argc--;
+    argv++;
+  }
   if (argc < 5 || strcmp(argv[1], "--owner-fd") || strcmp(argv[3], "--")) {
-    fprintf(
-        stderr,
-        "usage: paseo-agent-supervisor --owner-fd FD -- PROGRAM [ARGS...]\n");
+    fprintf(stderr,
+            "usage: paseo-agent-supervisor [--host] --owner-fd FD -- PROGRAM "
+            "[ARGS...]\n");
     return 125;
   }
   char* end;
@@ -134,19 +182,21 @@ int main(int argc, char** argv) {
   if (*end || number < 3 || number > 1048576) return 125;
   int owner = (int)number;
   exit_when_parent_dies(owner);
-  uid_t uid = getuid();
-  gid_t gid = getgid();
-  if (unshare(CLONE_NEWUSER)) exit_with_error("unshare user");
-  char mapping[96];
-  snprintf(mapping, sizeof mapping, "%u %u 1\n", uid, uid);
-  write_namespace_mapping("/proc/self/uid_map", mapping);
-  write_namespace_mapping("/proc/self/setgroups", "deny\n");
-  snprintf(mapping, sizeof mapping, "%u %u 1\n", gid, gid);
-  write_namespace_mapping("/proc/self/gid_map", mapping);
-  exit_when_parent_dies(
-      owner); /* Credential transitions must not silently disarm the link. */
+  if (!host) {
+    uid_t uid = getuid();
+    gid_t gid = getgid();
+    if (unshare(CLONE_NEWUSER)) exit_with_error("unshare user");
+    char mapping[96];
+    snprintf(mapping, sizeof mapping, "%u %u 1\n", uid, uid);
+    write_namespace_mapping("/proc/self/uid_map", mapping);
+    write_namespace_mapping("/proc/self/setgroups", "deny\n");
+    snprintf(mapping, sizeof mapping, "%u %u 1\n", gid, gid);
+    write_namespace_mapping("/proc/self/gid_map", mapping);
+    exit_when_parent_dies(
+        owner); /* Credential transitions must not silently disarm the link. */
+    if (unshare(CLONE_NEWPID)) exit_with_error("unshare pid");
+  }
   close(owner);
-  if (unshare(CLONE_NEWPID)) exit_with_error("unshare pid");
   int myself = open_process_handle(getpid()), channel[2];
   if (socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, channel))
     exit_with_error("socketpair");
@@ -159,6 +209,7 @@ int main(int argc, char** argv) {
     close(channel[0]);
     char ready;
     if (recv(channel[1], &ready, 1, 0) != 1 || ready != 'R') _exit(125);
+    if (host) run_host_init(argv + 4, channel[1]);
     run_namespace_init(argv + 4, channel[1]);
     _exit(125);
   }
