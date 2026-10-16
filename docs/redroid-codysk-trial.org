@@ -60,3 +60,44 @@ sudo docker start redroid-codysk-test
 
 There is no automatic restart policy. Keep the separate test data for
 inspection until the comparison is finished.
+
+* Initial runtime test, 2026-10-16
+
+The instance at =10.203.0.4= booted Android 13 successfully. SurfaceFlinger
+reported =Mesa Intel(R) HD Graphics 630 (KBL GT2)=, OpenGL ES 3.2 Mesa 24.0.8.
+Zygote mapped the original =/system/lib64/libndk_translation.so=; its SHA-256
+was =37b56c2e542c4c1cf6a2743f58eea78fcd5bc33ddc000de1c5d26bb9c3be5ba4=.
+
+The same version 2.7.81 APK was installed with =--abi arm64-v8a=. On the
+first launch, after accepting the game notice and dismissing the system
+notification prompt, screenshots advanced from the Victoria loading screen
+to the Rhodes Island resource selection dialog (12,742.69 MB full download).
+The main process remained alive and CrashSight had no crash record. Existing
+system tombstones were Bluetooth service failures predating game startup.
+
+This establishes first-launch progress only, not login or battle stability.
+The game was stopped to copy the existing Bundles directory from the old
+instance into the separate test volume, avoiding a duplicate download.
+
+The second launch reached resource selection again. Extraction initially
+retained the old app UID (10116); the new app uses UID 10077. After stopping
+the game, the copied Bundles ownership was corrected to 10077:1078.
+
+The third launch failed at 16:19:12 UTC. CrashSight recorded
+=tomb_1792167552837.txt=: PID 3873, TID 3950, =UnityChoreograp=,
+=SIGSEGV/SEGV_ACCERR=, fault address =0x7730f655ff10=. At 16:19:13,
+logcat also recorded SIGSEGV on =UnityMain=. The main process subsequently
+exited; three orphan game processes remained.
+
+The crash-time child (PID 4095) retained this mapping containing the fault:
+
+#+begin_example
+7730f655f000-7730f6560000 rw-p 0015f000 /apex/com.android.art/lib64/libart.so
+7730f6560000-7730f6b43000 r-xp 00160000 /apex/com.android.art/lib64/libart.so
+#+end_example
+
+This resembles the earlier host-code permission failure, now in libart.so.
+There was no syscall trace in this trial, so the caller and exact permission
+transition have not been established. The image fails startup validation
+for this environment/game version despite two initial launches progressing.
+No account login, battle or MAA account tasks were completed.
