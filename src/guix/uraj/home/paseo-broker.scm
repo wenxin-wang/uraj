@@ -12,6 +12,7 @@
   #:use-module ((guix licenses) #:prefix license:)
   #:use-module (uraj utils file path)
   #:use-module (uraj packages ssh)
+  #:use-module (uraj packages llm)
   #:export (paseo-broker-home-services paseo-broker-bundle
             broker-program paseo-broker-clients supervisor
             paseo-askpass-environment))
@@ -42,14 +43,16 @@
            (apply execl #$(file-append python "/bin/python3") "python3"
                   #$broker-source "serve" "--shared-ssh"
                   "--supervisor" #$supervisor "--launcher" #$launcher
+                  "--host-codex" #$(file-append codex "/bin/codex")
+                  "--host-claude" #$(file-append claude-code "/bin/claude")
                   (if (and (pair? args) (string=? (car args) "serve"))
                       (cdr args) args))))))
 
-(define (provider-client provider)
+(define* (provider-client provider #:optional (tier "daily"))
   (program-file
-   (string-append "paseo-" provider)
+   (string-append "paseo-" provider "-" tier)
    #~(apply execl #$(file-append python "/bin/python3") "python3"
-            #$broker-source "client" #$provider (cdr (command-line)))))
+            #$broker-source "client" "--tier" #$tier #$provider (cdr (command-line)))))
 
 (define paseo-broker-clients
   (package
@@ -62,10 +65,18 @@
            #~(begin
                (mkdir #$output)
                (mkdir (string-append #$output "/bin"))
-               (symlink #$(provider-client "codex")
-                        (string-append #$output "/bin/paseo-codex"))
-               (symlink #$(provider-client "claude")
-                        (string-append #$output "/bin/paseo-claude")))))
+               #$@(map
+                   (lambda (entry)
+                     #~(symlink #$(provider-client (car entry) (cadr entry))
+                                (string-append #$output "/bin/" #$(caddr entry))))
+                   '(("codex" "daily" "paseo-codex")
+                     ("claude" "daily" "paseo-claude")
+                     ("codex" "daily" "paseo-codex-daily")
+                     ("codex" "system" "paseo-codex-system")
+                     ("codex" "host" "paseo-codex-host")
+                     ("claude" "daily" "paseo-claude-daily")
+                     ("claude" "system" "paseo-claude-system")
+                     ("claude" "host" "paseo-claude-host"))))))
     (home-page "https://paseo.sh")
     (synopsis "Paseo host broker clients")
     (description "Connect Paseo providers to the same-user execution broker.")

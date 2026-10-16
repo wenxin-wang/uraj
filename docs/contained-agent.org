@@ -41,12 +41,12 @@ as =contained-agent= the first argument names the agent, or is =allow=.
 - Terminal: =~/.local/bin= comes first in =PATH= (=.profile.d/61-paths.sh=),
   so =codex= and =claude= are the contained ones.  The originals remain at
   =~/.guix-home/profile/bin/=.
-- Paseo: Home activation configures broker clients in =~/.paseo/config.json=
+- Paseo: Home activation configures daily broker clients in =~/.paseo/config.json=
   (see [[file:paseo-daemon.org][daemon service]]):
   #+begin_src json
   "agents": { "providers": {
-    "codex":  { "command": ["/home/wenxin/.guix-home/profile/bin/paseo-codex"] },
-    "claude": { "command": ["/home/wenxin/.guix-home/profile/bin/paseo-claude"] } } }
+    "codex":  { "command": ["/home/wenxin/.guix-home/profile/bin/paseo-codex-daily"] },
+    "claude": { "command": ["/home/wenxin/.guix-home/profile/bin/paseo-claude-daily"] } } }
   #+end_src
   Restart the daemon after a change: it caches the provider version probe.
 - Approve a project's own files: =contained-agent allow [DIRECTORY]=.
@@ -207,6 +207,10 @@ same =bwrap=.  =seed= files are exposed at =/run/contained-agent/seed-N= and
 copied by the launcher script.
 
 ** Claude Code
+
+Paseo's system tier currently uses this same policy; its host tier bypasses
+contained-agent. Terminal =claude=/=codex= remain contained by default. See
+[[file:paseo-daemon.org::*Configuration][Paseo provider and configuration management]].
 
 - =~/.claude= is an overlay.  Settings (=settings.json= links to one of the
   =settings.json.*= profiles), plugins, skills and any new file such as

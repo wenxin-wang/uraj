@@ -113,6 +113,33 @@ class PolicySyntax(unittest.TestCase):
         self.assertNotIn("POLICY_TEST_PREFIXED", preserved)
 
 
+class TierValidation(unittest.TestCase):
+    def test_legacy_defaults_and_explicit_tiers(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            message = {
+                "version": 1,
+                "type": "start",
+                "provider": "codex",
+                "argv": [],
+                "cwd": directory,
+                "env": {"PASEO_AGENT_ID": "same-agent"},
+            }
+            legacy = broker.validate_start_request(message, [root], root)
+            self.assertEqual(legacy[5], "daily")
+            for tier in ("daily", "system", "host"):
+                request = broker.validate_start_request(
+                    dict(message, tier=tier), [root], root
+                )
+                self.assertEqual(request[5], tier)
+                self.assertEqual(request[4], legacy[4])
+            for tier in ("root", None, [], {}):
+                with self.subTest(tier=tier), self.assertRaises(ValueError):
+                    broker.validate_start_request(
+                        dict(message, tier=tier), [root], root
+                    )
+
+
 class Broker(unittest.TestCase):
     def setUp(self):
         # Reap test-owned orphans after intentionally killing the broker.
@@ -153,6 +180,22 @@ sys.exit(99)
 """
         )
         self.launcher.chmod(0o700)
+        self.host_binary = self.root / "host-agent"
+        self.host_binary.write_text(
+            f"#!{sys.executable}\n"
+            "import os, signal, sys, time\n"
+            "if sys.argv[1:] == ['namespaces']:\n"
+            "    print(' '.join(os.readlink('/proc/self/ns/' + n) "
+            "for n in ('user', 'pid', 'mnt')))\n"
+            "elif sys.argv[1:] == ['echo']:\n"
+            "    print(sys.stdin.readline().strip()); sys.exit(7)\n"
+            "elif sys.argv[1:] == ['signal']:\n"
+            "    os.kill(os.getpid(), signal.SIGTERM)\n"
+            "elif sys.argv[1:] == ['hang']:\n"
+            "    print('ready', flush=True)\n"
+            "    while True: time.sleep(1)\n"
+        )
+        self.host_binary.chmod(0o700)
         self.env = {
             "PATH": "/run/current-system/profile/bin",
             "LANG": "C.UTF-8",
@@ -178,6 +221,8 @@ sys.exit(99)
                 os.environ["SUPERVISOR"],
                 "--launcher",
                 str(self.launcher),
+                "--host-codex",
+                str(self.host_binary),
                 "--root",
                 str(self.root),
                 "--policy",
@@ -205,14 +250,14 @@ sys.exit(99)
         if self.server.poll() is not None:
             self.fail(self.server.stderr.read().decode())
 
-    def client(self, *args, agent_id=None, env_extra=None):
+    def client(self, *args, agent_id=None, env_extra=None, tier="daily"):
         env = dict(self.env)
         if agent_id:
             env["PASEO_AGENT_ID"] = agent_id
         if env_extra:
             env.update(env_extra)
         proc = subprocess.Popen(
-            self.prefix + ["client", "codex", *args],
+            self.prefix + ["client", "--tier", tier, "codex", *args],
             cwd=self.root,
             env=env,
             stdin=subprocess.PIPE,
@@ -240,6 +285,53 @@ sys.exit(99)
             self.assertTrue(readable, "namespace init survived")
         finally:
             os.close(fd)
+
+    def test_system_uses_daily_launcher(self):
+        client = self.client("--version", tier="system")
+        self.assertEqual(
+            client.communicate(timeout=10), (b"fake-provider 1.0\n", b"")
+        )
+        self.assertEqual(client.returncode, 0)
+
+    def test_host_keeps_namespaces_and_streams(self):
+        client = self.client("namespaces", tier="host")
+        expected = " ".join(
+            os.readlink(f"/proc/self/ns/{name}")
+            for name in ("user", "pid", "mnt")
+        )
+        self.assertEqual(
+            client.communicate(timeout=10), ((expected + "\n").encode(), b"")
+        )
+        self.assertEqual(client.returncode, 0)
+        client = self.client("echo", tier="host")
+        self.assertEqual(
+            client.communicate(b"hello\n", timeout=10), (b"hello\n", b"")
+        )
+        self.assertEqual(client.returncode, 7)
+
+    def test_unconfigured_host_binary_fails_closed(self):
+        client = subprocess.run(
+            self.prefix + ["client", "--tier", "host", "claude", "--version"],
+            cwd=self.root,
+            env=self.env,
+            capture_output=True,
+            timeout=10,
+        )
+        self.assertEqual(client.returncode, 125)
+        self.assertIn(b"configured absolute binary", client.stderr)
+
+    def test_host_cancellation_and_broker_death(self):
+        for stop_broker in (False, True):
+            with self.subTest(stop_broker=stop_broker):
+                client = self.client("hang", tier="host")
+                identity = self.ready(client)
+                if stop_broker:
+                    self.server.kill()
+                    self.server.wait(timeout=10)
+                else:
+                    client.terminate()
+                client.communicate(timeout=10)
+                self.assert_dead(identity)
 
     def test_probe_and_streams(self):
         probe = self.client("--version")

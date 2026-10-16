@@ -638,3 +638,43 @@ The design can match Paseo's normal exit semantics, but that is not yet a
 verified property of an implementation.  Provisioning the selected ownership
 boundary, crash cleanup and the tests above are release requirements, not later
 reliability enhancements.
+
+* Execution tiers
+
+Provider clients now send =tier: daily|system|host= separately from
+=provider: claude|codex=. Missing tier means daily for old clients; other values
+are rejected. The broker status includes each execution's tier. Provider/agent
+identity serializes replacements across tiers rather than allowing two copies
+of the same agent to overlap.
+
+Daily and system use the same contained-agent launcher, shared SSH preparation
+and namespace supervisor. System is a named placeholder for future policy;
+it currently adds no permissions. Existing project grants, including uraj's
+Guix daemon and system log access, still apply to both.
+
+Host requires a server-configured absolute =--host-codex= or =--host-claude=
+binary. Guix supplies package paths, never PATH-resolved terminal overrides.
+It skips contained-agent and shared SSH preparation, retaining the broker's
+host user/mount/PID namespaces and normal HOME-backed agent settings. It still
+uses the broker's environment filtering and authorized cwd roots. It does not
+acquire root or supplementary groups absent from the broker service, and it
+does not turn off the agent's own sandbox/approvals.
+
+The supervisor's =--host= mode retains parent-death links, signal/exit reporting
+and normal process-group cleanup. Unlike daily/system, it cannot promise kernel
+namespace teardown of all descendants: detached children can survive, and
+abrupt supervisor/broker death may leave descendants other than the linked
+leader. This is an explicit host-mode limitation, not a relaxation of daily's
+cleanup. The =namespace.stat= identity record names the host monitor in this
+mode; it is not evidence that a new namespace exists.
+
+These labels select execution environments, not independently authenticated
+roles. The same trusted daemon can request all configured tiers. Daily agents
+must still not receive access to the broker socket. Wrapper placement alone is
+not an authorization boundary; further separation of system operations needs
+its own policy design.
+
+=paseo-AGENT-{daily,system,host}= clients live in the Home and daemon profiles,
+not in agent containers. Legacy =paseo-AGENT= clients still select daily.
+The configure/restore trial command continues managing only legacy command
+fields; Guix activation manages the six labeled provider entries and overrides.

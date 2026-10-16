@@ -46,13 +46,28 @@ class Activation(unittest.TestCase):
         self.assertFalse((self.home / "Projects").exists())
         self.assertEqual(
             settings["agents"]["providers"]["codex"]["command"],
-            [str(self.home / ".guix-home/profile/bin/paseo-codex")],
+            [str(self.home / ".guix-home/profile/bin/paseo-codex-daily")],
         )
         desktop = json.loads(
             (self.home / ".config/Paseo/desktop-settings.json").read_text()
         )
         self.assertFalse(desktop["settings"]["daemon"]["manageBuiltInDaemon"])
         self.assertTrue(desktop["migrations"]["legacyRendererSettingsImported"])
+
+    def test_provider_tiers(self):
+        SERVICE.activate(self.home)
+        settings = json.loads((self.home / ".paseo/config.json").read_text())
+        providers = settings["agents"]["providers"]
+        self.assertEqual(len(providers), 6)
+        for agent in ("claude", "codex"):
+            self.assertEqual(providers[agent]["label"], f"日常沙箱 {agent}")
+            for tier, label in (("system", "系统沙箱"), ("host", "宿主")):
+                entry = providers[f"{agent}-{tier}"]
+                self.assertEqual(entry["extends"], agent)
+                self.assertEqual(entry["label"], f"{label} {agent}")
+                self.assertTrue(
+                    entry["command"][0].endswith(f"paseo-{agent}-{tier}")
+                )
 
     def test_temporary_directory_is_private_and_preserves_attachments(self):
         directory = SERVICE.prepare_temporary_directory(self.home)
