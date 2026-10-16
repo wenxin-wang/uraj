@@ -1,0 +1,75 @@
+#+title: Isolated Houdini trial on hypie
+
+This trial starts a second Android container manually. It does not reconfigure
+Guix System, replace =redroid-maa=, or reuse that container's game data. The
+branch is based on main and does not include the experimental NDK EXEC patch.
+
+* Deploy from lappie
+
+In the repository checkout on lappie:
+
+#+begin_src sh
+git fetch origin
+git switch --track origin/redroid-houdini-trial
+scp scripts/redroid/start-houdini-test hypie.home.labbies.wenxinwang.me:/tmp/uraj-start-houdini-test
+ssh -t hypie.home.labbies.wenxinwang.me 'sudo sh /tmp/uraj-start-houdini-test'
+#+end_src
+
+The script requires the existing =redroid= Docker network and =redroid-maa=
+container configuration. It reuses their host init helper and Intel render
+node. It pulls about 961 MB, then starts =redroid-houdini-test= at
+=10.203.0.3:5555= with a fresh named volume, =redroid-houdini-test-data=.
+No host ports are published. The existing bridge's egress policy still applies.
+An occupied address, existing test container, or existing test volume causes
+the script to stop instead of silently reusing it.
+
+After startup, ADB on hypie can connect directly:
+
+#+begin_src sh
+adb connect 10.203.0.3:5555
+adb -s 10.203.0.3:5555 shell getprop sys.boot_completed
+#+end_src
+
+Android initially has no game or account data. Install the same official APK,
+verify the selected native bridge and actual loaded library, then test cold
+starts and login while monitoring screenshots, process exit and CrashSight
+records. Do not count an unchanged loading screenshot as success. Only proceed
+to MAA account tasks after startup and login work.
+
+* Image inspection
+
+Source: https://github.com/ERSTT/redroid
+
+Tag =11.0.0_houdini_ChromeOS= is pinned in the script to:
+
+=sha256:dd2d7328deb5fc0250cef878a91b68524613da6cb5866049d1b76ec892766f10=
+
+On 2026-10-16 the translator layer was downloaded and its SHA-256 verified
+against the registry manifest. The 64-bit binary identifies itself as
+=11.0.1f_z.38795.g=. Library SHA-256 values:
+
+- =system/lib64/libhoudini.so=: =170023973e9b11ec8c22224a1e821e24737c8b7b9d0242df7aa9978a205aa530=
+- =system/lib/libhoudini.so=: =77169d29f2472662af89b6fc081225b9873ab6373eec95e0bb020dec8f71ea13=
+
+This is an unmodified third-party image, not our own Houdini build. Expiry
+behavior and compatibility with the current game remain unverified. The
+Vvamp HPE-14 timebomb patch targets different binaries and is not applied.
+The startup script has been syntax checked; container boot has not yet been
+validated because the agent session lacks host Docker access.
+
+* Stop and remove
+
+On hypie, stop the trial without affecting the original container:
+
+#+begin_src sh
+sudo docker stop redroid-houdini-test
+#+end_src
+
+To resume the same test later, use =sudo docker start redroid-houdini-test=.
+It has no automatic restart policy. When finished, these commands remove the
+trial container and permanently discard only its game/account data:
+
+#+begin_src sh
+sudo docker rm redroid-houdini-test
+sudo docker volume rm redroid-houdini-test-data
+#+end_src

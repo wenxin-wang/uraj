@@ -1,0 +1,48 @@
+#!/bin/sh
+# Run on hypie's host as root. Keeps redroid-maa and its /data unchanged.
+set -eu
+image=docker.io/erstt/redroid@sha256:dd2d7328deb5fc0250cef878a91b68524613da6cb5866049d1b76ec892766f10
+name=redroid-houdini-test
+volume=redroid-houdini-test-data
+address=10.203.0.3
+
+if docker container inspect "$name" >/dev/null 2>&1; then
+    echo "$name already exists; inspect it before restarting this script." >&2
+    exit 1
+fi
+if docker volume inspect "$volume" >/dev/null 2>&1; then
+    echo "$volume already exists; refusing to reuse previous test data." >&2
+    exit 1
+fi
+docker network inspect redroid >/dev/null
+if docker network inspect redroid --format '{{range .Containers}}{{println .IPv4Address}}{{end}}' | grep -q '^10\.203\.0\.3/'; then
+    echo "$address is already allocated." >&2
+    exit 1
+fi
+helper=$(docker inspect redroid-maa --format '{{range .Mounts}}{{if eq .Destination "/redroid-init"}}{{.Source}}{{end}}{{end}}')
+render=$(docker inspect redroid-maa --format '{{range .Mounts}}{{if eq .Destination "/dev/dri/intel-render"}}{{.Source}}{{end}}{{end}}')
+[ -n "$helper" ] && [ -x "$helper" ]
+[ -n "$render" ] && [ -c "$render" ]
+
+docker pull "$image"
+docker run -d --name "$name" --restart=no --privileged \
+    --network redroid --ip "$address" --dns 114.114.114.114 \
+    --mount "type=volume,source=$volume,target=/data" \
+    --mount "type=bind,source=$helper,target=/redroid-init,readonly" \
+    --mount "type=bind,source=$render,target=/dev/dri/intel-render" \
+    --entrypoint /redroid-init "$image" \
+    qemu=1 androidboot.hardware=redroid androidboot.use_memfd=true \
+    androidboot.redroid_width=1280 androidboot.redroid_height=720 \
+    androidboot.redroid_dpi=240 androidboot.redroid_fps=30 \
+    androidboot.redroid_gpu_mode=host \
+    androidboot.redroid_gpu_node=/dev/dri/intel-render \
+    androidboot.redroid_net_ndns=1 \
+    androidboot.redroid_net_dns1=114.114.114.114 \
+    ro.enable.native.bridge.exec=1 ro.enable.native.bridge.exec64=1 \
+    ro.dalvik.vm.native.bridge=libhoudini.so \
+    ro.product.cpu.abilist=x86_64,arm64-v8a,x86 \
+    ro.product.cpu.abilist64=x86_64,arm64-v8a \
+    ro.product.cpu.abilist32=x86 \
+    ro.dalvik.vm.isa.arm64=x86_64
+printf 'Test container started; ADB address: %s:5555\n' "$address"
+printf 'Stop with: docker stop %s\n' "$name"
