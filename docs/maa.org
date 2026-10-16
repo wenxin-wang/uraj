@@ -135,7 +135,7 @@ pins Google's ndk_translation from ChromeOS guybrush R112-15359.58.0 (Android
 [[https://github.com/supremegamers/vendor_google_proprietary_ndk_translation-prebuilt][supremegamers]]
 at commit =9324a89= (Guix hash =0p7spczq…=).  This is the build used by
 redroid-script and the community =_ndk_ChromeOS= images.  Only the libraries,
-ARM linkers/app_process and cpuinfo/ld.config files are installed.  The
+ARM linkers/app_process and ld.config files are installed.  The
 binfmt_misc init script and program runners are left out, because
 binfmt_misc is not namespaced and registering there would affect the host.
 =ro.enable.native.bridge.exec= stays unset.
@@ -153,9 +153,14 @@ local tag cannot be pulled.
 ARM's =ARM_TO_AMD_DBT_LICENSE.txt= limits use of this build to AMD CPUs;
 hypie's CPU is Intel.  The package records this in its license field.
 
-TODO: extract the same files from Google's official guybrush 15359.58.0
-recovery image and compare their hashes with this package's output.  The
-pinned Guix hash already detects any later replacement upstream.
+On 2026-10-16 the package was checked against Google's official
+=chromeos_15359.58.0_guybrush_recovery= image: its ROOT-A partition's
+=/opt/google/vms/android/system.raw.img= was extracted without mounting, and
+all 172 libraries, linkers and app_process binaries matched byte for byte.
+The two =etc/cpuinfo.arm*.txt= files in the prebuilt repository are not in
+Google's image and are no longer installed; ndk_translation emulates
+=/proc/cpuinfo= with the verified =lib*/arm*/cpuinfo= helpers.  The pinned
+Guix hash detects any later replacement upstream.
 
 Before reconfiguration, on hypie:
 

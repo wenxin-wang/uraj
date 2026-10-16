@@ -40,7 +40,8 @@ neither Android's not-yet-mounted APEX libraries nor the host GNU store.")
     (license license:gpl3+)))
 
 ;; Google's ARM-to-x86 native bridge from ChromeOS guybrush R112 (Android 11
-;; ARCVM), as repackaged for Android-x86 builds.  redroid 11's own build of
+;; ARCVM), as repackaged for Android-x86 builds.  Every installed file matched
+;; guybrush 15359.58.0's official ARC system image byte for byte.  redroid 11's own build of
 ;; it aborts Arknights in Scudo seconds after start.
 (define redroid-ndk-translation
   (let ((commit "9324a8914b649b885dad6f2bfd14a67e5d1520bf")
@@ -67,7 +68,8 @@ neither Android's not-yet-mounted APEX libraries nor the host GNU store.")
                  ("prebuilts/lib64" "system/lib64")
                  ("prebuilts/bin/arm" "system/bin/arm")
                  ("prebuilts/bin/arm64" "system/bin/arm64")
-                 ("prebuilts/etc" "system/etc" #:include-regexp ("\\.txt$"))
+                 ;; cpuinfo.arm*.txt are absent from Google's image.
+                 ("prebuilts/etc" "system/etc" #:include-regexp ("/ld\\.config[^/]*$"))
                  ("ARM_TO_AMD_DBT_LICENSE.txt"
                   "share/doc/redroid-ndk-translation/"))))
       (supported-systems '("x86_64-linux"))
