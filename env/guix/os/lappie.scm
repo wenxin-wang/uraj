@@ -97,7 +97,8 @@
 (define %agent-secrets
   (let ((user (user-account-name %main-user)))
     (append (github-token-secrets user)
-            (sandbox-policy-secrets user "lappie"))))
+            (sandbox-policy-secrets user "lappie")
+            (agent-configuration-secrets user "lappie"))))
 
 (define lappie-os
   (operating-system

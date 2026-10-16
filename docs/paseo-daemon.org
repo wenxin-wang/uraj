@@ -75,12 +75,83 @@ Host runs the Guix package's real binary outside namespaces as the broker user;
 it does not bypass the agent's own permission settings or grant root. See
 [[file:paseo-broker.org::*Execution tiers][broker execution tiers]] for lifetime and authorization limits.
 
-The home prefix is computed on the target machine. Clients are installed in
-the profile; no store hash is written to this config. Activation needs no
-running broker or provider probe. It preserves other settings and existing
-passwords, keeps a private =.before-service= backup on the first change, and
-leaves identical files untouched. Malformed JSON and managed symlinks fail
-rather than being overwritten. No daemon password is generated.
+** Public and private configuration
+
+After the built-in defaults/migrations, activation applies two YAML layers:
+
+1. Public: =env/paseo/config.yaml=, selecting =hosts.<runtime hostname>=.
+2. Private: =secrets/hosts/<hostname>/paseo-config.yaml=, decrypted by SOPS
+   to =/run/secrets/paseo/config.yaml= on configured Guix System hosts.
+
+The public file uses one =&shared= anchor for lappie, hypie and storie. It
+contains only the shared relay settings, daily Claude/Codex commands, and
+worktree root. The derived system/host providers remain seeded by activation.
+Other application settings and providers are not managed by this public layer.
+
+YAML anchors, aliases and =<<= merge keys allow reuse within the public file.
+YAML =<<= is a shallow merge; the selected =overrides= object is then recursively
+merged into the writable JSON. Unknown hostnames are errors, not a fallback to
+another host. Use quotes for string values that YAML might interpret as boolean
+or date. Recursive aliases, executable tags and non-JSON values are rejected.
+
+The private SOPS file contains a structured YAML subtree, not an embedded JSON
+string. Edit with =sops secrets/hosts/lappie/paseo-config.yaml=:
+
+#+begin_src yaml
+paseo:
+  config.yaml:
+    hostname: lappie
+    overrides:
+      agents:
+        providers:
+          codex:
+            env:
+              EXAMPLE_PRIVATE_SETTING: "private-value"
+    delete: []
+#+end_src
+
+Each file has only its own host's age recipient plus the existing administrator
+PGP recipients. The initial declarations contain a hostname and empty overrides;
+no existing user credentials are copied. Decryption extracts =["paseo"]["config.yaml"]=
+as YAML, owned by the main user, mode 0400. A mismatched plaintext hostname fails
+before modifying config.json. Plaintext never enters the Guix store.
+
+System Home activation explicitly depends on =sops-secret-paseo/config.yaml=.
+The reader additionally waits up to 10 seconds for a required private file,
+then fails without applying either layer. Missing or malformed required private
+configuration never falls back to public-only configuration. After changing a
+secret, refresh its SOPS decryption before re-running Home activation; changing
+ciphertext alone does not update the already-decrypted file.
+
+The =paseo-setup= record accepts =public-config= (a Guix YAML file-like object)
+and =private-config= (an explicit runtime path to decrypted per-host YAML).
+=paseo-home-services= also accepts =#:public-config= and =#:private-config=.
+By default the private path is selected at activation time from the hosts that
+have an encrypted declaration. An explicit path replaces that selection, not a
+third layer. Foreign systems must decrypt their SOPS file first and supply its
+path; there is no automatically loaded unencrypted =~/.config/paseo= override.
+Direct =paseo-service activate= accepts =--public-config FILE= and
+=--private-config FILE=. Guix Home supplies these automatically on declared hosts.
+
+The selected public and private mappings use the =overrides=/=delete= format in
+[[file:json-config.org][the shared configuration module]]. Private wins over public, which wins over
+existing settings/defaults. =worktrees.root= and the first element of each
+provider =command= may use =~/=; activation expands it against the target
+user's Home before writing JSON. Other arguments and environment values remain
+literal. No shell or environment-variable interpolation is performed.
+
+Activation preserves undeclared settings, uses a private =.before-service=
+backup on the first change, and leaves identical contents untouched. Invalid
+JSON, invalid launch settings and managed symlinks fail without replacing the
+configuration. Overriding a default provider away from its daily command emits
+a warning. No daemon password is generated. Activation neither contacts the
+broker nor restarts any service; finish sessions before restarting the broker
+and daemon to load the new wrappers/configuration. Close the desktop app during
+activation because it caches settings. See the shared module's concurrent-write
+limitations as well.
+
+** Worktrees and desktop settings
+
 When no worktree root is configured, Home uses and creates
 =~/.local/share/paseo/worktrees=. It is an authorized broker root and daemon
 mount, but not one of the agents' common mounts: each agent sees only its own

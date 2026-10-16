@@ -1,0 +1,24 @@
+# Shared declarations; select hosts.<runtime hostname> during activation.
+# YAML aliases reuse this complete layer. YAML << itself is a shallow merge.
+templates:
+  shared: &shared
+    overrides:
+      daemon:
+        relay:
+          enabled: true
+          endpoint: "172.31.0.8:4000"
+          useTls: false
+      agents:
+        providers:
+          codex:
+            command: ["~/.guix-home/profile/bin/paseo-codex-daily"]
+          claude:
+            command: ["~/.guix-home/profile/bin/paseo-claude-daily"]
+      worktrees:
+        root: "~/.local/share/paseo/worktrees"
+    delete: []
+
+hosts:
+  lappie: *shared
+  hypie: *shared
+  storie: *shared

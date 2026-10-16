@@ -2,16 +2,19 @@
 
 import argparse
 import fcntl
-import json
 import os
 import select
 import signal
 import socket
 import subprocess
 import sys
-import tempfile
 import time
 from pathlib import Path
+
+# Also support invoking this source file directly, outside an installed package.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from uraj.config import json_config
+from uraj.config import yaml_config
 
 # Authorized like a project root, but not among agents' common mounts.
 WORKTREES = ".local/share/paseo/worktrees"
@@ -32,36 +35,71 @@ def prepare_temporary_directory(home):
     return directory
 
 
-def merge_settings(path, update):
-    """Merge owned fields, preserving other settings and unchanged files."""
-    if path.is_symlink():
-        raise ValueError(f"Refusing managed symlink: {path}")
-    original = path.read_bytes() if path.exists() else None
-    settings = json.loads(original) if original is not None else {}
-    update(settings)
-    if original is not None and settings == json.loads(original):
-        return
-    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-    if original is not None:
-        backup = path.with_name(path.name + ".before-service")
-        if not backup.exists():
-            with backup.open("xb") as output:
-                output.write(original)
-            backup.chmod(0o600)
-    fd, temporary = tempfile.mkstemp(dir=path.parent, prefix=path.name + ".")
-    try:
-        with os.fdopen(fd, "w") as output:
-            json.dump(settings, output, indent=2)
-            output.write("\n")
-            output.flush()
-            os.fsync(output.fileno())
-        os.replace(temporary, path)
-    finally:
-        Path(temporary).unlink(missing_ok=True)
+def validate_provider_settings(settings):
+    """Validate launch settings before publishing an activation result."""
+    agents = settings.get("agents", {})
+    if not isinstance(agents, dict):
+        raise ValueError("agents must be an object")
+    providers = agents.get("providers", {})
+    if not isinstance(providers, dict):
+        raise ValueError("agents.providers must be an object")
+    for name, provider in providers.items():
+        if not isinstance(provider, dict):
+            raise ValueError(f"provider {name} must be an object")
+        if "command" in provider:
+            command = provider["command"]
+            if (
+                not isinstance(command, list)
+                or not command
+                or any(not isinstance(arg, str) or not arg for arg in command)
+            ):
+                raise ValueError(
+                    f"provider {name} command must be nonempty argv"
+                )
+        for field in ("label", "extends"):
+            if field in provider and not isinstance(provider[field], str):
+                raise ValueError(f"provider {name} {field} must be a string")
+    return providers
 
 
-def activate(home, desktop=False, worktrees=None):
+def resolve_home_paths(settings, home):
+    """Expand only known path fields against the activation target's Home."""
+
+    def expand(value):
+        if value == "~":
+            return str(home)
+        if isinstance(value, str) and value.startswith("~/"):
+            return str(home / value[2:])
+        return value
+
+    worktrees = settings.get("worktrees", {})
+    if not isinstance(worktrees, dict):
+        raise ValueError("worktrees must be an object")
+    if "root" in worktrees:
+        if not isinstance(worktrees["root"], str):
+            raise ValueError("worktrees.root must be a string")
+        worktrees["root"] = expand(worktrees["root"])
+    for provider in validate_provider_settings(settings).values():
+        if "command" in provider:
+            provider["command"][0] = expand(provider["command"][0])
+
+
+def activate(
+    home, desktop=False, worktrees=None, public_config=None, private_config=None
+):
     """Prepare configuration without contacting or restarting any daemon."""
+    hostname = socket.gethostname()
+    layers = []
+    if public_config is not None:
+        layers.append(yaml_config.public_layer(public_config, hostname))
+    if private_config is not None:
+        private = Path(private_config)
+        deadline = time.monotonic() + SECRET_TIMEOUT
+        while not private.exists():
+            if time.monotonic() >= deadline:
+                raise FileNotFoundError("Paseo private YAML is still missing")
+            time.sleep(0.1)
+        layers.append(yaml_config.private_layer(private, hostname))
     os.umask(0o077)
     prepare_temporary_directory(home)
     default_worktrees = worktrees is None
@@ -69,6 +107,7 @@ def activate(home, desktop=False, worktrees=None):
         worktrees = str(home / WORKTREES)
 
     def configure(settings):
+        validate_provider_settings(settings)
         settings.setdefault("version", 1)
         providers = settings.setdefault("agents", {}).setdefault(
             "providers", {}
@@ -102,7 +141,25 @@ def activate(home, desktop=False, worktrees=None):
                 del section["root"]
             section.setdefault("root", worktrees)
 
-    merge_settings(home / ".paseo/config.json", configure)
+        for layer in layers:
+            merged = json_config.apply_layer(settings, layer)
+            settings.clear()
+            settings.update(merged)
+        resolve_home_paths(settings, home)
+        configured = validate_provider_settings(settings)
+        for provider in ("codex", "claude"):
+            expected = [
+                str(home / ".guix-home/profile/bin" / f"paseo-{provider}-daily")
+            ]
+            if configured.get(provider, {}).get("command") != expected:
+                print(
+                    f"paseo: default {provider} no longer uses daily",
+                    file=sys.stderr,
+                )
+
+    json_config.update_file(
+        home / ".paseo/config.json", configure, backup_suffix=".before-service"
+    )
     if default_worktrees:
         # Paseo's upstream default is inside .paseo, which agents deliberately
         # cannot mount. Keep agent worktrees apart from human project roots.
@@ -124,7 +181,11 @@ def activate(home, desktop=False, worktrees=None):
                 "PASEO_ELECTRON_USER_DATA_DIR", config_home / "Paseo"
             )
         )
-        merge_settings(user_data / "desktop-settings.json", configure_desktop)
+        json_config.update_file(
+            user_data / "desktop-settings.json",
+            configure_desktop,
+            backup_suffix=".before-service",
+        )
 
 
 def container_command(
@@ -235,7 +296,7 @@ def sandbox_policy(args, home):
 def run_configured_container(args, home, roots, policy):
     """Own one namespace containing both daemon and its private SSH agents."""
     # Reuse the broker's boot/PID identity checks; never remove live sockets.
-    import broker
+    from uraj.paseo import broker
 
     if not args.supervisor or not args.sandbox_helper:
         raise ValueError(
@@ -342,6 +403,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=("activate", "run", "run-host"))
     parser.add_argument("--desktop", action="store_true")
+    parser.add_argument("--public-config")
+    parser.add_argument("--private-config")
     parser.add_argument("--worktrees")
     parser.add_argument("--guix")
     parser.add_argument("--profile")
@@ -354,7 +417,13 @@ def main():
     args = parser.parse_args()
     home = Path.home()
     if args.action == "activate":
-        activate(home, args.desktop, args.worktrees)
+        activate(
+            home,
+            args.desktop,
+            args.worktrees,
+            args.public_config,
+            args.private_config,
+        )
         return
     os.environ["TMPDIR"] = str(prepare_temporary_directory(home))
     # Shepherd starting the broker does not mean its socket (or first Home

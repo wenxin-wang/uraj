@@ -6,6 +6,7 @@
   #:use-module (gnu packages linux)
   #:use-module (gnu packages nss)
   #:use-module (gnu packages python)
+  #:use-module (gnu packages python-xyz)
   #:use-module (gnu packages version-control)
   #:use-module (gnu packages ssh)
   #:use-module (gnu packages rust-apps)
@@ -13,6 +14,8 @@
   #:use-module (gnu services shepherd)
   #:use-module (guix gexp)
   #:use-module (guix profiles)
+  #:use-module (guix packages)
+  #:use-module (guix utils)
   #:use-module (guix records)
   #:use-module (uraj common agent-secrets)
   #:use-module (uraj utils gexp)
@@ -20,6 +23,7 @@
   #:use-module (uraj packages llm)
   #:use-module (uraj utils file path)
   #:export (paseo-setup paseo-setup-autostart? %paseo-setup
+            paseo-setup-public-config paseo-setup-private-config
             paseo-service-program paseo-daemon-profile paseo-home-services
             paseo-sandbox-program))
 
@@ -33,7 +37,11 @@
   paseo-setup make-paseo-setup
   paseo-setup?
   (autostart? paseo-setup-autostart?        ;start the daemon at login?
-              (default #t)))
+              (default #t))
+  (public-config paseo-setup-public-config
+                 (default (local-file (project-path "env/paseo/config.yaml"))))
+  ;; Runtime path only: never import decrypted private YAML into the store.
+  (private-config paseo-setup-private-config (default #f)))
 
 (define %paseo-setup (make-parameter (paseo-setup)))
 
@@ -72,15 +80,23 @@
 (define paseo-python-modules
   (file-union
    "paseo-python-modules"
-   `(("service.py" ,(local-file (project-path "src/python/uraj/paseo/service.py")))
-     ("broker.py" ,(local-file (project-path "src/python/uraj/paseo/broker.py"))))))
+   `(("uraj/paseo/service.py" ,(local-file (project-path "src/python/uraj/paseo/service.py")))
+     ("uraj/paseo/broker.py" ,(local-file (project-path "src/python/uraj/paseo/broker.py")))
+     ("uraj/config/json_config.py"
+      ,(local-file (project-path "src/python/uraj/config/json_config.py")))
+     ("uraj/config/yaml_config.py"
+      ,(local-file (project-path "src/python/uraj/config/yaml_config.py"))))))
 
 (define paseo-service-program
   (program-file
    "paseo-service"
    #~(apply execl #$(file-append python "/bin/python3") "python3"
-            "-c" "import sys; sys.path.insert(0, sys.argv.pop(1)); from service import main; main()"
+            "-c" "import sys; sys.path[:0] = sys.argv[1:3]; del sys.argv[1:3]; from uraj.paseo.service import main; main()"
             #$paseo-python-modules
+            #$(file-append python-pyyaml
+                           (string-append "/lib/python"
+                                          (version-major+minor (package-version python))
+                                          "/site-packages"))
             (append (cdr (command-line))
                     (list "--sandbox-helper" #$paseo-sandbox-program
                           "--supervisor" #$supervisor
@@ -88,13 +104,23 @@
                     (let ((policy #$(sandbox-policy-secret 'paseo)))
                       (if policy (list "--sandbox-secret" policy) '()))))))
 
-(define* (paseo-home-services #:key (desktop? #t) (autostart? #f) worktrees)
+(define* (paseo-home-services #:key (desktop? #t) (autostart? #f) worktrees
+                              (public-config
+                               (paseo-setup-public-config
+                                (or (%paseo-setup) (paseo-setup))))
+                              (private-config
+                               (paseo-setup-private-config
+                                (or (%paseo-setup) (paseo-setup)))))
   (append
    (list
     (simple-service 'paseo-settings home-activation-service-type
-      #~(invoke #$paseo-service-program "activate"
+      #~(apply invoke #$paseo-service-program "activate"
+                #$@(if public-config (list "--public-config" public-config) '())
                 #$@(if desktop? '("--desktop") '())
-                #$@(if worktrees (list "--worktrees" worktrees) '()))))
+                #$@(if worktrees (list "--worktrees" worktrees) '())
+                (let ((private #$(or private-config
+                                     (agent-configuration-secret 'paseo))))
+                  (if private (list "--private-config" private) '())))))
    (if autostart?
        (list
         (simple-service 'paseo-daemon home-shepherd-service-type

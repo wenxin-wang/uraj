@@ -360,7 +360,8 @@
 (define %agent-secrets
   (let ((user (user-account-name %main-user)))
     (append (github-token-secrets user)
-            (sandbox-policy-secrets user "hypie"))))
+            (sandbox-policy-secrets user "hypie")
+            (agent-configuration-secrets user "hypie"))))
 
 (define hypie-installed-os
   (hypie-os
