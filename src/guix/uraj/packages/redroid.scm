@@ -41,8 +41,9 @@ neither Android's not-yet-mounted APEX libraries nor the host GNU store.")
 
 ;; Google's ARM-to-x86 native bridge from ChromeOS guybrush R112 (Android 11
 ;; ARCVM), as repackaged for Android-x86 builds.  Every installed file matched
-;; guybrush 15359.58.0's official ARC system image byte for byte.  redroid 11's own build of
-;; it aborts Arknights in Scudo seconds after start.
+;; guybrush 15359.58.0's official ARC system image byte for byte, before the
+;; one-byte mprotect fix below.  redroid 11's own build of it aborts Arknights
+;; in Scudo seconds after start.
 (define redroid-ndk-translation
   (let ((commit "9324a8914b649b885dad6f2bfd14a67e5d1520bf")
         (revision "0"))
@@ -71,14 +72,53 @@ neither Android's not-yet-mounted APEX libraries nor the host GNU store.")
                  ;; cpuinfo.arm*.txt are absent from Google's image.
                  ("prebuilts/etc" "system/etc" #:include-regexp ("/ld\\.config[^/]*$"))
                  ("ARM_TO_AMD_DBT_LICENSE.txt"
-                  "share/doc/redroid-ndk-translation/"))))
+                  "share/doc/redroid-ndk-translation/"))
+             #:modules '((guix build copy-build-system)
+                         (guix build utils)
+                         (ice-9 popen)
+                         (rnrs bytevectors)
+                         (rnrs io ports))
+             #:phases
+             #~(modify-phases %standard-phases
+                 (add-after 'install 'keep-host-exec-on-guest-mprotect
+                   ;; MprotectForGuest turns a guest PROT_EXEC into host
+                   ;; PROT_READ, and only libc is protected from guest
+                   ;; mprotect.  Arknights' Shumei SDK mprotects ART's
+                   ;; boot.oat pages, which then fault (SEGV_ACCERR) on the
+                   ;; next host call.  Widen its "and $~(EXEC|READ)" mask
+                   ;; to keep EXEC; guest execution follows the
+                   ;; translator's own bitmap, not host permissions.
+                   (lambda _
+                     (let* ((file (string-append
+                                   #$output "/system/lib64/libndk_translation.so"))
+                            (offset #x206dd1) ;vaddr 0x207dd1
+                            (expected #vu8(#x83 #xe2 #xfa #x83 #xca #x01))
+                            (data (call-with-input-file file get-bytevector-all
+                                    #:binary #t))
+                            (found (make-bytevector 6)))
+                       (bytevector-copy! data offset found 0 6)
+                       (unless (equal? found expected)
+                         (error "Unexpected MprotectForGuest code" found))
+                       (bytevector-u8-set! data (+ offset 2) #xff)
+                       (make-file-writable file)
+                       (call-with-output-file file
+                         (lambda (port) (put-bytevector port data))
+                         #:binary #t)
+                       (let* ((port (open-pipe* OPEN_READ "sha256sum" file))
+                              (sum (car (string-split (get-string-all port)
+                                                      #\space))))
+                         (close-pipe port)
+                         (unless (string=? sum "2db5af23f270136da296f1c016c9dbd30cae86dccad33eaee88540c0153e721c")
+                           (error "Patched libndk_translation.so mismatch"
+                                  sum)))))))))
       (supported-systems '("x86_64-linux"))
       (home-page
        "https://github.com/supremegamers/vendor_google_proprietary_ndk_translation-prebuilt")
       (synopsis "ARM native bridge (libndk_translation) for redroid 11")
       (description "Google's prebuilt ndk_translation, which lets x86_64
 Android run ARM apps, laid out as a @file{/system} overlay for a redroid
-image.  The binfmt_misc registration for ARM executables is omitted.")
+image.  The binfmt_misc registration for ARM executables is omitted, and
+guest @code{mprotect} no longer removes execute permission from host code.")
       ;; ARM's license grants use only on AMD CPUs; Google's own terms
       ;; cover the rest.
       (license (nonguix-license:nonfree
