@@ -256,6 +256,9 @@ def validate_start_request(message, roots, home):
     provider = message.get("provider")
     if provider not in ("codex", "claude"):
         raise ValueError("unknown provider")
+    tier = message.get("tier", "daily")
+    if tier not in ("daily", "system", "host"):
+        raise ValueError("unknown execution tier")
     argv = message.get("argv")
     if (
         not isinstance(argv, list)
@@ -288,7 +291,7 @@ def validate_start_request(message, roots, home):
         raise ValueError("invalid agent id")
     probe = argv == ["--version"] or argv == ["auth", "status"]
     key = (provider, agent_id) if agent_id and not probe else None
-    return provider, argv, cwd, env, key
+    return provider, argv, cwd, env, key, tier
 
 
 class SharedSSHPreparation:
@@ -451,15 +454,25 @@ class BrokerServer:
 
     def launch_execution(self, connection, job):
         """Start the supervised launcher with the received standard streams."""
-        provider, argv, cwd, forwarded, _ = job["request"]
+        provider, argv, cwd, forwarded, _, tier = job["request"]
         env = launcher_environment(
             self.home, forwarded, self.policy_environment()
         )
-        if self.ssh_preparation is not None:
+        if tier != "host" and self.ssh_preparation is not None:
             env["CONTAINED_AGENT_SSH_PREPARED"] = "1"
             env["CONTAINED_AGENT_SSH_RUNTIME_DIRECTORY"] = str(
                 self.ssh_preparation.runtime
             )
+        if tier == "host":
+            program = getattr(self.args, f"host_{provider}")
+            if not program or not os.path.isabs(program):
+                raise ValueError(
+                    "host tier requires a configured absolute binary"
+                )
+            command = [program, *argv]
+        else:
+            # System is intentionally identical to daily until policy is defined.
+            command = [self.args.launcher, provider, *argv]
         temporary = str(execution_directory(self.directory))
         env["TMPDIR"] = temporary
         job["temporary"] = temporary
@@ -468,12 +481,11 @@ class BrokerServer:
             job["process"] = subprocess.Popen(
                 [
                     self.args.supervisor,
+                    *(["--host"] if tier == "host" else []),
                     "--owner-fd",
                     str(self.owner),
                     "--",
-                    self.args.launcher,
-                    provider,
-                    *argv,
+                    *command,
                 ],
                 cwd=cwd,
                 env=env,
@@ -573,9 +585,10 @@ class BrokerServer:
                         if not key or key not in active:
                             try:
                                 if self.args.shared_ssh:
-                                    _, argv, cwd, _, _ = job["request"]
+                                    _, argv, cwd, _, _, tier = job["request"]
                                     needs_ssh = (
-                                        cwd != self.home
+                                        tier != "host"
+                                        and cwd != self.home
                                         and argv
                                         not in (
                                             ["--version"],
@@ -673,6 +686,7 @@ class BrokerServer:
                                                 {
                                                     "id": j.get("id"),
                                                     "provider": j["request"][0],
+                                                    "tier": j["request"][5],
                                                     "cwd": str(j["request"][2]),
                                                     "pid": j["process"].pid
                                                     if j.get("process")
@@ -748,6 +762,7 @@ def run_provider_client(args):
         "version": 1,
         "type": "start",
         "provider": args.provider,
+        "tier": args.tier,
         "argv": args.arguments,
         "env": forwarded,
         "cwd": forwarded.get("PASEO_AGENT_CWD") or os.getcwd(),
@@ -885,6 +900,8 @@ def main():
     server = sub.add_parser("serve")
     server.add_argument("--supervisor", required=True)
     server.add_argument("--launcher", required=True)
+    server.add_argument("--host-codex")
+    server.add_argument("--host-claude")
     server.add_argument(
         "--shared-ssh",
         action="store_true",
@@ -897,6 +914,9 @@ def main():
         "~/.config/paseo/broker-sandbox.json)",
     )
     provider = sub.add_parser("client")
+    provider.add_argument(
+        "--tier", choices=["daily", "system", "host"], default="daily"
+    )
     provider.add_argument("provider", choices=["codex", "claude"])
     provider.add_argument("arguments", nargs=argparse.REMAINDER)
     change = sub.add_parser("configure")
