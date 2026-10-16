@@ -35,7 +35,11 @@ whose files exist."
     (filter-map (lambda (policy)
                   (and (member host (sandbox-policy-hosts (first policy)))
                        (third policy)))
-                %sandbox-policies))
+                %sandbox-policies)
+    (filter-map (lambda (entry)
+                  (and (member host (agent-configuration-hosts (first entry)))
+                       (third entry)))
+                %agent-configurations))
    key<?))
 
 (test-begin "machine-sops-identities")
@@ -80,6 +84,13 @@ whose files exist."
                       (and (string=? "wenxin" (sops-secret-user secret))
                            (= #o400 (sops-secret-permissions secret)))))
                 (sops-service-configuration-secrets config)))
+       (let ((home (find (lambda (service)
+                           (memq 'guix-home-wenxin
+                                 (shepherd-service-provision service)))
+                         services)))
+         (test-assert "Home activation waits for its decrypted Paseo YAML"
+           (and home (memq 'sops-secret-paseo/config.yaml
+                            (shepherd-service-requirement home)))))
        (test-assert "key generation waits until after system activation"
          (memq 'user-processes (shepherd-service-requirement key-service)))
        (test-assert "key generation starts automatically"

@@ -2,7 +2,7 @@
 (use-modules (gnu) (gnu home) (gnu home services)
              (gnu services) (gnu services shepherd)
              (guix gexp) (guix packages) (srfi srfi-1) (srfi srfi-64)
-             (uraj services paseo) (uraj system home))
+             (uraj services paseo) (uraj system home) (uraj home paseo))
 
 (define (lookup all name)
   (find (lambda (s) (memq name (shepherd-service-provision s))) all))
@@ -67,6 +67,21 @@
 (test-assert "agents cannot request persistent broker state"
   ((@@ (uraj bin contained-agent) denied?)
    (string-append (getenv "HOME") "/.local/state/paseo-broker")))
+(let* ((private "/nonexistent/private/paseo.yaml")
+       (public (plain-file "public.yaml" "hosts: {}"))
+       (setup (paseo-setup (public-config public) (private-config private)))
+       (activation
+        (parameterize ((%paseo-setup setup))
+          (service-value (car (paseo-home-services #:desktop? #f)))))
+       (expression (gexp->approximate-sexp activation)))
+  (test-assert "public YAML remains a Guix file-like input"
+    (eq? public (paseo-setup-public-config setup)))
+  (test-equal "private YAML remains a runtime path" private
+    (paseo-setup-private-config setup))
+  (test-assert "activation receives public and private layers"
+    (and (member "--public-config" expression)
+         (string-contains (format #f "~s" expression) "--private-config")
+         (string-contains (format #f "~s" expression) private))))
 (define failures (test-runner-fail-count (test-runner-current)))
 (test-end "paseo")
 (exit (if (zero? failures) 0 1))

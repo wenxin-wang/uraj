@@ -1,0 +1,76 @@
+#+title: Writable JSON configuration from YAML or JSON declarations
+
+* Shared implementation
+
+=src/python/uraj/config/json_config.py= is independent of Paseo. It separates
+=merge_objects= (recursive data merge), =apply_layer= (deletion and overrides),
+=read_object= (required file input), and =update_file= (atomic writable output).
+Claude and other applications can reuse these functions for JSON settings.
+TOML configuration, including Codex's main config, needs a format-specific
+reader/writer; it is not converted to JSON by this change.
+
+The companion =yaml_config.py= safely reads host-specific YAML declarations.
+=public_layer= selects =hosts.<hostname>= from a combined document, whose
+=templates= mapping can hold YAML anchors. =private_layer= requires a matching
+=hostname= in an already-decrypted per-host file. Both return the same layer
+mapping used below. YAML parsing is separate from merge and output, so future
+application adapters can use either YAML or JSON input.
+
+* Layer format and precedence
+
+Each selected declaration is a JSON-compatible mapping with optional =overrides= and =delete= keys:
+
+#+begin_src json
+{
+  "delete": [["agents", "providers", "obsolete-provider"]],
+  "overrides": {
+    "agents": {
+      "providers": {
+        "codex": {"env": {"EXAMPLE_SETTING": "public-value"}}
+      }
+    }
+  }
+}
+#+end_src
+
+Applications apply layers from lowest to highest priority. Within each layer,
+deletions happen first, then overrides. Delete paths are nonempty arrays of
+literal object keys, not dotted paths; missing keys are ignored. Objects merge
+recursively, arrays replace in full, and scalars replace. Inputs are not mutated.
+
+The recursive behavior resembles RFC 7396 (JSON Merge Patch), but this is
+*not* RFC 7396: =null= remains a JSON value instead of deleting a field. Explicit
+=delete= paths distinguish deletion from null and avoid treating arrays as sets.
+Removing a field from a declaration stops managing it; it does not remove a
+previous value from the writable application configuration. Use =delete= for
+that. A higher-priority layer can restore a field deleted by a lower layer.
+
+* Writable output
+
+The target stays a regular writable file, so applications can save other UI
+preferences. A declared setting wins again at the next activation. Invalid or
+missing required input fails before replacing the target. Application-specific
+validation runs inside the update callback, before any backup or replacement.
+Managed symlink targets are rejected.
+
+Updates use a mode-0600 temporary file in the target directory, fsync, and
+atomic rename. The first changed existing configuration gets a mode-0600
+backup; the default suffix is =.before-activation=. Identical data is not
+rewritten, though target permissions are tightened to 0600. Backups may contain
+private values and must not be checked into Git. Activation must not race an
+application writing the same file: atomic replacement prevents partial JSON,
+not lost updates from concurrent writers. Schedule activation/restart between
+sessions; this module does not stop applications.
+
+* Verification
+
+YAML tests require PyYAML, included explicitly in the Guix Paseo launcher:
+
+#+begin_src sh
+guix shell python python-pyyaml -- python3 test/python/uraj/config/yaml-config.py
+guix shell python python-pyyaml age sops -- python3 test/python/uraj/config/sops-yaml.py
+#+end_src
+
+The SOPS test creates a disposable age key for a structured-YAML round trip;
+it does not decrypt production files. It also checks the repository files'
+public recipient metadata against =.sops.yaml=.

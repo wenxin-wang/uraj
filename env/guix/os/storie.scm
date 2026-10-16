@@ -421,7 +421,8 @@
            (cons %immich-database-secret
                  (let ((user (user-account-name %main-user)))
                    (append (github-token-secrets user)
-                           (sandbox-policy-secrets user "storie"))))))
+                           (sandbox-policy-secrets user "storie")
+                           (agent-configuration-secrets user "storie"))))))
       (modify-services (operating-system-user-services %server-os)
         (dhcpcd-service-type config =>
           (dhcpcd-configuration
