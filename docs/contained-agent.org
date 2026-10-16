@@ -155,13 +155,9 @@ its namesake on =origin=, and =@{push}= resolves, without any upstream.
 
 =direnv= is among the container packages.  Its approvals live in the
 tmpfs home, so they start empty; the launcher carries over a single one,
-for the work tree's top-level =.envrc=, when the host approved it:
-
-- at the work tree's own path; or
-- for a linked worktree, such as Paseo's, at the main work tree's path with
-  the same contents.  The worktree's =.envrc= must be byte-identical to
-  what was allowed there, so a branch that changed it needs its own
-  =direnv allow= on the host.
+for the work tree's top-level =.envrc=, only when the host approved that
+exact path.  Linked worktrees do not inherit the main work tree's approval,
+even when their contents match; run =direnv allow= in each worktree.
 
 The approval is written as direnv records it, under
 =~/.local/share/direnv/allow/=, and is dropped on exit; one the agent adds
@@ -299,8 +295,10 @@ Central configuration only: =(ssh-agent ...)= and the credential clauses
 =(github TIER)=, =(git-credential URL FILE)= and =(env NAME (file FILE))=,
 described below.
 
-Central: =projects.scm=, keyed by the repository's main work tree, so all
-its worktrees share the entry.  It reaches the program through Home, so the
+Central: =projects.scm=, keyed by the current work tree's canonical root.
+Each linked worktree needs its own entry.  An unmatched worktree receives
+no central extra permissions; there is no fallback to the main repository.
+It reaches the program through Home, so the
 agent cannot change it, and changing it takes a reconfigure.
 
 #+begin_src scheme
@@ -309,6 +307,45 @@ agent cannot change it, and changing it takes a reconfigure.
           "/var/guix/profiles" "~/.local/state/shepherd" "~/.guix-home"
           "~/.config/shepherd" "~/.config/guix"))
 #+end_src
+
+*** Fixed worktrees as permission presets
+
+Create a branch and a sibling worktree with the common shell helper:
+
+#+begin_src sh
+fork-worktree ~/src/uraj maa
+# Branch maa, directory ~/src/uraj-maa, starting at uraj's HEAD.
+fork-worktree ~/src/uraj docs ~/workspaces/uraj-docs
+# The optional third argument overrides the target directory.
+git -C ~/src/uraj worktree list
+#+end_src
+
+After creating the worktree, the helper opens
+=~/.config/contained-agent/projects.local.scm= with =$VISUAL=, then =$EDITOR=
+as a fallback, or =vi= when neither is set.  Editor arguments are supported.
+The file is created with private permissions if missing; existing content
+is preserved.  A failed worktree creation does not open the editor.
+
+Add an exact =(project "~/src/uraj-maa" ...)= entry on the host for its
+required permissions.  Merely creating a worktree grants none.  Subdirectory
+launches use that worktree's root; symlink aliases resolve to the same root.
+In Paseo, add this directory as a project and select =Local= to use it
+directly.  =New worktree= creates another path which needs its own policy;
+it does not inherit the selected entry's permissions.
+
+Worktrees share Git objects and branches, but have separate working files
+and indexes.  A branch normally cannot be checked out in two worktrees.
+Remove a clean, unused worktree with =git -C ~/src/uraj worktree remove PATH=;
+its branch remains.  Remove its host policy too when retiring the path.
+
+After upgrading from repository-wide policy lookup, explicitly configure
+any worktrees that need extra permissions.  Re-run =contained-agent allow=
+and =direnv allow= on the host in each worktree that needs those approvals;
+old global content-hash approvals are not reused.  Restart sessions to apply
+the new policy.  Shared Git metadata and the normal base sandbox remain;
+this change isolates extra grants, not Git history between worktrees.
+
+*** Additional central configuration
 
 Host-private additions: =~/.config/contained-agent/projects.local.scm=.
 Create this file on the host, preferably with mode =0600=.  It uses the same
@@ -384,7 +421,34 @@ network access: treat them as readable by anything the agent runs; their
 scope is the protection.  [[file:../secrets/README.org][secrets/README.org]] covers requesting and rotating
 them.  uraj uses =(github "personal")=.
 
-Project-local: =.guix/contained-agent.scm= (same clauses at top level) and
+Central configuration can select a manifest for this worktree:
+
+#+begin_src scheme
+(project "~/src/uraj-maa"
+  (manifest ".guix/maa-manifest.scm"))
+#+end_src
+
+The =manifest= clause is accepted only in the managed or host-private
+central project configuration.  Its path is relative to the worktree root,
+not the launch directory.  Absolute paths, =.= or =..= components, symlinks,
+missing files and multiple manifest clauses are errors, without fallback.
+Both =contained-agent allow [DIRECTORY]= and session startup read the same
+central selection.  Selecting a manifest does not approve its contents.
+
+For a selection inside =.guix/=, approval still covers the whole =.guix/=
+directory, including =contained-agent.scm= and sibling Scheme files, and
+Guix uses the selected filename in the approved copy.  A selection elsewhere,
+such as =(manifest "maa-manifest.scm")=, approves that file alone instead of
+=.guix/=; it is copied to =manifest.scm= in the approval directory.  Any files
+it loads are not covered by that approval.  Put related files under =.guix/=
+when they need to be reviewed and copied together.
+
+After editing the central selection, run =contained-agent allow= in that
+worktree and restart the session.  Changed or unapproved contents are left
+out with a warning; the launcher never falls back to the default manifest.
+
+Without an explicit manifest selection, project-local files are
+=.guix/contained-agent.scm= (same clauses at top level) and
 =.guix/manifest.scm=, or a top-level =manifest.scm=.  The agent can write
 them, and =guix shell= evaluates a manifest on the host, outside any
 sandbox.  So they count only once approved:
@@ -392,8 +456,9 @@ sandbox.  So they count only once approved:
 1. =contained-agent allow= copies them to a staging directory, shows
    =git diff= against the last approved copy and asks on a terminal.
 2. On =y= the copy is kept under its nar hash in
-   =~/.local/state/contained-agent/approved/=.
-3. A session hashes the project's current files and, on a match, loads the
+   =~/.local/state/contained-agent/approved/<encoded-worktree-path>/=.
+3. A session hashes the current work tree's files and, on a match within
+   that work tree's approval directory, loads the
    approved copy, never the work tree.  Otherwise it warns and starts
    without them.
 
@@ -559,8 +624,8 @@ The host socket is
 =$XDG_RUNTIME_DIR/contained-agent/<32-hex-path-hash>/ssh.sock=.  If
 =XDG_RUNTIME_DIR= is unset, =/run/user/UID= is used; the runtime directory
 must already exist, belong to the user, and be private.  The hash uses the
-canonical main repository path, so linked worktrees share their project's
-agent while different repositories get different sockets.  No extra project
+canonical current work tree path, so linked worktrees get separate agents
+and sockets, even when they share a Git repository.  No extra project
 name is needed.  A host-side lock serializes lifecycle operations.
 
 Session startup checks, under the project lock, for an agent with a matching

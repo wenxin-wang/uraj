@@ -7,6 +7,7 @@ PATH needs Guile 3, Git and Bash.  No Guix daemon or network is needed.
 import hashlib
 import json
 import os
+import pty
 import shutil
 import subprocess
 import tempfile
@@ -211,7 +212,10 @@ class Environment(Launcher):
         local = self.project / ".guix"
         local.mkdir()
         approved = (
-            self.home / ".local/state/contained-agent/approved/test-approved"
+            self.home
+            / ".local/state/contained-agent/approved"
+            / str(self.project).replace("%", "%25").replace("/", "%2F")
+            / "test-approved"
         )
         for clause in (
             f'(env "GH_TOKEN" (file "{self.secret}"))',
@@ -380,6 +384,127 @@ class GitCredentials(Launcher):
         self.assertIn("single (git-hooks DIR)", result.stderr)
 
 
+class ManifestSelection(Launcher):
+    def setUp(self):
+        super().setUp()
+        # Hash fixture contents so edits invalidate the actual approval flow.
+        shim = self.root / "bin/guix"
+        shim.write_text(
+            "#!" + shutil.which("python3") + "\n"
+            "import hashlib, json, os, pathlib, sys\n"
+            'if sys.argv[1] == "hash":\n'
+            " p = pathlib.Path(sys.argv[-1])\n"
+            " data = (json.dumps([(str(f.relative_to(p)), "
+            "f.read_bytes().hex()) for f in sorted(p.rglob('*')) "
+            "if f.is_file()]).encode() if p.is_dir() else p.read_bytes())\n"
+            " print(hashlib.sha256(data).hexdigest())\n"
+            "else: json.dump([sys.argv, dict(os.environ)], "
+            f"open({str(self.record)!r}, 'w'))\n"
+        )
+
+    def approve(self, cwd=None, **env):
+        master, slave = pty.openpty()
+        try:
+            os.write(master, b"y\n")
+            return subprocess.run(
+                self.command + ["allow"],
+                cwd=cwd or self.project,
+                env=dict(self.env, **env),
+                stdin=slave,
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+        finally:
+            os.close(master)
+            os.close(slave)
+
+    def manifest_path(self, cwd=None):
+        result, argv, _ = self.launch(cwd=cwd)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        paths = [
+            arg.split("=", 1)[1]
+            for arg in argv
+            if arg.startswith("--manifest=")
+        ]
+        self.assertLessEqual(len(paths), 1)
+        return Path(paths[0]) if paths else None
+
+    def test_explicit_file_selected_by_private_policy(self):
+        self.config.write_text("")
+        private = self.home / ".config/contained-agent/projects.local.scm"
+        private.parent.mkdir(parents=True)
+        private.write_text(
+            f'(project "{self.project}" (manifest "maa-manifest.scm"))'
+        )
+        (self.project / "maa-manifest.scm").write_text("selected\n")
+        (self.project / ".guix").mkdir()
+        (self.project / ".guix/manifest.scm").write_text("default\n")
+        nested = self.project / "nested"
+        nested.mkdir()
+        self.assertIsNone(self.manifest_path(nested))
+        result = self.approve(nested)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Selected manifest: maa-manifest.scm", result.stdout)
+        approved = self.manifest_path(nested)
+        self.assertEqual(approved.read_text(), "selected\n")
+        self.assertNotEqual(approved, self.project / "maa-manifest.scm")
+        (self.project / "maa-manifest.scm").write_text("changed\n")
+        self.assertIsNone(self.manifest_path())
+
+    def test_guix_selection_approves_entire_directory(self):
+        self.policy('(manifest ".guix/maa-manifest.scm")')
+        local = self.project / ".guix"
+        local.mkdir()
+        (local / "manifest.scm").write_text("default\n")
+        (local / "maa-manifest.scm").write_text("selected\n")
+        (local / "helper.scm").write_text("helper\n")
+        result = self.approve()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        approved = self.manifest_path()
+        self.assertEqual(approved.name, "maa-manifest.scm")
+        self.assertEqual(approved.read_text(), "selected\n")
+        self.assertEqual(
+            (approved.parent / "helper.scm").read_text(), "helper\n"
+        )
+        (local / "helper.scm").write_text("changed\n")
+        self.assertIsNone(self.manifest_path())
+
+    def test_default_manifest_still_works(self):
+        self.config.write_text("")
+        (self.project / "manifest.scm").write_text("default\n")
+        result = self.approve()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.manifest_path().read_text(), "default\n")
+
+    def test_invalid_selection_fails_without_fallback(self):
+        (self.project / "manifest.scm").write_text("default\n")
+        (self.project / "linked.scm").symlink_to("manifest.scm")
+        (self.project / "linked-dir").symlink_to(self.project)
+        for name in (
+            "missing.scm",
+            "../manifest.scm",
+            "/tmp/manifest.scm",
+            "linked.scm",
+            "linked-dir/manifest.scm",
+            ".",
+            "",
+        ):
+            with self.subTest(name=name):
+                self.policy(f'(manifest "{name}")')
+                result, argv, _ = self.launch()
+                self.assertNotEqual(result.returncode, 0)
+                self.assertNotIn("Backtrace", result.stderr)
+                self.assertIsNone(argv)
+                result = self.approve()
+                self.assertNotEqual(result.returncode, 0)
+                self.assertNotIn("Backtrace", result.stderr)
+        self.policy('(manifest "manifest.scm")', '(manifest "manifest.scm")')
+        result, _, _ = self.launch()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("single", result.stderr)
+
+
 class Direnv(Launcher):
     def setUp(self):
         super().setUp()
@@ -433,9 +558,11 @@ class Direnv(Launcher):
             (self.name(envrc, envrc), f"{envrc}\n"),
         )
 
-    def test_worktree_inherits_main_approval_of_same_contents(self):
+    def test_worktree_requires_own_approval(self):
         envrc = self.worktree / ".envrc"
         self.allow(self.project)
+        self.assertIsNone(self.approval(self.worktree))
+        self.allow(self.worktree)
         self.assertEqual(
             self.approval(self.worktree),
             (self.name(envrc, envrc), f"{envrc}\n"),
@@ -444,6 +571,42 @@ class Direnv(Launcher):
         envrc.write_text("export A=2\n")
         self.allow(self.project)
         self.assertIsNone(self.approval(self.worktree))
+
+    def test_worktree_policy_matches_own_root_without_fallback(self):
+        self.secret.write_text(SECRET)
+        clause = f'(env "WORKTREE_SECRET" (file "{self.secret}"))'
+        self.policy(clause)
+        result, _, environment = self.launch(cwd=self.worktree)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("WORKTREE_SECRET", environment)
+        self.config.write_text(f'(project "{self.worktree}" {clause})')
+        nested = self.worktree / "nested"
+        nested.mkdir()
+        result, _, environment = self.launch(cwd=nested)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(environment["WORKTREE_SECRET"], SECRET)
+        result, _, environment = self.launch(cwd=self.project)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("WORKTREE_SECRET", environment)
+
+    def test_local_approval_does_not_cross_worktrees(self):
+        for directory in (self.project, self.worktree):
+            local = directory / ".guix"
+            local.mkdir()
+            (local / "contained-agent.scm").write_text('(preserve "LOCAL_OK")')
+        approved = (
+            self.home
+            / ".local/state/contained-agent/approved"
+            / str(self.project).replace("%", "%25").replace("/", "%2F")
+            / "test-approved"
+        )
+        shutil.copytree(self.project / ".guix", approved)
+        result, argv, _ = self.launch(cwd=self.project)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("--preserve=^LOCAL_OK$", argv)
+        result, argv, _ = self.launch(cwd=self.worktree)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("--preserve=^LOCAL_OK$", argv)
 
     def test_environment_loads_for_the_agent_and_each_command(self):
         # A direnv exporting the directory it runs in.

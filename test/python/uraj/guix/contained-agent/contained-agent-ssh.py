@@ -246,7 +246,7 @@ class ProjectSSH(unittest.TestCase):
                 )
                 self.assertEqual(len(listed.stdout.splitlines()), 1)
 
-                # Linked worktrees share their main project's socket.
+                # Linked worktrees have their own socket identity.
                 subprocess.run(
                     [
                         tools["git"],
@@ -277,7 +277,7 @@ class ProjectSSH(unittest.TestCase):
                     ],
                     check=True,
                 )
-                self.assertEqual(
+                self.assertNotEqual(
                     run("ssh-socket", worktree).stdout.strip(), sockets[0]
                 )
 
@@ -540,7 +540,10 @@ class ProjectSSH(unittest.TestCase):
                 # Even an approved project-local file cannot request private keys.
                 (projects[0] / ".guix").mkdir()
                 approved = (
-                    home / ".local/state/contained-agent/approved/test-approved"
+                    home
+                    / ".local/state/contained-agent/approved"
+                    / str(projects[0]).replace("%", "%25").replace("/", "%2F")
+                    / "test-approved"
                 )
                 approved.mkdir(parents=True)
                 (approved / "contained-agent.scm").write_text("(ssh-agent)")

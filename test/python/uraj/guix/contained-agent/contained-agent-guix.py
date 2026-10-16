@@ -175,7 +175,10 @@ class GuixAccess(unittest.TestCase):
             (project / ".guix").mkdir()
             self.assertNotIn("--nesting", launch())
             approved = (
-                home / ".local/state/contained-agent/approved/approved-test"
+                home
+                / ".local/state/contained-agent/approved"
+                / str(project).replace("%", "%25").replace("/", "%2F")
+                / "approved-test"
             )
             approved.mkdir(parents=True)
             (approved / "contained-agent.scm").write_text("(guix-daemon)")

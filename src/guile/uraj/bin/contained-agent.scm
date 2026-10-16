@@ -27,7 +27,7 @@
 ;;;   host-side git run code or read other files, so the agent must not be
 ;;;   able to swap them, and a mount point cannot be renamed away (EBUSY).
 ;;; - Extra per-project clauses come from the projects file, which the
-;;;   sandbox cannot see, keyed by the repository's main work tree:
+;;;   sandbox cannot see, keyed by the current work tree's canonical root:
 ;;;
 ;;;     (project "~/src/uraj"
 ;;;       (expose "/var/log" "~/.local/state/shepherd")
@@ -37,7 +37,8 @@
 ;;;
 ;;;   and from the project itself: `.guix/contained-agent.scm' holds the same
 ;;;   mount/environment clauses at top level.  Only central configuration
-;;;   may also declare (ssh-agent (identity PATH (destinations HOST ...)));
+;;;   may select (manifest ".guix/maa-manifest.scm") and declare
+;;;   (ssh-agent (identity PATH (destinations HOST ...)));
 ;;;   its keys are loaded automatically on the host before entering.  It
 ;;;   alone may also hand out credentials (see `credential-options'):
 ;;;     (env NAME (file FILE))       NAME set to the contents of FILE
@@ -149,7 +150,7 @@ tree, and the mount options for WORKDIR."
   (match (command-lines git "-C" workdir "rev-parse" "--path-format=absolute"
                         "--show-toplevel" "--git-common-dir" "--git-dir")
     ((top common gitdir)
-     (values (if (string-suffix? "/.git" common) (dirname common) top)
+     (values top
              top
              (git-mounts git top common gitdir)))
     (_
@@ -467,14 +468,53 @@ container asks git for the current repository's token."
                "/"))
 
 (define (project-key project)
-  (string-map (lambda (c) (if (char=? c #\/) #\% c)) project))
+  (string-concatenate
+   (map (lambda (c)
+          (case c
+            ((#\%) "%25")
+            ((#\/) "%2F")
+            (else (string c))))
+        (string->list project))))
 
-(define (local-files top)
+(define (project-manifest central)
+  "Return the manifest selected by central policy, relative to the work tree."
+  (match (filter-map (match-lambda
+                       ((_ . ('manifest (? string? file))) file)
+                       ((_ . ('manifest args ...))
+                        (die "expected (manifest RELATIVE-FILE)"))
+                       (_ #f))
+                     central)
+    (() #f)
+    ((file)
+     (when (any (cut member <> '("" "." "..")) (string-split file #\/))
+       (die "manifest must be a relative work tree path: ~a" file))
+     file)
+    (_ (die "expected a single (manifest RELATIVE-FILE) clause"))))
+
+(define (check-manifest top manifest)
+  "Require MANIFEST to name a regular file without symlink components."
+  (let loop ((path top) (parts (string-split manifest #\/)))
+    (let* ((file (string-append path "/" (car parts)))
+           (type (and=> (false-if-exception (lstat file)) stat:type)))
+      (unless (eq? type (if (null? (cdr parts)) 'regular 'directory))
+        (die "manifest path is missing or has an invalid file type: ~a" file))
+      (unless (null? (cdr parts)) (loop file (cdr parts))))))
+
+(define (local-files top manifest)
   "Return the name of work tree TOP's project-local files, `.guix' or
-`manifest.scm', or #f."
-  (find (lambda (name)
-          (file-exists? (string-append top "/" name)))
-        '(".guix" "manifest.scm")))
+the selected manifest, or #f."
+  (if manifest
+      (begin
+        (check-manifest top manifest)
+        (if (string-prefix? ".guix/" manifest) ".guix" manifest))
+      (find (lambda (name)
+              (file-exists? (string-append top "/" name)))
+            '(".guix" "manifest.scm"))))
+
+(define (approved-manifest-name manifest)
+  (if (and manifest (string-prefix? ".guix/" manifest))
+      (substring manifest (string-length ".guix/"))
+      "manifest.scm"))
 
 (define (nar-hash file)
   (match (command-lines "guix" "hash" "--serializer=nar" file)
@@ -482,8 +522,8 @@ container asks git for the current repository's token."
     (_ (die "cannot hash ~a" file))))
 
 (define (copy-local source target)
-  "Copy SOURCE, `.guix' or `manifest.scm', to TARGET, a directory then holding
-manifest.scm and/or contained-agent.scm.  Links could reach files nobody
+  "Copy SOURCE to TARGET, preserving directory contents or naming a single
+file manifest.scm.  Links could reach files nobody
 reviewed, so refuse them."
   (define (copy from to)
     (match (stat:type (lstat from))
@@ -501,13 +541,14 @@ reviewed, so refuse them."
         (mkdir target)
         (copy source (string-append target "/manifest.scm")))))
 
-(define (approved-local top)
+(define (approved-local top manifest)
   "Return the approved copy of work tree TOP's project-local files, or #f."
-  (match (local-files top)
+  (match (local-files top manifest)
     (#f #f)
     (name
      (let* ((source (string-append top "/" name))
-            (copy (state-directory "approved" (nar-hash source))))
+            (copy (state-directory "approved" (project-key top)
+                                   (nar-hash source))))
        (if (file-exists? copy)
            copy
            (begin
@@ -515,35 +556,30 @@ reviewed, so refuse them."
 starting without it" source top)
              #f))))))
 
-(define (allow directory)
+(define (allow directory git projects-file)
   "Show the project-local files of DIRECTORY's work tree against the last
 approved ones and, once the user agrees, approve them."
   (let*-values (((project top _)
-                 (project-mounts "git" (canonicalize-path directory)))
-                ((name) (or (local-files top)
+                 (project-mounts git (canonicalize-path directory)))
+                ((manifest) (project-manifest
+                             (central-entries projects-file project)))
+                ((name) (or (local-files top manifest)
                             (die "~a has neither .guix nor manifest.scm" top)))
                 ((source) (string-append top "/" name))
                 ((latest) (state-directory "projects" (project-key project)))
                 ((staging) (state-directory
                             (string-append "staging-"
                                            (number->string (getpid))))))
-    (mkdir-p (state-directory "approved"))
+    (mkdir-p (state-directory "approved" (project-key top)))
     (mkdir-p (state-directory "projects"))
     ;; Review and keep a copy: the work tree may change meanwhile.  Its hash
     ;; equals that of SOURCE as long as they are identical.
-    (if (directory? source)
-        (copy-local source staging)
-        (begin
-          (mkdir staging)
-          (copy-file source (string-append staging "/" name))))
+    (copy-local source staging)
     (let* ((hash (nar-hash (string-append staging
                                           (if (directory? source)
                                               ""
-                                              (string-append "/" name)))))
-           (target (state-directory "approved" hash)))
-      (unless (directory? source)
-        (rename-file (string-append staging "/" name)
-                     (string-append staging "/manifest.scm")))
+                                              "/manifest.scm"))))
+           (target (state-directory "approved" (project-key top) hash)))
       (unless (file-exists? latest)
         (mkdir-p (state-directory "empty")))
       (system* "git" "--no-pager" "diff" "--no-index" "--"
@@ -552,6 +588,7 @@ approved ones and, once the user agrees, approve them."
       (unless (isatty? (current-input-port))
         (system* "rm" "-rf" staging)
         (die "approving needs a terminal"))
+      (when manifest (format #t "Selected manifest: ~a~%" manifest))
       (format #t "Allow ~a for ~a? [y/N] " source project)
       (force-output)
       (if (member (read-line) '("y" "Y" "yes"))
@@ -579,25 +616,16 @@ and those contents."
     ((line) (string-take line 64))
     (_ (die "cannot hash ~a" contents))))
 
-(define (direnv-allowed top project tools)
-  "Return the name of the direnv approval of work tree TOP's .envrc if the
-host has approved it, or approved the same contents in PROJECT, TOP's main
-work tree, as for Paseo's worktrees; otherwise #f."
+(define (direnv-allowed top tools)
+  "Return TOP's direnv approval only when the host approved this exact path."
   (let ((envrc (string-append top "/.envrc"))
         (allowed (string-append (match (getenv "XDG_DATA_HOME")
                                   ((or #f "") (expand-home "~/.local/share"))
                                   (data data))
                                 "/direnv/allow/")))
     (and (eq? 'regular (and=> (stat envrc #f) stat:type))
-         (let ((name (direnv-allow-name tools envrc envrc))
-               (main (string-append project "/.envrc")))
-           (and (or (file-exists? (string-append allowed name))
-                    (and (not (string=? main envrc))
-                         (file-exists?
-                          (string-append allowed
-                                         (direnv-allow-name tools main
-                                                            envrc)))))
-                name)))))
+         (let ((name (direnv-allow-name tools envrc envrc)))
+           (and (file-exists? (string-append allowed name)) name)))))
 
 ;;; Agents.
 
@@ -748,12 +776,13 @@ NUL.  All ssh-add output goes to stderr, never into this private protocol."
             (project-mounts git workdir)))
        ((projects-file) (expand-home (or (getenv "CONTAINED_AGENT_PROJECTS")
                                          projects-file)))
-       ((local) (and top (approved-local top)))
-       ((direnv) (and top (direnv-allowed top project ssh-tools)))
+       ((central) (if project (central-entries projects-file project) '()))
+       ((manifest) (project-manifest central))
+       ((local) (and top (approved-local top manifest)))
+       ((direnv) (and top (direnv-allowed top ssh-tools)))
        ((local-file) (lambda (name)
                        (let ((file (and local (string-append local "/" name))))
                          (and file (file-exists? file) file))))
-       ((central) (if project (central-entries projects-file project) '()))
        ((ssh) (ssh-policy (map cdr central)))
        ;; Version probes must not depend on SSH provisioning.
        ((ssh-dir) (and ssh (not (member args '(("--version") ("auth" "status"))))
@@ -768,7 +797,8 @@ NUL.  All ssh-add output goes to stderr, never into this private protocol."
          (remove (match-lambda
                    ((origin . clause)
                     (or (credential-clause? (cons origin clause))
-                        (and (pair? clause) (eq? (car clause) 'ssh-agent)))))
+                        (and (pair? clause)
+                             (memq (car clause) '(ssh-agent manifest))))))
                  central)
          (match (local-file "contained-agent.scm")
            (#f '())
@@ -819,7 +849,7 @@ NUL.  All ssh-add output goes to stderr, never into this private protocol."
             (spec-preserve common)
             (spec-preserve spec)
             credentials
-            (match (local-file "manifest.scm")
+            (match (local-file (approved-manifest-name manifest))
               (#f '())
               (manifest (list (string-append "--manifest=" manifest))))
             packages
@@ -921,8 +951,8 @@ GitHub token tiers, or #f if this host has none, and PROJECTS-SECRET, if not
     (match command-line
     ((program args ...)
      (match (cons (program-name program) args)
-       (("contained-agent" "allow") (allow "."))
-       (("contained-agent" "allow" directory) (allow directory))
+       (("contained-agent" "allow") (allow "." git projects-file))
+       (("contained-agent" "allow" directory) (allow directory git projects-file))
        (("contained-agent" "ssh-service")
         (serve-project-ssh git projects-file ssh-tools))
        (("contained-agent" (and action (or "ssh-start" "ssh-stop" "ssh-socket"))
@@ -935,9 +965,7 @@ GitHub token tiers, or #f if this host has none, and PROJECTS-SECRET, if not
                                     "--path-format=absolute" "--show-toplevel"
                                     "--git-common-dir"))
                (project (match info
-                          ((top common)
-                           (resolve (if (string-suffix? "/.git" common)
-                                        (dirname common) top)))
+                          ((top common) (resolve top))
                           (_ directory)))
                (policy (and (string=? action "ssh-start")
                             (ssh-policy (map cdr (central-entries projects-file project))))))
