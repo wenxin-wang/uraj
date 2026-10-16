@@ -5,17 +5,20 @@
   #:use-module (gnu services docker)
   #:use-module (gnu services shepherd)
   #:use-module (guix gexp)
+  #:use-module (guix packages)
   #:use-module (guix records)
   #:use-module (srfi srfi-1)
   #:use-module (uraj utils gexp)
   #:use-module (uraj network-policy)
   #:use-module (uraj services restricted-network)
+  #:use-module (uraj packages docker)
   #:use-module (uraj packages redroid)
   #:use-module (uraj services logs)
   #:export (%redroid-docker-configuration
             %redroid-network redroid-network
             redroid-configuration redroid-service-type
-            redroid-container redroid-prepare-program))
+            redroid-container redroid-prepare-program
+            redroid-image-tag redroid-image-context))
 
 (define %redroid-docker-configuration
   (docker-configuration
@@ -54,6 +57,9 @@
   (address redroid-address (default "10.203.0.2"))
   (render-node redroid-render-node
                (default "/dev/dri/by-path/pci-0000:00:02.0-render"))
+  ;; A package with a system/ tree (e.g. redroid-ndk-translation) layered
+  ;; onto IMAGE as a locally built image; #f runs IMAGE as is.
+  (native-bridge redroid-native-bridge (default #f))
   ;; Enable after the first manual boot/scrcpy/game validation.
   (auto-start? redroid-auto-start? (default #f)))
 
@@ -64,6 +70,43 @@
           (use-modules (uraj build redroid))
           (prepare-redroid #$(redroid-data-directory config)
                            #$(redroid-render-node config))))))
+
+(define (redroid-image-tag config)
+  ;; Local-only, readable name.  The image records its store context in a
+  ;; label, which decides whether to rebuild; see ensure-redroid-image.
+  (let* ((base (redroid-image config))
+         (digest (cond ((string-contains base "@sha256:")
+                        => (lambda (i) (substring base (+ i 8) (+ i 20))))
+                       (else (error "Layered redroid needs a digest-pinned image"
+                                    base))))
+         (bridge (redroid-native-bridge config)))
+    (string-append "localhost/uraj-redroid:" digest "-" (package-name bridge)
+                   "-" (package-version bridge))))
+
+(define (redroid-image-context config)
+  (computed-file (string-append (redroid-name config) "-image-context")
+    (with-imported-modules '((guix build utils))
+      #~(begin
+          (use-modules (guix build utils))
+          (mkdir-p #$output)
+          (copy-recursively #$(file-append (redroid-native-bridge config) "/system")
+                            (string-append #$output "/system"))
+          (call-with-output-file (string-append #$output "/Dockerfile")
+            (lambda (port)
+              (format port "FROM ~a~%COPY system /system~%"
+                      #$(redroid-image config))))))))
+
+(define (redroid-image-program config)
+  (program-file (string-append (redroid-name config) "-image")
+    (with-uraj-modules '((uraj build redroid))
+      #~(begin
+          (use-modules (uraj build redroid))
+          (ensure-redroid-image #$(file-append docker-full "/bin/docker")
+                                #$(redroid-image-tag config)
+                                #$(redroid-image-context config))))))
+
+(define (redroid-image-service-name config)
+  (string->symbol (string-append (redroid-name config) "-image")))
 
 (define (redroid-dns-servers config)
   (let ((servers (policy-dns (network-policy-of (redroid-network config)))))
@@ -78,11 +121,17 @@
   (let ((dns (redroid-dns-servers config)))
     (oci-container-configuration
       (provision (redroid-name config))
-      (image (redroid-image config))
+      (image (if (redroid-native-bridge config)
+                 (redroid-image-tag config)
+                 (redroid-image config)))
       (network (network-name (redroid-network config)))
       (requirement
-       (list 'restricted-network
-             (string->symbol (string-append (redroid-name config) "-ready"))))
+       (append
+        (list 'restricted-network
+              (string->symbol (string-append (redroid-name config) "-ready")))
+        (if (redroid-native-bridge config)
+            (list (redroid-image-service-name config))
+            '())))
       (auto-start? (redroid-auto-start? config))
       (respawn? #t)
       (entrypoint "/redroid-init")
@@ -136,7 +185,7 @@
         (lambda (config) (list (service-log (name (redroid-name config))))))
       (service-extension shepherd-root-service-type
         (lambda (config)
-          (list
+          (cons
            (shepherd-service
              (provision (list (string->symbol
                                (string-append (redroid-name config) "-ready"))))
@@ -144,6 +193,19 @@
              (auto-start? (redroid-auto-start? config))
              (documentation "Check Binder and Intel rendering; prepare persistent Android data.")
              (start #~(lambda _ (invoke #$(redroid-prepare-program config)) #t))
-             (stop #~(lambda _ #f))))))))
+             (stop #~(lambda _ #f)))
+           (if (redroid-native-bridge config)
+               (list
+                (shepherd-service
+                  (provision (list (redroid-image-service-name config)))
+                  (requirement '(dockerd user-processes))
+                  (auto-start? (redroid-auto-start? config))
+                  ;; Rerun on every container start, so a reconfigured tag
+                  ;; is built before Docker would try to pull it.
+                  (one-shot? #t)
+                  (documentation "Build the layered redroid image if missing.")
+                  (start #~(lambda _
+                             (invoke #$(redroid-image-program config)) #t))))
+               '()))))))
     (default-value (redroid-configuration))
     (description "Run a persistent redroid Android instance under the system OCI service.")))

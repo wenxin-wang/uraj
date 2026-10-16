@@ -3,8 +3,9 @@
              (gnu services docker) (gnu services shepherd) (gnu services sysctl)
              (gnu image) (gnu system image)
              (guix gexp) (json) (srfi srfi-1) (srfi srfi-64)
-             (uraj network-policy) (uraj services restricted-network)
-             (uraj services redroid))
+             (guix packages)
+             (uraj network-policy) (uraj packages redroid)
+             (uraj services restricted-network) (uraj services redroid))
 
 (test-begin "redroid")
 (test-assert "prepare program carries its local module and Guix dependencies"
@@ -41,6 +42,12 @@
             (ancestors installed 'redroid-maa))))
 (test-assert "first Android boot is explicit"
   (not (shepherd-service-auto-start? (lookup installed 'redroid-maa))))
+(test-assert "layered image is built before the container starts"
+  (memq 'redroid-maa-image (ancestors installed 'redroid-maa)))
+(test-assert "image build waits for Docker and reruns on each start"
+  (let ((image (lookup installed 'redroid-maa-image)))
+    (and (memq 'dockerd (shepherd-service-requirement image))
+         (shepherd-service-one-shot? image))))
 (define sysctl
   (service-value (fold-services (operating-system-services installed-os)
                                #:target-type sysctl-service-type)))
@@ -86,6 +93,58 @@
           (oci-container-configuration-command container)))
 (test-equal "wrapper runs before Android without APEX dependencies" "/redroid-init"
   (oci-container-configuration-entrypoint container))
+
+(define plain-container (redroid-container (redroid-configuration)))
+(test-assert "without a native bridge the base image runs as is"
+  (string-prefix? "docker.io/redroid/redroid@sha256:"
+                  (oci-container-configuration-image plain-container)))
+(define layered-config
+  (redroid-configuration (native-bridge redroid-ndk-translation)))
+(define layered-tag (redroid-image-tag layered-config))
+(test-equal "layered tag names the base digest and bridge"
+  (string-append "localhost/uraj-redroid:60b0810684be-redroid-ndk-translation-"
+                 (package-version redroid-ndk-translation))
+  layered-tag)
+(test-equal "container runs the layered tag" layered-tag
+  (oci-container-configuration-image (redroid-container layered-config)))
+(test-error "layering needs a digest-pinned base image" #t
+  (redroid-image-tag
+   (redroid-configuration
+     (image "docker.io/redroid/redroid:11.0.0-latest")
+     (native-bridge redroid-ndk-translation))))
+
+;; A fake docker keeping one image: its label, set by the latest build.
+(define fake (mkdtemp "/tmp/redroid-image-XXXXXX"))
+(call-with-output-file (string-append fake "/docker")
+  (lambda (port)
+    (display "#!/bin/sh
+d=${0%/*}
+echo \"$*\" >> \"$d/log\"
+case \"$1 $2\" in
+  'image inspect')
+    [ -f \"$d/label\" ] || exit 1
+    case \"$4\" in *uraj.context*) cat \"$d/label\" ;; *) echo sha256:old ;; esac ;;
+  'build '*) echo \"${5#uraj.context=}\" > \"$d/label\" ;;
+esac\n" port)))
+(chmod (string-append fake "/docker") #o700)
+(define (fake-count prefix)
+  (count (lambda (line) (string-prefix? prefix line))
+         (string-split (call-with-input-file (string-append fake "/log")
+                         (@ (ice-9 textual-ports) get-string-all))
+                       #\newline)))
+(define (ensure-fake context)
+  ((@ (uraj build redroid) ensure-redroid-image)
+   (string-append fake "/docker") "localhost/t:1" context))
+(ensure-fake "/gnu/store/a-ctx")
+(ensure-fake "/gnu/store/a-ctx")
+(test-equal "missing tag is built once, then reused" 1 (fake-count "build "))
+(test-equal "first build has no image to replace" 0 (fake-count "image rm"))
+(ensure-fake "/gnu/store/b-ctx")
+(test-equal "changed context rebuilds the same tag" 2 (fake-count "build "))
+(test-equal "replaced image is removed" 1 (fake-count "image rm"))
+(ensure-fake "/gnu/store/b-ctx")
+(test-equal "rebuilt image is then reused" 2 (fake-count "build "))
+((@ (guix build utils) delete-file-recursively) fake)
 
 (define custom-network
   (restricted-network

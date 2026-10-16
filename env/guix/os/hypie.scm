@@ -168,6 +168,7 @@
              (sops services sops)
              (srfi srfi-1)
              (uraj packages hwmon)
+             (uraj packages redroid)
              (uraj packages wireless)
              (uraj services strongswan)
              (uraj services redroid)
@@ -382,6 +383,9 @@
                (restricted-network
                  (inherit %redroid-network)
                  (egress-interfaces #t)))
+              ;; Arknights is ARM-only; the image's own ndk_translation
+              ;; aborts it in Scudo within seconds.
+              (native-bridge redroid-ndk-translation)
               (auto-start? #f))))
     (host-sops-services (append (map cdr %vpn-connections)
                                 %agent-secrets))

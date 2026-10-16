@@ -122,6 +122,50 @@ the tag with =oci-digest docker.io/redroid/redroid:11.0.0-latest=, replace
 the digest and the comment's date, and commit.  Do not upgrade Android versions against the same data
 directory without a stopped-container backup and a tested recovery path.
 
+** ARM translation
+
+Arknights ships only =arm64-v8a= and =armeabi-v7a= libraries.  redroid 11's
+bundled ndk_translation loads them, but the game aborts about 20 seconds after
+start: Scudo reports =invalid chunk state when deallocating= in the
+=UnityChoreograp= thread.  Host memory was not under pressure.
+
+hypie therefore sets =(native-bridge redroid-ndk-translation)=.  That package
+pins Google's ndk_translation from ChromeOS guybrush R112-15359.58.0 (Android
+11 ARCVM), as repackaged by
+[[https://github.com/supremegamers/vendor_google_proprietary_ndk_translation-prebuilt][supremegamers]]
+at commit =9324a89= (Guix hash =0p7spczq…=).  This is the build used by
+redroid-script and the community =_ndk_ChromeOS= images.  Only the libraries,
+ARM linkers/app_process and ld.config files are installed.  The
+binfmt_misc init script and program runners are left out, because
+binfmt_misc is not namespaced and registering there would affect the host.
+=ro.enable.native.bridge.exec= stays unset.
+
+Before =redroid-maa= starts, the one-shot =redroid-maa-image= service builds
+=FROM= the digest-pinned base plus =COPY system /system= into a local tag
+such as =localhost/uraj-redroid:60b0810684be-redroid-ndk-translation-…=.
+The build copies 37 MB, needs no network and adds a single layer.  A
+=uraj.context= label records the store path of the build context, which
+includes the Dockerfile.  An existing tag is reused only when its label
+matches; otherwise the image is rebuilt under the same tag and the replaced
+one removed.  So any change to the package or recipe takes effect at the next
+=herd restart redroid-maa=, without deleting images by hand.  Do not use
+=herd pull redroid-maa= for a layered image: the local tag cannot be pulled.
+
+=COPY= adds and overwrites but never deletes, so files of the base image's
+own ndk_translation that the package does not ship remain in the image.
+
+ARM's =ARM_TO_AMD_DBT_LICENSE.txt= limits use of this build to AMD CPUs;
+hypie's CPU is Intel.  The package records this in its license field.
+
+On 2026-10-16 the package was checked against Google's official
+=chromeos_15359.58.0_guybrush_recovery= image: its ROOT-A partition's
+=/opt/google/vms/android/system.raw.img= was extracted without mounting, and
+all 172 libraries, linkers and app_process binaries matched byte for byte.
+The two =etc/cpuinfo.arm*.txt= files in the prebuilt repository are not in
+Google's image and are no longer installed; ndk_translation emulates
+=/proc/cpuinfo= with the verified =lib*/arm*/cpuinfo= helpers.  The pinned
+Guix hash detects any later replacement upstream.
+
 Before reconfiguration, on hypie:
 
 #+begin_src sh
