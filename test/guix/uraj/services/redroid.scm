@@ -101,9 +101,9 @@
 (define layered-config
   (redroid-configuration (native-bridge redroid-ndk-translation)))
 (define layered-tag (redroid-image-tag layered-config))
-(test-equal "layered tag names the base digest, bridge and recipe"
+(test-equal "layered tag names the base digest and bridge"
   (string-append "localhost/uraj-redroid:60b0810684be-redroid-ndk-translation-"
-                 (package-version redroid-ndk-translation) "-r1")
+                 (package-version redroid-ndk-translation))
   layered-tag)
 (test-equal "container runs the layered tag" layered-tag
   (oci-container-configuration-image (redroid-container layered-config)))
@@ -113,26 +113,37 @@
      (image "docker.io/redroid/redroid:11.0.0-latest")
      (native-bridge redroid-ndk-translation))))
 
-;; A fake docker: the tag exists once a build has run.
+;; A fake docker keeping one image: its label, set by the latest build.
 (define fake (mkdtemp "/tmp/redroid-image-XXXXXX"))
 (call-with-output-file (string-append fake "/docker")
   (lambda (port)
-    (display "#!/bin/sh\necho \"$*\" >> \"${0%/*}/log\"
+    (display "#!/bin/sh
+d=${0%/*}
+echo \"$*\" >> \"$d/log\"
 case \"$1 $2\" in
-  'image inspect') [ -f \"${0%/*}/built\" ] ;;
-  'build '*) touch \"${0%/*}/built\" ;;
+  'image inspect')
+    [ -f \"$d/label\" ] || exit 1
+    case \"$4\" in *uraj.context*) cat \"$d/label\" ;; *) echo sha256:old ;; esac ;;
+  'build '*) echo \"${5#uraj.context=}\" > \"$d/label\" ;;
 esac\n" port)))
 (chmod (string-append fake "/docker") #o700)
-(define (fake-builds)
-  (count (lambda (line) (string-prefix? "build " line))
+(define (fake-count prefix)
+  (count (lambda (line) (string-prefix? prefix line))
          (string-split (call-with-input-file (string-append fake "/log")
                          (@ (ice-9 textual-ports) get-string-all))
                        #\newline)))
-((@ (uraj build redroid) ensure-redroid-image)
- (string-append fake "/docker") "localhost/t:1" "/ctx")
-((@ (uraj build redroid) ensure-redroid-image)
- (string-append fake "/docker") "localhost/t:1" "/ctx")
-(test-equal "missing tag is built once, then reused" 1 (fake-builds))
+(define (ensure-fake context)
+  ((@ (uraj build redroid) ensure-redroid-image)
+   (string-append fake "/docker") "localhost/t:1" context))
+(ensure-fake "/gnu/store/a-ctx")
+(ensure-fake "/gnu/store/a-ctx")
+(test-equal "missing tag is built once, then reused" 1 (fake-count "build "))
+(test-equal "first build has no image to replace" 0 (fake-count "image rm"))
+(ensure-fake "/gnu/store/b-ctx")
+(test-equal "changed context rebuilds the same tag" 2 (fake-count "build "))
+(test-equal "replaced image is removed" 1 (fake-count "image rm"))
+(ensure-fake "/gnu/store/b-ctx")
+(test-equal "rebuilt image is then reused" 2 (fake-count "build "))
 ((@ (guix build utils) delete-file-recursively) fake)
 
 (define custom-network

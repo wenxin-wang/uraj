@@ -142,13 +142,17 @@ binfmt_misc is not namespaced and registering there would affect the host.
 
 Before =redroid-maa= starts, the one-shot =redroid-maa-image= service builds
 =FROM= the digest-pinned base plus =COPY system /system= into a local tag
-such as =localhost/uraj-redroid:60b0810684be-redroid-ndk-translation-…-r1=,
-unless that tag already exists.  The build copies 37 MB, needs no network
-and adds a single layer.  The tag names the base digest, package version and
-recipe revision, so a reconfiguration with new inputs builds a new image and
-an unchanged one reuses it.  Remove old tags with =docker image rm= after
-validation.  Do not use =herd pull redroid-maa= for a layered image: the
-local tag cannot be pulled.
+such as =localhost/uraj-redroid:60b0810684be-redroid-ndk-translation-…=.
+The build copies 37 MB, needs no network and adds a single layer.  A
+=uraj.context= label records the store path of the build context, which
+includes the Dockerfile.  An existing tag is reused only when its label
+matches; otherwise the image is rebuilt under the same tag and the replaced
+one removed.  So any change to the package or recipe takes effect at the next
+=herd restart redroid-maa=, without deleting images by hand.  Do not use
+=herd pull redroid-maa= for a layered image: the local tag cannot be pulled.
+
+=COPY= adds and overwrites but never deletes, so files of the base image's
+own ndk_translation that the package does not ship remain in the image.
 
 ARM's =ARM_TO_AMD_DBT_LICENSE.txt= limits use of this build to AMD CPUs;
 hypie's CPU is Intel.  The package records this in its license field.

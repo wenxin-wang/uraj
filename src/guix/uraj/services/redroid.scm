@@ -71,12 +71,9 @@
           (prepare-redroid #$(redroid-data-directory config)
                            #$(redroid-render-node config))))))
 
-;; Bump when the layering recipe below changes, so that a stale local image
-;; with the same inputs is not reused.
-(define %redroid-image-recipe "1")
-
 (define (redroid-image-tag config)
-  ;; Local-only name: readable, and changes with every input of the context.
+  ;; Local-only, readable name.  The image records its store context in a
+  ;; label, which decides whether to rebuild; see ensure-redroid-image.
   (let* ((base (redroid-image config))
          (digest (cond ((string-contains base "@sha256:")
                         => (lambda (i) (substring base (+ i 8) (+ i 20))))
@@ -84,7 +81,7 @@
                                     base))))
          (bridge (redroid-native-bridge config)))
     (string-append "localhost/uraj-redroid:" digest "-" (package-name bridge)
-                   "-" (package-version bridge) "-r" %redroid-image-recipe)))
+                   "-" (package-version bridge))))
 
 (define (redroid-image-context config)
   (computed-file (string-append (redroid-name config) "-image-context")
