@@ -320,6 +320,12 @@ fork-worktree ~/src/uraj docs ~/workspaces/uraj-docs
 git -C ~/src/uraj worktree list
 #+end_src
 
+After creating the worktree, the helper opens
+=~/.config/contained-agent/projects.local.scm= with =$VISUAL=, then =$EDITOR=
+as a fallback, or =vi= when neither is set.  Editor arguments are supported.
+The file is created with private permissions if missing; existing content
+is preserved.  A failed worktree creation does not open the editor.
+
 Add an exact =(project "~/src/uraj-maa" ...)= entry on the host for its
 required permissions.  Merely creating a worktree grants none.  Subdirectory
 launches use that worktree's root; symlink aliases resolve to the same root.

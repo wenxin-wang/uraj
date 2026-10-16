@@ -15,4 +15,15 @@ if [[ $target != /* ]]; then
     target=$PWD/$target
 fi
 
-exec git -C "$repo" worktree add -b "$name" -- "$target" HEAD
+git -C "$repo" worktree add -b "$name" -- "$target" HEAD
+
+config=$HOME/.config/contained-agent/projects.local.scm
+(
+    umask 077
+    mkdir -p -- "$(dirname -- "$config")"
+    touch -- "$config"
+)
+
+# Editor settings may include arguments, such as "emacsclient -t".
+editor=${VISUAL:-${EDITOR:-vi}}
+exec bash -c "$editor \"\$@\"" fork-worktree "$config"
