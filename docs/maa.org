@@ -193,6 +193,15 @@ decided by the translator's own executable bitmap.  The build checks the
 original instruction bytes and the patched file's SHA-256 (=2db5af23…=).  With
 the patched file bind-mounted in place, 20 cold starts in a row reached the
 title screen; unpatched, the control run crashed again on its fifth launch.
+This is not an end-to-end pass: a later MAA daily test at 14:07:07 UTC on
+2026-10-16 crashed during startup, before recruitment or base rotation.
+ADB screenshots showed the launcher after the game exited.  CrashSight's
+=tomb_1792159627201.txt= reports =sm-thread-http2=, =SEGV_ACCERR=, and
+PC/fault address =0x7d17e4c64540=, unlike the earlier =boot.oat= addresses.
+The file backing zygote64's actual translator mapping was verified to have
+the patched SHA-256.  The faulting mapping was not captured, so the cause
+of this later crash remains unresolved; the patch is not yet ready for
+deployment as a verified fix.
 The 32-bit =system/lib= translator is unchanged: Arknights installs its
 =arm64-v8a= libraries.
 
