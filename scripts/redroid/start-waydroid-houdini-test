@@ -41,9 +41,11 @@ sed -i 's|/vendor/etc/binfmt_misc/|/system/etc/binfmt_misc/|g' \
     "$context/system/etc/init/houdini.rc"
 cat > "$context/Dockerfile" <<'DOCKERFILE'
 ARG BASE
+FROM docker.io/library/busybox@sha256:5cec3fc171c87218698e85a52af7087de727372aae264a787b8112901a5b0092 AS build-tools
 FROM ${BASE}
 USER 0
-RUN ["/system/bin/sh", "-c", "rm -rf /system/bin/arm /system/bin/arm64 /system/lib/arm /system/lib64/arm64; rm -f /system/etc/init/ndk_translation.rc /system/etc/ld.config.arm.txt /system/etc/ld.config.arm64.txt /system/bin/ndk_translation_program_runner_binfmt_misc* /system/lib/libndk_translation* /system/lib64/libndk_translation*"]
+COPY --from=build-tools /bin/busybox /uraj-build-tools/busybox
+RUN ["/uraj-build-tools/busybox", "sh", "-ec", "/uraj-build-tools/busybox rm -rf /system/bin/arm /system/bin/arm64 /system/lib/arm /system/lib64/arm64 /system/etc/init/ndk_translation.rc /system/etc/ld.config.arm.txt /system/etc/ld.config.arm64.txt /system/bin/ndk_translation_program_runner_binfmt_misc* /system/lib/libndk_translation* /system/lib64/libndk_translation* /uraj-build-tools"]
 COPY system/ /system/
 DOCKERFILE
 printf '*\n!Dockerfile\n!system/\n!system/**\n' > "$context/.dockerignore"

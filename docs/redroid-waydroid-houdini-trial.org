@@ -74,3 +74,17 @@ upstream Git tree. Translator SHA-256 values for runtime verification:
 The script also removes the old NDK =ld.config.arm.txt= and
 =ld.config.arm64.txt= files. Its shell syntax has been checked; no Docker
 build or game run for this payload has yet been performed in this session.
+
+* Build-shell correction
+
+The first host build failed before producing an image: executing
+=/system/bin/sh= returned ENOENT. Android's ELF interpreter lives in APEX,
+which is not mounted during Docker build. The build now copies a static
+BusyBox from a digest-pinned official =busybox:1.37.0-musl= stage and uses
+its shell and rm directly. It removes the temporary tools after cleanup.
+This adds a Docker Hub pull of about 871 KB for the amd64 tool layer.
+
+The downloaded amd64 BusyBox was checked for absence of PT_INTERP and run
+inside an otherwise empty chroot in the test container. Shell execution,
+file cleanup and self-removal succeeded without Android libraries or APEX.
+Full Docker build remains to be rerun on the host.
