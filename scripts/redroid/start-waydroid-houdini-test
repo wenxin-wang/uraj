@@ -1,0 +1,73 @@
+#!/bin/sh
+# Run on hypie's host as root. Keeps redroid-maa and its /data unchanged.
+set -eu
+base=ghcr.nju.edu.cn/codysk/redroid@sha256:cf9ea7e5a4f7dfbba6e433382abc18ca1e5a0555bea24e579d0ff5117e461d79
+image=uraj/redroid-waydroid-houdini:2f8f088
+name=redroid-waydroid-houdini-test
+volume=redroid-waydroid-houdini-test-data
+address=10.203.0.5
+
+if docker container inspect "$name" >/dev/null 2>&1; then
+    echo "$name already exists; inspect it before restarting this script." >&2
+    exit 1
+fi
+if docker volume inspect "$volume" >/dev/null 2>&1; then
+    echo "$volume already exists; refusing to reuse previous test data." >&2
+    exit 1
+fi
+docker network inspect redroid >/dev/null
+if docker network inspect redroid --format '{{range .Containers}}{{println .IPv4Address}}{{end}}' | grep -q '^10\.203\.0\.5/'; then
+    echo "$address is already allocated." >&2
+    exit 1
+fi
+helper=$(docker inspect redroid-maa --format '{{range .Mounts}}{{if eq .Destination "/redroid-init"}}{{.Source}}{{end}}{{end}}')
+render=$(docker inspect redroid-maa --format '{{range .Mounts}}{{if eq .Destination "/dev/dri/intel-render"}}{{.Source}}{{end}}{{end}}')
+[ -n "$helper" ] && [ -x "$helper" ]
+[ -n "$render" ] && [ -c "$render" ]
+
+# The archive is pinned to the Android 13 source used by waydroid_script.
+revision=2f8f088671182e17e67321e098e8411a3972a628
+context=$(mktemp -d /var/tmp/uraj-houdini.XXXXXX)
+trap 'rm -rf "$context"' EXIT
+trap 'exit 1' HUP INT TERM
+curl -fL --retry 3 --connect-timeout 20 \
+    "https://codeload.github.com/supremegamers/vendor_intel_proprietary_houdini/tar.gz/$revision" \
+    -o "$context/source.tar.gz"
+printf '%s  %s\n' b945959d027128f98a4f1913b84337ab6b415852ed3b350570f38b71fbfb864d "$context/source.tar.gz" | sha256sum -c -
+tar -xzf "$context/source.tar.gz" -C "$context"
+mv "$context/vendor_intel_proprietary_houdini-$revision/prebuilts" "$context/system"
+# Upstream is packaged for /vendor; waydroid_script installs it into /system.
+sed -i 's|/vendor/etc/binfmt_misc/|/system/etc/binfmt_misc/|g' \
+    "$context/system/etc/init/houdini.rc"
+cat > "$context/Dockerfile" <<'DOCKERFILE'
+ARG BASE
+FROM ${BASE}
+USER 0
+RUN ["/system/bin/sh", "-c", "rm -rf /system/bin/arm /system/bin/arm64 /system/lib/arm /system/lib64/arm64; rm -f /system/etc/init/ndk_translation.rc /system/etc/ld.config.arm.txt /system/etc/ld.config.arm64.txt /system/bin/ndk_translation_program_runner_binfmt_misc* /system/lib/libndk_translation* /system/lib64/libndk_translation*"]
+COPY system/ /system/
+DOCKERFILE
+printf '*\n!Dockerfile\n!system/\n!system/**\n' > "$context/.dockerignore"
+docker pull "$base"
+docker build --build-arg "BASE=$base" -t "$image" "$context"
+docker run -d --name "$name" --restart=no --privileged \
+    --network redroid --ip "$address" --dns 114.114.114.114 \
+    --mount "type=volume,source=$volume,target=/data" \
+    --mount "type=bind,source=$helper,target=/redroid-init,readonly" \
+    --mount "type=bind,source=$render,target=/dev/dri/intel-render" \
+    --entrypoint /redroid-init "$image" \
+    qemu=1 androidboot.hardware=redroid androidboot.use_memfd=true \
+    androidboot.redroid_width=1280 androidboot.redroid_height=720 \
+    androidboot.redroid_dpi=240 androidboot.redroid_fps=30 \
+    androidboot.redroid_gpu_mode=host \
+    androidboot.redroid_gpu_node=/dev/dri/intel-render \
+    androidboot.redroid_net_ndns=1 \
+    androidboot.redroid_net_dns1=114.114.114.114 \
+    androidboot.redroid_virtual_wifi=1 persist.sys.nativebridge=1 \
+    ro.enable.native.bridge.exec=1 ro.enable.native.bridge.exec64=1 \
+    ro.dalvik.vm.native.bridge=libhoudini.so \
+    ro.product.cpu.abilist=x86_64,x86,arm64-v8a,armeabi-v7a,armeabi \
+    ro.product.cpu.abilist64=x86_64,arm64-v8a \
+    ro.product.cpu.abilist32=x86,armeabi-v7a,armeabi \
+    ro.dalvik.vm.isa.arm=x86 ro.dalvik.vm.isa.arm64=x86_64
+printf 'Test container started; ADB address: %s:5555\n' "$address"
+printf 'Stop with: docker stop %s\n' "$name"

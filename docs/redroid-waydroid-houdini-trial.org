@@ -1,0 +1,76 @@
+#+title: Waydroid Houdini on the Codysk Android 13 base
+
+* Why this trial
+
+The unmodified Codysk NDK image failed on the third launch of Arknights
+2.7.81. The earlier ERSTT Houdini trial used ChromeOS Houdini 11.0.1f_z.
+User-provided community reports specifically recommend the Houdini payload
+from =casualsnek/waydroid_script= instead of =redroid-script=.
+
+On 2026-10-16, the Android 13 entry in
+https://github.com/casualsnek/waydroid_script/blob/main/stuff/houdini.py
+points to =supremegamers/vendor_intel_proprietary_houdini= commit
+=2f8f088671182e17e67321e098e8411a3972a628=.
+That commit imports HPE =UKW1.260829.001=, with Houdini
+=14.0.0_y.GoogleGame_com1.3= and Houdini64
+=14.0.0_z.GoogleGame_com1.3=. This is not the earlier ChromeOS build.
+The community reports do not identify their exact commits, so this trial
+uses the current pinned upstream payload, not a claimed exact reproduction.
+
+* Implementation
+
+The startup script downloads a fixed, SHA-256-checked archive and builds a
+local image on the pinned Codysk Android 13 base. It removes the NDK guest
+library trees, translator/proxy libraries, program runners and init script,
+then copies the complete Houdini prebuilts into /system. This avoids mixing
+NDK guest libraries with Houdini's replacements. The Houdini init script's
+binfmt configuration paths are adjusted from /vendor to /system, matching
+the installation location used by waydroid_script. No binary patches or
+linker namespace changes are applied.
+
+Runtime properties select =libhoudini.so=, both ARM ABIs and their x86 ISA
+mappings. Existing Intel render-node and host-protection init mounts are
+retained. The base is fetched through =ghcr.nju.edu.cn= with the same pinned
+manifest digest as the original Codysk trial.
+
+* Deploy from lappie
+
+On the existing =redroid-houdini-trial= branch:
+
+#+begin_src sh
+git pull --ff-only origin redroid-houdini-trial
+scp scripts/redroid/start-waydroid-houdini-test hypie.home.labbies.wenxinwang.me:/tmp/uraj-start-waydroid-houdini-test
+ssh -t hypie.home.labbies.wenxinwang.me 'sudo sh /tmp/uraj-start-waydroid-houdini-test'
+#+end_src
+
+The host needs Docker, curl, tar, sed and sha256sum. The new container is
+=redroid-waydroid-houdini-test=, ADB =10.203.0.5:5555=, with a fresh volume
+=redroid-waydroid-houdini-test-data=. Existing names, volumes or IP allocations
+cause refusal rather than data reuse. The original game container is not
+changed. This is a manual trial; it does not require system reconfiguration.
+
+* Validation
+
+Archive inspection and shell syntax checks precede deployment. Docker build,
+boot and game compatibility still require runtime verification on hypie.
+After boot, verify both the selected property and mapped library hash before
+installing the same ARM64 APK. When copying Bundles, set ownership to the
+new package UID rather than retaining the old container's UID. Monitor
+screenshots, process liveness, logcat and CrashSight records together.
+Login and battle tests follow startup; no MAA account tasks have run here.
+
+Stop the test with =sudo docker stop redroid-waydroid-houdini-test=.
+
+* Payload verification
+
+The downloaded tar archive's SHA-256 is
+=b945959d027128f98a4f1913b84337ab6b415852ed3b350570f38b71fbfb864d=.
+All 663 regular files were checked against their blob IDs in the pinned
+upstream Git tree. Translator SHA-256 values for runtime verification:
+
+- 64-bit: =5ef64035ec89bca3d5e33b9f3b6556f98f6c11d11957387d403ae4a4d7cc40ec=
+- 32-bit: =bfdad39a4b658fdd7e03f2638d6ec314a8983ec7ec2cd55def510d31958d8489=
+
+The script also removes the old NDK =ld.config.arm.txt= and
+=ld.config.arm64.txt= files. Its shell syntax has been checked; no Docker
+build or game run for this payload has yet been performed in this session.
