@@ -4,6 +4,10 @@
   #:use-module (srfi srfi-1)
   #:use-module (uraj utils file path)
   #:export (github-token-directory
+            %agent-configurations
+            agent-configuration-file
+            agent-configuration-hosts
+            agent-configuration-secret
             %sandbox-policies
             sandbox-policy-file
             sandbox-policy-hosts
@@ -53,3 +57,25 @@ github-token-secrets, else to #f: foreign distros have no SOPS service."
   "Return a gexp evaluating at runtime to the decrypted path of policy NAME
 on the hosts that have it, else to #f."
   (on-hosts (sandbox-policy-hosts name) (fourth (policy name))))
+
+;;; Application configuration layers, separate from sandbox policy files.
+(define %agent-configurations
+  '((paseo "paseo-config.yaml" ("paseo" "config.yaml")
+           "/run/secrets/paseo/config.yaml")))
+
+(define (agent-configuration-file host name)
+  (let ((entry (or (assq name %agent-configurations)
+                   (error "unknown agent configuration" name))))
+    (project-path
+     (string-append "secrets/hosts/" host "/" (second entry)))))
+
+(define (agent-configuration-hosts name)
+  (filter (lambda (host) (file-exists? (agent-configuration-file host name)))
+          (or (scandir (project-path "secrets/hosts")
+                       (lambda (entry) (not (string-prefix? "." entry))))
+              '())))
+
+(define (agent-configuration-secret name)
+  (let ((entry (or (assq name %agent-configurations)
+                   (error "unknown agent configuration" name))))
+    (on-hosts (agent-configuration-hosts name) (fourth entry))))

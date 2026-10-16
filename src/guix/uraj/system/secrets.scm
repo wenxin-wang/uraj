@@ -9,9 +9,11 @@
   #:use-module (sops services sops)
   #:use-module (srfi srfi-1)
   #:use-module (uraj common agent-secrets)
+  #:use-module (uraj system home)
   #:use-module (uraj utils file path)
   #:export (%host-sops-age-key-file host-sops-services
-            github-token-secrets sandbox-policy-secrets))
+            github-token-secrets sandbox-policy-secrets
+            agent-configuration-secrets))
 
 (define %host-sops-age-key-file "/var/lib/sops/age/keys.txt")
 
@@ -20,6 +22,19 @@
 OpenSSH creates missing host keys during activation, before Shepherd starts
 the sops-secrets-host-key service.  No target private key is read at build time."
   (list
+   ;; Home activation must read the private layer only after SOPS decryption.
+   ;; Attach requirements to the matching user's Home, never to all users.
+   (simple-service
+    'agent-configuration-before-home guix-home-with-environment-service-type
+    (filter-map
+     (lambda (secret)
+       (and (member (sops-secret-key secret) (map third %agent-configurations))
+            (home-activation-dependency
+             (sops-secret-user secret)
+             (list (string->symbol
+                    (string-append "sops-secret-"
+                                   (sops-secret->file-name secret)))))))
+     secrets))
    ;; Protect the directory before upstream age-store opens the identity
    ;; file; upstream sets the resulting file's permissions to 0400.
    (simple-service 'host-sops-private-state activation-service-type
@@ -81,3 +96,18 @@ sandbox-secrets).  A policy is declared only when its file exists."
              (group "root")
              (permissions #o400)))))
    %sandbox-policies))
+
+(define (agent-configuration-secrets user host)
+  "Decrypt HOST's application YAML layers without importing plaintext."
+  (filter-map
+   (lambda (entry)
+     (let ((file (agent-configuration-file host (first entry))))
+       (and (file-exists? file)
+            (sops-secret
+             (key (third entry))
+             (file (local-file file))
+             (output-type "yaml")
+             (user user)
+             (group "root")
+             (permissions #o400)))))
+   %agent-configurations))

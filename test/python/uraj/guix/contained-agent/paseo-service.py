@@ -23,6 +23,14 @@ class Activation(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
         self.home = Path(self.temporary.name)
+        hostname = mock.patch.object(
+            SERVICE.socket, "gethostname", return_value="test-host"
+        )
+        hostname.start()
+        self.addCleanup(hostname.stop)
+        timeout = mock.patch.object(SERVICE, "SECRET_TIMEOUT", 0.3)
+        timeout.start()
+        self.addCleanup(timeout.stop)
         self.environment = mock.patch.dict(os.environ, {}, clear=True)
         self.environment.start()
         self.addCleanup(self.environment.stop)
@@ -54,11 +62,39 @@ class Activation(unittest.TestCase):
         self.assertFalse(desktop["settings"]["daemon"]["manageBuiltInDaemon"])
         self.assertTrue(desktop["migrations"]["legacyRendererSettingsImported"])
 
-    def test_provider_tiers(self):
-        SERVICE.activate(self.home)
-        settings = json.loads((self.home / ".paseo/config.json").read_text())
+    def test_provider_tiers_and_private_precedence(self):
+        public = self.home / "public.yaml"
+        private = self.home / "private.yaml"
+        public.write_text("""templates:
+  common: &common
+    overrides:
+      agents:
+        providers:
+          codex:
+            env: {PUBLIC: "yes", BOTH: public}
+hosts:
+  test-host: *common
+  other-host:
+    overrides: {must-not-appear: true}
+""")
+        private.write_text("""hostname: test-host
+overrides:
+  agents:
+    providers:
+      codex:
+        env: {BOTH: private}
+""")
+        SERVICE.activate(
+            self.home, public_config=public, private_config=private
+        )
+        config = self.home / ".paseo/config.json"
+        settings = json.loads(config.read_text())
+        self.assertNotIn("must-not-appear", settings)
         providers = settings["agents"]["providers"]
         self.assertEqual(len(providers), 6)
+        self.assertEqual(
+            providers["codex"]["env"], {"PUBLIC": "yes", "BOTH": "private"}
+        )
         for agent in ("claude", "codex"):
             self.assertEqual(providers[agent]["label"], f"日常沙箱 {agent}")
             for tier, label in (("system", "系统沙箱"), ("host", "宿主")):
@@ -68,6 +104,134 @@ class Activation(unittest.TestCase):
                 self.assertTrue(
                     entry["command"][0].endswith(f"paseo-{agent}-{tier}")
                 )
+        before = config.read_bytes(), config.stat().st_mtime_ns
+        SERVICE.activate(
+            self.home, public_config=public, private_config=private
+        )
+        self.assertEqual(
+            before, (config.read_bytes(), config.stat().st_mtime_ns)
+        )
+
+    def test_repository_hosts_share_settings_and_expand_target_home(self):
+        public = SOURCE.parents[4] / "env/paseo/config.yaml"
+        for hostname in ("lappie", "hypie", "storie"):
+            with (
+                self.subTest(hostname=hostname),
+                mock.patch.object(
+                    SERVICE.socket, "gethostname", return_value=hostname
+                ),
+            ):
+                SERVICE.activate(self.home, public_config=public)
+                settings = json.loads(
+                    (self.home / ".paseo/config.json").read_text()
+                )
+                self.assertEqual(
+                    settings["daemon"]["relay"],
+                    {
+                        "enabled": True,
+                        "endpoint": "172.31.0.8:4000",
+                        "useTls": False,
+                    },
+                )
+                self.assertEqual(set(settings["daemon"]), {"relay"})
+                self.assertNotIn("app", settings)
+                self.assertEqual(
+                    settings["worktrees"]["root"],
+                    str(self.home / ".local/share/paseo/worktrees"),
+                )
+                providers = settings["agents"]["providers"]
+                self.assertEqual(
+                    set(providers),
+                    {
+                        "codex",
+                        "codex-system",
+                        "codex-host",
+                        "claude",
+                        "claude-system",
+                        "claude-host",
+                    },
+                )
+                for agent in ("codex", "claude"):
+                    self.assertEqual(
+                        providers[agent]["command"],
+                        [
+                            str(
+                                self.home
+                                / f".guix-home/profile/bin/paseo-{agent}-daily"
+                            )
+                        ],
+                    )
+
+    def test_only_path_fields_expand_tilde(self):
+        settings = {
+            "worktrees": {"root": "~/trees"},
+            "agents": {
+                "providers": {
+                    "custom": {
+                        "command": ["~/bin/agent", "~/literal-argument"],
+                        "env": {"VALUE": "~/literal-value"},
+                    }
+                }
+            },
+        }
+        SERVICE.resolve_home_paths(settings, self.home)
+        provider = settings["agents"]["providers"]["custom"]
+        self.assertEqual(
+            provider["command"],
+            [str(self.home / "bin/agent"), "~/literal-argument"],
+        )
+        self.assertEqual(provider["env"]["VALUE"], "~/literal-value")
+        self.assertEqual(
+            settings["worktrees"]["root"], str(self.home / "trees")
+        )
+
+    def test_bad_layers_leave_existing_configuration_intact(self):
+        SERVICE.activate(self.home)
+        config = self.home / ".paseo/config.json"
+        before = config.read_bytes(), config.stat().st_mtime_ns
+        private = self.home / "private.yaml"
+        with self.assertRaises(FileNotFoundError):
+            SERVICE.activate(self.home, private_config=private)
+        for document in (
+            [],
+            {"hostname": "wrong-host"},
+            {"hostname": "test-host", "delete": ["wrong"]},
+            {"hostname": "test-host", "overrides": {"agents": []}},
+            {
+                "hostname": "test-host",
+                "overrides": {
+                    "agents": {"providers": {"codex": {"command": []}}}
+                },
+            },
+        ):
+            private.write_text(json.dumps(document))
+            with self.assertRaises(ValueError):
+                SERVICE.activate(self.home, private_config=private)
+            self.assertEqual(
+                before, (config.read_bytes(), config.stat().st_mtime_ns)
+            )
+
+    def test_waits_for_sops_before_applying_either_layer(self):
+        private = self.home / "decrypted.yaml"
+        pending = self.home / "pending.yaml"
+        pending.write_text("hostname: test-host\noverrides: {private: true}\n")
+        # Match sops-guix: publish the completed plaintext by atomic rename.
+        timer = threading.Timer(0.1, pending.replace, [private])
+        timer.start()
+        self.addCleanup(timer.cancel)
+        SERVICE.activate(self.home, private_config=private)
+        settings = json.loads((self.home / ".paseo/config.json").read_text())
+        self.assertTrue(settings["private"])
+
+    def test_unknown_public_host_leaves_configuration_intact(self):
+        SERVICE.activate(self.home)
+        config = self.home / ".paseo/config.json"
+        before = config.read_bytes()
+        public = self.home / "public.yaml"
+        public.write_text("hosts: {other-host: {overrides: {}}}\n")
+        with self.assertRaisesRegex(ValueError, "no host entry"):
+            SERVICE.activate(self.home, public_config=public)
+        self.assertEqual(before, config.read_bytes())
 
     def test_temporary_directory_is_private_and_preserves_attachments(self):
         directory = SERVICE.prepare_temporary_directory(self.home)
