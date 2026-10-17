@@ -291,7 +291,7 @@ Clauses, in both places below:
   them, and host-side git keeps its own hooks.  uraj uses
   =(git-hooks "scripts/coding_style/hooks")=.
 
-Central configuration only: =(ssh-agent ...)= and the credential clauses
+Central configuration only: =(podman-remote)=, =(ssh-agent ...)= and the credential clauses
 =(github TIER)=, =(git-credential URL FILE)= and =(env NAME (file FILE))=,
 described below.
 
@@ -489,6 +489,131 @@ one (such as =$HOME= or =/=): =~/.paseo=, =~/.paseo-password=, =~/.ssh=,
   processes' environments).
 - Read =/var/log/debug=, =secure= or =guix-daemon.log=: those are root-only
   even for the user; only =messages= is in =log-readers=.
+
+* Local Podman runtime
+
+The central =(podman-remote)= clause now starts or reuses a project-owned rootless Podman
+runtime next to the existing Guix agent container.  It uses a filesystem Unix
+socket, not the legacy agent-podman SSH service.  Existing SSH clauses remain
+independent; this permission no longer provisions an SSH identity.
+
+#+begin_src scheme
+(project "~/Projects/20260929-traj-generation/traj-record"
+  (podman-remote (tmpdir "~/.cache/harbor/tmp"))
+  (share "~/.cache/harbor"))
+#+end_src
+
+The normal worktree/Git mounts, project share/expose clauses and explicit TMPDIR
+are mounted at the same absolute paths in the runtime.  Nested Git protections
+remain read-only mounts.  Agent state, credential mounts, SSH sockets and broad
+common agent mounts are not implicitly passed to the runtime.  Missing paths
+follow the ordinary project-clause rules; explicit TMPDIR is created before
+launch.  Changes apply to new sessions: an existing runtime is never expanded
+in place to pick up a different project's permissions.
+
+The runtime receives the Podman API's full execution authority, but its outer
+filesystem view limits available bind sources.  A request to bind / exposes
+that runtime's root, not the host root.  Shared files use the host user's mapped
+identity, so no agent-podman ACLs or users-group permission changes are needed.
+Paths overlapping runtime infrastructure and host runtime state are rejected.
+The implementation currently rejects mount paths containing =, colon, comma
+or newline instead of guessing how the engine will parse them.
+
+The agent manifest must supply podman and its chosen Compose provider.  The
+launcher sets CONTAINER_HOST and DOCKER_HOST to
+=unix:///run/contained-agent/podman/podman.sock= after direnv initialization,
+installs a wrapper that selects remote mode, and mounts only the API socket
+folder read-only into the agent.  There is no listening TCP port or SSH key.
+
+** Host prerequisites and initialization
+
+Home reconfiguration installs the Python supervisor and pins its Podman
+executable through the Guix package closure.  The host needs the existing
+=rootless-podman-service-type= setup: subordinate IDs, mapping helpers,
+/dev/fuse, /dev/net/tun and permission to create a child of /sys/fs/cgroup with
+cpu, memory and pids already enabled.  It does not request sudo or alter global
+controller settings when those prerequisites are missing.
+
+Each runtime creates a dedicated host cgroup subtree.  The outer runtime is
+rootless, uses a private cgroup namespace and a custom seccomp profile, and
+does not use --privileged.  Its brief namespace-UID-0 bootstrap delegates only
+the private cgroup management files to UID 1000, then drops UID/GID and clears
+supplementary groups before starting the API.  Startup checks the service UID,
+rootless status and active seccomp filter.  Service and task cgroups are separate.
+
+The runtime image currently comes from quay.io/podman/stable:latest but must
+match the verified image ID
+=0e1abc5572ecd4dbc4574f60669bdbbafe804af7f6709b257cc93b8a797106ea= before it is
+executed.  A tag update fails closed; it does not silently upgrade the runtime.
+The underlying supervisor accepts explicit image/reference and expected-ID
+arguments for a reviewed update.  The active API image is Podman 5.8.7; the
+host client is the Guix Podman package.  This image pin is a compatibility pin,
+not a signature/provenance verification system.
+
+** Lifecycle and storage
+
+The host supervisor connects the Guix agent to a persistent runtime, retaining
+stdin, stdout, stderr and the agent exit status.  Sessions with the same project
+and effective mount policy reuse one runtime and its writable image store.
+The identity also includes the verified runtime image, host Podman executable,
+user/subordinate IDs and mount source identities.  Different worktrees or
+changed read/write permissions can therefore select different runtimes.  An
+existing session's authorization is not revoked by changing new-session policy.
+
+Sessions sharing a runtime share the full Podman API: container names, networks,
+volumes and images are common, and one session can stop another's task.  Use
+unique Compose project names for simultaneous Harbor runs.  This is one project
+trust boundary, not isolation between agents authorized for that project.
+
+Persistent state and logs live under
+=~/.local/share/contained-agent/podman/<runtime-id>/=.  Socket and transient
+engine state live under =$XDG_RUNTIME_DIR/contained-podman/<runtime-id>/=
+(defaulting to /run/user/<uid>).  Both directories must be private to the user.
+Startup prints the runtime ID and log location.  A startup lock serializes
+creation/recovery; shared session locks prevent an ordinary stop while another
+supervised agent session is attached.
+
+Leaving a session does not stop the runtime.  To stop it after all sessions exit:
+
+#+begin_src sh
+contained-agent podman-stop RUNTIME_ID
+#+end_src
+
+This stops its tasks and removes transient state and the private cgroup, while
+retaining images, volumes and writable storage.  It refuses while a session
+supervisor holds a lease.  Detached tasks do not hold session leases: stopping
+an otherwise idle runtime also stops those tasks.  SIGKILL of a supervisor can
+release its lease before a surviving agent exits; close such orphaned agents
+before explicitly stopping the runtime.
+
+After reboot, the next session recreates the service, socket and cgroup using
+the persistent storage; cached images remain available.  It does not resume
+old tasks automatically.  Old task metadata may remain and cause name conflicts.
+An interrupted startup is retried on the next attachment when no session holds
+a lease.  There is no background idle reaper or automatic storage purge; unused
+policy versions retain their own caches.  Both engines still use VFS.  Storage
+is shared only by clients of the same runtime, not by independent engines or
+the user's ordinary host Podman.  No shared read-only image library is used.
+
+This implementation does not install an agent-podman account or SSH service.
+Hosts that deployed the earlier experimental SSH service can remove that
+configuration after validating the local runtime.
+
+** Harbor acceptance
+
+The worktree already includes jobs/, instances/ and the apt-cacher files.
+Sharing ~/.cache/harbor and its TMPDIR lets relative Compose binds resolve to
+the same files from the agent and runtime.  No extra /jobs mount is needed.
+Use project-local output paths and the configured TMPDIR for generated bind
+sources; synthetic HOME and private /tmp files are not runtime bind sources.
+
+The host experiment has passed builds with uploaded contexts, Compose DNS/HTTP
+and relative binds, read-only/path isolation, and actual CPU/memory/PID limits
+with seccomp active.  See [[file:podman-runtime-prototype.org][the experiment record]].
+The persistent supervisor still needs deployed concurrency/reboot smoke tests
+and a real Harbor trial in traj-record.  Default privileged tasks are not promised: the tested
+privileged variant explicitly binds /sys read-only.  VFS performance and a
+Guix-built runtime image also remain follow-up work.
 
 * Optional Guix daemon access
 
