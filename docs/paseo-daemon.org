@@ -183,11 +183,15 @@ its environment. Legacy =~/.paseo-password= files are ignored.
 Paseo 0.10.3 writes Codex images under its temporary directory and sends
 =localImage= paths to the provider. Home activation and the service launcher
 create =~/.cache/paseo-tmp= with mode 0700. The launcher sets =TMPDIR= to
-that path; the Paseo container mounts it read-write, and contained agents
-expose it read-only at the same absolute path. Uploads made after an agent
+that path; the Paseo container and contained agents mount it read-write
+at the same absolute path. Uploads made after an agent
 starts are visible without remounting. The host's entire =/tmp= is not shared.
 
-All contained agents can read this directory, including attachments from
+For outgoing attachments, agents should save or copy files into this directory
+and send their absolute paths. Files left in an agent's private =/tmp= are not
+visible to the daemon.
+
+All contained agents can read and modify this directory, including attachments from
 other sessions and other temporary files Paseo creates there. It is not
 automatically cleared; remove stale files only after the sessions using them
 have ended. Do not replace the directory while containers have it mounted.

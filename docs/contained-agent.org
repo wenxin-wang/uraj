@@ -76,9 +76,10 @@ as =contained-agent= the first argument names the agent, or is =allow=.
   and their uncommitted files.  Common mounts come first; the current work
   tree is then mounted read-write, followed by its Git protections.  Other
   projects remain read-only unless separately granted write access.
-- All agents can read =~/.cache/paseo-tmp= when it exists. Paseo uses it as
+- All agents can read and write =~/.cache/paseo-tmp= when it exists. Paseo uses it as
   =TMPDIR= so Codex's =localImage= paths work across container boundaries.
-  This includes other sessions' attachments and temporary files; see
+  Save outgoing attachments here and send their absolute paths so Paseo can
+  read them. This access includes other sessions' attachments and temporary files; see
   [[file:paseo-daemon.org::*Image attachments][image attachments]] for setup and cleanup.
 - Clone temporary reference code into =/tmp/reference-code/=, or use an
   ignored =.reference-code/= directory in the current work tree to retain it.
