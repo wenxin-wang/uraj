@@ -1,0 +1,25 @@
+#!/system/bin/sh
+set -eu
+config=/linkerconfig/ld.config.txt
+tmp=$(mktemp /linkerconfig/uraj-houdini.XXXXXX)
+trap 'rm -f "$tmp"' EXIT
+awk '
+BEGIN {
+    allowance = "namespace.default.permitted.paths += /system/${LIB}/arm64:/system/${LIB}/arm"
+}
+/^\[/ {
+    if (in_system) print allowance
+    in_system = ($0 == "[system]")
+    if (in_system) found++
+}
+# Remove our previous line so repeated execution is idempotent.
+in_system && $0 == allowance { next }
+{ print }
+END {
+    if (in_system) print allowance
+    if (found != 1) exit 1
+}
+' "$config" > "$tmp"
+# Write through the existing file, preserving its mode and SELinux label.
+cat "$tmp" > "$config"
+setprop uraj.houdini.linker.ready 1

@@ -1,0 +1,17 @@
+set -eu
+bb=/uraj-build-tools/busybox
+rc=/system/etc/init/hw/init.rc
+$bb grep -q '^    start zygote$' "$rc"
+$bb grep -q '^    class_start main$' "$rc"
+$bb sed -i '/^    \(start zygote\|class_start main\)$/i\
+    setprop uraj.houdini.linker.ready 0\
+    exec_start uraj-houdini-linker\
+    wait_for_prop uraj.houdini.linker.ready 1' "$rc"
+# Remove the old bridge before copying Houdini over these trees.
+$bb rm -rf /system/bin/arm /system/bin/arm64 \
+    /system/lib/arm /system/lib64/arm64 \
+    /system/etc/init/ndk_translation.rc \
+    /system/etc/ld.config.arm.txt /system/etc/ld.config.arm64.txt \
+    /system/bin/ndk_translation_program_runner_binfmt_misc* \
+    /system/lib/libndk_translation* /system/lib64/libndk_translation*
+$bb rm -rf /uraj-build-tools

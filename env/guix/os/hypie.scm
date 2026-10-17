@@ -371,7 +371,7 @@
           (zfs-data-ready-service
            '(("data" . "/data")
              ("data/wenxin" . "/data/wenxin"))))
-    ;; redroid-maa for MAA (docs/maa.org); started manually until validated.
+    ;; Official Android 13 + HPE Houdini; migrate data before deployment (docs/maa.org).
     (list (service containerd-service-type)
           (service docker-service-type %redroid-docker-configuration)
           (service oci-service-type (oci-configuration (runtime 'docker)))
@@ -384,10 +384,11 @@
                (restricted-network
                  (inherit %redroid-network)
                  (egress-interfaces #t)))
-              ;; Arknights is ARM-only; the image's own ndk_translation
-              ;; aborts it in Scudo within seconds.
-              (native-bridge redroid-ndk-translation)
-              (auto-start? #f))))
+              ;; Separate from the old Android 11 /data; see the migration script.
+              (data-directory "/var/lib/redroid/data/maa-houdini-13")
+              (native-bridge redroid-houdini)
+              (native-bridge-library "libhoudini.so")
+              (auto-start? #t))))
     (host-sops-services (append (map cdr %vpn-connections)
                                 %agent-secrets))
     (strongswan-services %vpn-connections #:at-boot '("fwd2home")))))

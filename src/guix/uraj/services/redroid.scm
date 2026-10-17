@@ -48,10 +48,9 @@
 (define-record-type* <redroid-configuration>
   redroid-configuration make-redroid-configuration redroid-configuration?
   (name redroid-name (default "redroid-maa"))
-  ;; docker.io/redroid/redroid:11.0.0-latest as of 2026-10-11 (still on
-  ;; 2026-10-15); refresh with `oci-digest' on that tag.
+  ;; Official 13.0.0-latest, amd64 manifest checked on 2026-10-17.
   (image redroid-image
-         (default "docker.io/redroid/redroid@sha256:60b0810684be4578733a847be3314c50b70f73bc92405b5a627ebe9b633ebb5e"))
+         (default "docker.io/redroid/redroid@sha256:524987f1fc489f6018e2c9d0dd622e5eccea13eb896417cb4bfb26bc3fea9afd"))
   (data-directory redroid-data-directory (default "/var/lib/redroid/data/maa"))
   (network redroid-network (default %redroid-network))
   (address redroid-address (default "10.203.0.2"))
@@ -60,6 +59,9 @@
   ;; A package with a system/ tree (e.g. redroid-ndk-translation) layered
   ;; onto IMAGE as a locally built image; #f runs IMAGE as is.
   (native-bridge redroid-native-bridge (default #f))
+  ;; #f preserves the image's own properties. Explicit selection is needed
+  ;; when replacing its bridge with a different implementation.
+  (native-bridge-library redroid-native-bridge-library (default #f))
   ;; Enable after the first manual boot/scrcpy/game validation.
   (auto-start? redroid-auto-start? (default #f)))
 
@@ -91,10 +93,20 @@
           (mkdir-p #$output)
           (copy-recursively #$(file-append (redroid-native-bridge config) "/system")
                             (string-append #$output "/system"))
-          (call-with-output-file (string-append #$output "/Dockerfile")
-            (lambda (port)
-              (format port "FROM ~a~%COPY system /system~%"
-                      #$(redroid-image config))))))))
+          (let ((prepare #$(file-append (redroid-native-bridge config) "/prepare-image")))
+            (when (file-exists? prepare)
+              (copy-file prepare (string-append #$output "/prepare-image"))
+              (copy-file #$(file-append redroid-build-tools "/bin/busybox")
+                         (string-append #$output "/busybox")))
+            (call-with-output-file (string-append #$output "/Dockerfile")
+              (lambda (port)
+                (format port "FROM ~a~%" #$(redroid-image config))
+                (when (file-exists? prepare)
+                  (display "USER 0
+COPY busybox prepare-image /uraj-build-tools/
+RUN [\"/uraj-build-tools/busybox\", \"sh\", \"/uraj-build-tools/prepare-image\"]
+" port))
+                (display "COPY system /system\n" port))))))))
 
 (define (redroid-image-program config)
   (program-file (string-append (redroid-name config) "-image")
@@ -156,7 +168,8 @@
                                       ",target=/dev/dri/intel-render"))))
       (command
        (append
-        (list "androidboot.hardware=redroid"
+        (list "qemu=1"
+             "androidboot.hardware=redroid"
              "androidboot.use_memfd=true"
              "androidboot.redroid_width=1280"
              "androidboot.redroid_height=720"
@@ -164,13 +177,24 @@
              "androidboot.redroid_fps=30"
              "androidboot.redroid_gpu_mode=host"
              "androidboot.redroid_gpu_node=/dev/dri/intel-render"
+             "androidboot.redroid_virtual_wifi=1"
              (string-append "androidboot.redroid_net_ndns="
                             (number->string (length dns))))
         (map (lambda (address index)
                (string-append "androidboot.redroid_net_dns" (number->string index)
                               "=" address))
              dns
-             (iota (length dns) 1)))))))
+             (iota (length dns) 1))
+        (if (redroid-native-bridge-library config)
+            (list
+             (string-append "ro.dalvik.vm.native.bridge="
+                            (redroid-native-bridge-library config))
+             "persist.sys.nativebridge=1"
+             "ro.product.cpu.abilist=x86_64,x86,arm64-v8a,armeabi-v7a,armeabi"
+             "ro.product.cpu.abilist64=x86_64,arm64-v8a"
+             "ro.product.cpu.abilist32=x86,armeabi-v7a,armeabi"
+             "ro.dalvik.vm.isa.arm=x86" "ro.dalvik.vm.isa.arm64=x86_64")
+            '()))))))
 
 (define redroid-service-type
   (service-type

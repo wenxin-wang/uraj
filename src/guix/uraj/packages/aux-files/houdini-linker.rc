@@ -1,0 +1,7 @@
+service uraj-houdini-linker /system/bin/sh /system/bin/uraj-houdini-linker
+    user root
+    group root
+    disabled
+    oneshot
+    seclabel u:r:init:s0
+    stdio_to_kmsg

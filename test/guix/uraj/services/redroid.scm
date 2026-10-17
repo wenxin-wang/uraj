@@ -40,8 +40,8 @@
 (test-assert "Android is independent of data pools and VPN secrets"
   (not (any (lambda (r) (memq r '(zfs-data-ready zfs-mount sops-secrets vpn-fwd2home)))
             (ancestors installed 'redroid-maa))))
-(test-assert "first Android boot is explicit"
-  (not (shepherd-service-auto-start? (lookup installed 'redroid-maa))))
+(test-assert "production Android starts automatically"
+  (shepherd-service-auto-start? (lookup installed 'redroid-maa)))
 (test-assert "layered image is built before the container starts"
   (memq 'redroid-maa-image (ancestors installed 'redroid-maa)))
 (test-assert "image build waits for Docker and reruns on each start"
@@ -94,6 +94,23 @@
 (test-equal "wrapper runs before Android without APEX dependencies" "/redroid-init"
   (oci-container-configuration-entrypoint container))
 
+(define production-config
+  (service-value
+   (find (lambda (s) (eq? (service-kind s) redroid-service-type))
+         (operating-system-services installed-os))))
+(define production-container (redroid-container production-config))
+(test-assert "production explicitly selects Houdini and ARM64 mapping"
+  (every (lambda (arg) (member arg (oci-container-configuration-command
+                                   production-container)))
+         '("qemu=1" "ro.dalvik.vm.native.bridge=libhoudini.so"
+           "ro.dalvik.vm.isa.arm64=x86_64")))
+(test-assert "Android 13 uses its own data directory"
+  (member "type=bind,source=/var/lib/redroid/data/maa-houdini-13,target=/data"
+          (oci-container-configuration-extra-arguments production-container)))
+(test-assert "production does not request host ARM executable registration"
+  (not (any (lambda (arg) (string-prefix? "ro.enable.native.bridge.exec" arg))
+            (oci-container-configuration-command production-container))))
+
 (define plain-container (redroid-container (redroid-configuration)))
 (test-assert "without a native bridge the base image runs as is"
   (string-prefix? "docker.io/redroid/redroid@sha256:"
@@ -102,7 +119,7 @@
   (redroid-configuration (native-bridge redroid-ndk-translation)))
 (define layered-tag (redroid-image-tag layered-config))
 (test-equal "layered tag names the base digest and bridge"
-  (string-append "localhost/uraj-redroid:60b0810684be-redroid-ndk-translation-"
+  (string-append "localhost/uraj-redroid:524987f1fc48-redroid-ndk-translation-"
                  (package-version redroid-ndk-translation))
   layered-tag)
 (test-equal "container runs the layered tag" layered-tag

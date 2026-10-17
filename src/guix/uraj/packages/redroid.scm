@@ -5,10 +5,13 @@
   #:use-module (guix build-system copy)
   #:use-module (guix build-system gnu)
   #:use-module (guix git-download)
+  #:use-module (guix download)
+  #:use-module (gnu packages busybox)
   #:use-module ((guix licenses) #:prefix license:)
   #:use-module ((nonguix licenses) #:prefix nonguix-license:)
   #:use-module (gnu packages base)
-  #:export (redroid-init redroid-ndk-translation))
+  #:export (redroid-init redroid-ndk-translation redroid-houdini
+            redroid-build-tools))
 
 (define redroid-init
   (package
@@ -84,3 +87,79 @@ image.  The binfmt_misc registration for ARM executables is omitted.")
       (license (nonguix-license:nonfree
                 "file://share/doc/redroid-ndk-translation/ARM_TO_AMD_DBT_LICENSE.txt"
                 "Use limited to AMD CPUs.")))))
+
+;; Build-only shell: Android's ELF interpreter is unavailable before APEX mounts.
+(define redroid-build-tools
+  (package
+    (inherit busybox)
+    (name "redroid-build-tools")
+    ;; Keep shared libc ahead of libc.a for BusyBox's HOSTCC helpers.
+    (inputs (modify-inputs (package-inputs busybox)
+              (prepend glibc)
+              (append `(,glibc "static"))))
+    (arguments
+     (substitute-keyword-arguments (package-arguments busybox)
+       ((#:make-flags flags #~'())
+        #~(cons* "CONFIG_STATIC=y" "V=1" #$flags))))))
+
+(define houdini-linker-file
+  (local-file
+   (canonicalize-path
+    (search-path %load-path "uraj/packages/aux-files/houdini-linker"))))
+
+(define houdini-linker-rc-file
+  (local-file
+   (canonicalize-path
+    (search-path %load-path "uraj/packages/aux-files/houdini-linker.rc"))))
+
+(define houdini-prepare-image-file
+  (local-file
+   (canonicalize-path
+    (search-path %load-path "uraj/packages/aux-files/houdini-prepare-image"))))
+
+;; The Android 13 payload selected by waydroid_script, without host-global
+;; binfmt_misc registration. App native-library translation needs no runners.
+(define redroid-houdini
+  (let ((commit "2f8f088671182e17e67321e098e8411a3972a628"))
+    (package
+      (name "redroid-houdini")
+      (version (git-version "14.0.0-com1.3" "0" commit))
+      (source
+       (origin
+         (method url-fetch)
+         (uri (string-append
+               "https://codeload.github.com/supremegamers/vendor_intel_proprietary_houdini/tar.gz/"
+               commit))
+         (file-name (string-append "houdini-" commit ".tar.gz"))
+         (sha256 (base32 "0kc6zgxp32zkf02kafzda9c42sxb6x1vh4qr9y5gja3i0afraidr"))))
+      (build-system copy-build-system)
+      (arguments
+       (list
+        #:strip-binaries? #f
+        #:install-plan
+        #~'(("prebuilts/lib" "system/lib")
+            ("prebuilts/lib64" "system/lib64")
+            ("README.md" "share/doc/redroid-houdini/"))
+        #:phases
+        #~(modify-phases %standard-phases
+            ;; This script executes in Android, not the Guix build environment.
+            (delete 'patch-shebangs)
+            (add-after 'install 'install-integration
+              (lambda _
+                (let ((out #$output))
+                  (mkdir-p (string-append out "/system/bin"))
+                  (mkdir-p (string-append out "/system/etc/init"))
+                  (copy-file #$houdini-linker-file
+                             (string-append out "/system/bin/uraj-houdini-linker"))
+                  (chmod (string-append out "/system/bin/uraj-houdini-linker") #o755)
+                  (copy-file #$houdini-linker-rc-file
+                             (string-append out "/system/etc/init/uraj-houdini-linker.rc"))
+                  (copy-file #$houdini-prepare-image-file
+                             (string-append out "/prepare-image"))))))))
+      (supported-systems '("x86_64-linux"))
+      (home-page "https://github.com/supremegamers/vendor_intel_proprietary_houdini")
+      (synopsis "HPE Houdini ARM native bridge for redroid Android 13")
+      (description "Pinned HPE UKW1.260829.001 native bridge and guest libraries
+for x86_64 Android. Includes the linker namespace integration used by redroid,
+but no binary patches or host-wide binfmt_misc registrations.")
+      (license (nonguix-license:nonfree (string-append home-page "/tree/" commit))))))
