@@ -23,6 +23,18 @@
      ("tasks/daily.toml"
       ,(local-file (project-path "env/maa/tasks/daily.toml"))))))
 
+(define %maa-run
+  (program-file
+   "maa-run-daily"
+   #~(begin
+       ;; MaaCore's first adb child can leave its pipe open in the server,
+       ;; delaying connection until the command timeout. Start it separately.
+       (unless (zero? (system* #$(file-append android-platform-tools "/bin/adb")
+                              "start-server"))
+         (error "Could not start the MAA ADB server"))
+       (execl #$(file-append maa-assistant-arknights "/bin/maa")
+              "maa" "run" "daily" "--batch" "--verbose" "--log-file"))))
+
 (define %maa-daily-command
   (program-file
    "maa-daily"
@@ -45,8 +57,7 @@
               "--nonblock" "--close" "/var/lib/maa/daily.lock"
               #$(file-append coreutils "/bin/timeout")
               "--kill-after=30s" "2h"
-              #$(file-append maa-assistant-arknights "/bin/maa")
-              "run" "daily" "--batch" "--log-file"))))
+              #$%maa-run))))
 
 ;; mcron uses the system timezone: hypie inherits Asia/Shanghai.
 (define %maa-daily-job

@@ -116,6 +116,10 @@ existing preset queues; keep those configured in-game.
 The dedicated =maa= system account keeps state under =/var/lib/maa=, with
 ADB server port 5038 separate from interactive clients. A nonblocking lock
 prevents overlapping runs, and a two-hour timeout bounds a stuck run.
+Start the ADB server explicitly before MaaCore: in the first live test,
+letting MaaCore spawn it left a communication pipe open in the background
+server and delayed connection by a minute. Prestarting it connected in one
+second. Both startup and MAA run inside the lock and timeout.
 Configuration and the pinned MAA 6.19.0 package are immutable store files;
 resource updates and logs go to the account's writable data/cache/state
 directories. CLI logs are under =/var/lib/maa/state/maa/debug/=; scheduler
@@ -126,6 +130,18 @@ maa-cli 0.7.5 also performs a mandatory API hot update before task parsing,
 including during =--dry-run=; this needs outbound HTTPS. The optional
 MaaResource Git update warns on failure, but an API update failure aborts
 that run. See the [[https://github.com/MaaAssistantArknights/maa-cli/blob/v0.7.5/crates/maa-cli/src/run/mod.rs][pinned CLI run implementation]].
+
+Live validation on hypie on 2026-10-17, 16:20--16:25 Asia/Shanghai, used
+the Guix store MAA/ADB binaries and this task/profile/CLI configuration
+against production =10.203.0.2:5555= (game 2.7.81), with temporary writable
+state and ADB port 5038. All six tasks reported =Completed=, followed by
+=AllTasksCompleted= and exit status 0. One recruitment was started; base,
+mall and rewards tasks completed, and the game was closed. No combat task
+was configured. This validates the controller and saved game login; the
+dedicated system account and scheduled invocation still await deployment.
+An earlier attempt failed during the mandatory API update before entering
+the game; the retry succeeded. MaaResource download is MAA recognition
+data, not a reinstall or download of the game's data.
 
 ** Implementation and first deployment
 
@@ -213,7 +229,8 @@ a short TR-1 battle-loading test and MAA daily tasks on 2026-10-17. The
 unmodified Codysk NDK image and earlier ChromeOS Houdini 11 failed startup.
 The official Android 13 base with this HPE payload completed three initial
 launch observations without native crashes; the first and third reached
-resource selection. Login/battle/MAA were not repeated on that base. The
+resource selection. The daily validation above subsequently confirmed login
+and MAA on production; battle was not repeated on that base. The
 first official trial exposed the missed =class_start main= hook; the helper
 was then applied manually and successfully invoked through init. The fixed
 boot hook still needs a full production restart check. The production
