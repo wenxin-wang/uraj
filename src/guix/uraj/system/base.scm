@@ -8,7 +8,9 @@
   #:use-module (gnu services)
   #:use-module (gnu services avahi)
   #:use-module (gnu services base)
+  #:use-module (gnu services containers)
   #:use-module (gnu services ssh)
+  #:use-module (gnu system accounts)
   #:use-module (guix base32)
   #:use-module (guix channels)
   #:use-module (guix download)
@@ -143,8 +145,10 @@
         (resolve-module '(uraj system base))))
 
 (define (base-services main-user ssh-key services)
-  "Add shared SSH, store publishing, and Guix settings to SERVICES.
+  "Add shared SSH, rootless containers, store publishing, and Guix settings
+to SERVICES.
 MAIN-USER and the deployment account log in with SSH-KEY."
+  (define user-name (user-account-name main-user))
   (define channels (locked-channels))
   ;; The system-wide guix carries every locked channel, so plain
   ;; `guix system reconfigure' (and `guix system init' on a live image)
@@ -152,6 +156,17 @@ MAIN-USER and the deployment account log in with SSH-KEY."
   (define guix (guix-for-channels channels))
   (cons* (service openssh-service-type
                   (base-openssh-configuration main-user ssh-key))
+         ;; Rootless Podman: subuid/subgid ranges, cgroup v2 delegation,
+         ;; a shared root mount and /etc/containers defaults.  The podman
+         ;; CLI itself comes from the basic-dev home profile.  No
+         ;; iptables-service-type: netavark >= 2.0 only speaks nftables,
+         ;; and rootless rules live in podman's own network namespace.
+         (service rootless-podman-service-type
+                  (rootless-podman-configuration
+                   (podman #f)
+                   (subuids (list (subid-range (name user-name))))
+                   (subgids (list (subid-range (name user-name))))))
+
          (simple-service
           'guix-crate-mirrors etc-service-type
           ;; /etc/guix is a mutable directory maintained by Guix itself.
@@ -230,7 +245,9 @@ file-like object of public keys."
     (kernel linux)
     (initrd microcode-initrd)
     (firmware (list linux-firmware))
-    (users (cons* main-user %deploy-user %base-user-accounts))
+    ;; The rootless container service delegates cgroup v2 to this group.
+    (users (cons* (user-account-with-groups main-user '("cgroup"))
+                  %deploy-user %base-user-accounts))
     (sudoers-file %deploy-sudoers)
     (packages (cons btrfs-progs %base-packages))
     (services (base-services main-user ssh-key %base-services))))

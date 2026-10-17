@@ -14,13 +14,11 @@
   #:use-module (gnu packages linux)       ;linux-pam
   #:use-module (gnu services)
   #:use-module (gnu services base)
-  #:use-module (gnu services containers)  ;rootless podman
   #:use-module (gnu services dbus)
   #:use-module (gnu services desktop)
   #:use-module (gnu services guix)
   #:use-module (gnu services networking)
   #:use-module (gnu services security-token) ;pcscd
-  #:use-module (gnu system accounts)      ;subid-range
   #:use-module (gnu system nss)
   #:use-module (gnu system privilege)
   #:use-module (guix gexp)
@@ -95,9 +93,7 @@ main-user-account), who also owns the embedded niri Home.  SSH-KEY is as
 for base-os.  PASEO-AT-BOOT? selects system services instead of session
 Home services, including on machines that also run a desktop."
   (define user
-    ;; "cgroup" is rootless-podman-service-type's group owning the
-    ;; delegated /sys/fs/cgroup controllers.
-    (user-account-with-groups main-user '("netdev" "audio" "video" "cgroup")))
+    (user-account-with-groups main-user '("netdev" "audio" "video")))
   (define user-name (user-account-name user))
   (define base (base-os user ssh-key))
 
@@ -158,17 +154,6 @@ Home services, including on machines that also run a desktop."
                      (gnome-keyring-configuration
                       (pam-services '(("greetd" . login)
                                       ("passwd" . passwd)))))
-
-            ;; Rootless Podman: subuid/subgid ranges, cgroup v2 delegation,
-            ;; a shared root mount and /etc/containers defaults.  The podman
-            ;; CLI itself comes from the basic-dev home profile.  No
-            ;; iptables-service-type: netavark >= 2.0 only speaks nftables,
-            ;; and rootless rules live in podman's own network namespace.
-            (service rootless-podman-service-type
-                     (rootless-podman-configuration
-                      (podman #f)
-                      (subuids (list (subid-range (name user-name))))
-                      (subgids (list (subid-range (name user-name))))))
 
             ;; No password prompt is needed for NetworkManager in an active
             ;; local desktop session.  In particular this makes the live
