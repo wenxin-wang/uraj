@@ -317,6 +317,7 @@ def run_configured_container(args, home, roots, policy):
         env = dict(
             os.environ,
             TMPDIR=str(directory),
+            PASEO_EXECUTION_DIRECTORY=str(directory),
             PASEO_DAEMON_TMPDIR=os.environ["TMPDIR"],
             CONTAINED_AGENT_SSH_RUNTIME_DIRECTORY=str(directory),
         )

@@ -189,6 +189,8 @@ sys.exit(99)
             "for n in ('user', 'pid', 'mnt')))\n"
             "elif sys.argv[1:] == ['echo']:\n"
             "    print(sys.stdin.readline().strip()); sys.exit(7)\n"
+            "elif sys.argv[1:] == ['temporary']:\n"
+            "    print(os.environ.get('TMPDIR', '<unset>'))\n"
             "elif sys.argv[1:] == ['signal']:\n"
             "    os.kill(os.getpid(), signal.SIGTERM)\n"
             "elif sys.argv[1:] == ['hang']:\n"
@@ -292,6 +294,23 @@ sys.exit(99)
             client.communicate(timeout=10), (b"fake-provider 1.0\n", b"")
         )
         self.assertEqual(client.returncode, 0)
+
+    def test_host_temporary_directory_is_not_execution_directory(self):
+        for temporary in (None, str(self.root / "host-tmp")):
+            with self.subTest(temporary=temporary):
+                self.server.terminate()
+                self.server.communicate(timeout=10)
+                if temporary is not None:
+                    Path(temporary).mkdir()
+                    self.env["TMPDIR"] = temporary
+                self.start_server()
+                client = self.client("temporary", tier="host")
+                self.assertEqual(
+                    client.communicate(timeout=10),
+                    ((temporary or "<unset>").encode() + b"\n", b""),
+                )
+                self.assertEqual(client.returncode, 0)
+                wait_until(lambda: not list(self.runtime.glob("execution-*")))
 
     def test_host_keeps_namespaces_and_streams(self):
         client = self.client("namespaces", tier="host")

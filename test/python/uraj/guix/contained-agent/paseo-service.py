@@ -4,6 +4,7 @@ import argparse
 import importlib.util
 import json
 import os
+import sys
 import tempfile
 import threading
 import unittest
@@ -424,6 +425,46 @@ class SandboxPolicy(unittest.TestCase):
         self.local.parent.mkdir(parents=True)
         self.local.write_text('(share "~/Projects")\n')
         self.assertEqual(self.policy(), self.local)
+
+    def test_supervisor_receives_private_execution_directory(self):
+        supervisor = self.home / "supervisor"
+        supervisor.write_text(
+            f"#!{sys.executable}\n"
+            "import os, pathlib, sys\n"
+            "directory = pathlib.Path(os.environ['PASEO_EXECUTION_DIRECTORY'])\n"
+            "assert directory.is_dir()\n"
+            "assert directory.stat().st_mode & 0o077 == 0\n"
+            "assert str(directory) == os.environ['TMPDIR']\n"
+            "assert str(directory) == "
+            "os.environ['CONTAINED_AGENT_SSH_RUNTIME_DIRECTORY']\n"
+            "assert str(directory) != os.environ['PASEO_DAEMON_TMPDIR']\n"
+            "assert (directory / 'boot-id').is_file()\n"
+            "sys.stdout.buffer.write(b'\\0\\0')\n"
+            "sys.stdout.buffer.flush()\n"
+            "assert sys.stdin.buffer.read().endswith(b'\\0\\0')\n"
+        )
+        supervisor.chmod(0o700)
+        args = argparse.Namespace(
+            supervisor=str(supervisor),
+            sandbox_helper="unused-helper",
+            guix="guix",
+            profile="/profile",
+            gh_config=None,
+        )
+        with mock.patch.dict(
+            os.environ,
+            TMPDIR=str(self.home / ".cache/paseo-tmp"),
+            PASEO_EXECUTION_DIRECTORY="/stale-parent-execution",
+        ):
+            self.assertEqual(
+                SERVICE.run_configured_container(
+                    args, self.home, [], self.local
+                ),
+                0,
+            )
+        self.assertFalse(
+            list((self.home / ".local/state/paseo-sandbox").glob("ssh-*"))
+        )
 
     def test_secret_policy_is_waited_for_and_required(self):
         with self.assertRaisesRegex(FileNotFoundError, "still missing"):

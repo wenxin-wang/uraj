@@ -217,10 +217,11 @@ int main(int argc, char** argv) {
   close(channel[1]);
   /* Persist stable identity before releasing the launch gate.  On broker
    * restart this lets admission wait for old namespace teardown, not just
-   * the old broker's death. TMPDIR is broker-controlled, outside the sandbox.
+   * the old broker's death. The record directory is broker-controlled,
+   * outside the sandbox and independent of the host workload's TMPDIR.
    */
   char path[4096], stat_path[96], identity[4096];
-  const char* temporary = getenv("TMPDIR");
+  const char* temporary = getenv("PASEO_EXECUTION_DIRECTORY");
   if (!temporary || snprintf(path, sizeof path, "%s/namespace.stat",
                              temporary) >= (int)sizeof path) {
     kill(child, SIGKILL);

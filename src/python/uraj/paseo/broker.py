@@ -312,6 +312,7 @@ class SharedSSHPreparation:
             home, {}, preserved_environment(load_policy(policy_path))
         )
         env["TMPDIR"] = str(self.directory)
+        env["PASEO_EXECUTION_DIRECTORY"] = str(self.directory)
         env["CONTAINED_AGENT_SSH_RUNTIME_DIRECTORY"] = str(self.runtime)
         self.process = subprocess.Popen(
             [
@@ -474,7 +475,15 @@ class BrokerServer:
             # System is intentionally identical to daily until policy is defined.
             command = [self.args.launcher, provider, *argv]
         temporary = str(execution_directory(self.directory))
-        env["TMPDIR"] = temporary
+        env["PASEO_EXECUTION_DIRECTORY"] = temporary
+        if tier == "host":
+            # Host commands may create privileged files. Keep their scratch
+            # files outside the records that this user's broker must remove.
+            env.pop("TMPDIR", None)
+            if "TMPDIR" in os.environ:
+                env["TMPDIR"] = os.environ["TMPDIR"]
+        else:
+            env["TMPDIR"] = temporary
         job["temporary"] = temporary
         fds = job.pop("fds")
         try:

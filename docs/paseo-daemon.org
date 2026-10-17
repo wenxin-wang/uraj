@@ -74,6 +74,10 @@ System currently uses exactly the daily launcher and project permissions.
 Host runs the Guix package's real binary outside namespaces as the broker user;
 it does not bypass the agent's own permission settings or grant root. See
 [[file:paseo-broker.org::*Execution tiers][broker execution tiers]] for lifetime and authorization limits.
+Host inherits the broker's =TMPDIR= when set, otherwise applications use their
+normal system temporary directory. Its temporary files are not placed in the
+broker's execution records directory or recursively removed on session exit;
+privileged host commands may leave files the broker user cannot remove.
 
 ** Public and private configuration
 
