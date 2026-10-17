@@ -1,6 +1,7 @@
 ;;; guix repl -L src/guix -L src/guile test/guix/uraj/services/redroid.scm
 (use-modules (gnu) (gnu services) (gnu services containers)
              (gnu services docker) (gnu services shepherd) (gnu services sysctl)
+             (gnu services mcron) (uraj services maa)
              (gnu image) (gnu system image)
              (guix gexp) (json) (srfi srfi-1) (srfi srfi-64)
              (guix packages)
@@ -34,6 +35,15 @@
 (unsetenv "TO_ISO")
 (define installed-os (load-hypie))
 (define installed (services installed-os))
+(define (maa-scheduled? os)
+  (memq %maa-daily-job
+        (mcron-configuration-jobs
+         (service-value
+          (fold-services (operating-system-services os)
+                         #:target-type mcron-service-type)))))
+(test-equal "daily schedule uses Beijing time" "Asia/Shanghai"
+  (operating-system-timezone installed-os))
+(test-assert "installed system schedules MAA" (maa-scheduled? installed-os))
 (test-assert "Android waits for networking, firewall, sysctl, devices and Docker"
   (every (lambda (r) (memq r (ancestors installed 'redroid-maa)))
          '(restricted-network redroid-maa-ready sysctl udev dockerd)))
@@ -54,9 +64,11 @@
 (test-equal "Guix enables forwarding" "1"
   (assoc-ref (sysctl-configuration-settings sysctl) "net.ipv4.ip_forward"))
 (setenv "TO_ISO" "1")
-(define live (services (operating-system-for-image
-                        (os->image (load-hypie)
-                                   #:type (lookup-image-type-by-name 'iso9660)))))
+(define live-os
+  (operating-system-for-image
+   (os->image (load-hypie) #:type (lookup-image-type-by-name 'iso9660))))
+(define live (services live-os))
+(test-assert "installer has no scheduled controller" (not (lookup live 'mcron)))
 (unsetenv "TO_ISO")
 (for-each
  (lambda (name)

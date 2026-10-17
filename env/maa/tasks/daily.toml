@@ -1,0 +1,62 @@
+# Daily round for the Official client on hypie's redroid-maa, run at
+# 02:00, 05:00, 14:00 and 21:00 Asia/Shanghai.  Parameters follow MaaCore 6.19's integration
+# docs (docs/zh-cn/protocol/integration.md); maa-cli does not validate
+# them.
+
+[[tasks]]
+name = "启动游戏"
+type = "StartUp"
+params = { client_type = "Official", start_game_enabled = true }
+
+[[tasks]]
+name = "公招"
+type = "Recruit"
+[tasks.params]
+refresh = true            # Spend the free refresh on all-3★ tags.
+select = [4, 3]           # 5★/6★ tags are left for manual recruitment.
+confirm = [4, 3]
+times = 4
+set_time = true
+expedite = false
+preserve_tags = ["支援机械"]
+recruitment_time = { "3" = 540, "4" = 540 }
+server = "CN"
+
+[[tasks]]
+name = "基建"
+type = "Infrast"
+[tasks.params]
+mode = 20000              # Rotation: the game's own preset queues.
+facility = ["Mfg", "Trade", "Reception"]
+drones = "_NotUse"
+replenish = true          # Restock 源石碎片 in Orundum trading posts.
+reception_message_board = true
+reception_clue_exchange = true
+reception_send_clue = true
+
+[[tasks]]
+name = "信用商店与访问好友"
+type = "Mall"
+[tasks.params]
+visit_friends = true
+shopping = true
+buy_first = ["招聘许可", "龙门币"]
+blacklist = ["加急许可", "家具零件"]
+force_shopping_if_credit_full = true
+credit_fight = false
+
+[[tasks]]
+name = "领取奖励"
+type = "Award"
+[tasks.params]
+award = true
+mail = true
+recruit = true            # Free daily pull on limited banners.
+orundum = true
+mining = true
+signinevent = true
+
+[[tasks]]
+name = "关闭游戏"
+type = "CloseDown"
+params = { client_type = "Official" }

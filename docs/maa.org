@@ -93,12 +93,39 @@ device testing.
 
 ** Control plane
 
-=maa-cli=, MaaCore and adb run outside Android, eventually under a separate
-scheduled job at 05:00, 14:00 and 21:00 Asia/Shanghai.  They connect to the
-private Android IP on port 5555.  Initially validate Android boot, Intel
-rendering, scrcpy, game installation and manual login before enabling MAA.
+=maa-cli=, MaaCore and adb run outside Android under a separate scheduled
+job at 02:00, 05:00, 14:00 and 21:00 Asia/Shanghai. They connect to the
+private Android IP on port 5555. The game must already be manually logged in.
 Changing the controller to mower later does not require replacing Android
 or its persistent data.
+
+** Scheduled daily tasks
+
+The installed hypie system includes =%maa-services= from
+=src/guix/uraj/services/maa.scm=; the live installer does not. Reconfigure
+hypie to activate it. mcron uses hypie's inherited =Asia/Shanghai= timezone
+and runs at minute zero of each configured hour; missed runs are not replayed.
+
+=env/maa/tasks/daily.toml= restores the previous daily configuration:
+Official client login, 3/4-star recruitment (leave 5/6-star tags for manual
+handling), preset base rotation and clues, friend visits and credit shopping,
+rewards, then close the game. There is no =Fight= task and =credit_fight= is
+false, so this round does not spend sanity. Base rotation uses the game's
+existing preset queues; keep those configured in-game.
+
+The dedicated =maa= system account keeps state under =/var/lib/maa=, with
+ADB server port 5038 separate from interactive clients. A nonblocking lock
+prevents overlapping runs, and a two-hour timeout bounds a stuck run.
+Configuration and the pinned MAA 6.19.0 package are immutable store files;
+resource updates and logs go to the account's writable data/cache/state
+directories. CLI logs are under =/var/lib/maa/state/maa/debug/=; scheduler
+output is in =/var/log/mcron.log=. Inspect upcoming runs with
+=sudo herd schedule mcron 8=.
+
+maa-cli 0.7.5 also performs a mandatory API hot update before task parsing,
+including during =--dry-run=; this needs outbound HTTPS. The optional
+MaaResource Git update warns on failure, but an API update failure aborts
+that run. See the [[https://github.com/MaaAssistantArknights/maa-cli/blob/v0.7.5/crates/maa-cli/src/run/mod.rs][pinned CLI run implementation]].
 
 ** Implementation and first deployment
 
@@ -231,8 +258,7 @@ sudo nft list table inet restricted_network
 sudo nft list table ip restricted_network
 #+end_src
 
-Install/use =adb= and =scrcpy= as client-side tools; no Android controller
-is installed by this first deployment:
+Install/use =adb= and =scrcpy= as client-side tools for manual checks:
 
 #+begin_src sh
 guix shell adb scrcpy

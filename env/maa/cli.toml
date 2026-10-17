@@ -1,0 +1,7 @@
+# maa-cli settings.  MaaCore and maa-cli come from the Guix package, so
+# only the resource hot update is enabled.
+
+[resource]
+auto_update = true             # Fetch MaaResource before every run.
+warn_on_update_failure = true  # A failed fetch keeps the old resources.
+backend = "libgit2"            # No external git needed.
