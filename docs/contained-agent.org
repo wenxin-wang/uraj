@@ -296,8 +296,9 @@ Central configuration only: =(ssh-agent ...)= and the credential clauses
 described below.
 
 Central: =projects.scm=, keyed by the current work tree's canonical root.
-Each linked worktree needs its own entry.  An unmatched worktree receives
-no central extra permissions; there is no fallback to the main repository.
+A linked worktree without an entry inherits the main work tree's entries.
+An explicit worktree entry in any central source replaces that fallback
+across all sources; even an empty =(project "PATH")= disables inheritance.
 It reaches the program through Home, so the
 agent cannot change it, and changing it takes a reconfigure.
 
@@ -327,23 +328,23 @@ The file is created with private permissions if missing; existing content
 is preserved.  A failed worktree creation does not open the editor.
 
 Add an exact =(project "~/src/uraj-maa" ...)= entry on the host for its
-required permissions.  Merely creating a worktree grants none.  Subdirectory
+required permissions instead of inheriting the main work tree's.  Subdirectory
 launches use that worktree's root; symlink aliases resolve to the same root.
 In Paseo, add this directory as a project and select =Local= to use it
-directly.  =New worktree= creates another path which needs its own policy;
-it does not inherit the selected entry's permissions.
+directly.  =New worktree= creates another path which inherits the main work
+tree's policy unless it has its own central entry.
 
 Worktrees share Git objects and branches, but have separate working files
 and indexes.  A branch normally cannot be checked out in two worktrees.
 Remove a clean, unused worktree with =git -C ~/src/uraj worktree remove PATH=;
 its branch remains.  Remove its host policy too when retiring the path.
 
-After upgrading from repository-wide policy lookup, explicitly configure
-any worktrees that need extra permissions.  Re-run =contained-agent allow=
+Configure explicit entries for worktrees that need different permissions.
+Run =contained-agent allow=
 and =direnv allow= on the host in each worktree that needs those approvals;
 old global content-hash approvals are not reused.  Restart sessions to apply
 the new policy.  Shared Git metadata and the normal base sandbox remain;
-this change isolates extra grants, not Git history between worktrees.
+local approvals remain isolated by worktree.
 
 *** Additional central configuration
 

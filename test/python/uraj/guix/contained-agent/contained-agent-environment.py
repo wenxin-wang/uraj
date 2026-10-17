@@ -572,22 +572,57 @@ class Direnv(Launcher):
         self.allow(self.project)
         self.assertIsNone(self.approval(self.worktree))
 
-    def test_worktree_policy_matches_own_root_without_fallback(self):
+    def test_worktree_policy_inherits_unless_overridden(self):
         self.secret.write_text(SECRET)
         clause = f'(env "WORKTREE_SECRET" (file "{self.secret}"))'
         self.policy(clause)
-        result, _, environment = self.launch(cwd=self.worktree)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertNotIn("WORKTREE_SECRET", environment)
-        self.config.write_text(f'(project "{self.worktree}" {clause})')
         nested = self.worktree / "nested"
         nested.mkdir()
         result, _, environment = self.launch(cwd=nested)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(environment["WORKTREE_SECRET"], SECRET)
-        result, _, environment = self.launch(cwd=self.project)
+
+        # An empty local entry overrides even managed/private main policies.
+        local = self.home / ".config/contained-agent/projects.local.scm"
+        local.parent.mkdir(parents=True)
+        local.write_text(f'(project "{self.worktree}")')
+        result, _, environment = self.launch(cwd=nested)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertNotIn("WORKTREE_SECRET", environment)
+
+        local.write_text(
+            f'(project "{self.worktree}" (env "OWN" (file "{self.secret}")))'
+        )
+        result, _, environment = self.launch(cwd=nested)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("WORKTREE_SECRET", environment)
+        self.assertEqual(environment["OWN"], SECRET)
+        result, _, environment = self.launch(cwd=self.project)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(environment["WORKTREE_SECRET"], SECRET)
+        self.assertNotIn("OWN", environment)
+
+    def test_worktree_inherits_private_github_policy(self):
+        (self.secrets / "personal").write_text(SECRET)
+        private = self.root / "private.scm"
+        private.write_text(f'(project "{self.project}" (github "personal"))')
+        result, argv, environment = self.launch(
+            cwd=self.worktree, TEST_PROJECTS_SECRET=str(private)
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(
+            f"--expose={self.secrets / 'personal'}="
+            "/run/contained-agent/git-credential-0",
+            argv,
+        )
+        self.assertEqual(environment["GIT_CONFIG_COUNT"], "2")
+        self.config.write_text(f'(project "{self.worktree}")')
+        result, argv, environment = self.launch(
+            cwd=self.worktree, TEST_PROJECTS_SECRET=str(private)
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(any("git-credential-" in arg for arg in argv))
+        self.assertEqual(environment["GIT_CONFIG_COUNT"], "1")
 
     def test_local_approval_does_not_cross_worktrees(self):
         for directory in (self.project, self.worktree):

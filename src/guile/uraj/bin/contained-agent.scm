@@ -27,7 +27,8 @@
 ;;;   host-side git run code or read other files, so the agent must not be
 ;;;   able to swap them, and a mount point cannot be renamed away (EBUSY).
 ;;; - Extra per-project clauses come from the projects file, which the
-;;;   sandbox cannot see, keyed by the current work tree's canonical root:
+;;;   sandbox cannot see, keyed by the current work tree's canonical root,
+;;;   falling back to the main work tree only when no entry matches:
 ;;;
 ;;;     (project "~/src/uraj"
 ;;;       (expose "/var/log" "~/.local/state/shepherd")
@@ -215,16 +216,6 @@ tree, and the mount options for WORKDIR."
           ((? eof-object?) (reverse acc))
           (form (loop (cons form acc))))))))
 
-(define (central-clauses file project)
-  (if (file-exists? file)
-      (append-map
-       (match-lambda
-         (('project (? string? root) clauses ...)
-          (if (string=? (resolve (expand-home root)) (resolve project)) clauses '()))
-         (form (die "~a: bad entry ~s" file form)))
-       (read-all file))
-      '()))
-
 (define %secret-timeout
   ;; Seconds to wait for a file SOPS decrypts: agents and Paseo may start
   ;; at boot before SOPS is done.
@@ -250,20 +241,48 @@ check `sudo herd status sops-secrets'"
   ;; none.
   (make-parameter #f))
 
-(define (central-entries file project)
-  "Append managed and host-private central clauses, preserving their origins.
-The private files are read at runtime, never imported into the Guix store."
+(define (central-entries file project git)
+  "Use PROJECT's central entries, or the main work tree's if none exist.
+An explicit empty entry suppresses inheritance across all policy sources."
   (let ((secret (%projects-secret)))
     (when secret (wait-for-secret "contained-agent" secret))
-    (append-map
-     (lambda (source)
-       (map (cut cons source <>) (central-clauses source project)))
-     (delete-duplicates
-      (filter-map
-       identity
-       (list (expand-home (or (getenv "CONTAINED_AGENT_PROJECTS") file))
-             secret
-             (expand-home "~/.config/contained-agent/projects.local.scm")))))))
+    (let* ((sources
+            (delete-duplicates
+             (filter-map
+              identity
+              (list (expand-home (or (getenv "CONTAINED_AGENT_PROJECTS") file))
+                    secret
+                    (expand-home "~/.config/contained-agent/projects.local.scm")))))
+           (entries
+            (append-map
+             (lambda (source)
+               (if (file-exists? source)
+                   (map (match-lambda
+                          (('project (? string? root) clauses ...)
+                           (list (resolve (expand-home root)) source clauses))
+                          (form (die "~a: bad entry ~s" source form)))
+                        (read-all source))
+                   '()))
+             sources))
+           (own (filter (lambda (entry)
+                          (string=? (car entry) (resolve project)))
+                        entries))
+           (selected
+            (if (pair? own)
+                own
+                (match (command-lines git "-C" project "rev-parse"
+                                      "--path-format=absolute" "--git-common-dir")
+                  ((common)
+                   (if (string-suffix? "/.git" common)
+                       (filter (lambda (entry)
+                                 (string=? (car entry) (resolve (dirname common))))
+                               entries)
+                       '()))
+                  (_ '())))))
+      (append-map
+       (match-lambda
+         ((root source clauses) (map (cut cons source <>) clauses)))
+       selected))))
 
 (define (git-hooks clauses)
   "Return the DIR of the (git-hooks DIR) clause among CLAUSES, (ORIGIN .
@@ -562,7 +581,7 @@ approved ones and, once the user agrees, approve them."
   (let*-values (((project top _)
                  (project-mounts git (canonicalize-path directory)))
                 ((manifest) (project-manifest
-                             (central-entries projects-file project)))
+                             (central-entries projects-file project git)))
                 ((name) (or (local-files top manifest)
                             (die "~a has neither .guix nor manifest.scm" top)))
                 ((source) (string-append top "/" name))
@@ -745,7 +764,7 @@ NUL.  All ssh-add output goes to stderr, never into this private protocol."
                 (((project top mounts) (project-mounts git directory))
                  ((policy) (ssh-policy
                             (map cdr (central-entries
-                                      (expand-home projects-file) project)))))
+                                      (expand-home projects-file) project git)))))
               (when policy (ssh-ensure project policy ssh-tools))
               (reply "ok" "")))
           (lambda (_ message) (reply "error" message)))
@@ -776,7 +795,7 @@ NUL.  All ssh-add output goes to stderr, never into this private protocol."
             (project-mounts git workdir)))
        ((projects-file) (expand-home (or (getenv "CONTAINED_AGENT_PROJECTS")
                                          projects-file)))
-       ((central) (if project (central-entries projects-file project) '()))
+       ((central) (if project (central-entries projects-file project git) '()))
        ((manifest) (project-manifest central))
        ((local) (and top (approved-local top manifest)))
        ((direnv) (and top (direnv-allowed top ssh-tools)))
@@ -968,7 +987,7 @@ GitHub token tiers, or #f if this host has none, and PROJECTS-SECRET, if not
                           ((top common) (resolve top))
                           (_ directory)))
                (policy (and (string=? action "ssh-start")
-                            (ssh-policy (map cdr (central-entries projects-file project))))))
+                            (ssh-policy (map cdr (central-entries projects-file project git))))))
           (match action
             ("ssh-start" (display (ssh-start project policy ssh-tools)) (newline))
             ("ssh-stop" (ssh-stop project ssh-tools))
