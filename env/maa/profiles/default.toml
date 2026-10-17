@@ -1,0 +1,11 @@
+# MaaCore connection to hypie's redroid-maa (see docs/maa.org).
+
+[connection]
+# The service puts android-platform-tools' adb on PATH; Guix's own adb
+# crashes when starting its server.
+adb_path = "adb"
+address = "10.203.0.2:5555"
+
+[instance_options]
+# Minitouch does not work under Android's enforcing SELinux.
+touch_mode = "MaaTouch"

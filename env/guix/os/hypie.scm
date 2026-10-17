@@ -171,6 +171,7 @@
              (uraj packages redroid)
              (uraj packages wireless)
              (uraj services strongswan)
+             (uraj services maa)
              (uraj services redroid)
              (uraj services restricted-network)
              (uraj network-policy)
@@ -389,6 +390,7 @@
               (native-bridge redroid-houdini)
               (native-bridge-library "libhoudini.so")
               (auto-start? #t))))
+    %maa-services
     (host-sops-services (append (map cdr %vpn-connections)
                                 %agent-secrets))
     (strongswan-services %vpn-connections #:at-boot '("fwd2home")))))
