@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
 
-eval "$(cd ~/src/uraj; direnv export bash)"
-sudo -E maak -f ~/src/uraj/env/guix/os/maak.scm system-reconfigure $@
+source "$(dirname -- "$0")/../lib/uraj/target-environment.bash" || exit
+
+uraj_target_environment "${1-}" || exit
+if [[ $# -gt 0 ]]; then
+    shift
+    set -- "$uraj_target" "$@"
+fi
+sudo -E maak -f "$uraj_root/env/guix/os/maak.scm" system-reconfigure "$@"

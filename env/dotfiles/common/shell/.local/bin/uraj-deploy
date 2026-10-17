@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
 
-target=$1
+source "$(dirname -- "$0")/../lib/uraj/target-environment.bash" || exit
+
+target=${1-}
+if [[ -z $target ]]; then
+    printf 'Usage: %s TARGET\n' "$0" >&2
+    exit 1
+fi
 if [[ "$target" != */* && "$target" != *.scm ]]; then
     target=~/src/uraj/env/guix/os/deploy/$target.scm
 fi
 
-eval "$(cd ~/src/uraj; direnv export bash)"
-maak -f ~/src/uraj/env/guix/os/maak.scm deploy "$target"
+uraj_target_environment "$target" || exit
+maak -f "$uraj_root/env/guix/os/maak.scm" deploy "$uraj_target"
