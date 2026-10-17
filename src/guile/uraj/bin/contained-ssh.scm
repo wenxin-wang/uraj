@@ -5,7 +5,7 @@
   #:use-module (ice-9 regex)
   #:use-module (rnrs bytevectors)
   #:use-module (srfi srfi-1)
-  #:export (ssh-policy ssh-runtime ssh-start ssh-stop ssh-ensure
+  #:export (podman-remote-policy ssh-policy ssh-runtime ssh-start ssh-stop ssh-ensure
             ssh-prepared-directory))
 
 ;; Host-side SSH lifecycle.  This module never reads a private key itself,
@@ -76,6 +76,19 @@
                         entry))))
            options)))))
       (_ (fail "only one ssh-agent clause is allowed per project")))))
+
+(define (podman-remote-policy clauses)
+  "Parse the central permission and optional host-visible temporary directory."
+  (match (filter (lambda (x)
+                   (and (pair? x) (eq? (car x) 'podman-remote))) clauses)
+    (() #f)
+    ((('podman-remote)) '())
+    ((('podman-remote ('tmpdir (? string? path))))
+     (when (any (lambda (part) (member part '("." "..")))
+                (string-split path #\/))
+       (fail "podman-remote TMPDIR must not contain . or .. components"))
+     `((tmpdir . ,(expand path))))
+    (_ (fail "expected one central (podman-remote [(tmpdir PATH)]) clause"))))
 
 (define (private-directory path create?)
   (when create?

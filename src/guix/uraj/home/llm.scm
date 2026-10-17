@@ -6,6 +6,8 @@
   #:use-module (gnu packages base)
   #:use-module (gnu packages bash)
   #:use-module (gnu packages guile)
+  #:use-module (gnu packages containers)
+  #:use-module (gnu packages python)
   #:use-module (gnu services)
   #:use-module (guix gexp)
   #:use-module (guix profiles)
@@ -168,6 +170,12 @@ Homes and the headless Homes."
                                        (cons 'ssh-add #$(file-append openssh "/bin/ssh-add"))
                                        (cons 'sha256sum #$(file-append coreutils "/bin/sha256sum"))
                                        (cons 'bash #$(file-append bash-minimal "/bin/bash")))
+                                 #:podman-launcher
+                                 (list #$(file-append python "/bin/python3")
+                                       #$(local-file
+                                          (project-path "src/python/uraj/contained_podman.py"))
+                                       "--session" "--podman"
+                                       #$(file-append podman "/bin/podman"))
                                  #:git #$(file-append git "/bin/git")
                                  #:github-secrets #$(github-token-directory)
                                  #:projects-secret
