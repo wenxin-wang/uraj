@@ -100,6 +100,176 @@ class Launcher(unittest.TestCase):
         return result, argv, environment
 
 
+class PodmanRemote(Launcher):
+    def setUp(self):
+        super().setUp()
+        self.runtime_record = self.root / "runtime.json"
+        launcher = self.root / "bin/runtime"
+        launcher.write_text(
+            "#!" + shutil.which("python3") + "\n"
+            "import json, os, sys\n"
+            f"json.dump(sys.argv[1:], open({str(self.runtime_record)!r}, 'w'))\n"
+            "if sys.argv[1:2] == ['--stop']: sys.exit(0)\n"
+            "command = sys.argv[sys.argv.index('--') + 1:]\n"
+            "os.execvp(command[0], command)\n"
+        )
+        launcher.chmod(0o755)
+        driver = self.root / "driver.scm"
+        driver.write_text(
+            driver.read_text().replace(
+                "#:common '()",
+                "#:podman-launcher '("
+                + json.dumps(str(launcher))
+                + ") #:common '()",
+            )
+        )
+
+    def test_stop_dispatches_without_project_policy(self):
+        runtime_id = "a" * 32
+        result, _, _ = self.launch("podman-stop", runtime_id, cwd=self.root)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            json.loads(self.runtime_record.read_text()), ["--stop", runtime_id]
+        )
+
+    def test_central_opt_in_and_local_refusal(self):
+        self.policy()
+        result, argv, _ = self.launch()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("podman-remote", argv)
+        self.policy("(podman-remote)")
+        result, argv, _ = self.launch()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("podman-remote", argv)
+        self.assertIn(
+            "--expose=@CONTAINED_PODMAN_SOCKET@=/run/contained-agent/podman",
+            argv,
+        )
+        self.assertNotIn("openssh", argv)
+        runtime_args = json.loads(self.runtime_record.read_text())
+        self.assertEqual(
+            runtime_args[runtime_args.index("--project") + 1], str(self.project)
+        )
+        self.assertIn(
+            "--mount-option=--share=" + str(self.project), runtime_args
+        )
+        self.assertIn(
+            "--mount-option=--expose=" + str(self.project / ".git/config"),
+            runtime_args,
+        )
+        self.assertFalse(any("client-" in arg for arg in argv))
+        self.policy()
+        local = self.project / ".guix"
+        local.mkdir()
+        (local / "contained-agent.scm").write_text("(podman-remote)")
+        approved = (
+            self.home
+            / ".local/state/contained-agent/approved"
+            / str(self.project).replace("%", "%25").replace("/", "%2F")
+            / "test-approved"
+        )
+        shutil.copytree(local, approved)
+        result, argv, _ = self.launch()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("bad clause", result.stderr)
+        self.assertIsNone(argv)
+
+    def test_wrapper_preserves_arguments_stdin_and_exit_status(self):
+        self.policy('(podman-remote (tmpdir "~/.cache/harbor/tmp space"))')
+        result, argv, _ = self.launch()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        script = argv[argv.index("podman-remote") - 1]
+        fake = self.root / "bin/podman"
+        fake.write_text(
+            "#!" + shutil.which("python3") + "\n"
+            "import json, os, sys\n"
+            "print(json.dumps([sys.argv[1:], sys.stdin.read(), "
+            "os.environ['CONTAINER_HOST'], os.environ['TMPDIR']]))\n"
+            "sys.exit(23)\n"
+        )
+        fake.chmod(0o755)
+        arguments = ["run", "--volume", "/path with spaces:/data", "$(false)"]
+        result = subprocess.run(
+            [
+                "bash",
+                "-c",
+                script,
+                "setup",
+                argv[argv.index("podman-remote") + 1],
+                "podman",
+                *arguments,
+            ],
+            env=self.env,
+            input="stdin payload",
+            text=True,
+            capture_output=True,
+            timeout=15,
+        )
+        self.assertEqual(result.returncode, 23, result.stderr)
+        args, stdin, host, tmpdir = json.loads(result.stdout)
+        self.assertEqual(args, ["--remote", *arguments])
+        self.assertEqual(stdin, "stdin payload")
+        self.assertEqual(tmpdir, str(self.home / ".cache/harbor/tmp space"))
+        self.assertTrue(Path(tmpdir).is_dir())
+        self.assertIn(f"--share={tmpdir}", argv)
+        self.assertEqual(
+            host,
+            "unix:///run/contained-agent/podman/podman.sock",
+        )
+
+    def test_invalid_central_options_fail(self):
+        for clauses in (
+            ("(podman-remote arbitrary)",),
+            ("(podman-remote)", "(podman-remote)"),
+            ('(podman-remote (tmpdir "relative"))',),
+            ('(podman-remote (tmpdir "~/.cache/../.ssh/new"))',),
+        ):
+            self.policy(*clauses)
+            result, argv, _ = self.launch()
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIsNone(argv)
+
+    def test_runtime_does_not_receive_credentials_or_common_state(self):
+        private = self.root / "agent-state"
+        private.mkdir()
+        token = self.root / "token"
+        token.write_text("private-token")
+        driver = self.root / "driver.scm"
+        driver.write_text(
+            driver.read_text().replace(
+                "#:common '()",
+                "#:common '((share " + json.dumps(str(private)) + "))",
+            )
+        )
+        self.policy("(podman-remote)", f'(env "ACCESS_TOKEN" (file "{token}"))')
+        result, argv, _ = self.launch()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("--share=" + str(private), argv)
+        runtime_args = json.loads(self.runtime_record.read_text())
+        mount_args = runtime_args[: runtime_args.index("--")]
+        self.assertFalse(
+            any(
+                str(private) in arg
+                or str(token) in arg
+                or "private-token" in arg
+                for arg in mount_args
+            )
+        )
+
+    def test_tmpdir_cannot_create_under_denied_paths(self):
+        private = self.home / ".ssh"
+        private.mkdir()
+        alias = self.home / "alias"
+        alias.symlink_to(private, target_is_directory=True)
+        for path in ("~/.ssh/new", "~/alias/new"):
+            self.policy(f'(podman-remote (tmpdir "{path}"))')
+            result, argv, _ = self.launch()
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("denied TMPDIR", result.stderr)
+            self.assertIsNone(argv)
+            self.assertFalse((private / "new").exists())
+
+
 class VersionProbe(Launcher):
     def test_version_skips_project_and_container_preparation(self):
         # Cold-start probes must not wait for SOPS, inspect a stale session
