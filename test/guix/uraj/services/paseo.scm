@@ -28,7 +28,7 @@
 (test-equal "daemon depends on host broker" '(paseo-broker)
   (shepherd-service-requirement (lookup installed 'paseo)))
 (test-equal "storie broker waits for wenxin Home, not old data storage"
-  '(user-processes networking guix-daemon guix-home-wenxin)
+  '(cgroups2-fs-owner user-processes networking guix-daemon guix-home-wenxin)
   (shepherd-service-requirement (lookup installed 'paseo-broker)))
 (for-each
  (lambda (name)
@@ -36,8 +36,10 @@
           (start (gexp->approximate-sexp (shepherd-service-start s))))
      (test-equal (format #f "~a runs as wenxin" name) "wenxin"
        (keyword-value start #:user))
-     (test-equal (format #f "~a can only read syslog" name)
-       '(quote ("log-readers"))
+     (test-equal (format #f "~a receives only its required groups" name)
+       (if (eq? name 'paseo-broker)
+           '(quote ("cgroup" "log-readers"))
+           '(quote ("log-readers")))
        (keyword-value start #:supplementary-groups))
      (test-equal (format #f "~a uses wenxin Home" name) "/home/wenxin"
        (keyword-value start #:directory))

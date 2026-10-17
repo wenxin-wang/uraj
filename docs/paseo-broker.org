@@ -16,7 +16,9 @@ Python's standard library is the proposed control-protocol implementation;
 reuse the existing Guile launcher rather than duplicate its sandbox policy.
 The native C helper implements the Linux lifecycle boundary.
 The preferred first implementation uses a trusted outer namespace init with
-PDEATHSIG and a pidfd startup check.  Keep cgroups as an alternative and possible
+PDEATHSIG and a pidfd startup check. Host executions use cgroups as described
+in the tier section below.
+For sandboxed executions, keep cgroups as an alternative and possible
 future resource-control facility, not a prerequisite for the first broker.
 
 Paseo receives ~/src, ~/Projects and its worktree root
@@ -660,13 +662,38 @@ uses the broker's environment filtering and authorized cwd roots. It does not
 acquire root or supplementary groups absent from the broker service, and it
 does not turn off the agent's own sandbox/approvals.
 
-The supervisor's =--host= mode retains parent-death links, signal/exit reporting
-and normal process-group cleanup. Unlike daily/system, it cannot promise kernel
-namespace teardown of all descendants: detached children can survive, and
-abrupt supervisor/broker death may leave descendants other than the linked
-leader. This is an explicit host-mode limitation, not a relaxation of daily's
-cleanup. The =namespace.stat= identity record names the host monitor in this
-mode; it is not evidence that a new namespace exists.
+The supervisor's =--host= mode uses a private cgroup v2 per execution.
+=--host-cgroup-root= selects the writable delegated directory (default
+=/sys/fs/cgroup=); its per-user, per-runtime subtree does not enable controllers
+or set resource limits. Missing delegation or =cgroup.kill= rejects host launch.
+The system broker waits for =cgroups2-fs-owner= and receives the =cgroup= group;
+the Paseo daemon's supplementary groups remain unchanged. Apply the updated
+system service configuration before deploying the broker on a boot-managed host.
+Home/trial brokers require the same delegation through their login groups.
+
+The broker records the cgroup before creation. The host guardian migrates a
+trusted gated child before releasing it to exec the provider. The guardian
+stays outside the group, acts as a subreaper, and monitors the outer supervisor
+with a pidfd instead of dying with it. Agent exit triggers recursive
+=cgroup.kill=; cancellation or owner death first gives the leader's process
+group up to two seconds for graceful shutdown. Detached descendants are covered
+by the final kill, including double forks and =setsid=. Completion waits for
+=populated=0= and child reaping, preserving the provider's exit/signal status.
+The =namespace.stat= identity names this guardian, not a new PID namespace.
+
+If the guardian is killed, the surviving broker performs cgroup cleanup after
+its outer supervisor exits. If both broker and guardian die, cleanup happens
+on broker restart, before admission; no independent always-on system guardian
+is installed. Until restart, descendants can remain in that simultaneous
+failure case. Cleanup that cannot finish retains execution records and blocks
+replacement (or startup during reconciliation). Status includes the execution's
+cgroup path and cleanup-failure flag. Empty nested groups are removed after
+recursive cleanup. The empty per-runtime parent remains for reuse.
+
+This is lifecycle cleanup for cooperating same-user host programs, not a
+security boundary: an unsandboxed provider with cgroup permissions can explicitly
+migrate out. Work delegated to unrelated services is outside this execution's
+cgroup. Kernel-stuck tasks can prevent teardown even after SIGKILL.
 
 These labels select execution environments, not independently authenticated
 roles. The same trusted daemon can request all configured tiers. Daily agents

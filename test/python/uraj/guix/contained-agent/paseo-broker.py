@@ -1,10 +1,12 @@
 """End-to-end broker tests with real namespaces and a fake provider.
 
 Run: SUPERVISOR=/path/to/compiled/paseo-agent-supervisor python3 THIS_FILE
+Needs writable cgroup v2 delegation at /sys/fs/cgroup for host tests.
 Uses no real credentials, providers or Paseo configuration.
 """
 
 import ctypes
+import hashlib
 import importlib.util
 import json
 import os
@@ -184,6 +186,7 @@ sys.exit(99)
         self.host_binary.write_text(
             f"#!{sys.executable}\n"
             "import os, signal, sys, time\n"
+            "from pathlib import Path\n"
             "if sys.argv[1:] == ['namespaces']:\n"
             "    print(' '.join(os.readlink('/proc/self/ns/' + n) "
             "for n in ('user', 'pid', 'mnt')))\n"
@@ -197,6 +200,29 @@ sys.exit(99)
             "    print('ready', flush=True)\n"
             "    while True: time.sleep(1)\n"
         )
+        with self.host_binary.open("a") as script:
+            script.write("""
+elif sys.argv[1:] == ['detached']:
+    root = Path(os.environ['TMPDIR'])
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    first = os.fork()
+    if first == 0:
+        os.setsid()
+        if os.fork(): os._exit(0)
+        membership = next(line[3:] for line in
+                          Path('/proc/self/cgroup').read_text().splitlines()
+                          if line.startswith('0::'))
+        nested = Path('/sys/fs/cgroup') / membership.lstrip('/') / 'nested'
+        nested.mkdir()
+        (nested / 'cgroup.procs').write_text(str(os.getpid()))
+        (root / 'worker.pid').write_text(str(os.getpid()))
+        while True: time.sleep(1)
+    os.waitpid(first, 0)
+    while not (root / 'worker.pid').exists(): time.sleep(.01)
+    print('ready', flush=True)
+    while not (root / 'finish').exists(): time.sleep(.01)
+    sys.exit(7)
+""")
         self.host_binary.chmod(0o700)
         self.env = {
             "PATH": "/run/current-system/profile/bin",
@@ -223,6 +249,8 @@ sys.exit(99)
                 os.environ["SUPERVISOR"],
                 "--launcher",
                 str(self.launcher),
+                "--host-cgroup-root",
+                str(getattr(self, "cgroup_root", "/sys/fs/cgroup")),
                 "--host-codex",
                 str(self.host_binary),
                 "--root",
@@ -327,6 +355,9 @@ sys.exit(99)
             client.communicate(b"hello\n", timeout=10), (b"hello\n", b"")
         )
         self.assertEqual(client.returncode, 7)
+        client = self.client("signal", tier="host")
+        self.assertEqual(client.communicate(timeout=10), (b"", b""))
+        self.assertEqual(client.returncode, -signal.SIGTERM)
 
     def test_unconfigured_host_binary_fails_closed(self):
         client = subprocess.run(
@@ -351,6 +382,77 @@ sys.exit(99)
                     client.terminate()
                 client.communicate(timeout=10)
                 self.assert_dead(identity)
+
+    def test_host_detached_descendants(self):
+        for mode in (
+            "exit",
+            "cancel",
+            "outer",
+            "guardian",
+            "broker",
+            "restart",
+        ):
+            with self.subTest(mode=mode):
+                client = self.client("detached", tier="host")
+                guardian = self.ready(client)
+                record = next(self.runtime.glob("execution-*/host-cgroup"))
+                directory = record.parent
+                group = Path(record.read_text())
+                worker = os.pidfd_open(
+                    int((directory / "worker.pid").read_text())
+                )
+                if mode == "exit":
+                    (directory / "finish").touch()
+                elif mode == "cancel":
+                    client.terminate()
+                elif mode == "guardian":
+                    signal.pidfd_send_signal(guardian, signal.SIGKILL)
+                elif mode == "outer":
+                    pid = int(
+                        (directory / "namespace.stat").read_text().split()[0]
+                    )
+                    outer = int(
+                        Path(f"/proc/{pid}/stat")
+                        .read_text()
+                        .rsplit(")", 1)[1]
+                        .split()[1]
+                    )
+                    fd = os.pidfd_open(outer)
+                    try:
+                        signal.pidfd_send_signal(fd, signal.SIGKILL)
+                    finally:
+                        os.close(fd)
+                else:
+                    # Stop the guardian first to deterministically exercise
+                    # recovery when neither broker nor guardian can clean up.
+                    if mode == "restart":
+                        signal.pidfd_send_signal(guardian, signal.SIGSTOP)
+                    self.server.kill()
+                    self.server.wait(timeout=10)
+                    self.server.stderr.close()
+                    if mode == "restart":
+                        signal.pidfd_send_signal(guardian, signal.SIGKILL)
+                    self.start_server()
+                client.communicate(timeout=15)
+                if mode == "exit":
+                    self.assertEqual(client.returncode, 7)
+                self.assert_dead(guardian)
+                self.assert_dead(worker)
+                wait_until(lambda group=group: not group.exists())
+                self.assertFalse(directory.exists())
+
+    def test_host_missing_delegation_fails_closed(self):
+        self.server.terminate()
+        self.server.wait(timeout=10)
+        self.server.stderr.close()
+        # An ordinary directory must never be accepted as a cgroup filesystem.
+        self.cgroup_root = self.root / "not-cgroup"
+        self.cgroup_root.mkdir()
+        self.start_server()
+        client = self.client("echo", tier="host")
+        _, error = client.communicate(b"hello\n", timeout=10)
+        self.assertEqual(client.returncode, 125)
+        self.assertIn(b"cgroup.kill", error)
 
     def test_probe_and_streams(self):
         probe = self.client("--version")
@@ -613,6 +715,14 @@ sys.exit(99)
                     time.monotonic(), deadline, "unreaped test descendant"
                 )
                 time.sleep(0.01)
+        for path in self.runtime.glob("execution-*"):
+            broker.wait_for_old_execution_and_remove_directory(path)
+        key = hashlib.sha256(os.fsencode(self.runtime.resolve())).hexdigest()[
+            :16
+        ]
+        parent = Path("/sys/fs/cgroup") / f"paseo-{os.getuid()}-{key}"
+        if parent.exists():
+            parent.rmdir()
         self.tmp.cleanup()
 
 
