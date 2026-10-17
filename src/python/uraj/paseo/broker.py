@@ -9,6 +9,7 @@ into executions; values never come from provider clients.
 import argparse
 import array
 import fcntl
+import hashlib
 import json
 import os
 import pathlib
@@ -166,7 +167,7 @@ def launcher_environment(home, forwarded, preserved):
     return env
 
 
-def namespace_has_exited(path, timeout=0):
+def supervisor_has_exited(path, timeout=0):
     """Check the exact namespace init, including after its helper was killed."""
     path = pathlib.Path(path)
     boot = path / "boot-id"
@@ -199,6 +200,59 @@ def namespace_has_exited(path, timeout=0):
     return True
 
 
+def namespace_has_exited(path, timeout=0):
+    """Wait for the guardian, then clean any host descendants it left behind."""
+    if not supervisor_has_exited(path, timeout):
+        return False
+    record = pathlib.Path(path) / "host-cgroup"
+    if not record.exists():
+        return True
+    group = pathlib.Path(record.read_text())
+    try:
+        # A killed guardian cannot run its cleanup. The broker is its fallback.
+        if not group.exists():
+            return True
+        fd = os.open(group / "cgroup.kill", os.O_WRONLY | os.O_CLOEXEC)
+        try:
+            os.write(fd, b"1")
+        finally:
+            os.close(fd)
+        if "populated 1" in (group / "cgroup.events").read_text():
+            return False
+        # cgroup.kill includes nested groups; remove those only after emptiness.
+        for child in sorted(group.rglob("*"), reverse=True):
+            if child.is_dir():
+                child.rmdir()
+        group.rmdir()
+    except OSError:
+        # Retain identity and block replacement until cleanup succeeds.
+        return False
+    return True
+
+
+def allocate_host_cgroup(root, runtime, temporary):
+    """Record ownership before creating a group or releasing any host code."""
+    key = hashlib.sha256(os.fsencode(runtime.resolve())).hexdigest()[:16]
+    parent = pathlib.Path(root).resolve() / f"paseo-{os.getuid()}-{key}"
+    parent.mkdir(mode=0o700, parents=False, exist_ok=True)
+    group = parent / temporary.name
+    (temporary / "host-cgroup").write_text(str(group))
+    group.mkdir(mode=0o700)
+    # Fail closed on v1, absent cgroup.kill, or insufficient delegation.
+    try:
+        for name in ("cgroup.kill", "cgroup.procs"):
+            fd = os.open(group / name, os.O_WRONLY | os.O_CLOEXEC)
+            os.close(fd)
+    except OSError:
+        # No process has been launched. Preserve the record if removal fails.
+        try:
+            group.rmdir()
+        except OSError:
+            pass
+        raise
+    return group
+
+
 def execution_directory(parent, prefix="execution-"):
     """Record the boot before any process can run in persistent runtime state."""
     path = pathlib.Path(tempfile.mkdtemp(prefix=prefix, dir=parent))
@@ -213,10 +267,13 @@ def wait_for_old_execution_and_remove_directory(path):
 
     Refuse startup if teardown is still pending; never discard its identity record.
     """
-    if not namespace_has_exited(path, timeout=10):
-        raise ValueError(
-            "old execution has not finished teardown; refusing startup"
-        )
+    deadline = time.monotonic() + 10
+    while not namespace_has_exited(path):
+        if time.monotonic() >= deadline:
+            raise ValueError(
+                "old execution has not finished teardown; refusing startup"
+            )
+        time.sleep(0.05)
     # No record means the init launch gate could not have released a workload.
     shutil.rmtree(path)
 
@@ -476,6 +533,14 @@ class BrokerServer:
         temporary = str(execution_directory(self.directory))
         env["TMPDIR"] = temporary
         job["temporary"] = temporary
+        if tier == "host":
+            group = allocate_host_cgroup(
+                self.args.host_cgroup_root,
+                self.directory,
+                pathlib.Path(temporary),
+            )
+            env["PASEO_HOST_CGROUP"] = str(group)
+            job["cgroup"] = str(group)
         fds = job.pop("fds")
         try:
             job["process"] = subprocess.Popen(
@@ -536,7 +601,7 @@ class BrokerServer:
                                     connection,
                                     {
                                         "type": "error",
-                                        "message": "namespace teardown incomplete; execution retained",
+                                        "message": "execution teardown incomplete; execution retained",
                                     },
                                 )
                             continue
@@ -691,6 +756,7 @@ class BrokerServer:
                                                     "pid": j["process"].pid
                                                     if j.get("process")
                                                     else None,
+                                                    "cgroup": j.get("cgroup"),
                                                     "cleanup_failed": bool(
                                                         j.get("cleanup_failed")
                                                     ),
@@ -902,6 +968,11 @@ def main():
     server.add_argument("--launcher", required=True)
     server.add_argument("--host-codex")
     server.add_argument("--host-claude")
+    server.add_argument(
+        "--host-cgroup-root",
+        default="/sys/fs/cgroup",
+        help="writable delegated cgroup v2 directory for host executions",
+    )
     server.add_argument(
         "--shared-ssh",
         action="store_true",

@@ -16,8 +16,8 @@
   paseo-configuration make-paseo-configuration paseo-configuration?
   (user paseo-user (default "wenxin"))
   (group paseo-group (default "users"))
-  ;; Shepherd sets none by default; grant only syslog access, not the
-  ;; root-equivalent groups (wheel, docker) of the login session.
+  ;; Base groups grant syslog access, not the root-equivalent login groups
+  ;; (wheel, docker). The broker additionally receives cgroup delegation.
   (supplementary-groups paseo-supplementary-groups (default '("log-readers")))
   (home paseo-home (default "/home/wenxin"))
   (roots paseo-roots (default '("/home/wenxin/src" "/home/wenxin/Projects"
@@ -72,12 +72,12 @@
     (list
       (shepherd-service
        (provision '(paseo-broker))
-       (requirement (paseo-requirements config))
+       (requirement (cons 'cgroups2-fs-owner (paseo-requirements config)))
        (documentation "Launch same-user coding agents outside the Paseo container.")
        (start #~(make-forkexec-constructor
                  (list #$(launch-program config "broker"))
                  #:user #$user #:group #$group
-                 #:supplementary-groups '#$groups
+                 #:supplementary-groups '#$(delete-duplicates (cons "cgroup" groups))
                  #:directory #$(paseo-home config)
                  #:log-file "/var/log/paseo/broker.log"))
        (stop #~(make-kill-destructor)))

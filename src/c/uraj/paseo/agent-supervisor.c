@@ -5,7 +5,8 @@
  * Each of the first two parent-child links uses PDEATHSIG plus a pidfd check.
  * PID 1 exits when the launcher finishes; the kernel then kills its
  * descendants. The outer supervisor waits for teardown and returns the
- * launcher's status. */
+ * launcher's status. Host mode instead uses an external cgroup guardian
+ * which survives supervisor death and recursively kills the execution. */
 #define _GNU_SOURCE
 #include <errno.h>
 #include <fcntl.h>
@@ -122,17 +123,40 @@ static void run_namespace_init(char** command, int result) {
     nanosleep(&delay, NULL);
   }
 }
-/* Host mode intentionally has no namespace boundary. Termination cleans the
- * workload's process group; descendants that call setsid can outlive it. */
-static void run_host_init(char** command, int result) {
+/* The host guardian stays outside the execution cgroup and survives the
+ * outer supervisor. Its pidfd watch also covers broker/outer SIGKILL. */
+static void run_host_init(char** command, int result, int parent) {
   install_signal_handlers();
+  if (prctl(PR_SET_CHILD_SUBREAPER, 1)) exit_with_error("host subreaper");
+  const char* group = getenv("PASEO_HOST_CGROUP");
+  char path[4096];
+  if (!group ||
+      snprintf(path, sizeof path, "%s/cgroup.kill", group) >= (int)sizeof path)
+    _exit(125);
+  int killer = open(path, O_WRONLY | O_CLOEXEC);
+  if (killer < 0) exit_with_error("open cgroup.kill");
+  snprintf(path, sizeof path, "%s/cgroup.events", group);
+  int events = open(path, O_RDONLY | O_CLOEXEC);
+  if (events < 0) exit_with_error("open cgroup.events");
+  snprintf(path, sizeof path, "%s/cgroup.procs", group);
+  int gate[2];
+  if (socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, gate))
+    exit_with_error("host launch gate");
   int myself = open_process_handle(getpid());
   pid_t leader = fork();
   if (leader < 0) exit_with_error("fork host workload");
   if (!leader) {
     exit_when_parent_dies(myself);
     close(myself);
+    close(parent);
     close(result);
+    close(killer);
+    close(events);
+    close(gate[0]);
+    char ready;
+    if (recv(gate[1], &ready, 1, 0) != 1 || ready != 'R') _exit(125);
+    close(gate[1]);
+    unsetenv("PASEO_HOST_CGROUP");
     if (setsid() < 0) exit_with_error("host setsid");
     signal(SIGTERM, SIG_DFL);
     signal(SIGINT, SIG_DFL);
@@ -141,30 +165,65 @@ static void run_host_init(char** command, int result) {
     exit_with_error("exec host workload");
   }
   close(myself);
+  close(gate[1]);
+  /* Move the gated child before it can fork, even if cancellation is pending.
+   */
+  char member[32];
+  snprintf(member, sizeof member, "%d", leader);
+  write_namespace_mapping(path, member);
+  if (send(gate[0], "R", 1, MSG_NOSIGNAL) != 1)
+    exit_with_error("release host workload");
+  close(gate[0]);
   int64_t deadline = 0;
+  int status = 0, finished = 0, killed = 0;
   for (;;) {
-    if (stopping && !deadline) {
+    struct pollfd watch = {.fd = parent, .events = POLLIN};
+    int ready = poll(&watch, 1, 0);
+    if (ready < 0 && errno != EINTR) exit_with_error("poll host owner");
+    if (ready > 0) stopping = SIGTERM;
+    if (stopping && !deadline && !finished) {
+      /* leader is still our unreaped child, so its PID cannot be reused. */
       kill(-leader, SIGTERM);
       kill(leader, SIGTERM);
       deadline = monotonic_milliseconds() + 2000;
     }
-    if (deadline && monotonic_milliseconds() >= deadline) {
-      kill(-leader, SIGKILL);
-      kill(leader, SIGKILL);
+    int child_status;
+    pid_t done;
+    while ((done = waitpid(-1, &child_status, WNOHANG)) > 0) {
+      if (done == leader) {
+        status = child_status;
+        finished = 1;
+      }
     }
-    int status;
-    pid_t done = waitpid(leader, &status, WNOHANG);
-    if (done == leader) {
-      kill(-leader, SIGKILL);
-      if (send(result, &status, sizeof status, MSG_NOSIGNAL) != sizeof status)
-        exit_with_error("send host status");
-      _exit(0);
+    if (done < 0 && errno != EINTR && errno != ECHILD)
+      exit_with_error("wait host workload");
+    int reaped = done < 0 && errno == ECHILD;
+    if (!killed &&
+        (finished || (deadline && monotonic_milliseconds() >= deadline))) {
+      if (write(killer, "1", 1) != 1) exit_with_error("kill host cgroup");
+      killed = 1;
+      deadline = monotonic_milliseconds() + 10000;
     }
-    if (done < 0 && errno != EINTR) exit_with_error("wait host workload");
+    if (killed) {
+      char state[256];
+      ssize_t n = pread(events, state, sizeof state - 1, 0);
+      if (n < 0) exit_with_error("read cgroup.events");
+      state[n] = 0;
+      if (finished && reaped && strstr(state, "populated 0")) {
+        /* A dead outer supervisor need not receive the result. */
+        (void)send(result, &status, sizeof status, MSG_NOSIGNAL);
+        _exit(0);
+      }
+      if (monotonic_milliseconds() >= deadline) {
+        fprintf(stderr, "host cgroup teardown incomplete: %s\n", group);
+        _exit(125);
+      }
+    }
     struct timespec delay = {.tv_nsec = 10000000};
     nanosleep(&delay, NULL);
   }
 }
+
 int main(int argc, char** argv) {
   int host = argc > 1 && !strcmp(argv[1], "--host");
   if (host) {
@@ -204,12 +263,14 @@ int main(int argc, char** argv) {
   pid_t child = fork();
   if (child < 0) exit_with_error("fork init");
   if (!child) {
-    exit_when_parent_dies(myself);
-    close(myself);
+    if (!host) {
+      exit_when_parent_dies(myself);
+      close(myself);
+    }
     close(channel[0]);
     char ready;
     if (recv(channel[1], &ready, 1, 0) != 1 || ready != 'R') _exit(125);
-    if (host) run_host_init(argv + 4, channel[1]);
+    if (host) run_host_init(argv + 4, channel[1], myself);
     run_namespace_init(argv + 4, channel[1]);
     _exit(125);
   }
