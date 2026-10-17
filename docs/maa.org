@@ -6,8 +6,8 @@
 
 hypie's installed system runs =redroid-maa= under Docker (not the live
 installer).  Guix declares the container and its dependencies; Shepherd manages its lifecycle.
-Android's =/data= is bind-mounted from =/var/lib/redroid/data/maa= on the
-system disk.  Other Android instances must have separate names, data
+Android's =/data= is bind-mounted from
+=/var/lib/redroid/data/maa-houdini-13= on the system disk.  Other Android instances must have separate names, data
 directories and IP addresses.  Guix generation rollback does not roll back
 Android data: stop the instance and back up its data before image upgrades.
 
@@ -17,7 +17,7 @@ kernel must support Binder; use memfd instead of the removed ashmem driver.
 
 ** Networking
 
-Initial addressing (checked against all current IPv4 routing tables on start):
+Production addressing (checked against current IPv4 routing tables on start):
 
 | Object      | Value           |
 |-------------+-----------------|
@@ -108,63 +108,91 @@ or its persistent data.
 - =env/guix/os/hypie.scm=: Docker, =restricted-network-service-type= (with
   the fwd2home bypass) and the redroid service, any egress interface.
 
-The container initially has =(auto-start? #f)=.  Docker and network services
-start at boot, but Android starts only on =herd start redroid-maa=.  After
-validation, change this field to =#t= in hypie's instance declaration.
-Shepherd restarts a failed container; there is no Docker restart policy that
-could bypass the firewall/readiness dependencies.  A live container process
-does not itself prove Android or the game is healthy.
-
-The image is pinned by digest, with the tag it was taken from recorded in
-a comment: =11.0.0-latest= at =sha256:60b08106…= (Docker Hub, 2026-10-11,
-unchanged on 2026-10-15).  To update, print what Docker Hub now serves for
-the tag with =oci-digest docker.io/redroid/redroid:11.0.0-latest=, replace
-the digest and the comment's date, and commit.  Do not upgrade Android versions against the same data
-directory without a stopped-container backup and a tested recovery path.
+The production container starts automatically under Shepherd. The
+=redroid-maa-image= one-shot service builds a local image from the official
+Android 13 amd64 base, pinned to
+=sha256:524987f1fc489f6018e2c9d0dd622e5eccea13eb896417cb4bfb26bc3fea9afd=
+(=redroid/redroid:13.0.0-latest=, checked 2026-10-17).
+A =uraj.context= store-path label rebuilds it when either payload or recipe
+changes. Build steps have no network access; Docker may fetch the pinned
+base before executing them. Do not =herd pull= the local layered tag.
 
 ** ARM translation
 
-Arknights ships only =arm64-v8a= and =armeabi-v7a= libraries.  redroid 11's
-bundled ndk_translation loads them, but the game aborts about 20 seconds after
-start: Scudo reports =invalid chunk state when deallocating= in the
-=UnityChoreograp= thread.  Host memory was not under pressure.
+hypie selects =redroid-houdini= and =native-bridge-library "libhoudini.so"=.
+The package pins the Android 13 payload selected by waydroid_script at
+[[https://github.com/supremegamers/vendor_intel_proprietary_houdini/commit/2f8f088671182e17e67321e098e8411a3972a628][commit 2f8f088]],
+HPE UKW1.260829.001 / Houdini 14.0.0 GoogleGame com1.3. The archive is
+SHA-256 checked, and the binaries are neither patched nor stripped.
+The expected 64-bit library hash is
+=5ef64035ec89bca3d5e33b9f3b6556f98f6c11d11957387d403ae4a4d7cc40ec=.
 
-hypie therefore sets =(native-bridge redroid-ndk-translation)=.  That package
-pins Google's ndk_translation from ChromeOS guybrush R112-15359.58.0 (Android
-11 ARCVM), as repackaged by
-[[https://github.com/supremegamers/vendor_google_proprietary_ndk_translation-prebuilt][supremegamers]]
-at commit =9324a89= (Guix hash =0p7spczq…=).  This is the build used by
-redroid-script and the community =_ndk_ChromeOS= images.  Only the libraries,
-ARM linkers/app_process and ld.config files are installed.  The
-binfmt_misc init script and program runners are left out, because
-binfmt_misc is not namespaced and registering there would affect the host.
-=ro.enable.native.bridge.exec= stays unset.
+The package installs the native bridge and its ARM guest libraries. It omits
+ARM executable runners and binfmt_misc registration, which would affect the
+host and is not required for app native-library translation. Explicit boot
+properties select Houdini, ARM ABIs and their x86 mappings. The old NDK
+libraries, guest trees, linker configurations and init script are removed
+before copying Houdini into the image. A Guix-built static BusyBox performs
+this build step: Android's own shell cannot run before APEX is mounted.
+The temporary BusyBox and preparation script are then removed.
 
-Before =redroid-maa= starts, the one-shot =redroid-maa-image= service builds
-=FROM= the digest-pinned base plus =COPY system /system= into a local tag
-such as =localhost/uraj-redroid:60b0810684be-redroid-ndk-translation-…=.
-The build copies 37 MB, needs no network and adds a single layer.  A
-=uraj.context= label records the store path of the build context, which
-includes the Dockerfile.  An existing tag is reused only when its label
-matches; otherwise the image is rebuilt under the same tag and the replaced
-one removed.  So any change to the package or recipe takes effect at the next
-=herd restart redroid-maa=, without deleting images by hand.  Do not use
-=herd pull redroid-maa= for a layered image: the local tag cannot be pulled.
+Houdini requires the default system linker namespace to permit
+=/system/${LIB}/arm64= and =/system/${LIB}/arm=. An init service adds these
+paths at the end of the generated =[system]= section, idempotently. The
+image build inserts it before both explicit =start zygote= and
+=class_start main=; official redroid leaves =ro.crypto.state= unset and uses
+the latter path. Init waits for =uraj.houdini.linker.ready= to become =1=.
+A missing/duplicate system section or failed helper leaves zygote blocked
+for diagnosis instead of silently booting without the correction.
 
-=COPY= adds and overwrites but never deletes, so files of the base image's
-own ndk_translation that the package does not ship remain in the image.
+** Move from the trials to production
 
-ARM's =ARM_TO_AMD_DBT_LICENSE.txt= limits use of this build to AMD CPUs;
-hypie's CPU is Intel.  The package records this in its license field.
+The tested, logged-in instance at =.5= uses
+=redroid-waydroid-houdini-test-data=. Before reconfiguring, copy that stopped
+instance's complete data, including resources and account state, into the
+new production directory. Never open the Android 11 directory with Android
+13. On hypie:
 
-On 2026-10-16 the package was checked against Google's official
-=chromeos_15359.58.0_guybrush_recovery= image: its ROOT-A partition's
-=/opt/google/vms/android/system.raw.img= was extracted without mounting, and
-all 172 libraries, linkers and app_process binaries matched byte for byte.
-The two =etc/cpuinfo.arm*.txt= files in the prebuilt repository are not in
-Google's image and are no longer installed; ndk_translation emulates
-=/proc/cpuinfo= with the verified =lib*/arm*/cpuinfo= helpers.  The pinned
-Guix hash detects any later replacement upstream.
+#+begin_src sh
+sudo sh scripts/redroid/migrate-houdini-data
+sudo herd stop redroid-maa
+# Reconfigure/deploy hypie from this revision using the usual deployment tool.
+sudo herd start redroid-maa
+sudo docker exec redroid-maa getprop sys.boot_completed
+sudo docker exec redroid-maa getprop uraj.houdini.linker.ready
+#+end_src
+
+The migration refuses an existing destination and retains the source volume
+on any copy failure. The old Android 11 directory stays intact for rollback.
+After confirming login on =10.203.0.2:5555= and restarting the production
+service once to check the persistent namespace hook, retire the trials:
+
+#+begin_src sh
+sudo sh scripts/redroid/retire-trials
+#+end_src
+
+This checks the migration marker, production data mount, boot completion,
+Houdini selection and namespace readiness before stopping/removing the four
+named trial containers and their named volumes (=.3= through =.6=). It never
+uses =docker prune=, and keeps production and the old Android 11 data.
+The local trial image tags are removed when no container references them;
+shared base image caches remain. These host actions require Docker/root
+access; they are not performed by reconfiguration itself.
+
+** Runtime evidence and remaining checks
+
+The same HPE library on the Codysk Android 13 base passed account login,
+a short TR-1 battle-loading test and MAA daily tasks on 2026-10-17. The
+unmodified Codysk NDK image and earlier ChromeOS Houdini 11 failed startup.
+The official Android 13 base with this HPE payload completed three initial
+launch observations without native crashes; the first and third reached
+resource selection. Login/battle/MAA were not repeated on that base. The
+first official trial exposed the missed =class_start main= hook; the helper
+was then applied manually and successfully invoked through init. The fixed
+boot hook still needs a full production restart check. The production
+package additionally omits host-global binfmt registration; it does not
+change the library binaries. These limits remain explicit even though this
+configuration now replaces the trial setup.
 
 Before reconfiguration, on hypie:
 
@@ -221,7 +249,7 @@ Check the running container's read-only modprobe mount and compare the host
 =/proc/sys/kernel/modprobe= before/after starting it.
 
 #+begin_src sh
-oci-digest docker.io/redroid/redroid:11.0.0-latest   # tag moved upstream?
+oci-digest docker.io/redroid/redroid:13.0.0-latest   # tag moved upstream?
 sudo docker images --digests redroid/redroid          # on hypie
 #+end_src
 
@@ -263,10 +291,8 @@ The static entrypoint compiled with warnings treated as errors.  In an
 isolated user/mount namespace it successfully bind-mounted the modprobe
 sysctl read-only (confirmed in mountinfo) and reached =exec /init=; the test
 namespace intentionally has no Android init.  It preserves procfs mount
-safety flags.  The Scheme suite now has 25 passing checks.
-System build and real-device boot/game validation remain pending; the coding
-environment has no usable local Guix daemon socket.  No reconfiguration has
-been applied to hypie.
+safety flags.  These early validation records predate the current Android 13 deployment;
+see the runtime evidence above for the current scope.
 
 On 2026-10-09, SSH to =wenxin@hypie.home.labbies.wenxinwang.me= confirmed
 Guix System with kernel =7.2.6=, binderfs, and Intel's render device at
@@ -283,3 +309,22 @@ is staged at =/tmp/uraj-redroid-20261009= for a build before activation.
 - [[https://github.com/remote-android/redroid-doc][redroid deployment and boot parameters]]
 - [[https://docs.docker.com/engine/network/packet-filtering-firewalls/][Docker firewall behavior]]
 - [[https://github.com/MaaAssistantArknights/maa-cli][maa-cli]]
+
+** Production recipe checks, 2026-10-17
+
+The Guix Houdini package, static BusyBox (including its upstream tests), and
+Docker build context were built successfully. Both Houdini library hashes
+match the earlier runtime-tested payload, and the Android helper retains its
+=/system/bin/sh= interpreter. The static build helper was executed inside an
+empty chroot on the test instance: it removed only the NDK fixtures, inserted
+both startup hooks and removed its own temporary tools. The service suite
+passed 42 checks. Run the helper/retirement checks with:
+
+#+begin_src sh
+sh test/redroid/houdini-linker.sh
+sh test/redroid/retire-trials.sh
+#+end_src
+
+Full Docker build of this Guix-produced recipe, migration, production restart
+and retirement of the trial containers require the host deployment steps
+above. They were not executed from the agent's restricted environment.
