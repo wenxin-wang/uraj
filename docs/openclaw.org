@@ -1,0 +1,352 @@
+#+title: Storie OpenClaw / 飞书
+
+* 当前范围
+
+一个飞书 bot、一个 Gateway 容器、一个默认 agent，通过 new-api 调用模型。
+飞书采用主动建立的 WebSocket 长连接，不需要公网地址或 webhook 入站。
+私聊需管理员批准配对，不需要事先查询 =open_id=；群聊关闭。模型工具全部禁用（包括
+shell、浏览器、文件工具、主动发消息、飞书文档工具）；普通聊天回复
+不需要模型调用 message 工具。第一版保存会话，但不提供自主编辑记忆的
+文件工具。以后开放工具时另外设计执行隔离和凭据边界。
+
+=env/guix/os/storie.scm= 已声明 OpenClaw，包含固定 image ID、飞书
+App ID 和 GPT/Claude 两组 provider，默认模型为
+=new-api-claude/claude-sonnet-5-5=。三个凭据已以 SOPS 密文保存。
+DeepSeek 尚未配置。Live ISO 不声明 OpenClaw。
+
+这些是部署声明，不代表主机已运行该服务。首次部署仍需在 storie
+确认镜像已加载，再进行 reconfigure、飞书配对及模型调用验收。
+
+* 镜像准备
+
+配置依据上游 =v2026.10.3= 的文档、Dockerfile 和飞书插件定义。
+采用该版本的上游 Dockerfile，显式预装 =feishu=，不在服务器启动时
+联网安装插件。下面在有 Docker 的构建机执行；源码构建需要至少 6 GB
+内存，上游默认 Node 构建堆上限为 8 GB，构建机应留足余量。
+
+#+begin_src sh
+git clone --branch v2026.10.3 --depth 1 https://github.com/openclaw/openclaw.git openclaw-source
+cd openclaw-source
+git rev-parse HEAD
+docker build --build-arg OPENCLAW_EXTENSIONS=feishu \
+  --tag localhost/openclaw-feishu:2026.10.3 .
+docker save --output openclaw-2026.10.3.tar localhost/openclaw-feishu:2026.10.3
+scp openclaw-2026.10.3.tar storie.home.labbies.wenxinwang.me:/tmp/
+#+end_src
+
+记录实际源码 commit 和构建日志。镜像必须为 storie 的 CPU 架构；不要
+把其它架构构建出的镜像直接加载。也可以用上游支持的 Podman 构建流程。
+在 storie 上加载并取得不可变 image ID：
+
+#+begin_src sh
+sudo docker load --input /tmp/openclaw-2026.10.3.tar
+sudo docker image inspect --format '{{.Id}}' localhost/openclaw-feishu:2026.10.3
+#+end_src
+
+把输出的完整 =sha256:...= 填入 =image=，=image-repository= 保持
+=localhost/openclaw-feishu=。本地构建镜像不一定有 RepoDigest，不能把
+image ID 拼成 =repository@sha256:...=；两者含义不同。服务也接受真正的
+registry manifest digest 引用，但它同样必须已存在于本机。默认配置
+不接受仅 tag 的可变引用。
+
+核心和插件随整个镜像升级。不要在运行中的容器执行 =openclaw update=
+或 =plugins install=。此仓库不自动构建、拉取或发布镜像。
+
+* 飞书与模型
+
+在飞书开放平台创建应用，启用机器人能力，取得 App ID 和 App Secret。
+按选定版本的官方飞书说明配置长连接、=im.message.receive_v1= 消息事件、
+私聊消息接收和机器人发送消息权限，并发布应用供自己的账号使用。
+初始配置采用非流式文本回复，不要求文档、云盘或 Card Kit 能力。
+不用查询自己的 =open_id=。Gateway 启动后，在飞书私聊 bot，它会向
+未批准的用户返回配对码。在 storie 查看请求并批准你自己的配对码：
+
+#+begin_src sh
+sudo /etc/openclaw/compose exec gateway node openclaw.mjs pairing list feishu
+sudo /etc/openclaw/compose exec gateway node openclaw.mjs pairing approve feishu <CODE>
+#+end_src
+
+将 =<CODE>= 替换成 bot 发给你的实际配对码。批准后再发消息即可正常
+聊天，批准记录保存在持久化 state 中，普通容器重建无需重新配对。
+未获批准的用户不能触发模型。不要批准不认识的请求；批准多个人会让
+他们使用同一个 Gateway 和 agent。飞书用户配对与管理 UI 的设备配对
+是两套独立机制。
+
+在 new-api 中创建 OpenClaw 专用 token，限制模型及额度。所有 provider
+共用已有的 =new-api-token=，不需要为 GPT、Claude、DeepSeek 另建
+秘密或机器人。每个 provider 独立设置名字、API 协议和模型列表。
+配置入口是 =env/guix/os/storie.scm= 的 =%openclaw-configuration=。
+
+以下模型 ID 是占位值，替换成 new-api 实际提供的 ID。=model= 必须
+填写完整的 =provider/model-id=，并且模型已列在对应 provider 中：
+
+#+begin_src scheme
+(model "new-api-gpt/GPT-MODEL-ID")
+(providers
+ (list
+  (openclaw-provider
+    (name "new-api-gpt")
+    (api "openai-responses")
+    (models '("GPT-MODEL-ID" "ANOTHER-GPT-MODEL-ID")))
+  (openclaw-provider
+    (name "new-api-claude")
+    (api "anthropic-messages")
+    (models '("CLAUDE-MODEL-ID")))
+  (openclaw-provider
+    (name "new-api-deepseek")
+    (api "openai-completions")
+    (models '("DEEPSEEK-MODEL-ID")))))
+#+end_src
+
+暂时不用 DeepSeek 时，先省略它的整个 =openclaw-provider=，日后补上。
+每个 provider 内可列多个模型，重复 ID 去重；不同 provider 可包含
+相同 ID。provider 名称必须唯一。旧的顶层 =models=、=model-api=、
+=model-base-url= 字段已替换为此 =providers= 列表。
+
+| Provider 名称    | API 协议             | 默认 base URL                  |
+|------------------+----------------------+--------------------------------|
+| new-api-gpt      | openai-responses     | http://172.31.0.9:3000/v1       |
+| new-api-claude   | anthropic-messages   | http://172.31.0.9:3000          |
+| new-api-deepseek | openai-completions   | http://172.31.0.9:3000/v1       |
+
+默认 URL 根据 =api= 选择，不根据模型名字猜测。Anthropic SDK 会追加
+=/v1/messages=，所以它的 base URL 不带 =/v1=。可以在单个 provider
+中用 =(base-url "...")= 显式覆盖。这里的地址都指向 new-api，真实
+上游仍由 new-api 的渠道和模型映射决定。若 GPT 的渠道只提供 Chat
+Completions，将它的 =api= 改为 =openai-completions=；每个渠道实际
+支持的协议和推理能力需通过调用确认。
+
+这些 ID 必须是 new-api 的客户端模型名，不能用上游映射后的内部名字。
+可在 new-api 模型页面查询；若需要验证该 token 真正可见的集合，使用
+该 token 调用 =GET /v1/models=，取返回数据的 =id=。token 必须允许
+调用所有列出的模型。
+
+飞书中作为普通文本发送 =/model=、=/model list= 查看模型，发送
+=/model new-api-claude/CLAUDE-MODEL-ID= 切换当前会话。管理界面的聊天模型选择器也可
+切换。这是会话状态，不要求修改只读配置；永久默认模型仍在 Guix 声明
+中修改。多个可选模型不会自动变成失败回退列表。
+
+* 秘密
+
+一份 SOPS 密文，三个独立凭据：
+
+#+begin_src yaml
+openclaw:
+  feishu-app-secret: <飞书 App Secret>
+  new-api-token: <OpenClaw 专用 new-api token>
+  gateway-token: <独立生成的高熵随机 token>
+#+end_src
+
+在项目 Guix 环境中创建：
+
+#+begin_src sh
+gpg --import secrets/keys/admin.asc
+sops secrets/hosts/storie/openclaw.yaml
+#+end_src
+
+新建加密文件只需 =.sops.yaml= 中已登记收件人的公钥，不需要 GPG 卡。
+编辑已有密文需要任一授权私钥，例如管理员卡或 storie 的机器 age
+identity。凭据可等飞书应用创建后再填；不要提交上述明文模板或假凭据。
+Gateway token 可用密码管理器生成至少 32 字节随机值，直接填入 SOPS
+编辑器，不把 token 放进命令行参数或聊天。
+
+服务自动向已有的 =sops-secrets-service-type= 贡献三个 secret，全部
+解密为 root:root 0400。每次启动复制到 root-only 的 =/run/openclaw/=
+下，文件归容器 UID/GID 1000 所有、模式 0400，单独只读挂载到容器
+=/run/secrets/=。SecretRef 引用这些普通文件，Guix store、Compose 和
+声明配置都只有路径及引用，没有凭据值。容器不获得主机 age/GPG 私钥。
+
+运行 UID 1000 与上游镜像一致；宿主机相同 UID 的用户属于本部署信任
+范围。文件挂载及容器负责限制可见路径，不把 SecretRef 当作任意代码
+执行场景中的秘密隔离边界。
+
+轮换时先更新密文及系统声明，再重新解密，然后重建容器：
+
+#+begin_src sh
+sudo herd restart sops-secrets
+sudo herd restart openclaw
+#+end_src
+
+先确认 sops-guix 已成功更新实际文件；不要输出秘密来检查。SecretRef
+持有运行时快照，文件 bind mount 也可能仍引用旧 inode，所以本方案
+明确通过重新创建容器完成轮换。
+
+* 配置、存储与启动
+
+现有 storie 声明已填写完毕，不需要手动向 =host-sops-services= 添加
+重复 secret。以后停用时可将 =%openclaw-configuration= 改成 =#f=。
+
+在 storie 的仓库开发环境中，先确认声明的镜像确实存在（此命令不拉取）：
+
+#+begin_src sh
+sudo docker image inspect --format '{{.Id}} {{.Architecture}}' \
+  sha256:f855681d24db345dcab753842f1137d5e5354ad83da7be28caacc7c0f9c939b0
+#+end_src
+
+确认使用含飞书插件的镜像后，在仓库根目录部署：
+
+#+begin_src sh
+sudo --preserve-env=GUILE_LOAD_PATH guix time-machine \
+  -C env/guix/channels-lock.scm -- system reconfigure env/guix/os/storie.scm
+sudo herd restart sops-secrets
+sudo herd restart syslogd
+sudo herd start openclaw
+sudo herd status openclaw
+sudo /etc/openclaw/compose exec gateway node openclaw.mjs channels status --probe
+#+end_src
+
+显式重启 SOPS 是为了在已经运行的主机上解密新增条目；失败时先解决
+解密问题，不继续启动。首次添加日志路由需要重启 =syslogd=，也会
+重启依赖它的其它服务，应安排可接受的维护时间。已运行时 =herd start=
+不会重建容器；修改配置或轮换凭据后使用 =herd restart openclaw=。
+
+完成首次私聊配对，再分别用 GPT 和 Claude 模型发送一条消息，确认
+new-api 的 token 权限、模型名称及协议均可用。不要以 Gateway 的
+健康检查通过代替这一步。
+
+| 宿主机路径                         | 容器路径                     | 用途 |
+|------------------------------------+------------------------------+------|
+| /etc/openclaw/openclaw.json         | 同路径，只读                 | Guix 管理配置 |
+| /data/openclaw/state                | /home/node/.openclaw          | 会话、队列、配对、数据库 |
+| /data/openclaw/auth-key             | /home/node/.config/openclaw   | 上游兼容认证密钥目录 |
+| /data/openclaw/workspaces/main      | /workspace                   | agent workspace |
+| /run/openclaw/<secret>             | /run/secrets/<secret>         | 运行时秘密 |
+| /var/log/openclaw/containers.log    | syslog 接收                  | 运维日志，轮转 |
+
+附件初期随 state 保存；=/media-data/openclaw/= 暂不创建。
+state、auth-key、workspace 都是私有数据，不赋予 =log-readers= 读取权限。
+容器 stdout/stderr 遵循现有日志组规则；它们也可能带有聊天相关诊断信息。
+不要开启含凭据或完整消息的调试日志。应用自己的临时文件日志在容器
+=/tmp=，不作长期保存。=/home/node/.cache= 另挂载 128 MiB tmpfs，
+由容器 UID/GID 1000 拥有、权限 0700，支持 OpenClaw 的安全临时目录
+fallback（例如 =openclaw-1000=）；缓存随容器销毁，不进入持久数据目录。
+
+Shepherd 等待 =dockerd=、=restricted-network=、=sops-secrets=、
+=syslogd= 和 =file-system-/data=。每次 start 再检查 /data 确为 Btrfs
+挂载、秘密非空和 DNS 快照有效，之后才创建目录。拒绝符号链接目录，
+不递归更改已有用户数据权限。Docker bind mount 禁止自动创建缺失路径。
+
+容器仅连接 =static-agent=。启动器把网络服务的
+=/run/restricted-network/resolv.conf= 转成 Docker 显式 DNS override，
+不会使用主机实时 resolver。网络允许公网 TCP 80/443 以及 new-api
+=172.31.0.9:3000=；它不是域名白名单，同桥也不是容器间隔离。
+刷新 DNS 时先停 OpenClaw，再重启 restricted-network，最后启动 OpenClaw。
+
+Compose 采用 =on-failure=，不会随 Docker daemon 启动而绕过 Shepherd。
+镜像本地检查、运行时准备之后，先用所选镜像执行 =config validate=，
+再启动 Gateway，等待 =/startupz=。这个检查不代表飞书和模型都连通；
+需要下面的端到端验收。容器健康状态变成 unhealthy 不会由 Docker 的
+on-failure 自动重启；该策略只处理进程退出。
+
+配置以 Guix 声明为准。UI/向导不应写入这份只读配置；需要调整时改
+声明并部署。没有发布主机端口，管理界面通过 SSH 转发至容器 IP：
+
+#+begin_src sh
+sudo /etc/openclaw/compose ps
+sudo /etc/openclaw/compose exec gateway node openclaw.mjs channels status --probe
+sudo /etc/openclaw/compose exec gateway node openclaw.mjs secrets audit --check
+sudo docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' openclaw-gateway-1
+#+end_src
+
+在客户端把实际容器 IP 填入下面命令，打开 =http://localhost:18789=，
+在 UI 输入 Gateway token，并按上游流程完成设备配对，不禁用认证：
+
+#+begin_src sh
+ssh -N -L 18789:<container-ip>:18789 storie.home.labbies.wenxinwang.me
+#+end_src
+
+容器重建可能改变 IP，届时重开隧道。=/etc/openclaw/compose= 用于
+exec、logs、ps 等运维操作；启动和停止交给 Shepherd，以保留前置检查。
+
+* 版本切换与备份
+
+#+begin_src sh
+sudo herd restart openclaw 2026.10.3
+sudo herd status openclaw
+sudo herd restart openclaw
+#+end_src
+
+带 tag：在配置的镜像仓库中选择已加载的 tag；不带 tag：恢复声明中的
+不可变镜像。启动时解析实际 image ID，再按该 ID 启动，Shepherd 的
+running value 同时记录请求引用和实际 ID。镜像不存在则失败，不联网
+拉取。注意 =restart= 会先停止旧实例，随后才执行新实例检查；失败时
+不会承诺旧实例仍运行，也不会自动回退。
+
+采用临时版本后，下一次普通 restart、重启机器或部署仍使用声明版本。
+正式采用时更新声明 image。版本切换前停服务，将整个
+=/data/openclaw/= 做一致性备份到受保护的
+=/core-data/backups/openclaw/=，并保留对应镜像和密文配置。
+本变更不新增自动备份任务；首次初始化后应建立备份，并在积累重要
+会话数据前完成恢复检查。
+
+OpenClaw 可能迁移数据库，切回旧镜像不能保证数据兼容。必要时同时恢复
+state、auth-key 和 workspace。备份含私聊历史及可能的认证状态，不能
+挂给 agent 或当作公开日志。SOPS 源文件独立备份，不备份 /run 的明文。
+
+* 部署后没有 Shepherd 服务
+
+若 =/etc/openclaw= 已存在，但 =sudo herd status openclaw= 找不到服务，
+先检查部署输出中是否有 =an error occurred while upgrading services=。
+Guix 在服务热更新失败后仍可能打印 =successfully deployed=；这时磁盘上的
+系统配置已切换，运行中的 Shepherd 服务可能仍是旧配置。
+
+初版集成可能出现 =no code for module (uraj build openclaw)=。修复后的
+启动闭包只使用 Guile 自带模块。准备程序使用 =with-uraj-modules=
+打包本地模块及依赖，避免 =source-module-closure= 的默认过滤条件漏掉
+=uraj= 模块；否则直接执行 =openclaw-prepare= 也会报同样的错误。更新到
+包含修复的仓库版本后，在 lappie 再运行 =uraj-deploy storie=，然后在
+storie 检查：
+
+#+begin_src sh
+sudo herd status openclaw
+sudo /etc/openclaw/compose ps
+#+end_src
+
+无需为此单独重启 syslog。若服务已注册但未启动，执行
+=sudo herd start openclaw= 并检查启动报错；确认 Gateway 运行后再进行
+飞书配对批准。
+
+* 验证
+
+#+begin_src sh
+guix repl -L src/guix -L src/guile test/guix/uraj/services/openclaw.scm
+guix repl -L src/guix test/guix/uraj/openclaw-runtime.scm
+guix build -L src/guix -L src/guile -f test/guix/uraj/openclaw-program.scm
+#+end_src
+
+服务测试检查 Guix/SOPS 组合、权限、网络、SecretRef、镜像选择和失败
+清理；运行时测试使用临时目录、模拟挂载元数据和 chown，不访问主机
+/data、/run 或 Docker。还需要在真实部署时验证：
+
+1. DNS、飞书长连接和 new-api 调用成功；确认其它 LAN/主机服务被拒绝。
+2. 未批准的私聊只触发配对流程；批准后可回复，未批准用户及群聊不能触发模型。
+3. 重启 Gateway 后上下文仍在，停止期间没有意外启动的容器。
+4. 重启主机后网络规则与秘密先就绪，镜像和数据均被保留。
+5. 实测秘密轮换、备份恢复，以及临时版本切回声明版本。
+
+仓库已包含用户提供的 image ID 和加密凭据。此处的自动测试不验证
+storie 上的镜像内容、凭据有效性或飞书授权，也未执行主机 reconfigure。
+镜像运行时的 schema 检查与端到端验收在部署时执行。
+
+本轮验证：78 项服务断言、35 项运行时断言、33 项 SOPS 回归断言及
+42 项 new-api 回归断言全部通过（共 188 项）。Guix 成功构建最终声明
+对应的配置、Compose 文件和 =openclaw-prepare= 程序。仓库风格检查器
+只覆盖 C/C++/Python，不支持本次 Scheme 文件；Scheme 由上述测试加载
+并检查，补充执行 =git diff --check=。
+
+修复热更新加载问题后，78 项服务断言通过，并在使用临时 socket 的
+独立 Shepherd 1.0.9 中，通过 =root eval= 加载、注册生成的服务文件，
+确认 =openclaw= 存在且为 stopped。此检查未启动容器或修改系统 Shepherd；
+storie 上的实际热更新仍需重新部署确认。
+
+准备程序另有 Guix 构建隔离测试：使用生产 gexp 自带的模块元数据，
+清除外部 Guile 搜索路径，加载真实运行时模块后替换文件操作入口，
+验证生成程序能调用该入口；不读取秘密、不写入主机数据目录。
+
+* 参考
+
+- [[https://docs.openclaw.ai/channels/feishu][官方飞书接入]]
+- [[https://docs.openclaw.ai/gateway/secrets/secretref-contract][SecretRef 契约]]
+- [[https://github.com/openclaw/openclaw/tree/v2026.10.3][选定版本源码]]
+- [[file:restricted-network.org][Restricted workload networks]]
+- [[file:../secrets/README.org][仓库 SOPS 约定]]
