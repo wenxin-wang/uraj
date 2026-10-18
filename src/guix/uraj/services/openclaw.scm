@@ -46,6 +46,8 @@
   (model openclaw-model)
   ;; Each provider selects its own API; all use the same new-api token.
   (providers openclaw-providers)
+  ;; Alist of declared provider/model references to slash-command aliases.
+  (model-aliases openclaw-model-aliases (default '()))
   (data-directory openclaw-data-directory (default "/data/openclaw"))
   (network openclaw-network (default "static-agent")))
 
@@ -92,6 +94,23 @@
                               (string-append (openclaw-provider-name provider) "/" model))
                             (openclaw-provider-models provider))) providers))
       (error "OpenClaw default must be a declared provider/model reference")))
+  (let ((aliases (openclaw-model-aliases config))
+        (models (append-map
+                 (lambda (provider)
+                   (map (lambda (model)
+                          (string-append (openclaw-provider-name provider) "/" model))
+                        (openclaw-provider-models provider)))
+                 (openclaw-providers config))))
+    (unless (and (list? aliases)
+                 (every (lambda (entry)
+                          (and (pair? entry) (member (car entry) models)
+                               (string? (cdr entry))
+                               (string-match "^[a-z][a-z0-9-]*$" (cdr entry))))
+                        aliases))
+      (error "OpenClaw aliases need declared models and lowercase command names"))
+    (unless (and (= (length aliases) (length (delete-duplicates (map car aliases))))
+                 (= (length aliases) (length (delete-duplicates (map cdr aliases)))))
+      (error "Duplicate OpenClaw model alias or reference")))
   (unless (and (string-prefix? "/data/" (openclaw-data-directory config))
                (not (member ".." (string-split (openclaw-data-directory config) #\/))))
     (error "OpenClaw data must be below /data")))
@@ -138,6 +157,12 @@
         (providers . ,(map provider-config (openclaw-providers config)))))
       (agents . ((defaults . ((workspace . "/workspace")
                              (model . ((primary . ,(openclaw-model config))))
+                             (models . ,(if (null? (openclaw-model-aliases config))
+                                            '()
+                                            (map (lambda (entry)
+                                                   (cons (car entry)
+                                                         `((alias . ,(cdr entry)))))
+                                                 (openclaw-model-aliases config))))
                              (heartbeat . ((every . "0m")))))))
       ;; Ordinary channel replies do not need the model-facing message tool.
       ;; Start with text chat; enabling execution needs a separate design.

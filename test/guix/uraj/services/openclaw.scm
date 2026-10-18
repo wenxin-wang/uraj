@@ -21,6 +21,20 @@
 (define gateway (at manifest "services" "gateway"))
 
 (test-begin "openclaw")
+(define alias-config
+  (openclaw-configuration (inherit config)
+    (model-aliases '(("new-api/test-model" . "test-6")))))
+(test-equal "versioned model alias is serialized" "test-6"
+  (at (json-string->scm (plain-file-content (openclaw-config-file alias-config)))
+      "agents" "defaults" "models" "new-api/test-model" "alias"))
+(for-each
+ (lambda (aliases)
+   (test-error "invalid or ambiguous alias refused" #t
+     (openclaw-config-file
+      (openclaw-configuration (inherit config) (model-aliases aliases)))))
+ '((("new-api/missing" . "missing-6"))
+   (("new-api/test-model" . "bad/name"))
+   (("new-api/test-model" . "test-6") ("new-api/test-model" . "other-6"))))
 (test-equal "one container" '("gateway") (map car (at manifest "services")))
 (test-equal "only restricted network" '#("restricted") (at gateway "networks"))
 (test-assert "network owned externally" (at manifest "networks" "restricted" "external"))

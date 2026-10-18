@@ -124,6 +124,34 @@ sudo env/docker/openclaw-feishu/build-get-receipt ./openclaw-source
 保留，且没有额外的确认文本。若缺少表情，检查容器日志的
 =GET receipt failed= 或 =GET receipt request failed=，以及应用权限。
 
+** 快速切换模型
+
+在已配对的飞书私聊中单独发送下列命令，切换当前会话模型；也可用
+=/model ALIAS -s=。恢复默认模型用 =/model default -s=。
+别名保存在 =agents.defaults.models.<provider/model>.alias=，由 Guix
+的 =model-aliases= 生成，不需要重建镜像。修改后重新部署即可。
+
+| 命令 | 模型 |
+|------+------|
+| /astra-6 | new-api-gpt/gpt-6-astra |
+| /sol-6-1 | new-api-gpt/gpt-6.1-sol |
+| /sol-6 | new-api-gpt/gpt-6-sol |
+| /luna-6 | new-api-gpt/gpt-6-luna |
+| /sol-5-6 | new-api-gpt/gpt-5.6-sol |
+| /terra-5-6 | new-api-gpt/gpt-5.6-terra |
+| /luna-5-6 | new-api-gpt/gpt-5.6-luna |
+| /opus-5-5 | new-api-claude/claude-opus-5-5 |
+| /sonnet-5-5 | new-api-claude/claude-sonnet-5-5 |
+| /haiku-4-5 | new-api-claude/claude-haiku-4-5 |
+
+=gpt-reserve= 没有版本号，暂不配置版本别名，仍可使用完整引用切换。
+
+已核对 v2026.10.3 的 Slack 插件：它为带 choices 的原生命令提供通用
+交互参数菜单，但 =/model= 注册的是自由文本参数，没有 choices 或
+专用模型菜单。Discord、Telegram 的专用选择器不能据此推定 Slack
+也支持。参考固定版本的 =extensions/slack/src/monitor/slash.ts= 与
+=src/auto-reply/commands-registry.shared.ts=。
+
 ** 应用配置和配对
 
 在飞书开放平台创建应用，启用机器人能力，取得 App ID 和 App Secret。

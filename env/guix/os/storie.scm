@@ -345,6 +345,17 @@
      (local-file (project-path "secrets/hosts/storie/openclaw.yaml")))
     (feishu-app-id "cli_aa5a187288381c05")
     (model "new-api-claude/claude-sonnet-5-5")
+    (model-aliases
+     '(("new-api-gpt/gpt-6-astra" . "astra-6")
+       ("new-api-gpt/gpt-6.1-sol" . "sol-6-1")
+       ("new-api-gpt/gpt-6-sol" . "sol-6")
+       ("new-api-gpt/gpt-6-luna" . "luna-6")
+       ("new-api-gpt/gpt-5.6-sol" . "sol-5-6")
+       ("new-api-gpt/gpt-5.6-terra" . "terra-5-6")
+       ("new-api-gpt/gpt-5.6-luna" . "luna-5-6")
+       ("new-api-claude/claude-opus-5-5" . "opus-5-5")
+       ("new-api-claude/claude-sonnet-5-5" . "sonnet-5-5")
+       ("new-api-claude/claude-haiku-4-5" . "haiku-4-5")))
     (providers
      (list
       (openclaw-provider
