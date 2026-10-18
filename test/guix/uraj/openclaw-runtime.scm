@@ -47,15 +47,14 @@
 (write resolver "nameserver 172.31.0.1\nnameserver 1.1.1.1\n")
 (prepare)
 (test-equal "private runtime" #o700 (stat:perms (stat runtime)))
-(test-equal "state private" #o700 (stat:perms (stat (string-append data "/state"))))
-(test-assert "only state and workspace are assigned to container UID"
+(test-equal "home private" #o700 (stat:perms (stat (string-append data "/home"))))
+(test-assert "only private runtime data is assigned to container UID"
   (every (lambda (entry)
            (or (zero? (cadr entry))
                (and (= 1000 (cadr entry))
                     (or (string-prefix? runtime (car entry))
                         (member (car entry)
-                                (list (string-append data "/state")
-                                      (string-append data "/auth-key")
+                                (list (string-append data "/home")
                                       (string-append data "/workspaces/main")))))))
          ownership))
 (for-each
@@ -80,10 +79,10 @@
 (test-equal "restart refreshes DNS" '#("9.9.9.9") (dns))
 (test-equal "restart replaces secret contents" "rotated-test-credential\n"
   (call-with-input-file (string-append runtime "/gateway-token") get-string-all))
-(rmdir (string-append data "/state"))
-(symlink pool (string-append data "/state"))
+(rmdir (string-append data "/home"))
+(symlink pool (string-append data "/home"))
 (test-error "container-controlled symlink is rejected" #t (prepare))
-(delete-file (string-append data "/state"))
+(delete-file (string-append data "/home"))
 
 (define failures (test-runner-fail-count (test-runner-current)))
 (delete-file-recursively root)

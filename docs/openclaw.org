@@ -244,14 +244,22 @@ new-api 的 token 权限、模型名称及协议均可用。不要以 Gateway �
 | 宿主机路径                         | 容器路径                     | 用途 |
 |------------------------------------+------------------------------+------|
 | /etc/openclaw/openclaw.json         | 同路径，只读                 | Guix 管理配置 |
-| /data/openclaw/state                | /home/node/.openclaw          | 会话、队列、配对、数据库 |
-| /data/openclaw/auth-key             | /home/node/.config/openclaw   | 上游兼容认证密钥目录 |
+| /data/openclaw/home                 | /home/node                   | 状态、认证、备份及维护文件 |
 | /data/openclaw/workspaces/main      | /workspace                   | agent workspace |
 | /run/openclaw/<secret>             | /run/secrets/<secret>         | 运行时秘密 |
 | /var/log/openclaw/containers.log    | syslog 接收                  | 运维日志，轮转 |
 
 附件初期随 state 保存；=/media-data/openclaw/= 暂不创建。
-state、auth-key、workspace 都是私有数据，不赋予 =log-readers= 读取权限。
+home、workspace 都是私有数据，不赋予 =log-readers= 读取权限。
+HOME 整体可写，允许上游创建 =.openclaw=、=.config/openclaw= 和
+=.openclaw.update-captures= 等目录；镜像根文件系统和声明配置仍只读。
+设置 =OPENCLAW_CONFIG_READONLY=1=，告知启动前自动运行的
+=doctor --fix= 配置由外部管理。Doctor 仍可修复运行状态，但配置迁移
+需按它的诊断修改 Guix 声明后重新部署；只读挂载本身不会告知 Doctor
+跳过配置写入。
+旧布局的 =state=、=auth-key=、=update-captures= 不自动迁移或删除。
+若明确不保留旧数据，先停服务并移除容器，再清空数据目录，然后部署
+新配置。启动程序会创建权限为 0700、属主为 1000:1000 的新 HOME。
 容器 stdout/stderr 遵循现有日志组规则；它们也可能带有聊天相关诊断信息。
 不要开启含凭据或完整消息的调试日志。应用自己的临时文件日志在容器
 =/tmp=，不作长期保存。=/home/node/.cache= 另挂载 128 MiB tmpfs，
@@ -317,7 +325,7 @@ running value 同时记录请求引用和实际 ID。镜像不存在则失败，
 会话数据前完成恢复检查。
 
 OpenClaw 可能迁移数据库，切回旧镜像不能保证数据兼容。必要时同时恢复
-state、auth-key 和 workspace。备份含私聊历史及可能的认证状态，不能
+home 和 workspace。备份含私聊历史及可能的认证状态，不能
 挂给 agent 或当作公开日志。SOPS 源文件独立备份，不备份 /run 的明文。
 
 * 部署后没有 Shepherd 服务

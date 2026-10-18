@@ -184,15 +184,16 @@
           (environment . ((HOME . "/home/node")
                           (OPENCLAW_STATE_DIR . "/home/node/.openclaw")
                           (OPENCLAW_CONFIG_PATH . "/etc/openclaw/openclaw.json")
+                          ;; Doctor must report edits to our declarative config,
+                          ;; while still repairing writable runtime state.
+                          (OPENCLAW_CONFIG_READONLY . "1")
                           (OPENCLAW_DISABLE_BONJOUR . "1")))
           (command . #("node" "openclaw.mjs" "gateway"))
           (volumes .
            ,(list->vector
              (append
-              (list (bind (string-append (openclaw-data-directory config) "/state")
-                          "/home/node/.openclaw")
-                    (bind (string-append (openclaw-data-directory config) "/auth-key")
-                          "/home/node/.config/openclaw")
+              (list (bind (string-append (openclaw-data-directory config) "/home")
+                          "/home/node")
                     (bind (string-append (openclaw-data-directory config) "/workspaces/main")
                           "/workspace")
                     (bind "/etc/openclaw/openclaw.json" "/etc/openclaw/openclaw.json" #t))

@@ -31,8 +31,14 @@
 (test-equal "never pulls" "never" (at gateway "pull_policy"))
 (test-equal "runs non-root" "1000:1000" (at gateway "user"))
 (test-assert "read-only root" (at gateway "read_only"))
+(test-equal "Doctor knows config is externally managed" "1"
+  (at gateway "environment" "OPENCLAW_CONFIG_READONLY"))
 (test-equal "no capabilities" '#("ALL") (at gateway "cap_drop"))
 (define volumes (vector->list (at gateway "volumes")))
+(test-equal "whole home is a writable persistent mount" 1
+  (count (lambda (v) (and (equal? "/data/openclaw/home" (at v "source"))
+                          (equal? "/home/node" (at v "target"))
+                          (eq? #f (at v "read_only")))) volumes))
 (test-assert "no Docker socket or host home"
   (every (lambda (v) (or (string-prefix? "/data/openclaw/" (at v "source"))
                          (string-prefix? "/run/openclaw/" (at v "source"))

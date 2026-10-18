@@ -86,8 +86,7 @@
     (umask #o077)
     ;; DATA stays root-owned; do not recursively chmod/chown user state.
     (private-directory data 0 0)
-    (private-directory (string-append data "/state") uid gid)
-    (private-directory (string-append data "/auth-key") uid gid)
+    (private-directory (string-append data "/home") uid gid)
     (private-directory (string-append data "/workspaces") 0 0)
     (private-directory (string-append data "/workspaces/main") uid gid)
     (private-directory runtime 0 0)
