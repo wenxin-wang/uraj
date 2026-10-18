@@ -339,7 +339,7 @@
 
 (define %openclaw-configuration
   (openclaw-configuration
-    (image "sha256:f855681d24db345dcab753842f1137d5e5354ad83da7be28caacc7c0f9c939b0")
+    (image "sha256:6ea31e154475c6240ee1c20d1b94952bdcbd84a3d4579ac9561b1a1b40cae28d")
     (image-repository "localhost/openclaw-feishu")
     (secrets-file
      (local-file (project-path "secrets/hosts/storie/openclaw.yaml")))

@@ -30,6 +30,11 @@ cd openclaw-source
 git rev-parse HEAD
 docker build --build-arg OPENCLAW_EXTENSIONS=feishu \
   --tag localhost/openclaw-feishu:2026.10.3 .
+# 检查 /app/dist 中的代码能否解析飞书 SDK；失败时不要部署该镜像。
+docker run --rm --network none --read-only --user 1000:1000 \
+  --workdir /app/dist --entrypoint node \
+  localhost/openclaw-feishu:2026.10.3 \
+  --input-type=module -e 'await import("@larksuiteoapi/node-sdk")'
 docker save --output openclaw-2026.10.3.tar localhost/openclaw-feishu:2026.10.3
 scp openclaw-2026.10.3.tar storie.home.labbies.wenxinwang.me:/tmp/
 #+end_src
@@ -51,6 +56,38 @@ registry manifest digest 引用，但它同样必须已存在于本机。默认�
 
 核心和插件随整个镜像升级。不要在运行中的容器执行 =openclaw update=
 或 =plugins install=。此仓库不自动构建、拉取或发布镜像。
+
+如果日志出现 =Cannot find package '@larksuiteoapi/node-sdk' imported
+from /app/dist/...=，说明运行时从该路径无法解析飞书 SDK，即使
+=config validate= 成功也不能证明插件可加载。检查构建阶段是否安装了
+该版本飞书插件声明的运行依赖，以及最终镜像是否保留了依赖和有效的
+符号链接。修复镜像构建后，先通过上面的离线导入检查，再更新下面部署
+配置中的 image ID；只替换 tag 不会改变固定 image ID 的服务。
+
+不要为了在线补装依赖而取消整个容器的只读设置。若同时出现 Doctor
+的 =EROFS= 错误，仍需定位其写入路径；SDK 导入成功不代表维护或迁移
+已经成功。日志也可能在 =/var/log/messages=，可用
+=sudo grep 'openclaw/' /var/log/messages | tail -n 80= 查看。
+
+针对现有 =v2026.10.3= 镜像，可在本仓库根目录构建 SDK 修复层。
+它安装上游飞书插件声明的 =@larksuiteoapi/node-sdk@1.74.0=，保留原有
+pnpm 依赖树，并在构建中以运行用户验证导入。此补丁只解决 SDK 解析，
+不保证解决 Doctor 的其它错误；传递依赖未锁定，应记录构建产物 ID。
+
+#+begin_src sh
+sudo docker build --network=host --pull=false \
+  --build-arg BASE_IMAGE=sha256:f855681d24db345dcab753842f1137d5e5354ad83da7be28caacc7c0f9c939b0 \
+  -t localhost/openclaw-feishu:2026.10.3-sdk1 \
+  env/docker/openclaw-feishu
+sudo docker run --rm --network none --read-only \
+  --user 1000:1000 --workdir /app/dist --entrypoint node \
+  localhost/openclaw-feishu:2026.10.3-sdk1 \
+  --input-type=module -e 'await import("@larksuiteoapi/node-sdk")'
+sudo docker image inspect --format '{{.Id}}' localhost/openclaw-feishu:2026.10.3-sdk1
+#+end_src
+
+把输出的新 ID 写入 =env/guix/os/storie.scm= 的 OpenClaw =image= 字段，
+重新部署并检查启动日志。保留原镜像以便回退。
 
 * 飞书与模型
 
