@@ -91,38 +91,17 @@ sudo docker image inspect --format '{{.Id}}' localhost/openclaw-feishu:2026.10.3
 
 * 飞书与模型
 
-** 收消息 GET 表情确认（本地补丁）
+** 消息处理中的表情提示
 
-本仓库的 =feishu-get-receipt.patch= 在消息去重、授权通过后，交给
-agent 前异步向原消息添加 =GET= 表情。它不等待模型或表情接口返回，
-不另外发消息，也不在回复结束后移除。未批准的私聊、被过滤的消息及
-合成事件不添加；接口失败仅记录诊断，不阻断聊天。由于此前仍有消息
-解析和授权步骤，它表示“消息已接受”，不是网络事件到达的精确时刻。
+启用飞书插件内置的 =typingIndicator=true=。插件在回复处理阶段给
+原消息添加 =Typing= 表情，结束后移除，不另外发送确认文本。
+它表示“正在处理”，不是消息接收的持久回执；无需本地插件补丁或
+为此重建镜像。表情接口失败只记录诊断，不阻断正常回复。
 
-需在飞书应用权限管理中启用添加消息表情回复权限
-=im:message.reactions:write_only=，并发布权限变更。已有的
-=typingIndicator=false= 保持不变。Guix 设置的
-=OPENCLAW_FEISHU_RECEIPT_REACTION=GET= 是本地补丁开关，原版镜像
-不会识别它。
-
-在有 Docker 的构建机准备固定版本源码，然后从本仓库根目录执行：
-
-#+begin_src sh
-git clone --branch v2026.10.3 --depth 1 https://github.com/openclaw/openclaw.git openclaw-source
-sudo env/docker/openclaw-feishu/build-get-receipt ./openclaw-source
-#+end_src
-
-构建脚本要求源码 HEAD 为
-=59cb44796b0f1f0daa0e37af8b1495abb45d9bc1=，导出已提交源码到临时目录
-再应用补丁，不修改源码工作区。构建使用宿主机网络，最终镜像为
-=localhost/openclaw-feishu:2026.10.3-get1=，并保留 SDK 修复层。
-这是完整源码构建，需要前述内存资源。把最后输出的 image ID 写入
-=storie.scm= 后部署；如果在别的机器构建，先 save/load 到 storie。
-无需清理已有配对和会话。
-
-验收：已配对用户私聊发消息，原消息应出现 GET；模型失败时 GET 仍
-保留，且没有额外的确认文本。若缺少表情，检查容器日志的
-=GET receipt failed= 或 =GET receipt request failed=，以及应用权限。
+飞书应用需启用并发布消息表情回复权限
+=im:message.reactions:write_only=。修改 Guix 配置后重新部署即可。
+原有 SDK 修复镜像继续使用；已构建的 GET 补丁镜像在移除其环境开关后
+也不会添加 GET，但后续不再需要维护该补丁。
 
 ** 快速切换模型
 

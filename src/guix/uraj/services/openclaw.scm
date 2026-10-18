@@ -176,7 +176,7 @@
           (defaultAccount . "main") (dmPolicy . "pairing")
           (groupPolicy . "disabled") (requireMention . #t)
           (configWrites . #f) (resolveSenderNames . #f)
-          (typingIndicator . #f) (renderMode . "raw")
+          (typingIndicator . #t) (renderMode . "raw")
           (streaming . ((mode . "off")))
           (tools . ((doc . #f) (chat . #f) (wiki . #f) (drive . #f)
                     (perm . #f) (scopes . #f) (bitable . #f)))
@@ -212,8 +212,6 @@
                           ;; Doctor must report edits to our declarative config,
                           ;; while still repairing writable runtime state.
                           (OPENCLAW_CONFIG_READONLY . "1")
-                          ;; Implemented by our version-pinned Feishu patch.
-                          (OPENCLAW_FEISHU_RECEIPT_REACTION . "GET")
                           (OPENCLAW_DISABLE_BONJOUR . "1")))
           (command . #("node" "openclaw.mjs" "gateway"))
           (volumes .
