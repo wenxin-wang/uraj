@@ -94,7 +94,7 @@ device testing.
 ** Control plane
 
 =maa-cli=, MaaCore and adb run outside Android under a separate scheduled
-job at 02:00, 05:00, 14:00 and 21:00 Asia/Shanghai. They connect to the
+job at 02:00, 05:00, 11:00, 14:00 and 21:00 Asia/Shanghai. They connect to the
 private Android IP on port 5555. The game must already be manually logged in.
 Changing the controller to mower later does not require replacing Android
 or its persistent data.
@@ -111,7 +111,8 @@ Official client login, 3/4-star recruitment (leave 5/6-star tags for manual
 handling), preset base rotation and clues, friend visits and credit shopping,
 rewards, then close the game. There is no =Fight= task and =credit_fight= is
 false, so this round does not spend sanity. Base rotation uses the game's
-existing preset queues; keep those configured in-game.
+existing preset queues; keep those configured in-game. Drones accelerate
+Pure Gold production (=drones = "PureGold"=).
 
 The dedicated =maa= system account keeps state under =/var/lib/maa=, with
 ADB server port 5038 separate from interactive clients. A nonblocking lock

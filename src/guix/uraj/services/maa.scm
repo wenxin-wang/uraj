@@ -67,7 +67,7 @@
 
 ;; mcron uses the system timezone: hypie inherits Asia/Shanghai.
 (define %maa-daily-job
-  #~(job '(next-hour '(2 5 14 21)) #$%maa-daily-command #:user "maa"))
+  #~(job '(next-hour '(2 5 11 14 21)) #$%maa-daily-command #:user "maa"))
 
 (define %maa-services
   (list
