@@ -33,6 +33,8 @@
 (test-assert "read-only root" (at gateway "read_only"))
 (test-equal "Doctor knows config is externally managed" "1"
   (at gateway "environment" "OPENCLAW_CONFIG_READONLY"))
+(test-equal "Feishu acknowledges admission with GET" "GET"
+  (at gateway "environment" "OPENCLAW_FEISHU_RECEIPT_REACTION"))
 (test-equal "no capabilities" '#("ALL") (at gateway "cap_drop"))
 (define volumes (vector->list (at gateway "volumes")))
 (test-equal "whole home is a writable persistent mount" 1

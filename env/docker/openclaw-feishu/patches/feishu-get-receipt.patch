@@ -1,0 +1,39 @@
+--- a/extensions/feishu/src/bot.ts
++++ b/extensions/feishu/src/bot.ts
+@@ -761,6 +761,36 @@
+         effectiveCfg = currentCfg;
+         effectiveAuthorization = currentAuthorization;
+       }
++    }
++
++    // Receipt means transport admission, not model completion. Never wait for
++    // the reaction endpoint before dispatching, and never remove this receipt.
++    // Synthetic menu/card events must not react to a fabricated message ID.
++    if (
++      process.env.OPENCLAW_FEISHU_RECEIPT_REACTION === "GET" &&
++      !directPreDispatchTarget &&
++      !ctx.suppressReplyTarget &&
++      ctx.messageId.startsWith("om_")
++    ) {
++      void Promise.resolve()
++        .then(() =>
++          createFeishuClient(resolveFeishuRuntimeAccount({
++            cfg: effectiveCfg,
++            accountId: account.accountId,
++          })).im.messageReaction.create({
++            path: { message_id: ctx.messageId },
++            data: { reaction_type: { emoji_type: "GET" } },
++          }),
++        )
++        .then((response) => {
++          if (response.code !== 0 || !response.data?.reaction_id) {
++            log(`feishu[${account.accountId}]: GET receipt failed (code=${response.code ?? "missing"})`);
++          }
++        })
++        .catch(() => {
++          // Do not dump SDK errors: they may contain request credentials.
++          log(`feishu[${account.accountId}]: GET receipt request failed`);
++        });
+     }
+
+     // In group chats, the session is scoped to the group, but the *speaker* is the sender.
