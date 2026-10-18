@@ -353,6 +353,140 @@ is staged at =/tmp/uraj-redroid-20261009= for a build before activation.
 - [[https://docs.docker.com/engine/network/packet-filtering-firewalls/][Docker firewall behavior]]
 - [[https://github.com/MaaAssistantArknights/maa-cli][maa-cli]]
 
+** Mower packaging investigation, 2026-10-18
+
+Inspected release =v4.1.6-alpha.12=, resolved to commit
+=0e151ae323923952683a173b8f073c8ff8103a92=. This is a packaging investigation,
+not a deployed or runtime-validated Mower package.
+
+The Linux x64 release is a 237,832,981-byte tarball. Its
+[[https://github.com/ArkMowers/arknights-mower/blob/0e151ae323923952683a173b8f073c8ff8103a92/webui_zip_for_linux.spec][PyInstaller specification]] uses EXE with =exclude_binaries=True= and
+COLLECT: dependencies live beside the executable in =_internal/=, rather
+than inside a one-file executable that unpacks them at startup. This makes
+patching the host ELF files during a Guix build plausible. The existing
+=maa-assistant-arknights= package provides a useful pattern, but Mower needs
+its own dependency audit, including libraries loaded dynamically and
+preservation of private library search paths. Android payloads must not be
+patched as host executables.
+
+The main obstacle is the desktop entrypoint, not ELF rewriting. In
+[[https://github.com/ArkMowers/arknights-mower/blob/0e151ae323923952683a173b8f073c8ff8103a92/webview_ui.py][webview_ui.py]], =_run_desktop= unconditionally calls
+=exit_if_webview_backend_missing=. Setting =MOWER_BACKGROUND=1= suppresses
+the window but still enables the tray. =MOWER_MANAGED=1= only suppresses
+the tray while a manager remains registered. These switches therefore do
+not provide a clean standalone headless service. The release workflow
+tests a GUI launch under Xvfb; that does not establish headless operation.
+
+=MOWER_DATA_DIR= is supported by =utils/path.py=, so configuration and
+state can be kept outside the immutable store. Software/resource update
+paths and MAA subprocess startup still require validation before a native
+package could be considered ready.
+
+The upstream
+[[https://github.com/ArkMowers/arknights-mower/blob/0e151ae323923952683a173b8f073c8ff8103a92/docker/Dockerfile][docker/Dockerfile]] is a more direct headless route: Python 3.12, a built
+WebUI, server dependencies, and Flask's =server:app= entrypoint. It differs
+from the repository-root Dockerfile, which builds a desktop executable.
+Its entrypoint downloads the latest MAA when =/MAA= is empty; a pinned
+deployment must supply MAA explicitly. Base images and the uv image also
+need pinning; fixing the Mower commit alone does not fix those inputs.
+
+Selected approach: use the server container for the initial deployment.
+A native Guix package remains possible, but should first demonstrate a
+clean headless entrypoint, HTTP startup, writable-state separation, and
+MAA worker startup. Merely getting the patched executable to launch would
+not cover these requirements. Source files were inspected; the slow binary
+download was stopped before completion, so no full archive checksum,
+complete ELF audit, or runtime test was performed.
+
+** Mower container commissioning
+
+=env/mower/= supplies a headless Docker recipe and startup wrapper;
+=(uraj packages mower)= generates its context from the hash-verified source
+archive above and the original MAA 6.19.0 archive. No upstream source patch
+is applied. Python and Node base images are pinned by digest. Python uses
+upstream's pinned server requirements and the UI uses =npm ci=. Apt package
+repositories and Python build dependencies are still network inputs, so
+this is not a fully reproducible/offline Docker build.
+
+Build the image on hypie (or another x86_64 Docker host):
+
+#+begin_src sh
+builder=$(guix build -L src/guix -L src/guile \
+  -e '(@ (uraj packages mower) %mower-build-image)')
+sudo "$builder"
+#+end_src
+
+The builder records the Guix context path in the image's =uraj.context=
+label and rebuilds when it changes. Image building uses host networking
+because hypie disables Docker's default bridge. The running container
+uses the private =redroid= network at =10.203.0.3=, with an explicit ADB
+grant to =10.203.0.2:5555=. It has no published ports, privileged mode,
+GPU access, or Docker socket.
+
+After deploying the updated hypie system configuration:
+
+#+begin_src sh
+sudo herd start mower
+# From the workstation:
+ssh -N -L 58000:10.203.0.3:58000 wenxin@hypie.home.labbies.wenxinwang.me
+#+end_src
+
+Open =http://127.0.0.1:58000=. The generated WebUI token is in
+=/var/lib/mower/config/conf.yml= under =webview.token=; read it privately
+over SSH. It is not included in the store, image, or startup log. Mower
+configuration, roster, Skland credentials, reports and application logs
+live under =/var/lib/mower= (mode 0700). The MAA resource cache is preserved
+in its =maa-cache/= subdirectory. MAA core updates belong in the image
+recipe; do not use the WebUI's software/core updater for this deployment.
+
+The service starts the HTTP UI only. It does not start the game worker.
+Initial settings select official-server redroid, ADB screenshots and
+MaaTouch, and leave the stage plan disabled. Configure the roster and
+Skland account in the UI, then set the threshold, interval and current
+activity stage before enabling the plan. No automatic 1-7 farming is
+enabled during commissioning. The agreed strategy is threshold-based
+farming, activity-stage navigation with 1-7 fallback, and a weekly
+annihilation run; there is no longer a separate 02:00 drain requirement.
+Navigation fallback and annihilation behavior still need device testing.
+
+While the container is running, its entrypoint holds the same host inode
+as maa-cli's =/var/lib/maa/daily.lock=. Thus mcron jobs skip even when the
+Mower game worker is paused. If an old MAA job is already running, Mower
+exits with code 75 before initializing its worker; wait for that job to
+finish before starting Mower. Stop the container with =sudo herd stop mower=
+to release the lock and allow the old scheduled jobs to run again. Do not
+replace or delete the lock file while either controller is running.
+This lock does not cover arbitrary manual ADB clients.
+
+Mower and its preparation/image services default to =auto-start? #f= in
+hypie's configuration. Enable automatic container startup only after
+commissioning. Upstream's Flask entry still needs an explicit WebUI/API
+start of the game worker after a container restart; automatic worker
+resumption and pause persistence are separate follow-up work.
+
+Slack is also follow-up work: SMTP reception plus logs, commands for
+stage/pause/resume/screenshot, one thread per game day (04:00 Beijing),
+detailed decisions and execution results, daily reports at 22:00 and
+Sunday weekly reports at 22:00. No Slack credentials are needed for this
+container phase.
+
+Validation commands:
+
+#+begin_src sh
+guix repl -L src/guix -L src/guile test/guix/uraj/services/redroid.scm
+guix shell python util-linux coreutils -- python test/mower/controller_lock.py
+context=$(guix build -L src/guix -L src/guile \
+  -e '(@ (uraj packages mower) %mower-image-context)')
+guix shell python python-pydantic -- \
+  python test/mower/bootstrap_config.py "$context/source"
+#+end_src
+
+The Guix context was built and the bootstrap was checked against the
+pinned source's actual configuration models. Device-lock exclusion and
+release were tested across exec. Full Docker build, HTTP health, Android
+connection, game tasks and shutdown remain deployment checks: the agent
+environment has no Docker daemon. This change has not reconfigured hypie.
+
 ** Production recipe checks, 2026-10-17
 
 The Guix Houdini package, static BusyBox (including its upstream tests), and
