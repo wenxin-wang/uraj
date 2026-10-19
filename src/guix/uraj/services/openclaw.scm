@@ -176,9 +176,13 @@
                                                          `((alias . ,(cdr entry)))))
                                                  (openclaw-model-aliases config))))
                              (heartbeat . ((every . "0m")))))))
-      ;; Ordinary channel replies do not need the model-facing message tool.
-      ;; Start with text chat; enabling execution needs a separate design.
-      (tools . ((deny . #("*"))))
+      ;; Keep the allowlist explicit: bootstrap and memory need file tools,
+      ;; not process execution or access to the gateway's home and secrets.
+      (tools . ((allow . #("read" "write" "edit" "apply_patch"))
+                (fs . ((workspaceOnly . #t)))
+                ;; apply_patch can remove BOOTSTRAP.md without a shell.
+                (exec . ((applyPatch . ((enabled . #t)
+                                       (workspaceOnly . #t)))))))
       (browser . ((enabled . #f)))
       (cron . ((enabled . #f)))
       (session . ((dmScope . "per-channel-peer")))

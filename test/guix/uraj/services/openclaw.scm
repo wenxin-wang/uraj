@@ -73,7 +73,16 @@
 (test-equal "DMs require administrator pairing approval" "pairing"
   (at app "channels" "feishu" "dmPolicy"))
 (test-equal "groups disabled" "disabled" (at app "channels" "feishu" "groupPolicy"))
-(test-equal "all model-facing tools denied" '#("*") (at app "tools" "deny"))
+(test-equal "only workspace file tools allowed"
+  '#("read" "write" "edit" "apply_patch") (at app "tools" "allow"))
+(test-assert "file tools are not blocked by the old deny-all policy"
+  (not (at app "tools" "deny")))
+(test-equal "file tools restricted to workspace" #t
+  (at app "tools" "fs" "workspaceOnly"))
+(test-equal "patch tool enabled for bootstrap cleanup" #t
+  (at app "tools" "exec" "applyPatch" "enabled"))
+(test-equal "patch tool restricted to workspace" #t
+  (at app "tools" "exec" "applyPatch" "workspaceOnly"))
 (test-assert "Feishu document tools disabled"
   (every (lambda (entry) (eq? #f (cdr entry))) (at app "channels" "feishu" "tools")))
 (test-equal "provider uses file SecretRef" "new-api-token"

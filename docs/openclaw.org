@@ -4,10 +4,10 @@
 
 一个飞书 bot、一个 Gateway 容器、一个默认 agent，通过 new-api 调用模型。
 飞书采用主动建立的 WebSocket 长连接，不需要公网地址或 webhook 入站。
-私聊需管理员批准配对，不需要事先查询 =open_id=；群聊关闭。模型工具全部禁用（包括
-shell、浏览器、文件工具、主动发消息、飞书文档工具）；普通聊天回复
-不需要模型调用 message 工具。第一版保存会话，但不提供自主编辑记忆的
-文件工具。以后开放工具时另外设计执行隔离和凭据边界。
+私聊需管理员批准配对，不需要事先查询 =open_id=；群聊关闭。模型仅允许
+=read=、=write=、=edit=、=apply_patch= 文件工具，限制在 =/workspace=，
+用于身份、偏好、记忆和首次引导清理。shell、浏览器、主动发消息、飞书
+文档工具保持关闭；普通聊天回复不需要模型调用 message 工具。
 
 =env/guix/os/storie.scm= 已声明 OpenClaw，包含固定 image ID、飞书
 App ID 和 GPT/Claude 两组 provider，默认模型为
@@ -16,6 +16,49 @@ DeepSeek 尚未配置。Live ISO 不声明 OpenClaw。
 
 这些是部署声明，不代表主机已运行该服务。首次部署仍需在 storie
 确认镜像已加载，再进行 reconfigure、飞书配对及模型调用验收。
+
+* 工作区编辑与首次引导
+
+=tools.allow= 使用四个明确的文件工具名，避免工具组日后扩展时意外开放
+额外能力。=tools.fs.workspaceOnly=true= 限制文件访问范围；
+=tools.exec.applyPatch.enabled=true= 和 =workspaceOnly=true= 允许在
+工作区内用补丁删除 =BOOTSTRAP.md=，不开放 =exec= 或 =process=。
+补丁配置位于 =tools.exec= 下，不代表允许执行 shell。
+
+身份、用户偏好和记忆写入持久化 =/workspace=；应用配置仍由 Guix 管理，
+不能要求 agent 自行修改只读的 =/etc/openclaw/openclaw.json=。
+图片生成不在本次工具白名单中。
+
+权限字段已对照上游当前工具文档。固定版本 =v2026.10.3= 的源码链接
+在本次核对中返回 404，尚未验证部署镜像的实际文件工具实现。部署前
+需用该镜像验证配置 schema，并在隔离的临时工作区验证以下行为：
+
+1. 读取、创建、编辑和补丁删除工作区内的测试文件成功。
+2. 通过绝对路径、=../=、指向工作区外测试文件的符号链接访问均被拒绝；
+   使用无敏感内容的测试文件，不读取真实凭据。
+3. =exec=、=process=、浏览器和消息工具不出现在有效工具列表中。
+4. 当前选用模型可调用 =apply_patch=；部分旧版本可能按模型限制该工具。
+
+仓库测试仅检查生成的配置，不能证明运行时路径隔离。上述验证通过后
+重新部署，让 agent 继续初始化并检查身份文件及引导文件清理结果。
+
+* 图片生成接入
+
+聊天模型与图片模型是两项配置。单独把 Luna 切换成 Sol 或 Astra，
+不会启用图片生成。上游当前版本提供独立 =image_generate= 工具，需
+图片 provider 的凭据、可用图片模型以及工具白名单授权；=image= 或
+看图能力也不等于图片生成。
+
+若继续通过 new-api 接入，先确认其实际开放的图片模型 ID、图片生成及
+编辑接口、token 权限，以及部署镜像支持的图片 provider 配置。
+上游当前文档使用 =agents.defaults.mediaModels.image.primary= 选择
+图片模型，但不能据此假定固定镜像支持该字段。现有聊天 provider 的
+Responses 支持也不能证明图片接口可用。当前尚未配置图片生成。
+
+参考：[[https://docs.openclaw.ai/tools/image-generation][OpenClaw 图片生成]]、
+[[https://docs.openclaw.ai/tools/apply-patch][补丁工具]]、
+[[https://docs.openclaw.ai/gateway/config-tools/tool-policy][工具白名单]]、
+[[https://developers.openai.com/api/docs/guides/image-generation][OpenAI 图片生成 API]]。
 
 * 镜像准备
 
