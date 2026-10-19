@@ -114,9 +114,12 @@ this hold: every directory from a protected path up to the root of the
 writable share containing it must itself be a mount point.  That is why
 =.git= is a share of its own.  See [[*Pitfalls]] for the tests behind it.
 
-The main work tree of a linked worktree is readable when it is under
-=~/src=; otherwise it is not mounted by default.  Commits land in the
-shared =.git= and show up on the host at once.
+The main work tree of a linked worktree is automatically exposed read-only,
+even outside =~/src=, subject to the usual denied-path rules.  Bare
+repositories have no main work tree to expose.  Commits land in the shared
+=.git= and show up on the host at once.
+If =git worktree list= cannot identify the main work tree (for example with
+=--separate-git-dir=), expose it explicitly in project configuration.
 
 Because =config= is read-only, commands writing it fail: =git push -u= pushes
 but warns =could not write config file=, and =git remote add= or
