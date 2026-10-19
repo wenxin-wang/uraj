@@ -21,6 +21,28 @@
 (define gateway (at manifest "services" "gateway"))
 
 (test-begin "openclaw")
+(test-assert "no identity override unless configured"
+  (not (at app "agents" "entries")))
+(define identity-config
+  (openclaw-configuration (inherit config)
+    (identity '((name . "Claw老师") (theme . "AI 助手") (emoji . "🦀")))))
+(define identity-app
+  (json-string->scm (plain-file-content (openclaw-config-file identity-config))))
+(test-equal "identity follows the installed set-identity schema"
+  '(("name" . "Claw老师") ("theme" . "AI 助手") ("emoji" . "🦀"))
+  (let ((identity (at identity-app "agents" "entries" "main" "identity")))
+    (map (lambda (key) (assoc key identity)) '("name" "theme" "emoji"))))
+(test-equal "explicit identity retains the default workspace" "/workspace"
+  (at identity-app "agents" "defaults" "workspace"))
+(test-equal "explicit identity retains the default model" "new-api/test-model"
+  (at identity-app "agents" "defaults" "model" "primary"))
+(for-each
+ (lambda (identity)
+   (test-error "invalid identity refused" #t
+     (openclaw-config-file
+      (openclaw-configuration (inherit config) (identity identity)))))
+ '(((name . "")) ((name . "first") (name . "second"))
+   ((unknown . "value")) ((emoji . 1))))
 (define alias-config
   (openclaw-configuration (inherit config)
     (model-aliases '(("new-api/test-model" . "test-6")))))
@@ -201,6 +223,15 @@
 (test-assert "storie declares OpenClaw" deployed-service)
 (test-assert "real deployment configuration validates"
   (openclaw-config-file (service-value deployed-service)))
+(let* ((app (json-string->scm
+             (plain-file-content
+              (openclaw-config-file (service-value deployed-service)))))
+       (identity (at app "agents" "entries" "main" "identity")))
+  (test-equal "storie declares Claw teacher identity" "Claw老师" (at identity "name"))
+  (test-equal "storie uses the identity file's creature as theme" "AI 助手"
+    (at identity "theme"))
+  (test-equal "storie declares the crab emoji" "🦀" (at identity "emoji"))
+  (test-assert "storie has no image avatar yet" (not (at identity "avatar"))))
 (let* ((app (json-string->scm
              (plain-file-content
               (openclaw-config-file (service-value deployed-service)))))
