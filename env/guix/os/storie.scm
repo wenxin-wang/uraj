@@ -344,7 +344,7 @@
     (secrets-file
      (local-file (project-path "secrets/hosts/storie/openclaw.yaml")))
     (feishu-app-id "cli_aa5a187288381c05")
-    (model "new-api-claude/claude-sonnet-5-5")
+    (model "new-api-gpt/gpt-6-luna")
     (model-aliases
      '(("new-api-gpt/gpt-6-astra" . "astra-6")
        ("new-api-gpt/gpt-6.1-sol" . "sol-6-1")
@@ -360,6 +360,14 @@
      (list
       (openclaw-provider
         (name "new-api-gpt") (api "openai-responses")
+        (reasoning-models '("gpt-6-astra"
+                            "gpt-6.1-sol"
+                            "gpt-6-sol"
+                            "gpt-6-luna"
+                            "gpt-reserve"
+                            "gpt-5.6-sol"
+                            "gpt-5.6-terra"
+                            "gpt-5.6-luna"))
         (models '("gpt-6-astra"
                   "gpt-6.1-sol"
                   "gpt-6-sol"
@@ -370,6 +378,9 @@
                   "gpt-5.6-luna")))
       (openclaw-provider
         (name "new-api-claude") (api "anthropic-messages")
+        (reasoning-models '("claude-opus-5-5"
+                            "claude-sonnet-5-5"
+                            "claude-haiku-4-5"))
         (models '("claude-opus-5-5"
                   "claude-sonnet-5-5"
                   "claude-haiku-4-5")))))))

@@ -26,7 +26,10 @@
   ;; Anthropic's SDK appends /v1/messages; OpenAI APIs need a /v1 base.
   ;; #f selects the appropriate new-api URL for API.
   (base-url openclaw-provider-base-url (default #f))
-  (models openclaw-provider-models))
+  (models openclaw-provider-models)
+  ;; Explicit capabilities for custom models absent from the built-in catalog.
+  ;; Responses uses developer instructions for reasoning models.
+  (reasoning-models openclaw-provider-reasoning-models (default '())))
 
 (define (provider-url provider)
   (or (openclaw-provider-base-url provider)
@@ -82,7 +85,12 @@
                     (every (lambda (model)
                              (and (string? model) (not (string-null? model))))
                            (openclaw-provider-models provider)))
-         (error "OpenClaw provider needs a nonempty list of model IDs")))
+         (error "OpenClaw provider needs a nonempty list of model IDs"))
+       (unless (and (list? (openclaw-provider-reasoning-models provider))
+                    (every (lambda (model)
+                             (member model (openclaw-provider-models provider)))
+                           (openclaw-provider-reasoning-models provider)))
+         (error "OpenClaw reasoning models must be declared provider models")))
      providers)
     (let ((names (map openclaw-provider-name providers)))
       (unless (= (length names) (length (delete-duplicates names)))
@@ -132,7 +140,11 @@
           (apiKey . ,(secret-ref "new-api-token"))
           (api . ,(openclaw-provider-api provider))
           (models . ,(list->vector
-                      (map (lambda (model) `((id . ,model) (name . ,model)))
+                      (map (lambda (model)
+                             (append `((id . ,model) (name . ,model))
+                                     (if (member model
+                                                 (openclaw-provider-reasoning-models provider))
+                                         '((reasoning . #t)) '())))
                            (delete-duplicates (openclaw-provider-models provider))))))))
 
 (define (openclaw-config-file config)

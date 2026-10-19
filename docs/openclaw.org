@@ -11,7 +11,7 @@ shell、浏览器、文件工具、主动发消息、飞书文档工具）；普
 
 =env/guix/os/storie.scm= 已声明 OpenClaw，包含固定 image ID、飞书
 App ID 和 GPT/Claude 两组 provider，默认模型为
-=new-api-claude/claude-sonnet-5-5=。三个凭据已以 SOPS 密文保存。
+=new-api-gpt/gpt-6-luna=。三个凭据已以 SOPS 密文保存。
 DeepSeek 尚未配置。Live ISO 不声明 OpenClaw。
 
 这些是部署声明，不代表主机已运行该服务。首次部署仍需在 storie
@@ -158,6 +158,12 @@ sudo /etc/openclaw/compose exec gateway node openclaw.mjs pairing approve feishu
 
 以下模型 ID 是占位值，替换成 new-api 实际提供的 ID。=model= 必须
 填写完整的 =provider/model-id=，并且模型已列在对应 provider 中：
+
+自定义推理模型可在 provider 中用 =(reasoning-models '("MODEL-ID"))=
+显式声明；该列表必须是 =models= 的子集。OpenClaw 的 Responses 请求根据
+=reasoning= 标记选择 =developer= 或 =system= 指令角色。storie 当前全部
+GPT 和 Claude 模型均显式设置 =reasoning: true=；这也允许选择推理强度，
+具体请求参数是否被接受仍取决于各模型的上游渠道。
 
 #+begin_src scheme
 (model "new-api-gpt/GPT-MODEL-ID")

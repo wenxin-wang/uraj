@@ -99,6 +99,7 @@
 
 (define family-providers
   (list (openclaw-provider (name "new-api-gpt") (api "openai-responses")
+                           (reasoning-models '("gpt-test"))
                            (models '("gpt-test" "shared-model")))
         (openclaw-provider (name "new-api-claude") (api "anthropic-messages")
                            (models '("claude-test" "shared-model")))
@@ -124,6 +125,16 @@
  '(("gpt-test" "shared-model") ("claude-test" "shared-model") ("deepseek-test")))
 (test-equal "default can select any provider" "new-api-claude/claude-test"
   (at family-app "agents" "defaults" "model" "primary"))
+(let ((models (at family-app "models" "providers" "new-api-gpt" "models")))
+  (test-equal "custom reasoning model declares its capability" #t
+    (at (vector-ref models 0) "reasoning"))
+  (test-assert "other models retain catalog capability defaults"
+    (not (assoc "reasoning" (vector-ref models 1)))))
+(test-error "reasoning model must belong to the provider" #t
+  (openclaw-config-file
+   (openclaw-configuration (inherit config)
+     (providers (list (openclaw-provider (inherit provider)
+                        (reasoning-models '("absent"))))))))
 (for-each
  (lambda (providers)
    (test-error "invalid provider declarations refused" #t
@@ -181,6 +192,31 @@
 (test-assert "storie declares OpenClaw" deployed-service)
 (test-assert "real deployment configuration validates"
   (openclaw-config-file (service-value deployed-service)))
+(let* ((app (json-string->scm
+             (plain-file-content
+              (openclaw-config-file (service-value deployed-service)))))
+       (providers (at app "models" "providers")))
+  (for-each
+   (lambda (provider)
+     (for-each
+      (lambda (model)
+        (test-equal
+         (string-append "storie declares reasoning for " (car provider)
+                        "/" (at model "id"))
+         #t (at model "reasoning")))
+      (vector->list (at (cdr provider) "models"))))
+   providers))
+(let* ((app (json-string->scm
+             (plain-file-content
+              (openclaw-config-file (service-value deployed-service)))))
+       (primary (string-split (at app "agents" "defaults" "model" "primary") #\/))
+       (provider (at app "models" "providers" (car primary)))
+       (model (find (lambda (row) (equal? (at row "id") (cadr primary)))
+                    (vector->list (at provider "models")))))
+  (test-equal "storie default uses Responses" "openai-responses"
+    (at provider "api"))
+  (test-equal "storie default declares reasoning for developer instructions" #t
+    (at model "reasoning")))
 (setenv "TO_ISO" "1")
 (define live (load (string-append (getcwd) "/env/guix/os/storie.scm")))
 (unsetenv "TO_ISO")
