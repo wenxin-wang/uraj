@@ -55,6 +55,18 @@ DeepSeek 尚未配置。Live ISO 不声明 OpenClaw。
 图片模型，但不能据此假定固定镜像支持该字段。现有聊天 provider 的
 Responses 支持也不能证明图片接口可用。当前尚未配置图片生成。
 
+可在 storie 的仓库根目录运行只读检查：
+
+#+begin_src sh
+sudo sh scripts/openclaw/inspect-runtime
+#+end_src
+
+该脚本输出运行中容器的包版本、文件工具配置和 new-api token 可见的
+模型 ID。凭据在容器内读取，不输出 token、完整配置或上游错误正文；
+只请求固定 new-api 地址的 =GET /v1/models=，不跟随重定向，也不发起
+图片生成。模型出现在列表中仍不能证明图片接口调用成功，需另做实际
+生成验收。此脚本也不执行文件工具，不能替代工作区越界测试。
+
 参考：[[https://docs.openclaw.ai/tools/image-generation][OpenClaw 图片生成]]、
 [[https://docs.openclaw.ai/tools/apply-patch][补丁工具]]、
 [[https://docs.openclaw.ai/gateway/config-tools/tool-policy][工具白名单]]、
