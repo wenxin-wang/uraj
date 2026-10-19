@@ -1,0 +1,321 @@
+#+title: Per-project Podman runtime: first experiment
+
+* Verified complete prototype run
+
+The host run /var/tmp/agent-podman-9haw3fd4 passed with =--outer-seccomp nested
+--extended --delegate-cgroup=.  The copied results and command log confirm:
+
+- The API service runs as UID 1000 and the inner engine reports rootless.
+- The outer seccomp filter is active.
+- Same-path writes, symlink isolation, ordinary root bind isolation and the
+  privileged-with-read-only-sys variant pass, including read-only remount denial.
+- Remote build context upload and Dockerfile COPY/RUN pass.
+- Compose service DNS, HTTP and relative bind reads/writes pass.
+- Actual task kernel limits are memory.max=134217728, pids.max=32, and
+  cpu.max=50000 100000.
+- Runtime, storage and dedicated cgroup cleanup complete successfully.
+
+The runtime stop log reports a fallback to SIGKILL after the systemd-mode
+default stop signal 37.  This did not prevent cleanup; lifecycle integration
+should select an appropriate stop signal for the Podman API service.
+
+These results validate the disposable prototype on lappie.  They do not yet
+validate real Harbor tasks, unrestricted privileged workloads, a Guix-built
+inner runtime image, production storage performance or full sandbox security.
+The existing contained-agent launcher and SSH service have not been replaced.
+
+* Next host run: filtered seccomp and extended checks
+
+#+begin_src sh
+guix shell python podman podman-compose -- \
+  python3 scripts/contained-agent/try-podman-runtime.py \
+  --outer-seccomp nested --extended
+#+end_src
+
+The new default is =--outer-seccomp nested=.  It extracts the seccomp profile
+from the runtime image's /usr/share/containers/seccomp.json, preserves its
+default-deny action and unrelated rules, and allows clone, mount, umount,
+umount2, pivot_root, setns, unshare, sethostname and setdomainname without the
+profile's capability conditions.  Kernel capability/namespace checks still
+apply.  clone3's existing fallback/denial rules remain unchanged.  This is a
+candidate profile to test, not a claim that every added call is necessary.
+It is based on the image's profile, not the Guix host's built-in profile.
+
+The script saves seccomp-base.json, seccomp-nested.json, configuration.json and
+runtime-process-status.txt, and checks Seccomp: 2 in the API service's process
+status.  The mode =default= uses the host engine's default profile unchanged;
+=unconfined= reproduces the previously successful experiment.  There is no
+automatic fallback to unconfined if the candidate profile fails.
+
+After the baseline isolation tests succeed, --extended runs three separately
+reported checks, continuing after each failure:
+
+- Remote build: send a context outside the runtime's shared paths, COPY its
+  payload, execute a RUN instruction, then verify both in a task container.
+- Compose: create a network and two Alpine services; resolve the web service
+  name, fetch HTTP between containers, and write the response through a
+  relative bind mount.  The web service's input is also a relative bind.
+- Resource limits: explicitly enable task cgroups, request 128 MiB memory,
+  32 PIDs and half a CPU, and read the kernel cgroup files to check enforcement.
+
+The inner default cgroups setting is disabled for the build/Compose baseline;
+the resource test explicitly overrides it.  No new host cgroup delegation is
+configured by this script, so a resource-test failure is a useful finding,
+not permission to remove limits silently.  Extended runs expose /dev/net/tun
+to the runtime if the host has it.  The Compose check tests internal DNS and
+HTTP, not task Internet access or host port publishing.
+
+The profile transformation has three local regression tests: preservation of
+unrelated rules/architectures and the input object, rejection of allow-by-default
+profiles, and idempotence.  The extended runtime checks need host execution.
+No real Harbor project or cache is mounted in this stage.
+
+The host run in /var/tmp/agent-podman-e6f82820 confirmed the candidate seccomp
+filter was active, all baseline isolation checks passed, remote COPY/RUN builds
+worked, and cleanup succeeded.  Compose failed before its HTTP check because
+Alpine had no httpd executable.  The probe now explicitly pulls BusyBox 1.37
+for the web service and checks its httpd applet before testing Compose.
+
+The resource test started its task but failed a limit assertion without
+printing actual values.  The revised probe requests a private cgroup namespace,
+prints all three limits and the task's cgroup/mount paths, records the runtime's
+controller visibility, and saves limits-inspect.json and limits-output.txt.
+No additional cgroup permissions are granted based on this incomplete evidence.
+
+The next run (/var/tmp/agent-podman-bvancv6a) passed Compose networking and
+relative bind writes with the nested seccomp profile active.  Resource requests
+were present in inspect (128 MiB, 32 PIDs, quota/period 50000/100000), but the
+task reported memory.max=max, pids.max=max, cpu.max=max 100000.  Its cgroup
+mount was read-only.  The runtime's visible cgroup root was owned by nobody
+and had empty subtree_control.  Effective resource enforcement is therefore
+not established; requested inspect values must not be treated as enforcement.
+The outer engine still has cgroups disabled, and the shared containers.conf
+defaults to disabled: dedicated delegation and the default/remote mode
+interaction both need to be resolved.
+
+Before changing delegation, collect the host's actual cgroup permissions:
+
+#+begin_src sh
+guix shell python -- python3 scripts/contained-agent/try-podman-runtime.py \
+  --host-cgroup-info > host-cgroup-info.json
+#+end_src
+
+This reads current membership, cgroup2 mount information, ownership, modes,
+controller availability and process counts.  It neither runs Podman nor
+creates or modifies cgroups.  The intended next step is a dedicated runtime
+subtree, not write access to the full host cgroup hierarchy.
+
+The copied host diagnostic shows wenxin can create children under the cgroup
+root through group 973, and cpu/memory/pids are already enabled there.  The
+current session's /c2 belongs to root and is not writable.  The next experiment
+therefore leaves /c2 and the root controller settings untouched:
+
+#+begin_src sh
+guix shell python podman podman-compose -- \
+  python3 scripts/contained-agent/try-podman-runtime.py \
+  --outer-seccomp nested --extended --delegate-cgroup
+#+end_src
+
+This opt-in creates /sys/fs/cgroup/agent-podman-<unique-suffix>, enables
+cpu/memory/pids for its children, and starts the outer runtime with cgroups
+enabled, that cgroup parent, a private cgroup namespace and --systemd=always.
+The latter requests Podman's writable private cgroup mount behavior; the
+container still runs the shell bootstrap and Podman, not systemd.
+
+The bootstrap requires its cgroup namespace membership to be / and a writable
+subtree_control.  It moves its own process to a service leaf before enabling
+controllers, and creates a separate tasks parent.  A separate inner engine
+configuration enables cgroups by default with /tasks as parent.  The host
+engine retains its disposable configuration.  The experiment must fail if
+the runtime cannot prepare this layout; there is no fallback to globally
+writable cgroups.  On cleanup, it removes only the newly created subtree
+after terminating the runtime, without killing or moving unrelated processes.
+
+This delegation mode has passed local syntax/lint checks, but requires host
+execution to establish the actual cgroupfs/OCI runtime behavior.  Success must
+still be judged by the kernel limit values, not just API configuration.
+
+The first delegation run reached the private cgroup namespace but exited at
+the writable subtree_control check.  The outer configuration still defaulted
+to cgroups=disabled despite requesting enabled on the command line.  Delegation
+mode now sets both engines' defaults to enabled, removing that conflict, and
+prints ownership and cgroup mount options if the writable check still fails.
+This correction remains to be verified on the host.
+
+The following host run confirmed that the private cgroup mount is writable,
+but its directory and subtree_control belong to namespace UID/GID 0 while
+the service starts as 1000.  Delegation mode now starts only its bootstrap as
+namespace UID/GID 0 (still inside the rootless keep-id outer container), changes
+ownership of the private cgroup directory and cgroup.procs, cgroup.threads,
+cgroup.subtree_control to 1000, then execs setpriv to switch UID/GID to 1000
+and clear supplementary groups before preparing the service/task leaves and
+starting the API.  It does not recursively chown the cgroup hierarchy or change
+host-global files.  Whether the kernel permits this delegation from the outer
+user namespace remains a host test; failure must stop before API startup.
+
+* Scope
+
+The existing contained-agent remains a separate container.  A future trusted
+launcher would construct a per-project runtime with the approved workspace,
+cache and temporary directories mounted at their original absolute paths.
+The agent would receive only that runtime's Unix API socket, not the host
+engine socket.  This experiment does not change the existing SSH service or
+the launcher configuration.
+
+* Reproduce the namespace experiment
+
+On a Guix environment with Python, bubblewrap and util-linux available:
+
+#+begin_src sh
+python3 scripts/contained-agent/probe-podman-runtime.py
+python3 scripts/contained-agent/probe-podman-runtime.py --podman /gnu/store/.../bin/podman
+#+end_src
+
+All writable files are created under a disposable temporary directory.  Two
+separate bubblewrap containers have private PID, user, mount and network
+namespaces.  One runs a small Python Unix socket server; the other connects
+through a read-only bind of the socket directory.  This server is deliberately
+not a substitute implementation of the Podman API.
+
+The script verifies same-UID access, same-path file sharing with both the
+client and launching environment, hidden unshared files, an escaping symlink,
+and a read-only submount.  It also creates a descendant user/mount namespace
+and verifies that remounting the inherited read-only directory writable fails
+with EPERM.  These are focused probes, not a complete sandbox security audit.
+
+With --podman, the server also attempts real =podman info= with disposable VFS
+storage.  Exit status 2 means the plumbing checks passed but Podman initialization
+failed; status 0 without --podman does not mean Podman was tested.  The probe
+does not provide cgroups, subordinate ID helpers, network connectivity or FUSE,
+and is not a runnable production Podman runtime even when launched on a host.
+
+* Results, 2026-10-16
+
+All eight namespace/path checks passed in the development contained-agent.
+The default command execution sandbox initially blocked bubblewrap's netlink
+socket; the local test passed with that execution restriction lifted.  This
+did not give access to the host filesystem or host cgroups.
+
+Guix store Podman 6.1.1 failed before API startup:
+
+#+begin_example
+Error determining cgroups mode
+#+end_example
+
+The surrounding development container has no /sys/fs/cgroup, /etc/subuid,
+/etc/subgid, /run/privileged/bin, /dev/fuse or /dev/net/tun.  Its UID map contains
+only UID 1000 and its GID map only GID 998.  Changing a child namespace cannot
+grant it host subordinate IDs absent from this parent mapping.
+
+Consequently, neither a real Podman API connection nor a Harbor task has been
+validated here.  No host service, account, ACL or project file was changed.
+
+* Next experiment on the host
+
+The executable experiment is now available as
+=scripts/contained-agent/try-podman-runtime.py=.  From the repository root, in
+a normal host terminal as wenxin (not inside contained-agent and not via sudo):
+
+#+begin_src sh
+guix shell python podman -- python3 scripts/contained-agent/try-podman-runtime.py
+#+end_src
+
+The host needs working rootless Podman prerequisites: cgroup v2, /dev/fuse,
+subordinate UID/GID ranges for the current user, and the privileged newuidmap
+and newgidmap helpers on PATH.  On Guix these helpers normally come from
+/run/privileged/bin; installing the shadow package alone does not make them
+privileged.  The script reports missing prerequisites without modifying the
+system.  No SSH service or agent-podman account is required.
+
+This experiment uses a separate temporary outer Podman database and downloads
+=quay.io/podman/stable:latest= plus =docker.io/library/alpine:3.21=.  These are
+configurable with --runtime-image and --task-image; immutable digest references
+can also be supplied.  The image IDs are recorded by the pull commands in the
+log.  It does not read the user's normal registry credentials.  Allow several
+minutes and disk space for the images; both engines use VFS for this first test.
+
+The outer container is rootless and does not use --privileged.  It uses
+keep-id to map the host user to the image's podman user (UID/GID 1000), exposes
+/dev/fuse, disables label separation and unmasks the container's default
+masked paths as required by the nested runtime experiment.  Its only host
+binds are generated test data, isolated storage, configuration and its socket
+directory.  It does not bind the real project or Harbor cache.  The inner
+mapping ranges are supplied by the runtime image; their sufficiency for the
+eventual Harbor task set remains to be checked.
+
+After the first host run reached the real API but failed at crun's sethostname
+with EPERM, the experiment was changed to disable the outer seccomp filter
+(--security-opt=seccomp=unconfined).  This tests the hypothesis that an inherited
+outer filter blocks namespace operations by inner tasks.  It does not enable
+rootful or privileged mode for the outer container, and ordinary inner tasks
+retain their default seccomp policy.  Production integration must revisit the
+outer filter; these experimental flags are not a hardened deployment recipe.
+That run also failed storage cleanup: commands.log confirmed that the runtime
+was removed, but the remaining run/netns mount made directory removal fail
+with EBUSY.  Cleanup now detaches that specific mount inside the disposable
+engine's namespace before deleting storage.  Future results.json files include
+the cleanup command's error output.
+
+The next host run passed ordinary task execution, same-path writes, symlink
+isolation, root bind isolation and read-only remount rejection.  Default
+privileged tasks with network=none failed before execution because crun could
+not mount sysfs.  The next probe explicitly binds the runtime's /sys read-only
+into the privileged task; its result is named privileged_with_readonly_sys.
+A PASS for this variant does not establish support for default privileged
+tasks.  No outer capability was added to enable this variant.
+
+Cleanup still encountered EBUSY because os.path.ismount does not reliably
+detect same-filesystem bind mounts.  The revised cleanup directly calls
+umount2 for the specific netns path, handles stacked mounts, and stops on
+EINVAL or ENOENT.  This was locally tested against a real same-filesystem
+bind mount that ismount reports as false, and against an absent mount.
+
+The subsequent host run in /var/tmp/agent-podman-ntzv_a84 passed all scoped
+checks.  The copied results.json and commands.log confirm inner_rootless,
+same_path_write, symlink_and_readonly, root_bind_and_readonly_ordinary,
+root_bind_and_readonly_privileged_with_readonly_sys, and
+host_sentinel_unchanged.  Both container removal and storage cleanup exited 0.
+The actual inner engine was Podman 5.8.7 from the runtime image; the host
+client was Guix Podman 6.1.1.  Thus this validates that combination, not a
+Guix-packaged inner Podman 6.1.1 runtime.  Compose, networking, resource limits
+and real Harbor tasks remain untested.  The successful configuration still
+disables outer seccomp and uses VFS storage.
+
+The script verifies both engines report rootless, then uses the real Unix API
+to pull and run Alpine, write shared output and test read-only restrictions.
+It also requests ordinary and privileged inner containers that bind the
+runtime's root, checks that the unshared host sentinel is absent, and attempts
+to remount a protected subdirectory writable.  All commands must pass for
+PASS.  This still does not validate Compose, task networking, Harbor, cgroup
+resource limits or the complete security boundary.  Task network and cgroups
+are explicitly disabled to separate those later checks from mount isolation;
+the engines themselves use network access to pull images.
+
+The script prints its unique /var/tmp/agent-podman-* output directory.  It
+automatically removes the runtime and disposable image/storage directories;
+results.json, commands.log, runtime.log (if started), inner-info.json (if
+available), and tiny test files remain for inspection.  Cleanup failures are
+reported and return failure rather than pruning the user's normal engine.
+If interrupted with SIGKILL or the machine shuts down, cleanup cannot run.
+Send results.json and runtime.log, plus the failing section of commands.log,
+when reporting a failed run.  Do not treat PASS as permission to expose the
+socket to an untrusted agent before completing the remaining acceptance tests.
+
+A trusted host launcher must prepare the restricted filesystem view while
+preserving enough UID/GID mappings for rootless Podman.  Run the service as
+the host user's mapped identity; do not rely on membership in users to read
+shared files.  Any privileged setup must finish before accepting API requests.
+The service must not retain a way to recover the launcher's privileges.
+
+Provide a private persistent storage directory, the necessary mapping helpers,
+limited cgroup delegation and the devices required by the selected storage
+and networking backends.  Preserve protected submounts rather than flattening
+the project into one writable bind.  Do not expose the host engine socket,
+host PID namespace, unrestricted host devices or the user's complete home.
+
+Acceptance requires real API requests that attempt arbitrary binds, read-only
+remounts and privileged task containers, followed by Harbor image builds,
+Compose networking, resource limits and output writes.  Include a task with
+relative Compose bind sources in the Harbor cache.  Stop and replace the old
+runtime when its path policy changes; changing configuration alone does not
+revoke an existing socket connection or task.
