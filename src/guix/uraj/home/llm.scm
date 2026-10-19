@@ -204,7 +204,7 @@ settings."
            #:autostart? (paseo-setup-autostart? setup)
            #:requirements (if (home-target-foreign? (current-home-target))
                               '(dbus graphical-session)
-                              '(gnome-keyring-secrets))
+                              '(home-ready gnome-keyring-secrets))
            #:askpass? #t)
           (paseo-home-services
            #:autostart? (paseo-setup-autostart? setup)))

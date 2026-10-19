@@ -154,6 +154,27 @@ and daemon to load the new wrappers/configuration. Close the desktop app during
 activation because it caches settings. See the shared module's concurrent-write
 limitations as well.
 
+** Startup readiness
+
+System Shepherd waits for the complete user's Home activation to exit
+successfully before starting the system Paseo broker and daemon (hypie/storie).
+The activation wrapper preserves =GUIX_SYSTEM_IS_RUNNING_HOME_ACTIVATE=t=;
+it does not start a user Shepherd before login.
+
+On lappie, niri starts user Shepherd. Only the Paseo broker depends on the
+user =home-ready= service; neither greetd nor the desktop waits for it.
+The wrapper atomically records activation status in
+=~/.local/state/uraj/home-activation.json=. The readiness check requires the
+current boot ID, system store path and selected =~/.guix-home= store path to
+match a successful activation. Old boot/generation records cannot release it.
+Foreign-distro Homes do not install this system-activation dependency.
+
+A matching activation failure stops startup immediately; absent or unfinished
+activation times out after 120 seconds. After fixing the system Home activation,
+run =herd start paseo= against the user Shepherd to retry its dependencies.
+This is startup ordering, not coordination with a running daemon: stop Paseo
+and close the desktop app before reapplying settings that they may also write.
+
 ** Worktrees and desktop settings
 
 When no worktree root is configured, Home uses and creates
