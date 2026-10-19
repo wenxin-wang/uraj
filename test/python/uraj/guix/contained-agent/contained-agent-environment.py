@@ -100,6 +100,79 @@ class Launcher(unittest.TestCase):
         return result, argv, environment
 
 
+class WorktreeMounts(Launcher):
+    def git(self, *args):
+        return subprocess.check_output(
+            [self.tools["git"], "-C", str(self.project), *args], text=True
+        ).strip()
+
+    def test_main_worktree_is_exposed_before_writable_mounts(self):
+        self.project = self.root / "main repo"
+        subprocess.run(
+            [self.tools["git"], "init", "-q", str(self.project)], check=True
+        )
+        self.git(
+            "-c",
+            "user.name=T",
+            "-c",
+            "user.email=t@x",
+            "commit",
+            "--allow-empty",
+            "-qm",
+            "initial",
+        )
+        worktree = self.project / "nested worktree"
+        self.git("worktree", "add", "-qb", "linked", str(worktree))
+        result, argv, _ = self.launch(cwd=worktree)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        main = argv.index(f"--expose={self.project}")
+        self.assertLess(main, argv.index(f"--share={worktree}"))
+        common = self.git("rev-parse", "--absolute-git-dir")
+        self.assertLess(main, argv.index(f"--share={common}"))
+        self.assertIn(f"--expose={common}/config", argv)
+        self.assertIn(f"--expose={worktree}/.git", argv)
+        self.assertNotIn(f"--share={self.project}", argv)
+
+    def test_main_checkout_is_only_shared(self):
+        result, argv, _ = self.launch()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(f"--share={self.project}", argv)
+        self.assertNotIn(f"--expose={self.project}", argv)
+
+    def test_bare_repository_does_not_expose_parent(self):
+        self.git(
+            "-c",
+            "user.name=T",
+            "-c",
+            "user.email=t@x",
+            "commit",
+            "--allow-empty",
+            "-qm",
+            "initial",
+        )
+        bare = self.root / "bare.git"
+        self.git("clone", "--bare", "-q", str(self.project), str(bare))
+        worktree = self.root / "linked"
+        subprocess.run(
+            [
+                self.tools["git"],
+                "-C",
+                str(bare),
+                "worktree",
+                "add",
+                "-qb",
+                "linked",
+                str(worktree),
+            ],
+            check=True,
+        )
+        result, argv, _ = self.launch(cwd=worktree)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(f"--share={bare}", argv)
+        self.assertNotIn(f"--expose={bare}", argv)
+        self.assertNotIn(f"--expose={bare.parent}", argv)
+
+
 class VersionProbe(Launcher):
     def test_version_skips_project_and_container_preparation(self):
         # Cold-start probes must not wait for SOPS, inspect a stale session
