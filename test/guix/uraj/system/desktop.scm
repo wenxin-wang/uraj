@@ -154,8 +154,13 @@
   (not (any (lambda (s) (eq? (service-kind s) paseo-service-type))
             (operating-system-user-services os))))
 (test-equal "desktop broker waits for keyring initialization"
-  '(gnome-keyring-secrets)
+  '(home-ready gnome-keyring-secrets)
   (shepherd-service-requirement (lookup home-services 'paseo-broker)))
+(test-assert "Home readiness is checked on demand, including retries"
+  (let ((ready (lookup home-services 'home-ready)))
+    (and ready
+         (shepherd-service-one-shot? ready)
+         (not (shepherd-service-auto-start? ready)))))
 (test-equal "desktop daemon waits for broker"
   '(paseo-broker)
   (shepherd-service-requirement (lookup home-services 'paseo)))
@@ -181,7 +186,8 @@
      #:target-type home-shepherd-service-type))))
 (test-assert "boot desktop Home never starts a second daemon or broker"
   (and (not (lookup boot-home-services 'paseo))
-       (not (lookup boot-home-services 'paseo-broker))))
+       (not (lookup boot-home-services 'paseo-broker))
+       (not (lookup boot-home-services 'home-ready))))
 (define foreign-services
   (parameterize ((%home-target (fake-foreign-target '() #t)))
     (home-shepherd-configuration-services
@@ -195,7 +201,8 @@
   (shepherd-service-requirement (lookup foreign-services 'paseo-broker)))
 (test-assert "foreign Home starts Paseo and leaves keyring to the host"
   (and (lookup foreign-services 'paseo)
-       (not (lookup foreign-services 'gnome-keyring-secrets))))
+       (not (lookup foreign-services 'gnome-keyring-secrets))
+       (not (lookup foreign-services 'home-ready))))
 (define unmanaged-home
   (parameterize ((%home-target (fake-foreign-target '() #t))
                  (%paseo-setup #f))

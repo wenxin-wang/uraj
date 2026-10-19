@@ -25,6 +25,15 @@
                                 #:target-type home-profile-service-type)))
 
 (test-begin "paseo")
+(let* ((home-service (lookup installed 'guix-home-wenxin))
+       (start (format #f "~s" (gexp->approximate-sexp
+                               (shepherd-service-start home-service)))))
+  (test-assert "system Home waits for activation exit status"
+    (and (string-contains start "spawn-command")
+         (string-contains start "zero?")
+         (not (string-contains start "make-forkexec-constructor"))))
+  (test-assert "system Home preserves the no-user-Shepherd activation flag"
+    (string-contains start "GUIX_SYSTEM_IS_RUNNING_HOME_ACTIVATE=t")))
 (test-equal "daemon depends on host broker" '(paseo-broker)
   (shepherd-service-requirement (lookup installed 'paseo)))
 (test-equal "storie broker waits for wenxin Home, not old data storage"
