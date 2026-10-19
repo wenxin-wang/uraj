@@ -119,7 +119,7 @@
 (define-public paseo
   (package
     (name "paseo")
-    (version "0.10.3")
+    (version "0.11.4")
     (source
      (origin
        (method url-fetch)
@@ -127,7 +127,7 @@
              "https://github.com/getpaseo/paseo/releases/download/v" version
              "/Paseo-" version "-amd64.deb"))
        (sha256
-        (base32 "00hphr88kkppppwy9x2af54jfvmjzyww85vkqlr3a92mdm6afksa"))))
+        (base32 "1h1g08x5x0n4j0d4hvivxg94b2yhzg4a2lnqcl6i2rh93xiz5yhv"))))
     (build-system chromium-binary-build-system)
     (arguments
      (list
