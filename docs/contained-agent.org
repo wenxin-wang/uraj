@@ -222,10 +222,14 @@ storage. Treat those writable directories as shared state across sessions.
 Its cache is temporary.
 
 Pi reads =~/.pi/agent= and =~/.agents/skills= through temporary overlays;
-only =~/.pi/agent/sessions/= persists. Log in with the original host
-command first: changes to Pi credentials, settings and extensions inside
-the container are discarded on exit. The default agent directories are
-used; custom =PI_CODING_AGENT_DIR= and XDG directory overrides are not
+=~/.pi/agent/sessions/= and =~/.pi/agent/settings.json= persist. Model
+choices and other settings therefore survive restarting the container.
+Pi keeps its usual behavior: press =Ctrl+S= in =/model= to save the startup
+default; an ordinary selection only affects the current session.
+The launcher creates an empty settings file on first use without replacing
+existing preferences. Log in with the original host command first: changes
+to Pi credentials and extensions inside the container are discarded on exit.
+The default agent directories are used; custom =PI_CODING_AGENT_DIR= and XDG directory overrides are not
 forwarded. Both agents receive =OPENAI_.*=, =ANTHROPIC_.*=,
 =GEMINI_API_KEY= and =OPENROUTER_API_KEY=. Other provider variables can be
 added with a project's central =preserve= clause.

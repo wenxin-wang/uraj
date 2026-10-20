@@ -104,11 +104,7 @@ Homes and the headless Homes."
              (preserve "OPENAI_.*" "ANTHROPIC_.*" "GEMINI_API_KEY"
                        "OPENROUTER_API_KEY")))
      (cons "pi"
-           `((program . #$(file-append pi-coding-agent "/bin/pi"))
-             (overlay "~/.pi/agent" "~/.agents/skills")
-             (persist "~/.pi/agent/sessions/")
-             (preserve "OPENAI_.*" "ANTHROPIC_.*" "GEMINI_API_KEY"
-                       "OPENROUTER_API_KEY")))
+           (pi-spec #$(file-append pi-coding-agent "/bin/pi")))
      (cons "codex"
            (codex-spec #$(file-append codex "/bin/codex")))
      ;; Everything under ~/.claude is the session's own but for the

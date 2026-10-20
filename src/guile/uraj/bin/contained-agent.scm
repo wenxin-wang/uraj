@@ -8,7 +8,7 @@
   #:use-module (srfi srfi-11)
   #:use-module (srfi srfi-26)
   #:use-module (uraj bin contained-ssh)
-  #:export (contained-agent-main read-all clause-options codex-spec
+  #:export (contained-agent-main read-all clause-options codex-spec pi-spec
             credential-clause? credential-options %github-secrets
             %secret-timeout))
 
@@ -697,6 +697,26 @@ and those contents."
                "~/.codex/thread-writer-locks/" "~/.codex/log/"
                "~/.codex/auth.json" "~/.codex/history.jsonl")
       (preserve "CODEX_.*" "OPENAI_.*"))))
+
+(define (pi-spec program)
+  "Persist Pi's settings and sessions, leaving other agent files temporary."
+  (let ((settings (expand-home "~/.pi/agent/settings.json")))
+    (mkdir-p (dirname settings))
+    ;; persist only mounts existing files.  O_EXCL keeps existing settings
+    ;; intact and lets concurrent first launches create the file safely.
+    ;; Pi writes settings in place, so a file bind mount is sufficient.
+    (catch 'system-error
+      (lambda ()
+        (let ((port (open settings (logior O_WRONLY O_CREAT O_EXCL) #o600)))
+          (display "{}\n" port)
+          (close-port port)))
+      (lambda args
+        (unless (= EEXIST (system-error-errno args)) (apply throw args))))
+    `((program . ,program)
+      (overlay "~/.pi/agent" "~/.agents/skills")
+      (persist "~/.pi/agent/sessions/" "~/.pi/agent/settings.json")
+      (preserve "OPENAI_.*" "ANTHROPIC_.*" "GEMINI_API_KEY"
+                "OPENROUTER_API_KEY"))))
 
 (define (persisted spec)
   "Return the existing `persist' paths of SPEC, creating directories."
