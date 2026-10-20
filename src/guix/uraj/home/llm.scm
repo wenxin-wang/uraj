@@ -143,9 +143,9 @@ Homes and the headless Homes."
   ;; bubblewrap provides bwrap for Codex's own command sandbox and overlays.
   ;; Keep common scripting, download and archive tools available to every agent.
   ;; python-wrapper supplies both python and python3.  gh comes with the
-  ;; agent tools.
+  ;; agent tools.  Pi needs fd on PATH to avoid downloading it each session.
   '("bash" "bc" "bubblewrap" "bzip2" "coreutils" "curl" "diffutils" "direnv"
-    "file" "findutils" "gawk" "git" "git-lfs" "grep" "gzip" "jq" "less"
+    "fd" "file" "findutils" "gawk" "git" "git-lfs" "grep" "gzip" "jq" "less"
     "nss-certs" "patch" "perl" "procps" "python-wrapper" "ripgrep" "sed" "tar"
     "unzip" "wget" "which" "xz" "zip"))
 
