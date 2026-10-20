@@ -51,8 +51,6 @@
   (providers openclaw-providers)
   ;; Alist of declared provider/model references to slash-command aliases.
   (model-aliases openclaw-model-aliases (default '()))
-  ;; Application identity for the main agent; workspace personality stays local.
-  (identity openclaw-identity (default '()))
   (data-directory openclaw-data-directory (default "/data/openclaw"))
   (network openclaw-network (default "static-agent")))
 
@@ -67,16 +65,6 @@
     (error "Invalid OpenClaw image repository"))
   (unless (string-match "^cli_[A-Za-z0-9]+$" (openclaw-feishu-app-id config))
     (error "OpenClaw requires a Feishu App ID"))
-  (let ((identity (openclaw-identity config)))
-    (unless (and (list? identity)
-                 (every (lambda (entry)
-                          (and (pair? entry)
-                               (memq (car entry) '(name theme emoji avatar))
-                               (string? (cdr entry))
-                               (not (string-null? (cdr entry))))) identity)
-                 (= (length identity)
-                    (length (delete-duplicates (map car identity)))))
-      (error "OpenClaw identity needs distinct name/theme/emoji/avatar strings")))
   (let ((providers (openclaw-providers config)))
     (unless (and (list? providers) (pair? providers)
                  (every openclaw-provider? providers))
@@ -187,9 +175,7 @@
                                                    (cons (car entry)
                                                          `((alias . ,(cdr entry)))))
                                                  (openclaw-model-aliases config))))
-                             (heartbeat . ((every . "0m")))))
-                 ,@(if (null? (openclaw-identity config)) '()
-                       `((entries . ((main . ((identity . ,(openclaw-identity config))))))))))
+                             (heartbeat . ((every . "0m")))))))
       ;; Keep the allowlist explicit: bootstrap and memory need file tools,
       ;; not process execution or access to the gateway's home and secrets.
       (tools . ((allow . #("read" "write" "edit" "apply_patch"))

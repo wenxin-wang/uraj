@@ -344,7 +344,6 @@
     (secrets-file
      (local-file (project-path "secrets/hosts/storie/openclaw.yaml")))
     (feishu-app-id "cli_aa5a187288381c05")
-    (identity '((name . "Claw老师") (theme . "AI 助手") (emoji . "🦀")))
     (model "new-api-gpt/gpt-6-luna")
     (model-aliases
      '(("new-api-gpt/gpt-6-astra" . "astra-6")
