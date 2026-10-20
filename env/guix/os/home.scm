@@ -9,7 +9,6 @@
              (gnu services)
              (uraj common context)
              (uraj hardware nvidia)
-             (uraj home llm)
              (uraj home niri)
              (uraj home paseo)
              (uraj packages local-resources))
@@ -21,8 +20,7 @@
                ;; The work machines let the Paseo app run its own daemon
                ;; and own its provider settings: no broker, no daemon
                ;; service, no settings activation.
-               (%paseo-setup (if work-host? #f (paseo-setup)))
-               (%opencode? (and work-host? #t)))
+               (%paseo-setup (if work-host? #f (paseo-setup))))
   (define base-home
     (home-environment
      ;; Foreign Home is evaluated on the machine it configures, so the
