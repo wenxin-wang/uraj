@@ -57,6 +57,10 @@ mining = true
 signinevent = true
 
 [[tasks]]
+name = "仓库识别"
+type = "Depot"
+
+[[tasks]]
 name = "关闭游戏"
 type = "CloseDown"
 params = { client_type = "Official" }

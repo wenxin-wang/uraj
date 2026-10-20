@@ -9,6 +9,7 @@
   #:use-module (gnu packages bash)
   #:use-module (gnu packages linux)
   #:use-module (gnu packages nss)
+  #:use-module (gnu packages python)
   #:use-module (guix gexp)
   #:use-module (uraj packages android)
   #:use-module (uraj packages maa)
@@ -33,8 +34,12 @@
        (unless (zero? (system* #$(file-append android-platform-tools "/bin/adb")
                               "start-server"))
          (error "Could not start the MAA ADB server"))
-       (execl #$(file-append maa-assistant-arknights "/bin/maa")
-              "maa" "run" "daily" "--batch" "--verbose" "--log-file"))))
+       (execl #$(file-append python "/bin/python3")
+              "python3"
+              #$(local-file (project-path "env/maa/run-daily.py"))
+              "/var/lib/maa/state/maa/depot.json"
+              #$(file-append maa-assistant-arknights "/bin/maa")
+              "run" "daily" "--batch" "--verbose" "--log-file"))))
 
 (define %maa-daily-command
   (program-file

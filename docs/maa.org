@@ -109,8 +109,8 @@ and runs at minute zero of each configured hour; missed runs are not replayed.
 =env/maa/tasks/daily.toml= restores the previous daily configuration:
 Official client login, 3/4-star recruitment (leave 5/6-star tags for manual
 handling), preset base rotation and clues, friend visits and credit shopping,
-rewards, then close the game. There is no =Fight= task and =credit_fight= is
-false, so this round does not spend sanity. Base rotation uses the game's
+rewards, depot recognition, then close the game. There is no =Fight= task
+and =credit_fight= is false, so this round does not spend sanity. Base rotation uses the game's
 existing preset queues; keep those configured in-game. Drones accelerate
 Pure Gold production (=drones = "PureGold"=).
 
@@ -130,6 +130,27 @@ resource updates and logs go to the account's writable data/cache/state
 directories. CLI logs are under =/var/lib/maa/state/maa/debug/=; scheduler
 output is in =/var/log/mcron.log=. Inspect upcoming runs with
 =sudo herd schedule mcron 8=.
+
+Each successful daily run atomically replaces
+=/var/lib/maa/state/maa/depot.json= (owned by =maa=, mode 0600).
+It contains =updated_at= (UTC ISO 8601) and =items=, a mapping of MAA item
+IDs to integer quantities. Recognition runs after rewards so it includes
+this round's purchases and collections. This is the scope recognized by
+MAA's Depot task (materials and supported basic currencies), not every
+category in the game's inventory; missing IDs must not be treated as zero.
+The snapshot replaces the previous mapping rather than merging old items.
+
+=env/maa/run-daily.py= reads this invocation's CLI output and requires a
+final =DepotInfo= callback, =Depot Completed= and a successful CLI exit.
+Failed, interrupted or lock-skipped runs retain the last successful file
+and its timestamp; before the first successful scan the file is absent.
+The wrapper runs inside the existing lock and timeout. Its parser follows
+the pinned [[https://github.com/MaaAssistantArknights/maa-cli/blob/v0.7.5/crates/maa-cli/src/run/callback/mod.rs][CLI callback output]] and
+[[https://github.com/MaaAssistantArknights/MaaAssistantArknights/blob/v6.19.0/src/MaaCore/Task/Miscellaneous/DepotRecognitionTask.cpp][MaaCore DepotInfo format]];
+recheck these when upgrading. Test locally with
+=python3 test/maa/depot.py=. This persistence path has fixture-based tests.
+The operator also reported a successful manual test on hypie on 2026-10-20,
+using the built command without system reconfiguration.
 
 maa-cli 0.7.5 also performs a mandatory API hot update before task parsing,
 including during =--dry-run=; this needs outbound HTTPS. The optional
