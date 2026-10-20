@@ -48,8 +48,8 @@ with tempfile.TemporaryDirectory(prefix="uraj-rsyslog-") as temp:
     directory = Path(temp)
     sockpath = directory / "socket"
     config = source.replace(
-        'module(load="imuxsock")',
-        f'module(load="imuxsock" SysSock.Name="{sockpath}")',
+        'module(load="imuxsock"',
+        f'module(load="imuxsock" SysSock.Name="{sockpath}"',
     )
     config = config.replace(
         'fileOwner="root"', f'fileOwner="{pwd.getpwuid(os.getuid()).pw_name}"'
@@ -114,8 +114,12 @@ with tempfile.TemporaryDirectory(prefix="uraj-rsyslog-") as temp:
             ):
                 send(priority, text)
                 wait_for(functools.partial(contains, target, text))
-            # Docker's syslog driver: local0, rfc3164, PROJECT/CONTAINER tag.
-            send(134, "container-message", "svc/svc-db-1[42]")
+            # Docker sends a timestamp AND hostname, unlike local libc syslog.
+            send(
+                134,
+                "container-message",
+                "Oct 18 07:53:05 storie svc/svc-db-1[42]",
+            )
             wait_for(
                 functools.partial(
                     contains, "svc/containers.log", "container-message"

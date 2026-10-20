@@ -140,6 +140,7 @@
              (uraj home llm)
              (uraj services immich)
              (uraj services new-api)
+             (uraj services openclaw)
              (uraj services docker-lan)
              (uraj network-policy)
              (uraj services restricted-network)
@@ -336,6 +337,54 @@
    (group "root")
    (permissions #o400)))
 
+(define %openclaw-configuration
+  (openclaw-configuration
+    (image "sha256:6ea31e154475c6240ee1c20d1b94952bdcbd84a3d4579ac9561b1a1b40cae28d")
+    (image-repository "localhost/openclaw-feishu")
+    (secrets-file
+     (local-file (project-path "secrets/hosts/storie/openclaw.yaml")))
+    (feishu-app-id "cli_aa5a187288381c05")
+    (model "new-api-gpt/gpt-6-luna")
+    (model-aliases
+     '(("new-api-gpt/gpt-6-astra" . "astra-6")
+       ("new-api-gpt/gpt-6.1-sol" . "sol-6-1")
+       ("new-api-gpt/gpt-6-sol" . "sol-6")
+       ("new-api-gpt/gpt-6-luna" . "luna-6")
+       ("new-api-gpt/gpt-5.6-sol" . "sol-5-6")
+       ("new-api-gpt/gpt-5.6-terra" . "terra-5-6")
+       ("new-api-gpt/gpt-5.6-luna" . "luna-5-6")
+       ("new-api-claude/claude-opus-5-5" . "opus-5-5")
+       ("new-api-claude/claude-sonnet-5-5" . "sonnet-5-5")
+       ("new-api-claude/claude-haiku-4-5" . "haiku-4-5")))
+    (providers
+     (list
+      (openclaw-provider
+        (name "new-api-gpt") (api "openai-responses")
+        (reasoning-models '("gpt-6-astra"
+                            "gpt-6.1-sol"
+                            "gpt-6-sol"
+                            "gpt-6-luna"
+                            "gpt-reserve"
+                            "gpt-5.6-sol"
+                            "gpt-5.6-terra"
+                            "gpt-5.6-luna"))
+        (models '("gpt-6-astra"
+                  "gpt-6.1-sol"
+                  "gpt-6-sol"
+                  "gpt-6-luna"
+                  "gpt-reserve"
+                  "gpt-5.6-sol"
+                  "gpt-5.6-terra"
+                  "gpt-5.6-luna")))
+      (openclaw-provider
+        (name "new-api-claude") (api "anthropic-messages")
+        (reasoning-models '("claude-opus-5-5"
+                            "claude-sonnet-5-5"
+                            "claude-haiku-4-5"))
+        (models '("claude-opus-5-5"
+                  "claude-sonnet-5-5"
+                  "claude-haiku-4-5")))))))
+
 (define storie-os
   (operating-system
     (inherit %server-os)
@@ -416,6 +465,8 @@
                (address "172.31.0.6"))))
       %storage-timer-services
       %storie-fan-services
+      (if (or (getenv "TO_ISO") (not %openclaw-configuration)) '()
+          (list (service openclaw-service-type %openclaw-configuration)))
       (if (getenv "TO_ISO") '()
           (host-sops-services
            (cons %immich-database-secret
