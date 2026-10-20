@@ -1,6 +1,6 @@
 #+title: contained-agent: coding agents in per-project Guix containers
 
-=contained-agent= runs a coding agent (Codex, Claude Code) inside
+=contained-agent= runs a coding agent (Codex, Claude Code, OpenCode, Pi) inside
 =guix shell --container=.  The container shares only the current project
 and the parts of the agent's own state that must persist.  The same command
 serves interactive use in a terminal and Paseo, which launches agents
@@ -25,11 +25,13 @@ cooperation.
 
 The program calls the =guix= command (=guix shell -C ...=) rather than Guix
 modules.  =llm.scm= generates the entry point with =program-file= and passes
-in everything known only at build time: store paths of the real =codex=
-and =claude=, of =git=, the agent specs and the package list.  Home installs:
+in everything known only at build time: store paths of the real =codex=,
+=claude=, =opencode= and =pi=, of =git=, the agent specs and the package
+list.  Home installs:
 
 - =~/.local/bin/contained-agent=
-- =~/.local/bin/codex= and =~/.local/bin/claude=: store items that are
+- =~/.local/bin/codex=, =~/.local/bin/claude=, =~/.local/bin/opencode=
+  and =~/.local/bin/pi=: store items that are
   themselves links to =contained-agent=, made with =computed-file=.
 
 The program dispatches on the name it was invoked as (minus a store hash
@@ -39,8 +41,8 @@ as =contained-agent= the first argument names the agent, or is =allow=.
 * Use
 
 - Terminal: =~/.local/bin= comes first in =PATH= (=.profile.d/61-paths.sh=),
-  so =codex= and =claude= are the contained ones.  The originals remain at
-  =~/.guix-home/profile/bin/=.
+  so =codex=, =claude=, =opencode= and =pi= are the contained ones.
+  The originals remain at =~/.guix-home/profile/bin/=.
 - Paseo: Home activation configures daily broker clients in =~/.paseo/config.json=
   (see [[file:paseo-daemon.org][daemon service]]):
   #+begin_src json
@@ -67,7 +69,8 @@ as =contained-agent= the first argument names the agent, or is =allow=.
   to this list.  =%contained-agent-packages= adds the container's base tools,
   alongside an approved project manifest.  The defaults include Python,
   Perl, =bc=, =curl=, =wget=, =jq=, =file= and common archive tools, alongside
-  Git and shell utilities.  =bubblewrap= provides =bwrap=, needed by Codex's
+  Git, =fd= (so Pi need not download it each session) and shell utilities.
+  =bubblewrap= provides =bwrap=, needed by Codex's
   own command sandbox and by the overlays below.  Changes to the default package list
   take effect after Home reconfigure and starting a new agent session.
 - The network is still the host's (=--network=).  An allowlisting proxy is
@@ -204,6 +207,32 @@ privileges.  =persist= paths are first shared at
 =/run/contained-agent/persist-N=, then bound back over the overlay by the
 same =bwrap=.  =seed= files are exposed at =/run/contained-agent/seed-N= and
 copied by the launcher script.
+
+** OpenCode and Pi
+
+Both are installed by the common Home services, including lappie's embedded
+Home. =opencode= and =pi= run contained; the original commands remain in
+=~/.guix-home/profile/bin/=. Pi is packaged from the official
+=earendil-works/pi= release as =pi-coding-agent= (the executable is =pi=).
+
+OpenCode reads =~/.config/opencode= through a temporary overlay. Its data
+and state directories (=~/.local/share/opencode= and
+=~/.local/state/opencode=) persist, including authentication and session
+storage. Treat those writable directories as shared state across sessions.
+Its cache is temporary.
+
+Pi reads =~/.pi/agent= and =~/.agents/skills= through temporary overlays;
+=~/.pi/agent/sessions/= and =~/.pi/agent/settings.json= persist. Model
+choices and other settings therefore survive restarting the container.
+Pi keeps its usual behavior: press =Ctrl+S= in =/model= to save the startup
+default; an ordinary selection only affects the current session.
+The launcher creates an empty settings file on first use without replacing
+existing preferences. Log in with the original host command first: changes
+to Pi credentials and extensions inside the container are discarded on exit.
+The default agent directories are used; custom =PI_CODING_AGENT_DIR= and XDG directory overrides are not
+forwarded. Both agents receive =OPENAI_.*=, =ANTHROPIC_.*=,
+=GEMINI_API_KEY= and =OPENROUTER_API_KEY=. Other provider variables can be
+added with a project's central =preserve= clause.
 
 ** Claude Code
 

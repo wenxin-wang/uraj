@@ -1,6 +1,8 @@
 (define-module (uraj packages llm)
   #:use-module (gnu packages base)
   #:use-module (gnu packages bash)
+  #:use-module (gnu packages elf)
+  #:use-module (gnu packages xorg)
   #:use-module (gnu packages chromium)
   #:use-module (gnu packages linux)
   #:use-module (gnu packages version-control)
@@ -13,6 +15,7 @@
   #:use-module (guix packages)
   #:use-module ((guix search-paths) #:select ($SSL_CERT_DIR $SSL_CERT_FILE))
   #:use-module (guix utils)
+  #:use-module (nonguix build-system binary)
   #:use-module (nonguix build-system chromium-binary)
   #:use-module (uraj packages chromium-binary)
   #:use-module ((px packages ai)
@@ -26,6 +29,7 @@
             codex
             gh-git-credential
             opencode-bin
+            pi-coding-agent
             paseo))
 
 ;;; PantherX's package replaces `unpack' and leaves the build-directory root as
@@ -113,6 +117,52 @@
               (lambda _
                 (substitute* (string-append #$output "/bin/opencode")
                   (("^export LD_LIBRARY_PATH=.*$") ""))))))))))
+
+(define-public pi-coding-agent
+  (package
+    (name "pi-coding-agent")
+    (version "1.3.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append
+             "https://github.com/earendil-works/pi/releases/download/v"
+             version "/pi-linux-x64.tar.gz"))
+       (sha256
+        (base32 "1vaxa3ma68y56mybbyrlhjml6kwp06ari5k2hwvdmm36icrbxx94"))))
+    (build-system binary-build-system)
+    (supported-systems '("x86_64-linux"))
+    (arguments
+     (list
+      #:strip-binaries? #f
+      #:validate-runpath? #f
+      #:patchelf-plan
+      #~'(("native/linux/prebuilds/linux-x64/linux-platform-x11.node"
+           ("libxcb")))
+      #:install-plan #~'(("." "share/pi"))
+      #:phases
+      #~(modify-phases %standard-phases
+          ;; Preserve Bun's embedded payload: only change the interpreter.
+          (add-after 'install 'wrap-pi
+            (lambda* (#:key inputs #:allow-other-keys)
+              (let ((program (string-append #$output "/share/pi/pi")))
+                (invoke "patchelf" "--set-interpreter"
+                        (search-input-file inputs "/lib/ld-linux-x86-64.so.2")
+                        program)
+                (mkdir-p (string-append #$output "/bin"))
+                ;; Keep the executable beside its themes, docs and addons.
+                (call-with-output-file (string-append #$output "/bin/pi")
+                  (lambda (port)
+                    (format port "#!~a~%exec ~a \"$@\"~%"
+                            (search-input-file inputs "/bin/bash") program)))
+                (chmod (string-append #$output "/bin/pi") #o755)))))))
+    (native-inputs (list patchelf))
+    (inputs (list bash-minimal glibc libxcb))
+    (home-page "https://pi.dev")
+    (synopsis "Terminal coding agent with extensible tools")
+    (description "Pi is a coding agent with file editing, shell tools,
+session management, multiple model providers and user extensions.")
+    (license license:expat)))
 
 ;;; Like Claude Code, use the official binary distribution.  The Chromium
 ;;; variant of binary-build-system supplies Electron's runtime dependencies.
