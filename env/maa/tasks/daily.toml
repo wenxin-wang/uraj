@@ -1,7 +1,7 @@
 # Daily round for the Official client on hypie's redroid-maa, run at
-# 02:00, 05:00, 14:00 and 21:00 Asia/Shanghai.  Parameters follow MaaCore 6.19's integration
-# docs (docs/zh-cn/protocol/integration.md); maa-cli does not validate
-# them.
+# 02:00, 05:00, 11:00, 14:00 and 21:00 Asia/Shanghai. Parameters follow
+# MaaCore 6.19's integration docs (docs/zh-cn/protocol/integration.md);
+# maa-cli does not validate them.
 
 [[tasks]]
 name = "启动游戏"
@@ -28,7 +28,7 @@ type = "Infrast"
 [tasks.params]
 mode = 20000              # Rotation: the game's own preset queues.
 facility = ["Mfg", "Trade", "Reception"]
-drones = "_NotUse"
+drones = "PureGold"       # Use drones to accelerate 赤金 production.
 replenish = true          # Restock 源石碎片 in Orundum trading posts.
 reception_message_board = true
 reception_clue_exchange = true

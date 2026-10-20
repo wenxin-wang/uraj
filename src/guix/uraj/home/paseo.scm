@@ -18,6 +18,8 @@
   #:use-module (guix utils)
   #:use-module (guix records)
   #:use-module (uraj common agent-secrets)
+  #:use-module (uraj common context)
+  #:use-module (uraj common home-activation)
   #:use-module (uraj utils gexp)
   #:use-module (uraj home paseo-broker)
   #:use-module (uraj packages llm)
@@ -121,6 +123,21 @@
                 (let ((private #$(or private-config
                                      (agent-configuration-secret 'paseo))))
                   (if private (list "--private-config" private) '())))))
+   (if (and autostart?
+            (not (home-target-foreign? (current-home-target))))
+       (list
+        (simple-service 'paseo-home-ready home-shepherd-service-type
+          (list
+           (shepherd-service
+            (provision '(home-ready))
+            (documentation "Wait for successful system Home activation.")
+            (one-shot? #t)
+            (auto-start? #f)
+            (start #~(lambda _
+                       (zero? (spawn-command
+                               (list #$home-activation-program "wait")))))
+            (stop #~(const #f))))))
+       '())
    (if autostart?
        (list
         (simple-service 'paseo-daemon home-shepherd-service-type

@@ -6,6 +6,7 @@
   #:use-module (gnu system shadow)
   #:use-module (gnu packages admin)
   #:use-module (gnu packages base)
+  #:use-module (gnu packages bash)
   #:use-module (gnu packages linux)
   #:use-module (gnu packages nss)
   #:use-module (guix gexp)
@@ -40,13 +41,18 @@
    "maa-daily"
    #~(begin
        (setenv "HOME" "/var/lib/maa")
-       (setenv "PATH" #$(file-append android-platform-tools "/bin"))
+       ;; MaaCore's PosixIO uses execlp("sh", ...) for ADB commands.
+       (setenv "PATH"
+               (string-append #$(file-append android-platform-tools "/bin")
+                              ":" #$(file-append bash-minimal "/bin")))
        (setenv "MAA_CONFIG_DIR" #$%maa-config)
        (setenv "XDG_DATA_HOME" "/var/lib/maa/data")
        (setenv "XDG_CACHE_HOME" "/var/lib/maa/cache")
        (setenv "XDG_STATE_HOME" "/var/lib/maa/state")
-       (setenv "SSL_CERT_FILE"
-               #$(file-append nss-certs "/etc/ssl/certs/ca-certificates.crt"))
+       ;; nss-certs provides individual PEM files, not a CA bundle.
+       (unsetenv "SSL_CERT_FILE")
+       (setenv "SSL_CERT_DIR"
+               #$(file-append nss-certs "/etc/ssl/certs"))
        ;; Keep this user's server separate from interactive adb clients.
        (setenv "ANDROID_ADB_SERVER_PORT" "5038")
        (chdir "/var/lib/maa")
@@ -61,7 +67,7 @@
 
 ;; mcron uses the system timezone: hypie inherits Asia/Shanghai.
 (define %maa-daily-job
-  #~(job '(next-hour '(2 5 14 21)) #$%maa-daily-command #:user "maa"))
+  #~(job '(next-hour '(2 5 11 14 21)) #$%maa-daily-command #:user "maa"))
 
 (define %maa-services
   (list

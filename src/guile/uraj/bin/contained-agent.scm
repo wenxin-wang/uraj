@@ -127,6 +127,20 @@ COMMON itself unless TOP is a linked worktree."
   (let ((worktrees (string-append common "/worktrees")))
     (mkdir-p (string-append common "/hooks"))
     (append
+     ;; Git lists the main work tree first.
+     ;; Mount it before TOP and COMMON so their writable mounts win.
+     (if (string=? gitdir common)
+         '()
+         (match (command-lines git "-C" top "worktree" "list" "--porcelain")
+           ((_ "bare" . _) '())
+           ((first . _)
+            (if (string-prefix? "worktree " first)
+                (let ((main (string-drop first (string-length "worktree "))))
+                  (if (file-exists? (string-append main "/.git"))
+                      ((requested expose "main work tree") main)
+                      '()))
+                '()))
+           (_ '())))
      (share top)
      ;; A linked worktree's .git is a file naming GITDIR.
      (if (directory? (string-append top "/.git"))

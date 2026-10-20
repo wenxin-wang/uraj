@@ -1,0 +1,51 @@
+#!/bin/sh
+# Run on storie. Read-only inspection; credentials stay inside the container.
+set -eu
+
+/etc/openclaw/compose exec -T gateway node --input-type=module <<'JS'
+import { readFile } from "node:fs/promises";
+
+const readJson = async (path) => JSON.parse(await readFile(path, "utf8"));
+const pkg = await readJson("/app/package.json");
+const config = await readJson("/etc/openclaw/openclaw.json");
+const tools = config.tools ?? {};
+console.log(JSON.stringify({
+  version: pkg.version,
+  workspace: config.agents?.defaults?.workspace,
+  tools: {
+    profile: tools.profile,
+    allow: tools.allow,
+    deny: tools.deny,
+    workspaceOnly: tools.fs?.workspaceOnly,
+    applyPatch: tools.exec?.applyPatch,
+  },
+  imageModel: config.agents?.defaults?.mediaModels?.image?.primary,
+}, null, 2));
+
+// Use the deployment's fixed new-api endpoint, never an arbitrary config URL.
+// Do not follow redirects with a credential-bearing request.
+try {
+  const token = (await readFile("/run/secrets/new-api-token", "utf8")).trim();
+  const response = await fetch("http://172.31.0.9:3000/v1/models", {
+    headers: { Authorization: `Bearer ${token}` },
+    redirect: "error",
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!response.ok) {
+    console.error(`new-api model listing failed: HTTP ${response.status}`);
+    process.exitCode = 1;
+  } else {
+    const body = await response.json();
+    if (!Array.isArray(body.data)) {
+      throw new Error("Unexpected model listing format");
+    }
+    const models = body.data.map((model) => model.id)
+      .filter((id) => typeof id === "string").sort();
+    console.log(JSON.stringify({ visibleModelIds: models }, null, 2));
+  }
+} catch {
+  // Upstream error bodies and exception details may contain sensitive data.
+  console.error("Could not read the token or retrieve the new-api model list.");
+  process.exitCode = 1;
+}
+JS

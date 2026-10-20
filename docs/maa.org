@@ -94,7 +94,7 @@ device testing.
 ** Control plane
 
 =maa-cli=, MaaCore and adb run outside Android under a separate scheduled
-job at 02:00, 05:00, 14:00 and 21:00 Asia/Shanghai. They connect to the
+job at 02:00, 05:00, 11:00, 14:00 and 21:00 Asia/Shanghai. They connect to the
 private Android IP on port 5555. The game must already be manually logged in.
 Changing the controller to mower later does not require replacing Android
 or its persistent data.
@@ -111,7 +111,8 @@ Official client login, 3/4-star recruitment (leave 5/6-star tags for manual
 handling), preset base rotation and clues, friend visits and credit shopping,
 rewards, then close the game. There is no =Fight= task and =credit_fight= is
 false, so this round does not spend sanity. Base rotation uses the game's
-existing preset queues; keep those configured in-game.
+existing preset queues; keep those configured in-game. Drones accelerate
+Pure Gold production (=drones = "PureGold"=).
 
 The dedicated =maa= system account keeps state under =/var/lib/maa=, with
 ADB server port 5038 separate from interactive clients. A nonblocking lock
@@ -120,6 +121,10 @@ Start the ADB server explicitly before MaaCore: in the first live test,
 letting MaaCore spawn it left a communication pipe open in the background
 server and delayed connection by a minute. Prestarting it connected in one
 second. Both startup and MAA run inside the lock and timeout.
+The command's =PATH= includes both ADB and =bash-minimal=: MaaCore's
+PosixIO invokes =sh -c= through =execlp=. An ADB-only =PATH= lets the
+absolute-path server startup succeed but makes subsequent device commands
+fail with =exec failed: No such file or directory=.
 Configuration and the pinned MAA 6.19.0 package are immutable store files;
 resource updates and logs go to the account's writable data/cache/state
 directories. CLI logs are under =/var/lib/maa/state/maa/debug/=; scheduler
@@ -130,6 +135,14 @@ maa-cli 0.7.5 also performs a mandatory API hot update before task parsing,
 including during =--dry-run=; this needs outbound HTTPS. The optional
 MaaResource Git update warns on failure, but an API update failure aborts
 that run. See the [[https://github.com/MaaAssistantArknights/maa-cli/blob/v0.7.5/crates/maa-cli/src/run/mod.rs][pinned CLI run implementation]].
+
+The scheduled command sets =SSL_CERT_DIR= to the =nss-certs= store
+directory and clears =SSL_CERT_FILE=. This package contains individual
+certificates, not =etc/ssl/certs/ca-certificates.crt=. The 2026-10-17
+21:00 scheduled run pointed at that nonexistent bundle and aborted with
+=No CA certificates were loaded from the system=. Interactive validation
+does not validate the scheduler's certificate environment; after deploying
+the fix, check the dedicated account's scheduled invocation as well.
 
 Live validation on hypie on 2026-10-17, 16:20--16:25 Asia/Shanghai, used
 the Guix store MAA/ADB binaries and this task/profile/CLI configuration
