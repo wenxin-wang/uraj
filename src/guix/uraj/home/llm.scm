@@ -19,7 +19,6 @@
   #:use-module (uraj packages llm)
   #:use-module (uraj utils file path)
   #:export (home-agent-skills-service-type
-            %opencode?
             agent-common-services
             agent-desktop-services agent-headless-services contained-agent))
 
@@ -74,11 +73,8 @@ search paths.")))
         (profile-manifest #$%agent-tools-profile))))
 
 (define llm-agent-packages
-  (append %agent-tool-packages (list claude-code codex)))
-
-;;; Whether to also install OpenCode.  Bind %opencode? around Home service
-;;; construction; it is only installed on the host, not in contained-agent.
-(define %opencode? (make-parameter #f))
+  (append %agent-tool-packages
+          (list claude-code codex opencode-bin pi-coding-agent)))
 
 (define %agent-skills
   `(("agent-browser"
@@ -90,9 +86,7 @@ Homes and the headless Homes."
   (cons*
    (simple-service 'llm-agent-packages
                    home-profile-service-type
-                   (if (%opencode?)
-                       (cons opencode-bin llm-agent-packages)
-                       llm-agent-packages))
+                   llm-agent-packages)
    (service home-agent-skills-service-type %agent-skills)
    (my-dotfiles-services (list (project-path "env/dotfiles/llm")))))
 
@@ -101,6 +95,20 @@ Homes and the headless Homes."
 ;;; home directory.
 (define %contained-agent-specs
   #~(list
+     (cons "opencode"
+           `((program . #$(file-append opencode-bin "/bin/opencode"))
+             (overlay "~/.config/opencode" "~/.local/share/opencode"
+                      "~/.local/state/opencode")
+             (persist "~/.local/share/opencode/"
+                      "~/.local/state/opencode/")
+             (preserve "OPENAI_.*" "ANTHROPIC_.*" "GEMINI_API_KEY"
+                       "OPENROUTER_API_KEY")))
+     (cons "pi"
+           `((program . #$(file-append pi-coding-agent "/bin/pi"))
+             (overlay "~/.pi/agent" "~/.agents/skills")
+             (persist "~/.pi/agent/sessions/")
+             (preserve "OPENAI_.*" "ANTHROPIC_.*" "GEMINI_API_KEY"
+                       "OPENROUTER_API_KEY")))
      (cons "codex"
            (codex-spec #$(file-append codex "/bin/codex")))
      ;; Everything under ~/.claude is the session's own but for the
@@ -171,6 +179,8 @@ Homes and the headless Homes."
 
 (define (contained-agent-home-files)
   `((".local/bin/contained-agent" ,contained-agent)
+    (".local/bin/opencode" ,(contained-agent-link "opencode"))
+    (".local/bin/pi" ,(contained-agent-link "pi"))
     (".local/bin/codex" ,(contained-agent-link "codex"))
     (".local/bin/claude" ,(contained-agent-link "claude"))))
 
