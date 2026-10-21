@@ -243,6 +243,27 @@ overrides:
         self.assertEqual(directory.stat().st_mode & 0o777, 0o700)
         self.assertEqual(attachment.read_bytes(), b"existing attachment")
 
+    def test_upload_directory_is_private_and_preserves_attachments(self):
+        SERVICE.activate(self.home)
+        directory = self.home / ".paseo/uploads"
+        attachment = directory / "标准｜数据交付格式.pdf"
+        attachment.write_bytes(b"existing attachment")
+        directory.chmod(0o755)
+        SERVICE.activate(self.home)
+        self.assertEqual(directory.stat().st_mode & 0o777, 0o700)
+        self.assertEqual(attachment.read_bytes(), b"existing attachment")
+
+    def test_upload_directory_rejects_symlink(self):
+        directory = self.home / ".paseo/uploads"
+        directory.parent.mkdir()
+        target = self.home / "unrelated"
+        target.mkdir(mode=0o755)
+        mode = target.stat().st_mode
+        directory.symlink_to(target)
+        with self.assertRaises(ValueError):
+            SERVICE.prepare_upload_directory(self.home)
+        self.assertEqual(target.stat().st_mode, mode)
+
     def test_temporary_directory_rejects_symlink(self):
         directory = self.home / ".cache/paseo-tmp"
         directory.parent.mkdir()

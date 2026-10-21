@@ -128,10 +128,13 @@ Homes and the headless Homes."
   '((share "~/.llm-memory")
     ;; Paseo sends Codex localImage paths below its private TMPDIR. Keep the
     ;; same path in both namespaces, including files uploaded after launch.
+    ;; File attachments live in uploads; expose only that subtree of the
+    ;; otherwise private Paseo state.
     ;; Of the host's Git configuration, only the identity in
     ;; ~/.gitconfig.local: the rest is preferences, and applications write
     ;; ~/.gitconfig.  The container writes a ~/.gitconfig of its own.
-    (expose "~/.cache/paseo-tmp" "~/src" "~/.llm-wiki" "~/.gitconfig.local")
+    (expose "~/.cache/paseo-tmp" "~/.paseo/uploads"
+            "~/src" "~/.llm-wiki" "~/.gitconfig.local")
     (preserve "TERM" "COLORTERM" "LANG" "LC_.*" "NO_COLOR" "PASEO_.*"
               "RUST_LOG")))
 
