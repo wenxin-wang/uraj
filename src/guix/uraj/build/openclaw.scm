@@ -1,4 +1,4 @@
-;;; Runtime preparation for the single-user OpenClaw Gateway.
+;;; Runtime preparation for the trusted OpenClaw Gateway.
 (define-module (uraj build openclaw)
   #:use-module (guix build syscalls)
   #:use-module (ice-9 rdelim)
@@ -87,7 +87,7 @@
     ;; DATA stays root-owned; do not recursively chmod/chown user state.
     (private-directory data 0 0)
     (private-directory (string-append data "/home") uid gid)
-    (private-directory (string-append data "/workspaces") 0 0)
+    (private-directory (string-append data "/workspaces") uid gid)
     (private-directory (string-append data "/workspaces/main") uid gid)
     (private-directory runtime 0 0)
     (for-each

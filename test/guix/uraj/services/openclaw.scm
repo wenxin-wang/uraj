@@ -45,8 +45,10 @@
 (test-equal "never pulls" "never" (at gateway "pull_policy"))
 (test-equal "runs non-root" "1000:1000" (at gateway "user"))
 (test-assert "read-only root" (at gateway "read_only"))
-(test-equal "Doctor knows config is externally managed" "1"
-  (at gateway "environment" "OPENCLAW_CONFIG_READONLY"))
+(test-assert "native runtime writes are enabled"
+  (not (at gateway "environment" "OPENCLAW_CONFIG_READONLY")))
+(test-equal "runtime config is persistent" "/home/node/.openclaw/openclaw.json"
+  (at gateway "environment" "OPENCLAW_CONFIG_PATH"))
 (test-equal "Feishu uses its built-in typing reaction" #t
   (at app "channels" "feishu" "typingIndicator"))
 (test-assert "custom GET receipt is disabled"
@@ -60,10 +62,20 @@
 (test-assert "no Docker socket or host home"
   (every (lambda (v) (or (string-prefix? "/data/openclaw/" (at v "source"))
                          (string-prefix? "/run/openclaw/" (at v "source"))
-                         (equal? "/etc/openclaw/openclaw.json" (at v "source"))))
+                         (member (at v "source")
+                                 '("/etc/openclaw/base.json"
+                                   "/etc/openclaw/config.mjs"
+                                   "/etc/openclaw/config-policy.mjs"))))
          volumes))
 (test-assert "Docker never creates absent bind paths"
   (every (lambda (v) (eq? #f (at v "bind" "create_host_path"))) volumes))
+(test-assert "base and checked command are read-only"
+  (every (lambda (v) (or (not (string-prefix? "/etc/openclaw/" (at v "target")))
+                         (eq? #t (at v "read_only")))) volumes))
+(test-equal "exec explicitly runs in the Gateway" "gateway"
+  (at app "tools" "exec" "host"))
+(test-equal "exec does not prompt per command" "off"
+  (at app "tools" "exec" "ask"))
 (test-equal "secrets are read-only individual mounts" 3
   (count (lambda (v) (and (string-prefix? "/run/secrets/" (at v "target"))
                           (at v "read_only"))) volumes))
@@ -73,8 +85,8 @@
 (test-equal "DMs require administrator pairing approval" "pairing"
   (at app "channels" "feishu" "dmPolicy"))
 (test-equal "groups disabled" "disabled" (at app "channels" "feishu" "groupPolicy"))
-(test-equal "only workspace file tools allowed"
-  '#("read" "write" "edit" "apply_patch") (at app "tools" "allow"))
+(test-equal "file and process tools explicitly allowed"
+  '#("read" "write" "edit" "apply_patch" "exec" "process") (at app "tools" "allow"))
 (test-assert "file tools are not blocked by the old deny-all policy"
   (not (at app "tools" "deny")))
 (test-equal "file tools restricted to workspace" #t
@@ -266,7 +278,8 @@
   (gexp-modules (shepherd-service-start service)))
 
 ;; Execute the generated start closure without Docker or real credentials.
-(define* (start tag #:key (missing? #f) (fail-up? #f) (fail-validation? #f))
+(define* (start tag #:key (missing? #f) (fail-up? #f) (fail-validation? #f)
+                (fail-reconcile? #f))
   (let ((m (make-fresh-user-module)) (calls '()) (stopped? #f))
     (for-each (lambda (interface) (module-use! m (resolve-interface interface)))
               (remove (lambda (interface) (member interface %default-modules))
@@ -278,6 +291,8 @@
     (module-define! m 'invoke
       (lambda args
         (set! calls (cons args calls))
+        (when (and fail-reconcile? (member "reconcile" args))
+          (error "simulated policy failure"))
         (when (and fail-validation? (member "validate" args))
           (error "simulated schema failure"))
         (when (and fail-up? (member "up" args)) (error "simulated failed startup"))))
@@ -299,6 +314,16 @@
     (and (not (car result))
          (not (any (lambda (call) (member "up" call)) (cadr result))))))
 (test-equal "plain start selects declared digest" image (caar (start #f)))
+(test-assert "reconciliation failure never starts Gateway"
+  (let ((result (start #f #:fail-reconcile? #t)))
+    (and (not (car result))
+         (not (any (lambda (call) (member "up" call)) (cadr result))))))
+(test-equal "stop and reconcile precede native validation and startup"
+  '("stop" "reconcile" "validate" "up")
+  (filter-map (lambda (call)
+                (find (lambda (word) (member word call))
+                      '("stop" "reconcile" "validate" "up")))
+              (cadr (start #f))))
 (test-equal "invalid tag has no effects" '(#f () #f) (start "../bad"))
 
 (define failures (test-runner-fail-count (test-runner-current)))

@@ -4,10 +4,10 @@
 
 一个飞书 bot、一个 Gateway 容器、一个默认 agent，通过 new-api 调用模型。
 飞书采用主动建立的 WebSocket 长连接，不需要公网地址或 webhook 入站。
-私聊需管理员批准配对，不需要事先查询 =open_id=；群聊关闭。模型仅允许
-=read=、=write=、=edit=、=apply_patch= 文件工具，限制在 =/workspace=，
-用于身份、偏好、记忆和首次引导清理。shell、浏览器、主动发消息、飞书
-文档工具保持关闭；普通聊天回复不需要模型调用 message 工具。
+私聊需管理员批准配对，不需要事先查询 =open_id=；群聊关闭。
+开放文件工具及 =exec=、=process=；命令在 Gateway 容器内以 UID 1000
+执行，不逐条询问。浏览器、主动发消息和飞书文档工具保持关闭。
+文件工具的 workspaceOnly 限制不适用于 shell。
 
 =env/guix/os/storie.scm= 已声明 OpenClaw，包含固定 image ID、飞书
 App ID 和 GPT/Claude 两组 provider，默认模型为
@@ -17,35 +17,58 @@ DeepSeek 尚未配置。Live ISO 不声明 OpenClaw。
 这些是部署声明，不代表主机已运行该服务。首次部署仍需在 storie
 确认镜像已加载，再进行 reconfigure、飞书配对及模型调用验收。
 
-* 工作区编辑与首次引导
+* 可写配置、不变量与命令执行
 
-=tools.allow= 使用四个明确的文件工具名，避免工具组日后扩展时意外开放
-额外能力。=tools.fs.workspaceOnly=true= 限制文件访问范围；
-=tools.exec.applyPatch.enabled=true= 和 =workspaceOnly=true= 允许在
-工作区内用补丁删除 =BOOTSTRAP.md=，不开放 =exec= 或 =process=。
-补丁配置位于 =tools.exec= 下，不代表允许执行 shell。
+信任固定镜像中的 Gateway 及批准的插件会保留部署不变量；它们仍可使用
+原生写入路径。这里不修改 OpenClaw 源码，也不使用 =$include=。
 
-身份、用户偏好和记忆写入持久化 =/workspace=；应用配置仍由 Guix 管理，
-不能要求 agent 自行修改只读的 =/etc/openclaw/openclaw.json=。
-图片生成不在本次工具白名单中。
+Guix 生成只读的 =/etc/openclaw/base.json=，同时作为初始配置和受管字段的
+期望值。正式配置是持久化的 =/home/node/.openclaw/openclaw.json=。
+Shepherd 启动时先停止旧 Gateway，再运行 reconcile：对齐基础字段，
+保留 agent、bindings、meta、wizard 和仍在批准列表中的默认模型；在镜像 schema
+校验通过后替换主文件，旧配置保存在 =openclaw.json.before-guix=。
+这是服务启动阶段的对齐，不是在运行中的 Guix activation 直接覆盖文件。
 
-权限字段已对照上游当前工具文档。固定版本 =v2026.10.3= 的源码链接
-在本次核对中返回 404，尚未验证部署镜像的实际文件工具实现。部署前
-需用该镜像验证配置 schema，并在隔离的临时工作区验证以下行为：
+agent 使用以下校验入口（JSON 值必须正确加 shell 引号）：
 
-1. 读取、创建、编辑和补丁删除工作区内的测试文件成功。
-2. 通过绝对路径、=../=、指向工作区外测试文件的符号链接访问均被拒绝；
-   使用无敏感内容的测试文件，不读取真实凭据。
-3. =exec=、=process=、浏览器和消息工具不出现在有效工具列表中。
-4. 当前选用模型可调用 =apply_patch=；部分旧版本可能按模型限制该工具。
+#+begin_src sh
+node /etc/openclaw/config.mjs check
+node /etc/openclaw/config.mjs set agents.defaults.model '"new-api-gpt/gpt-6-luna"'
+node /etc/openclaw/config.mjs set agents.entries.research '{"name":"研究助手","workspace":"/workspaces/research","agentDir":"/home/node/.openclaw/agents/research/agent"}'
+#+end_src
 
-仓库测试仅检查生成的配置，不能证明运行时路径隔离。上述验证通过后
-重新部署，让 agent 继续初始化并检查身份文件及引导文件清理结果。
+允许修改 =agents.entries=、默认模型和 =bindings=。agent 条目只允许
+=name=、=identity=、=model=、=workspace=、=agentDir=；禁止工具、沙箱、
+插件等覆盖。模型必须来自 Guix provider 列表。新 workspace 必须使用
+=/workspaces/= 下规范化的绝对路径；main 保留 =/workspace=。
+这些是路径字符串检查，不证明符号链接后的隔离；沙箱尚未接入。
+其他顶层配置及默认设置由 Guix 固定；meta、wizard 留给原生维护流程。
+不支持 include、环境插值、任意 CLI flags 或 provider builder。
+
+校验入口先检查请求，再在私有临时文件上执行原生 =config set=，重新检查
+原生规范化后的完整结果，最后通过 Gateway =config.set= RPC 携带
+=config.get= 返回的版本号提交。Gateway 的原生写入器负责并发冲突检查、
+备份和配置加载；冲突直接失败，用户重试，不覆盖动态注册产生的更新。
+Gateway 必须在线。批量变更可替换整个 =agents.entries= 或 =bindings=；
+暂不支持多路径 batch 和删除 agent（原生 config.set 会保护已有条目）。
+原生 CLI schema 不接受的操作仍会失败。错误不打印原生诊断或配置值，
+避免意外输出凭据；管理员可在受控终端进一步诊断。
+
+本阶段按“先 exec，后沙箱”实施。=exec= 可以直接写正式配置、调用原生
+管理接口并读取容器凭据，因此校验入口目前防误操作，不是权限隔离。
+不要据此认为多个 agent 的记忆对 shell 相互隔离。下一阶段应让 exec
+无法访问 Gateway 的配置、状态和管理凭据，并只开放校验入口。
+=channels.feishu.configWrites=true= 允许可信插件写回；未自动开启动态
+注册或群聊。=OPENCLAW_CONFIG_READONLY= 不再设置。
+
+部署验收需要用固定镜像检查：首次初始化、重启保留 agent/binding、
+合法模型修改成功、受管字段/agent 权限覆盖被拒绝、两个并发写入冲突，
+以及修改后的 Gateway 加载结果。仓库单元测试不代替真实镜像验收。
 
 * 执行沙箱接入选择（尚未启用）
 
 Gateway 已在 Docker 容器中运行，但未启用 OpenClaw 的工具执行沙箱，
-也没有开放 =exec=、=process=。在 Gateway 内直接执行命令会以同一个
+已经开放 =exec=、=process=。在 Gateway 内直接执行命令会以同一个
 UID 1000 运行，能读取挂载的三个凭据和运行状态；=workspaceOnly=
 不是 shell 的文件系统隔离。
 
@@ -297,8 +320,8 @@ Completions，将它的 =api= 改为 =openai-completions=；每个渠道实际
 
 飞书中作为普通文本发送 =/model=、=/model list= 查看模型，发送
 =/model new-api-claude/CLAUDE-MODEL-ID= 切换当前会话。管理界面的聊天模型选择器也可
-切换。这是会话状态，不要求修改只读配置；永久默认模型仍在 Guix 声明
-中修改。多个可选模型不会自动变成失败回退列表。
+切换。这是会话状态；持久默认模型可用校验入口在 Guix 批准的列表中
+选择。模型目录仍由 Guix 声明。多个可选模型不会自动变成失败回退列表。
 
 * 秘密
 
@@ -380,9 +403,11 @@ new-api 的 token 权限、模型名称及协议均可用。不要以 Gateway �
 
 | 宿主机路径                         | 容器路径                     | 用途 |
 |------------------------------------+------------------------------+------|
-| /etc/openclaw/openclaw.json         | 同路径，只读                 | Guix 管理配置 |
+| /etc/openclaw/base.json             | 同路径，只读                 | Guix 初始配置与不变量 |
+| /etc/openclaw/config*.mjs           | 同路径，只读                 | 校验入口与策略 |
 | /data/openclaw/home                 | /home/node                   | 状态、认证、备份及维护文件 |
-| /data/openclaw/workspaces/main      | /workspace                   | agent workspace |
+| /data/openclaw/workspaces/main      | /workspace                   | main workspace |
+| /data/openclaw/workspaces           | /workspaces                  | 动态 agent 工作区 |
 | /run/openclaw/<secret>             | /run/secrets/<secret>         | 运行时秘密 |
 | /var/log/openclaw/containers.log    | syslog 接收                  | 运维日志，轮转 |
 
@@ -390,10 +415,9 @@ new-api 的 token 权限、模型名称及协议均可用。不要以 Gateway �
 home、workspace 都是私有数据，不赋予 =log-readers= 读取权限。
 HOME 整体可写，允许上游创建 =.openclaw=、=.config/openclaw= 和
 =.openclaw.update-captures= 等目录；镜像根文件系统和声明配置仍只读。
-设置 =OPENCLAW_CONFIG_READONLY=1=，告知启动前自动运行的
-=doctor --fix= 配置由外部管理。Doctor 仍可修复运行状态，但配置迁移
-需按它的诊断修改 Guix 声明后重新部署；只读挂载本身不会告知 Doctor
-跳过配置写入。
+运行配置可写；启动前先对齐 Guix 基础字段并验证，Doctor 修复与升级迁移
+仍属于受信任维护操作。若它们引入策略不支持的 agent 字段，下次校验或
+启动会拒绝，应审查后调整策略，不自动删除动态数据。
 旧布局的 =state=、=auth-key=、=update-captures= 不自动迁移或删除。
 若明确不保留旧数据，先停服务并移除容器，再清空数据目录，然后部署
 新配置。启动程序会创建权限为 0700、属主为 1000:1000 的新 HOME。
@@ -420,8 +444,9 @@ Compose 采用 =on-failure=，不会随 Docker daemon 启动而绕过 Shepherd�
 需要下面的端到端验收。容器健康状态变成 unhealthy 不会由 Docker 的
 on-failure 自动重启；该策略只处理进程退出。
 
-配置以 Guix 声明为准。UI/向导不应写入这份只读配置；需要调整时改
-声明并部署。没有发布主机端口，管理界面通过 SSH 转发至容器 IP：
+基础设置以 Guix 声明为准。agent 配置编辑使用前述校验入口；UI/向导属于
+可信管理员入口，不会自动经过该校验。没有发布主机端口，管理界面通过 SSH
+转发至容器 IP：
 
 #+begin_src sh
 sudo /etc/openclaw/compose ps
@@ -493,6 +518,7 @@ sudo /etc/openclaw/compose ps
 #+begin_src sh
 guix repl -L src/guix -L src/guile test/guix/uraj/services/openclaw.scm
 guix repl -L src/guix test/guix/uraj/openclaw-runtime.scm
+node --test test/openclaw/config.test.mjs
 guix build -L src/guix -L src/guile -f test/guix/uraj/openclaw-program.scm
 #+end_src
 

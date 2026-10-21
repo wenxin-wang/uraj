@@ -55,6 +55,7 @@
                     (or (string-prefix? runtime (car entry))
                         (member (car entry)
                                 (list (string-append data "/home")
+                                      (string-append data "/workspaces")
                                       (string-append data "/workspaces/main")))))))
          ownership))
 (for-each

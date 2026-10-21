@@ -7,7 +7,7 @@ import { readFile } from "node:fs/promises";
 
 const readJson = async (path) => JSON.parse(await readFile(path, "utf8"));
 const pkg = await readJson("/app/package.json");
-const config = await readJson("/etc/openclaw/openclaw.json");
+const config = await readJson("/home/node/.openclaw/openclaw.json");
 const tools = config.tools ?? {};
 console.log(JSON.stringify({
   version: pkg.version,

@@ -1,4 +1,4 @@
-;;; One Feishu bot, one Gateway, one agent; runtime credentials stay out of
+;;; Trusted Gateway with checked runtime configuration; credentials stay out of
 ;;; the store. See docs/openclaw.org for image preparation and activation.
 (define-module (uraj services openclaw)
   #:use-module (gnu packages base)
@@ -175,13 +175,15 @@
                                                    (cons (car entry)
                                                          `((alias . ,(cdr entry)))))
                                                  (openclaw-model-aliases config))))
-                             (heartbeat . ((every . "0m")))))))
-      ;; Keep the allowlist explicit: bootstrap and memory need file tools,
-      ;; not process execution or access to the gateway's home and secrets.
-      (tools . ((allow . #("read" "write" "edit" "apply_patch"))
+                             (heartbeat . ((every . "0m")))))
+                 (ownership . "explicit")
+                 (entries . ((main . ((workspace . "/workspace")
+                                      (agentDir . "/home/node/.openclaw/agents/main/agent")))))))
+      ;; Gateway exec is intentionally trusted until a separate sandbox is added.
+      (tools . ((allow . #("read" "write" "edit" "apply_patch" "exec" "process"))
                 (fs . ((workspaceOnly . #t)))
-                ;; apply_patch can remove BOOTSTRAP.md without a shell.
-                (exec . ((applyPatch . ((enabled . #t)
+                (exec . ((host . "gateway") (security . "full") (ask . "off")
+                         (applyPatch . ((enabled . #t)
                                        (workspaceOnly . #t)))))))
       (browser . ((enabled . #f)))
       (cron . ((enabled . #f)))
@@ -191,7 +193,7 @@
          ((enabled . #t) (domain . "feishu") (connectionMode . "websocket")
           (defaultAccount . "main") (dmPolicy . "pairing")
           (groupPolicy . "disabled") (requireMention . #t)
-          (configWrites . #f) (resolveSenderNames . #f)
+          (configWrites . #t) (resolveSenderNames . #f)
           (typingIndicator . #t) (renderMode . "raw")
           (streaming . ((mode . "off")))
           (tools . ((doc . #f) (chat . #f) (wiki . #f) (drive . #f)
@@ -224,10 +226,7 @@
           ,(compose-logging "openclaw")
           (environment . ((HOME . "/home/node")
                           (OPENCLAW_STATE_DIR . "/home/node/.openclaw")
-                          (OPENCLAW_CONFIG_PATH . "/etc/openclaw/openclaw.json")
-                          ;; Doctor must report edits to our declarative config,
-                          ;; while still repairing writable runtime state.
-                          (OPENCLAW_CONFIG_READONLY . "1")
+                          (OPENCLAW_CONFIG_PATH . "/home/node/.openclaw/openclaw.json")
                           (OPENCLAW_DISABLE_BONJOUR . "1")))
           (command . #("node" "openclaw.mjs" "gateway"))
           (volumes .
@@ -237,7 +236,11 @@
                           "/home/node")
                     (bind (string-append (openclaw-data-directory config) "/workspaces/main")
                           "/workspace")
-                    (bind "/etc/openclaw/openclaw.json" "/etc/openclaw/openclaw.json" #t))
+                    (bind (string-append (openclaw-data-directory config) "/workspaces")
+                          "/workspaces")
+                    (bind "/etc/openclaw/base.json" "/etc/openclaw/base.json" #t)
+                    (bind "/etc/openclaw/config.mjs" "/etc/openclaw/config.mjs" #t)
+                    (bind "/etc/openclaw/config-policy.mjs" "/etc/openclaw/config-policy.mjs" #t))
               (map (lambda (name) (bind (string-append "/run/openclaw/" name)
                                         (string-append "/run/secrets/" name) #t))
                    %secret-names))))
@@ -315,6 +318,13 @@
               (invoke #$(openclaw-prepare-program config))
               (catch #t
                 (lambda ()
+                  ;; Reconcile while the Gateway is stopped, preserving dynamic state.
+                  (invoke #$command "stop" "--timeout" "30")
+                  (invoke #$(file-append coreutils "/bin/env")
+                          (string-append "OPENCLAW_IMAGE=" id)
+                          #$command "run" "--rm" "--no-deps" "--pull" "never"
+                          "--entrypoint" "node" "gateway"
+                          "/etc/openclaw/config.mjs" "reconcile")
                   ;; Validate with the chosen image's own plugin schemas,
                   ;; before starting the long-lived Gateway.
                   (invoke #$(file-append coreutils "/bin/env")
@@ -342,7 +352,11 @@
              (lambda (_) (list (service-log (name "openclaw") (containers? #t)))))
            (service-extension etc-service-type
              (lambda (config)
-               `(("openclaw/openclaw.json" ,(openclaw-config-file config))
+               `(("openclaw/base.json" ,(openclaw-config-file config))
+                 ("openclaw/config.mjs"
+                  ,(local-file "../../../../scripts/openclaw/config.mjs"))
+                 ("openclaw/config-policy.mjs"
+                  ,(local-file "../../../../scripts/openclaw/config-policy.mjs"))
                  ("openclaw/compose.json" ,(openclaw-compose-file config))
                  ("openclaw/compose" ,(openclaw-command config)))))))
     (description "Administrator-paired OpenClaw Gateway on the restricted workload network.")))
