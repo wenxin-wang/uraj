@@ -2,7 +2,7 @@
        (name 'guix)
        (url "https://mirror.nju.edu.cn/git/guix.git")
        (branch "master")
-       (commit "90d978cb9a60a3ea5bf676c9637ae2f718304a31")
+       (commit "a04b886f227804b404981da58aadffe697b27d82")
        (introduction
         (make-channel-introduction
          "9edb3f66fd807b096b48283debdcddccfea34bad"
@@ -12,7 +12,7 @@
        (name 'nonguix)
        (url "https://gitlab.com/nonguix/nonguix")
        (branch "master")
-       (commit "f9171dd0d0a58d63c0811d61e51493a3fa4ae4f3")
+       (commit "25226c35c150f03d469b0c855d10b2402a094bc1")
        (introduction
         (make-channel-introduction
          "897c1a470da759236cc11798f4e0a5f7d4d59fbc"
@@ -22,7 +22,7 @@
        (name 'rosenthal)
        (url "https://codeberg.org/hako/rosenthal.git")
        (branch "trunk")
-       (commit "8bebafaacdd9ea7b0bc7159857206b1959a0df2d")
+       (commit "a7073acb3964baafad4ef48bdab19f9b92170552")
        (introduction
         (make-channel-introduction
          "7677db76330121a901604dfbad19077893865f35"
@@ -32,7 +32,7 @@
        (name 'pantherx)
        (url "https://codeberg.org/gofranz/panther.git")
        (branch "master")
-       (commit "cf52b811d82e8d3e6bd2581f3dda39b0c6b153bd")
+       (commit "bc770b7db89c75137e100dd5a588a875366225d8")
        (introduction
         (make-channel-introduction
          "54b4056ac571611892c743b65f4c47dc298c49da"
@@ -52,7 +52,7 @@
        (name 'shikanox)
        (url "https://codeberg.org/ch4og/shikanox.git")
        (branch "main")
-       (commit "16f3d13bceb85592b6c83be6496fce6cfbad2ff5")
+       (commit "9f23b8148e0b4e3c0fcd4849e40411ec02bb5173")
        (introduction
         (make-channel-introduction
          "fe3b5f72aa676c69f4d43507bdd18fb051906917"
@@ -62,7 +62,7 @@
        (name 'small-guix)
        (url "https://codeberg.org/fishinthecalculator/small-guix.git")
        (branch "main")
-       (commit "f387d28980a67bc0e892e976555e7622307b7b2a")
+       (commit "0cd09894b249b37f23e92b70baf0024b42f5618d")
        (introduction
         (make-channel-introduction
          "f260da13666cd41ae3202270784e61e062a3999c"

@@ -18,7 +18,7 @@
   #:autoload (gnu packages glib) (dbus)
   #:autoload (gnu packages gnome) (xdg-desktop-portal-gnome)
   #:autoload (gnu packages xorg) (xwayland-satellite)
-  #:autoload (rosenthal packages wm) (noctalia)
+  #:autoload (gnu packages window-management) (noctalia-shell)
   #:export (noctalia-for-host
             home-niri-noctalia-services
             home-niri-portal-services
@@ -49,7 +49,13 @@ into programs noctalia spawns."
       #~(begin
           (use-modules (guix build utils))
           (copy-recursively #$noctalia #$output)
-          (let ((bin (string-append #$output "/bin/noctalia")))
+          (let ((wrapper (string-append #$output "/bin/noctalia"))
+                (bin (string-append #$output "/bin/.noctalia-real")))
+            ;; Guix wraps noctalia to provide its runtime commands.  Point
+            ;; the copied wrapper at our patched executable.
+            (chmod wrapper #o755)
+            (substitute* wrapper
+              ((#$noctalia) #$output))
             ;; The copy keeps the store's read-only permissions.
             (chmod bin #o755)
             (for-each (lambda (lib)
@@ -159,8 +165,8 @@ known closure, plain noctalia anywhere else (see the comment above)."
     ;; directory or a module's package not installed (libecryptfs,
     ;; libpwquality, ...) keeps plain noctalia, whose locker merely fails.
     (if (and libs (every file-exists? libs))
-        (noctalia-with-host-pam noctalia libs)
-        noctalia)))
+        (noctalia-with-host-pam noctalia-shell libs)
+        noctalia-shell)))
 
 ;; The session is managed by the host display manager (GDM on Ubuntu).
 ;; GDM runs /usr/local/bin/niri-session, which sources the Guix Home
