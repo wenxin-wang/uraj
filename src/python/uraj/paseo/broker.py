@@ -484,6 +484,8 @@ class BrokerServer:
         self.listener.setblocking(False)
         self.owner = os.pidfd_open(os.getpid())
         self.clients = {}
+        self.branch_gc_jobs = []
+        self.branch_gc_pending = set()
         self.stopping = False
         self.ssh_preparation = None
         try:
@@ -583,6 +585,55 @@ class BrokerServer:
             shutil.rmtree(job["temporary"])
         connection.close()
 
+    def start_branch_gc(self, job):
+        """Run optional host GC after teardown, without delaying the exit reply."""
+        program = getattr(self.args, "branch_gc", None)
+        if not program or self.stopping:
+            return
+        _, argv, cwd, _, _, _ = job["request"]
+        if cwd == self.home or argv in (["--version"], ["auth", "status"]):
+            return
+        self.branch_gc_pending.add(str(cwd))
+        self.launch_pending_branch_gc()
+
+    def launch_pending_branch_gc(self):
+        if self.stopping or self.clients or self.branch_gc_jobs:
+            return
+        if not self.branch_gc_pending:
+            return
+        cwd = self.branch_gc_pending.pop()
+        try:
+            process = subprocess.Popen(
+                [self.args.branch_gc, "--apply", cwd],
+                stdin=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+            self.branch_gc_jobs.append((process, time.monotonic()))
+        except OSError as error:
+            print(f"paseo-broker: branch GC skipped: {error}", file=sys.stderr)
+
+    def poll_branch_gc(self, stopping=False):
+        remaining = []
+        for process, started in self.branch_gc_jobs:
+            if process.poll() is not None:
+                if process.returncode:
+                    print(
+                        "paseo-broker: branch GC skipped or failed",
+                        file=sys.stderr,
+                    )
+                continue
+            if stopping or time.monotonic() - started > 60:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                process.wait()
+            else:
+                remaining.append((process, started))
+        self.branch_gc_jobs = remaining
+        if not stopping:
+            self.launch_pending_branch_gc()
+
     def run_event_loop(self):
         """Serve clients until shutdown and owned execution cleanup complete."""
 
@@ -593,6 +644,7 @@ class BrokerServer:
             signal.signal(sig, request_shutdown)
         try:
             while not self.stopping or self.clients:
+                self.poll_branch_gc(stopping=self.stopping)
                 if self.ssh_preparation is not None:
                     self.ssh_preparation.poll()
                 for connection, job in list(self.clients.items()):
@@ -622,6 +674,7 @@ class BrokerServer:
                             },
                         )
                         self.close_client_and_release_resources(connection)
+                        self.start_branch_gc(job)
                         continue
                     if self.stopping:
                         if process:
@@ -655,6 +708,11 @@ class BrokerServer:
                 }
                 for connection, job in list(self.clients.items()):
                     if "request" in job and not job.get("process"):
+                        # GC runs only while this broker is idle. Hold newly
+                        # accepted launches until its bounded child exits.
+                        if self.branch_gc_jobs:
+                            job["accepted"] = time.monotonic()
+                            continue
                         key = job["request"][4]
                         if not key or key not in active:
                             try:
@@ -806,6 +864,7 @@ class BrokerServer:
                             self.close_client_and_release_resources(connection)
         finally:
             # On an internal exception do not orphan the owned namespaces.
+            self.poll_branch_gc(stopping=True)
             for job in self.clients.values():
                 if job.get("process"):
                     job["process"].kill()
@@ -977,6 +1036,7 @@ def main():
     server.add_argument("--launcher", required=True)
     server.add_argument("--host-codex")
     server.add_argument("--host-claude")
+    server.add_argument("--branch-gc", help="host branch GC executable")
     server.add_argument(
         "--host-cgroup-root",
         default="/sys/fs/cgroup",

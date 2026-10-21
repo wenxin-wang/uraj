@@ -4,6 +4,7 @@
   #:use-module (gnu packages commencement)
   #:use-module (gnu packages linux)
   #:use-module (gnu packages python)
+  #:use-module (gnu packages version-control)
   #:use-module (gnu services)
   #:use-module (gnu services shepherd)
   #:use-module (guix gexp)
@@ -33,6 +34,17 @@
 (define broker-source
   (local-file (project-path "src/python/uraj/paseo/broker.py")))
 
+(define branch-gc-program
+  (program-file
+   "paseo-branch-gc"
+   #~(begin
+       (setenv "PATH" (string-append #$(file-append git "/bin") ":"
+                                    #$(file-append gh-git-credential "/bin") ":"
+                                    (or (getenv "PATH") "")))
+       (apply execl #$(file-append python "/bin/python3") "python3"
+              #$(local-file (project-path "src/python/uraj/paseo/branch_gc.py"))
+              (cdr (command-line))))))
+
 (define (broker-program launcher)
   (program-file
    "paseo-broker"
@@ -45,6 +57,7 @@
                   "--supervisor" #$supervisor "--launcher" #$launcher
                   "--host-codex" #$(file-append codex "/bin/codex")
                   "--host-claude" #$(file-append claude-code "/bin/claude")
+                  "--branch-gc" #$branch-gc-program
                   (if (and (pair? args) (string=? (car args) "serve"))
                       (cdr args) args))))))
 
@@ -115,6 +128,7 @@
     (file-union
      "paseo-broker-bundle"
      `(("bin/paseo-broker" ,program)
+       ("bin/paseo-branch-gc" ,branch-gc-program)
        ("libexec/paseo-broker/codex" ,(provider-client "codex"))
        ("libexec/paseo-broker/claude" ,(provider-client "claude"))
        ("share/paseo-broker/shepherd.scm"
@@ -134,6 +148,7 @@ Boot deployments start the broker through the root Shepherd instead."
        (list paseo-broker-clients))
      (simple-service 'paseo-broker-files home-files-service-type
        `((".local/bin/paseo-broker" ,program)
+         (".local/bin/paseo-branch-gc" ,branch-gc-program)
          (".local/libexec/paseo-broker/codex" ,(provider-client "codex"))
          (".local/libexec/paseo-broker/claude" ,(provider-client "claude"))
          (".local/bin/paseo-broker-configure"
