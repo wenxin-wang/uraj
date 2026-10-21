@@ -283,13 +283,13 @@
                        #:log-file "/var/log/fancontrol.log"))
              (stop #~(make-kill-destructor)))))))
 
-;; Preserve the exports and client networks read from container 100.
+;; Trusted LAN clients use numeric Unix UIDs/GIDs (AUTH_SYS).  Keep client
+;; root squashed; never rewrite existing ZFS ownership to match a login.
+;; crossmnt also exposes child datasets, including archive and backups.
 (define %nfs-exports
   (map (lambda (directory)
          (list directory
-               "192.168.1.0/24(rw,sync,no_subtree_check,crossmnt)"
-               "172.31.128.0/17(rw,sync,no_subtree_check,crossmnt)"
-               "fdff:ffff:ffff:fff0::/60(rw,sync,no_subtree_check,crossmnt)"))
+               "172.31.0.0/24(rw,sync,sec=sys,root_squash,no_subtree_check,crossmnt)"))
        '("/core-data" "/media-data")))
 
 (define (zfs-snapshot-timer name keep label event)
