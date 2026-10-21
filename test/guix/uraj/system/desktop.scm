@@ -13,7 +13,7 @@
              (uraj common context)
              (uraj packages elogind)
              (uraj packages window-managers)
-             ((rosenthal packages wm) #:select (noctalia)))
+             ((gnu packages window-management) #:select (noctalia-shell)))
 
 (test-begin "desktop-session-lifecycle")
 (define target-user
@@ -44,11 +44,11 @@
   (home-target (foreign? #t) (state-directory "/tmp/state")
                (os-release os-release) (systemd? systemd?)))
 (test-assert "unknown foreign hosts use plain noctalia"
-  (eq? noctalia
+  (eq? noctalia-shell
        (noctalia-for-host
         (fake-foreign-target '(("ID" . "ubuntu") ("VERSION_ID" . "20.04")) #t))))
 (test-assert "Guix System never selects the host PAM closure"
-  (eq? noctalia
+  (eq? noctalia-shell
        (noctalia-for-host
         (home-target (foreign? #f) (state-directory "/tmp/state")
                      (os-release '(("ID" . "ubuntu")
