@@ -65,6 +65,7 @@
              (guix gexp)
              (sops secrets)
              (uraj services strongswan)
+             (uraj services storie-mounts)
              (uraj utils file path)
              (uraj hardware asus)
              (uraj system base)
@@ -141,7 +142,8 @@
             (list (local-file
                    (guix-env-path "os/keys/storie-signing-key.pub"))))
            (if (getenv "TO_ISO") '()
-               (append (host-sops-services
+               (append (list storie-mounts-service)
+                       (host-sops-services
                         (append (map cdr %vpn-connections)
                                 %agent-secrets))
                        (strongswan-services %vpn-connections)))

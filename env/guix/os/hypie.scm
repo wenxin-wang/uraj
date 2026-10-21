@@ -171,6 +171,7 @@
              (uraj packages redroid)
              (uraj packages wireless)
              (uraj services strongswan)
+             (uraj services storie-mounts)
              (uraj services maa)
              (uraj services redroid)
              (uraj services restricted-network)
@@ -367,6 +368,7 @@
 (define hypie-installed-os
   (hypie-os
    (append
+    (list storie-mounts-service)
     (list (service zfs-data-service-type
             (zfs-configuration (zfs zfs-linux)))
           (zfs-data-ready-service

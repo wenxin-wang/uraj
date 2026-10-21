@@ -99,3 +99,40 @@ showmount -e localhost
 Then mount from an allowed client and check =ls -ln= and file creation as
 the intended ordinary user in a directory that user owns. =showmount=
 alone verifies export discovery, not NFSv4 mounting or write permissions.
+
+** On-demand mounts on lappie and hypie
+
+Installed lappie and hypie systems use Guix's =autofs= service (not systemd)
+to mount =172.31.0.5:/core-data= at =/mnt/storie/core-data= and
+=172.31.0.5:/media-data= at =/mnt/storie/media-data=. Reconfigure each
+client to enable this service; the live installers do not include it.
+Deploy the server's current LAN allowlist first.
+
+Boot starts the local automounter without contacting storie. Accessing a
+share triggers an NFSv4.2 mount over IPv4 TCP. Any process can trigger it,
+including a file manager or indexer, not only an interactive user.
+Idle mounts expire after approximately 300 seconds; open files or a process
+whose working directory is inside the share can keep it busy.
+
+The mount helper is signalled after 30 seconds and failed lookups are cached
+for 10 seconds; RPC timeouts can still delay failure when the NAS is offline.
+Already mounted shares use =hard= retries: I/O may wait for the server to
+return after a connection loss. =nosuid,nodev= disable remote setuid programs
+and device nodes. Unix UID/GID permissions remain the same as on storie.
+Clients must reach the NAS with a source address allowed by its exports;
+being connected through a VPN alone does not guarantee this.
+
+To verify after reconfiguration:
+
+#+begin_src sh
+sudo herd status autofs
+# Before accessing either share, expect no corresponding NFS mount.
+findmnt -rn -t nfs,nfs4
+ls /mnt/storie/core-data
+ls /mnt/storie/media-data
+findmnt -rn -t nfs,nfs4
+#+end_src
+
+Leave both directories and close their files, then check the mount table
+again after the idle timeout. Both NFS mounts should eventually disappear;
+the local autofs mount remains ready for the next access.
