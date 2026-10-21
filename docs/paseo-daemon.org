@@ -205,6 +205,13 @@ its environment. Legacy =~/.paseo-password= files are ignored.
 
 * Image attachments
 
+File attachments such as PDFs live in =~/.paseo/uploads=. Home activation
+and daemon startup create this directory with mode 0700. Contained agents
+mount only this subtree of Paseo state read-only, at the same absolute path.
+All contained agents can read uploads from other sessions. After updating
+the Home/broker launcher, restart providers to obtain the new mount; existing
+containers retain their old mounts.
+
 Paseo 0.10.3 writes Codex images under its temporary directory and sends
 =localImage= paths to the provider. Home activation and the service launcher
 create =~/.cache/paseo-tmp= with mode 0700. The launcher sets =TMPDIR= to

@@ -35,6 +35,16 @@ def prepare_temporary_directory(home):
     return directory
 
 
+def prepare_upload_directory(home):
+    """Create the upload mount before any contained provider starts."""
+    directory = home / ".paseo/uploads"
+    if directory.is_symlink():
+        raise ValueError(f"Refusing managed symlink: {directory}")
+    directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+    directory.chmod(0o700)
+    return directory
+
+
 def validate_provider_settings(settings):
     """Validate launch settings before publishing an activation result."""
     agents = settings.get("agents", {})
@@ -102,6 +112,7 @@ def activate(
         layers.append(yaml_config.private_layer(private, hostname))
     os.umask(0o077)
     prepare_temporary_directory(home)
+    prepare_upload_directory(home)
     default_worktrees = worktrees is None
     if default_worktrees:
         worktrees = str(home / WORKTREES)
@@ -426,6 +437,7 @@ def main():
             args.private_config,
         )
         return
+    prepare_upload_directory(home)
     os.environ["TMPDIR"] = str(prepare_temporary_directory(home))
     # Shepherd starting the broker does not mean its socket (or first Home
     # activation) is ready yet. Probe without requesting an agent execution.

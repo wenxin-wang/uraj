@@ -83,6 +83,11 @@ as =contained-agent= the first argument names the agent, or is =allow=.
   =TMPDIR= so Codex's =localImage= paths work across container boundaries.
   This includes other sessions' attachments and temporary files; see
   [[file:paseo-daemon.org::*Image attachments][image attachments]] for setup and cleanup.
+- All agents can also read =~/.paseo/uploads=, where Paseo stores file
+  attachments such as PDFs. Only this subtree is exposed read-only; the
+  remaining Paseo state stays private. This includes uploads from other
+  sessions. Activation and daemon startup create the directory before agents
+  launch; new uploads remain visible through the directory mount.
 - Clone temporary reference code into =/tmp/reference-code/=, or use an
   ignored =.reference-code/= directory in the current work tree to retain it.
   Read access to =~/src= does not grant permission to clone into it.
