@@ -64,6 +64,7 @@
                          (string-prefix? "/run/openclaw/" (at v "source"))
                          (member (at v "source")
                                  '("/etc/openclaw/base.json"
+                                   "/etc/openclaw/config-plugin"
                                    "/etc/openclaw/config.mjs"
                                    "/etc/openclaw/config-policy.mjs"))))
          volumes))
@@ -72,6 +73,10 @@
 (test-assert "base and checked command are read-only"
   (every (lambda (v) (or (not (string-prefix? "/etc/openclaw/" (at v "target")))
                          (eq? #t (at v "read_only")))) volumes))
+(test-equal "checked config plugin is explicitly loaded"
+  '#("/etc/openclaw/config-plugin") (at app "plugins" "load" "paths"))
+(test-equal "checked config plugin is enabled" #t
+  (at app "plugins" "entries" "uraj-config-policy" "enabled"))
 (test-equal "exec explicitly runs in the Gateway" "gateway"
   (at app "tools" "exec" "host"))
 (test-equal "exec does not prompt per command" "off"

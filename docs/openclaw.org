@@ -29,7 +29,24 @@ Shepherd 启动时先停止旧 Gateway，再运行 reconcile：对齐基础字�
 校验通过后替换主文件，旧配置保存在 =openclaw.json.before-guix=。
 这是服务启动阶段的对齐，不是在运行中的 Guix activation 直接覆盖文件。
 
-agent 使用以下校验入口（JSON 值必须正确加 shell 引号）：
+Guix 只读挂载并启用 =uraj-config-policy= 插件。它通过原生
+=before_tool_call= hook 改写 OpenClaw shell exec 的参数，agent 可以继续
+使用常见的原生命令形式：
+
+#+begin_src sh
+openclaw config set agents.defaults.model new-api-gpt/gpt-6-luna
+openclaw config set agents.entries.research '{"name":"研究助手","workspace":"/workspaces/research","agentDir":"/home/node/.openclaw/agents/research/agent"}' --strict-json
+#+end_src
+
+支持独立的 =openclaw config set=、=node openclaw.mjs config set= 和
+=node /app/openclaw.mjs config set=，可选 =--strict-json= 或 =--json=。
+普通字符串转换成 JSON 字符串后转交校验入口；JSON 对象和数组应按 shell
+规则加引号。JSON5、batch、dry-run 和其他参数暂不转接。识别到的复杂调用
+（管道、重定向、变量或命令展开、多条命令）会被阻止并提示使用独立命令。
+其他 exec 调用和配置读取不改写。它不拦截 Gateway 内部写入、手动终端、
+间接脚本或其他 harness 的原生命令，也不试图识别所有 shell 等价写法。
+
+管理员也可以直接使用以下入口（值必须为 JSON）：
 
 #+begin_src sh
 node /etc/openclaw/config.mjs check
@@ -62,7 +79,7 @@ Gateway 必须在线。批量变更可替换整个 =agents.entries= 或 =binding
 注册或群聊。=OPENCLAW_CONFIG_READONLY= 不再设置。
 
 部署验收需要用固定镜像检查：首次初始化、重启保留 agent/binding、
-合法模型修改成功、受管字段/agent 权限覆盖被拒绝、两个并发写入冲突，
+原生命令经 exec hook 转接、合法模型修改成功、受管字段/agent 权限覆盖被拒绝、两个并发写入冲突，
 以及修改后的 Gateway 加载结果。仓库单元测试不代替真实镜像验收。
 
 * 执行沙箱接入选择（尚未启用）
@@ -405,6 +422,7 @@ new-api 的 token 权限、模型名称及协议均可用。不要以 Gateway �
 |------------------------------------+------------------------------+------|
 | /etc/openclaw/base.json             | 同路径，只读                 | Guix 初始配置与不变量 |
 | /etc/openclaw/config*.mjs           | 同路径，只读                 | 校验入口与策略 |
+| /etc/openclaw/config-plugin         | 同路径，只读                 | exec 命令转接插件 |
 | /data/openclaw/home                 | /home/node                   | 状态、认证、备份及维护文件 |
 | /data/openclaw/workspaces/main      | /workspace                   | main workspace |
 | /data/openclaw/workspaces           | /workspaces                  | 动态 agent 工作区 |
@@ -518,7 +536,7 @@ sudo /etc/openclaw/compose ps
 #+begin_src sh
 guix repl -L src/guix -L src/guile test/guix/uraj/services/openclaw.scm
 guix repl -L src/guix test/guix/uraj/openclaw-runtime.scm
-node --test test/openclaw/config.test.mjs
+node --test test/openclaw/*.test.mjs
 guix build -L src/guix -L src/guile -f test/guix/uraj/openclaw-program.scm
 #+end_src
 

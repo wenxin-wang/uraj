@@ -200,7 +200,9 @@
                     (perm . #f) (scopes . #f) (bitable . #f)))
           (accounts . ((main . ((appId . ,(openclaw-feishu-app-id config))
                                 (appSecret . ,(secret-ref "feishu-app-secret"))))))))))
-      (plugins . ((entries . ((feishu . ((enabled . #t)))))))
+      (plugins . ((load . ((paths . #("/etc/openclaw/config-plugin"))))
+                  (entries . ((feishu . ((enabled . #t)))
+                              (uraj-config-policy . ((enabled . #t)))))))
       (update . ((checkOnStart . #f) (auto . ((enabled . #f)))))))))
 
 (define* (bind source target #:optional (read-only? #f))
@@ -240,7 +242,8 @@
                           "/workspaces")
                     (bind "/etc/openclaw/base.json" "/etc/openclaw/base.json" #t)
                     (bind "/etc/openclaw/config.mjs" "/etc/openclaw/config.mjs" #t)
-                    (bind "/etc/openclaw/config-policy.mjs" "/etc/openclaw/config-policy.mjs" #t))
+                    (bind "/etc/openclaw/config-policy.mjs" "/etc/openclaw/config-policy.mjs" #t)
+                    (bind "/etc/openclaw/config-plugin" "/etc/openclaw/config-plugin" #t))
               (map (lambda (name) (bind (string-append "/run/openclaw/" name)
                                         (string-append "/run/secrets/" name) #t))
                    %secret-names))))
@@ -353,6 +356,9 @@
            (service-extension etc-service-type
              (lambda (config)
                `(("openclaw/base.json" ,(openclaw-config-file config))
+                 ("openclaw/config-plugin"
+                  ,(local-file "../../../../scripts/openclaw/config-plugin"
+                               #:recursive? #t))
                  ("openclaw/config.mjs"
                   ,(local-file "../../../../scripts/openclaw/config.mjs"))
                  ("openclaw/config-policy.mjs"
