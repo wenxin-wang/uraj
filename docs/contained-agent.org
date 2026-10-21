@@ -317,7 +317,12 @@ behavior using local file operations.
 Clauses, in both places below:
 
 - =(expose PATH ...)=, =(share PATH ...)=: extra mounts, skipped when
-  missing.
+  the source is missing. Each entry can also be =(SOURCE TARGET)= to mount
+  at a different container path. Both source and target expand =~/=;
+  relative paths are relative to the current worktree root, even when
+  launched from a subdirectory or inheriting the main work tree's policy.
+  A plain =PATH= still uses the same source and target. Both ends of a
+  mapping are subject to the denied-path checks.
 - =(preserve REGEXP ...)=: host environment variables passed through when
   set.
 - =(guix-daemon)=: opt into Guix nesting and daemon access, with an isolated
@@ -345,6 +350,20 @@ agent cannot change it, and changing it takes a reconfigure.
           "/var/guix/profiles" "~/.local/state/shepherd" "~/.guix-home"
           "~/.config/shepherd" "~/.config/guix"))
 #+end_src
+
+For example, share one ignored data directory across linked worktrees,
+and expose reference data read-only at a worktree-relative location:
+
+#+begin_src scheme
+(project "~/src/uraj"
+  (share ("~/src/uraj/instances" "instances"))
+  (expose ("~/datasets/reference" "data/reference")))
+#+end_src
+
+These are container mounts; they do not create host-side symlinks. The
+target need not exist, and a mount hides existing target contents for the
+session. Worktrees with their own explicit project entry must include any
+desired mappings themselves.
 
 *** Fixed worktrees as permission presets
 
