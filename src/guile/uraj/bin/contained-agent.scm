@@ -209,14 +209,53 @@ tree, and the mount options for WORKDIR."
             ((file-exists? file) (mount file))
             (else '())))))
 
-(define (clause-options origin clause)
+(define (mount-path file project origin)
+  "Expand FILE relative to PROJECT, including for inherited policies."
+  (when (or (string-null? file) (string-contains file "="))
+    (die "~a: invalid mount path ~s" origin file))
+  (let ((file (expand-home file)))
+    (if (absolute-file-name? file)
+        file
+        (string-append (or project (getcwd)) "/" file))))
+
+(define (mount-check-path file)
+  "Resolve existing ancestors as well as dot components of missing targets."
+  (cond ((file-exists? file) (canonicalize-path file))
+        ((string=? (basename file) ".") (mount-check-path (dirname file)))
+        ((string=? (basename file) "..")
+         (dirname (mount-check-path (dirname file))))
+        (else (string-append (string-trim-right
+                             (mount-check-path (dirname file)) #\/)
+                            "/" (basename file)))))
+
+(define (requested-mapping mount origin project)
+  (lambda (entry)
+    (match entry
+      ((? string? file)
+       ((requested mount origin) (mount-path file project origin)))
+      (((? string? source) (? string? target))
+       (let ((source (mount-path source project origin))
+             (target (mount-path target project origin)))
+         (cond ((or (denied? (mount-check-path source))
+                    (denied? (mount-check-path target)))
+                (warn "~a: never mounting ~a at ~a" origin source target)
+                '())
+               ((file-exists? source)
+                ;; expose checks existence, so apply it before adding TARGET.
+                (map (cut string-append <> "=" target) (mount source)))
+               (else '()))))
+      (_ (die "~a: bad mount entry ~s" origin entry)))))
+
+(define* (clause-options origin clause #:optional project)
   (match clause
     ;; Applied after ordinary mappings so cache/GC-root mounts take priority.
     (('guix-daemon) '())
     ;; Written to the session's ~/.gitconfig, see `git-hooks'.
     (('git-hooks (? string?)) '())
-    (('expose files ...) (append-map (requested expose origin) files))
-    (('share files ...) (append-map (requested share origin) files))
+    (('expose files ...)
+     (append-map (requested-mapping expose origin project) files))
+    (('share files ...)
+     (append-map (requested-mapping share origin project) files))
     ;; Host environment variables, by name regexp, passed when set.
     (('preserve (? string? names) ...)
      (map (cut string-append "--preserve=^" <> "$") names))
@@ -884,7 +923,8 @@ NUL.  All ssh-add output goes to stderr, never into this private protocol."
                     (string-append "--share=" file "=" target)))
                  kept)
             (append-map (match-lambda
-                          ((origin . clause) (clause-options origin clause)))
+                          ((origin . clause)
+                           (clause-options origin clause top)))
                         clauses)
             (if (any (lambda (entry) (equal? (cdr entry) '(guix-daemon))) clauses)
                 (guix-daemon-options project)

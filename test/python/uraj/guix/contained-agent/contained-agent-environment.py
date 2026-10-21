@@ -106,6 +106,79 @@ class WorktreeMounts(Launcher):
             [self.tools["git"], "-C", str(self.project), *args], text=True
         ).strip()
 
+    def test_mapped_mounts_inherit_with_worktree_relative_paths(self):
+        self.git(
+            "-c",
+            "user.name=T",
+            "-c",
+            "user.email=t@x",
+            "commit",
+            "--allow-empty",
+            "-qm",
+            "initial",
+        )
+        worktree = self.root / "linked tree"
+        self.git("worktree", "add", "-qb", "linked", str(worktree))
+        nested = worktree / "nested"
+        nested.mkdir()
+        source = self.project / "instances"
+        source.mkdir()
+        (worktree / "relative-source").write_text("reference")
+        self.policy(
+            '(share ("~/src/a/instances" "instances"))',
+            '(expose ("relative-source" "data/reference") "nested")',
+            f'(share ("{source}" "{self.root}/absolute"))',
+            '(share ("missing" "skipped"))',
+        )
+        result, argv, _ = self.launch(cwd=nested)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(f"--share={source}={worktree}/instances", argv)
+        self.assertIn(
+            f"--expose={worktree}/relative-source={worktree}/data/reference",
+            argv,
+        )
+        self.assertIn(f"--expose={nested}", argv)
+        self.assertIn(f"--share={source}={self.root}/absolute", argv)
+        self.assertFalse(any("skipped" in arg for arg in argv))
+        self.assertFalse((worktree / "instances").exists())
+
+    def test_mapped_mounts_check_both_ends(self):
+        source = self.project / "public"
+        source.mkdir()
+        secret = self.home / ".ssh"
+        secret.mkdir()
+        (self.project / "alias").symlink_to(secret, target_is_directory=True)
+        for kind in ("share", "expose"):
+            for src, target in (
+                (str(secret), "public-copy"),
+                (str(source), "~/.ssh/new"),
+                (str(source), "alias/new"),
+                (str(source), "../../.ssh/new"),
+            ):
+                with self.subTest(kind=kind, source=src, target=target):
+                    self.policy(f'({kind} ("{src}" "{target}"))')
+                    result, argv, _ = self.launch()
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertIn("never mounting", result.stderr)
+                    self.assertFalse(
+                        any(arg.startswith(f"--{kind}={src}=") for arg in argv)
+                    )
+
+    def test_mapped_mounts_reject_invalid_entries(self):
+        for entry in (
+            '("a")',
+            '("a" "b" "c")',
+            '("a" 3)',
+            '("a" "")',
+            '("a=b" "c")',
+        ):
+            with self.subTest(entry=entry):
+                self.policy(f"(share {entry})")
+                result, argv, _ = self.launch()
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIsNone(argv)
+                self.assertNotIn("Backtrace", result.stderr)
+
     def test_main_worktree_is_exposed_before_writable_mounts(self):
         self.project = self.root / "main repo"
         subprocess.run(
