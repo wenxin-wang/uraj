@@ -8,6 +8,9 @@
 开放文件工具及 =exec=、=process=；命令在 Gateway 容器内以 UID 1000
 执行，不逐条询问。浏览器、主动发消息和飞书文档工具保持关闭。
 文件工具的 workspaceOnly 限制不适用于 shell。
+执行策略使用 =tools.exec.mode="full"=；不要同时声明旧的 =security/ask=。
+2026.10.3 启动时的 Doctor 会将 =security="full", ask="off"= 迁移成
+=mode="full"=，混用旧模板会导致不变量检查报差异。
 
 =env/guix/os/storie.scm= 已声明 OpenClaw，包含固定 image ID、飞书
 App ID 和 GPT/Claude 两组 provider，默认模型为

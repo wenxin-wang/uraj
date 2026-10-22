@@ -5,7 +5,7 @@ import { reconcile, validatePolicy } from "../../scripts/openclaw/config-policy.
 
 const base = {
   models: { providers: { local: { models: [{ id: "one" }, { id: "two" }] } } },
-  tools: { allow: ["exec"], exec: { host: "gateway" } },
+  tools: { allow: ["exec"], exec: { host: "gateway", mode: "full" } },
   plugins: { entries: { feishu: { enabled: true } } },
   agents: { defaults: { workspace: "/workspace", model: { primary: "local/one" } } },
 };
@@ -88,4 +88,17 @@ test("unsafe flags and prototype paths never reach native code", async () => {
       submit: async () => { assert.fail("must not submit"); },
     }));
   }
+});
+
+test("restart reconciliation emits canonical exec mode and still rejects drift", () => {
+  const legacy = structuredClone(base);
+  legacy.tools.exec = { host: "gateway", security: "full", ask: "off" };
+  const next = reconcile(legacy, base);
+  assert.deepEqual(next.tools.exec, { host: "gateway", mode: "full" });
+  validatePolicy(next, base);
+  next.tools.exec.mode = "auto";
+  assert.throws(() => validatePolicy(next, base), /differing paths: tools.exec.mode/);
+  next.tools.exec.mode = "full";
+  next.tools.allow = ["read"];
+  assert.throws(() => validatePolicy(next, base), /differing paths: tools.allow/);
 });

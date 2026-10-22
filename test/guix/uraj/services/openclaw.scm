@@ -79,8 +79,11 @@
   (at app "plugins" "entries" "uraj-config-policy" "enabled"))
 (test-equal "exec explicitly runs in the Gateway" "gateway"
   (at app "tools" "exec" "host"))
-(test-equal "exec does not prompt per command" "off"
-  (at app "tools" "exec" "ask"))
+(test-equal "exec uses canonical full mode" "full"
+  (at app "tools" "exec" "mode"))
+(test-assert "no legacy exec fields for Doctor to rewrite"
+  (and (not (assoc "security" (at app "tools" "exec")))
+       (not (assoc "ask" (at app "tools" "exec")))))
 (test-equal "secrets are read-only individual mounts" 3
   (count (lambda (v) (and (string-prefix? "/run/secrets/" (at v "target"))
                           (at v "read_only"))) volumes))

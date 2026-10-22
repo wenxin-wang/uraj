@@ -182,7 +182,7 @@
       ;; Gateway exec is intentionally trusted until a separate sandbox is added.
       (tools . ((allow . #("read" "write" "edit" "apply_patch" "exec" "process"))
                 (fs . ((workspaceOnly . #t)))
-                (exec . ((host . "gateway") (security . "full") (ask . "off")
+                (exec . ((host . "gateway") (mode . "full")
                          (applyPatch . ((enabled . #t)
                                        (workspaceOnly . #t)))))))
       (browser . ((enabled . #f)))
