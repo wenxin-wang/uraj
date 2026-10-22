@@ -32,7 +32,10 @@ Shepherd 启动时先停止旧 Gateway，再运行 reconcile：对齐基础字�
 校验通过后替换主文件，旧配置保存在 =openclaw.json.before-guix=。
 这是服务启动阶段的对齐，不是在运行中的 Guix activation 直接覆盖文件。
 
-Guix 只读挂载并启用 =uraj-config-policy= 插件。它通过原生
+Guix 只读挂载并启用 =uraj-config-policy= 插件。清单显式声明
+=activation.onStartup=true= 和 =onCapabilities=["hook"]=，保证 Gateway
+启动时导入并注册 hook；仅 =enabled=true= 或 plugins list 显示 enabled
+不代表 hook 已在运行进程注册。它通过原生
 =before_tool_call= hook 改写 OpenClaw shell exec 的参数，agent 可以继续
 使用常见的原生命令形式：
 
