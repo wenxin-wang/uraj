@@ -27,6 +27,7 @@
      "rsync"
      "vim"
      "zip"
+     "unzip"
      "7zip"
      ;; Networking.
      "bind:utils"              ; dig, host, nslookup; no DNS server output
