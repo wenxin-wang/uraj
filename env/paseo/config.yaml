@@ -14,6 +14,8 @@ templates:
             command: ["~/.guix-home/profile/bin/paseo-codex-daily"]
           claude:
             command: ["~/.guix-home/profile/bin/paseo-claude-daily"]
+          pi:
+            command: ["~/.guix-home/profile/bin/paseo-pi-daily"]
       worktrees:
         root: "~/.local/share/paseo/worktrees"
     delete: []

@@ -51,9 +51,16 @@ HOST_SETUP_ENVIRONMENT = frozenset(
     }
 )
 ENV = re.compile(
-    r"(?:OPENAI_.*|ANTHROPIC_.*|CODEX_.*|CLAUDE_.*|PASEO_AGENT_ID|"
+    r"(?:OPENAI_.*|ANTHROPIC_.*|CODEX_.*|CLAUDE_.*|OPENCODE_.*|PI_.*|"
+    r"GEMINI_API_KEY|OPENROUTER_API_KEY|PASEO_AGENT_ID|"
     r"PASEO_AGENT_CWD|TERM|COLORTERM|LANG|LC_.*|NO_COLOR|RUST_LOG)\Z"
 )
+PROVIDERS = ("codex", "claude", "pi", "opencode")
+TIERS = ("daily", "system", "host")
+# Paseo serves every workspace from one OpenCode server, started in its own
+# directory; no project container can hold it.
+HOST_ONLY_PROVIDERS = ("opencode",)
+OPENCODE_HOME = ".paseo/opencode-home"
 
 
 def encode_control_message(message):
@@ -311,11 +318,13 @@ def validate_start_request(message, roots, home):
     if message.get("version") != 1 or message.get("type") != "start":
         raise ValueError("unsupported request")
     provider = message.get("provider")
-    if provider not in ("codex", "claude"):
+    if provider not in PROVIDERS:
         raise ValueError("unknown provider")
     tier = message.get("tier", "daily")
-    if tier not in ("daily", "system", "host"):
+    if tier not in TIERS:
         raise ValueError("unknown execution tier")
+    if provider in HOST_ONLY_PROVIDERS and tier != "host":
+        raise ValueError("provider requires host tier")
     argv = message.get("argv")
     if (
         not isinstance(argv, list)
@@ -340,7 +349,11 @@ def validate_start_request(message, roots, home):
         raise ValueError("cwd is not a directory")
     if cwd == pathlib.Path("/"):
         cwd = home
-    if cwd != home and not any(cwd == r or r in cwd.parents for r in roots):
+    if (
+        cwd != home
+        and not (provider == "opencode" and cwd == home / OPENCODE_HOME)
+        and not any(cwd == r or r in cwd.parents for r in roots)
+    ):
         raise ValueError("cwd outside authorized roots")
     env["PASEO_AGENT_CWD"] = str(cwd)
     agent_id = env.get("PASEO_AGENT_ID", "")
@@ -590,8 +603,12 @@ class BrokerServer:
         program = getattr(self.args, "branch_gc", None)
         if not program or self.stopping:
             return
-        _, argv, cwd, _, _, _ = job["request"]
-        if cwd == self.home or argv in (["--version"], ["auth", "status"]):
+        provider, argv, cwd, _, _, _ = job["request"]
+        if (
+            cwd == self.home
+            or provider in HOST_ONLY_PROVIDERS
+            or argv in (["--version"], ["auth", "status"])
+        ):
             return
         self.branch_gc_pending.add(str(cwd))
         self.launch_pending_branch_gc()
@@ -899,7 +916,11 @@ def run_provider_client(args):
         "tier": args.tier,
         "argv": args.arguments,
         "env": forwarded,
-        "cwd": forwarded.get("PASEO_AGENT_CWD") or os.getcwd(),
+        # A dedicated OpenCode server still serves from Paseo's directory.
+        "cwd": (
+            args.provider != "opencode" and forwarded.get("PASEO_AGENT_CWD")
+        )
+        or os.getcwd(),
     }
     connection.sendmsg(
         [encode_control_message(message)],
@@ -1036,6 +1057,8 @@ def main():
     server.add_argument("--launcher", required=True)
     server.add_argument("--host-codex")
     server.add_argument("--host-claude")
+    server.add_argument("--host-pi")
+    server.add_argument("--host-opencode")
     server.add_argument("--branch-gc", help="host branch GC executable")
     server.add_argument(
         "--host-cgroup-root",
@@ -1054,10 +1077,8 @@ def main():
         "~/.config/paseo/broker-sandbox.json)",
     )
     provider = sub.add_parser("client")
-    provider.add_argument(
-        "--tier", choices=["daily", "system", "host"], default="daily"
-    )
-    provider.add_argument("provider", choices=["codex", "claude"])
+    provider.add_argument("--tier", choices=TIERS, default="daily")
+    provider.add_argument("provider", choices=PROVIDERS)
     provider.add_argument("arguments", nargs=argparse.REMAINDER)
     change = sub.add_parser("configure")
     change.add_argument(

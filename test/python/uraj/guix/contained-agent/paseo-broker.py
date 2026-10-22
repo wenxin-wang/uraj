@@ -141,6 +141,40 @@ class TierValidation(unittest.TestCase):
                         dict(message, tier=tier), [root], root
                     )
 
+    def test_opencode_runs_only_on_host_from_its_home(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            server = home / ".paseo/opencode-home"
+            server.mkdir(parents=True)
+            project = home / "src"
+            project.mkdir()
+            message = {
+                "version": 1,
+                "type": "start",
+                "provider": "opencode",
+                "tier": "host",
+                "argv": ["serve", "--port", "4096"],
+                "cwd": str(server),
+            }
+            request = broker.validate_start_request(message, [project], home)
+            self.assertEqual(request[2], server)
+            for tier in ("daily", "system", None):
+                with self.subTest(tier=tier), self.assertRaises(ValueError):
+                    broker.validate_start_request(
+                        dict(message, tier=tier), [project], home
+                    )
+            with self.assertRaises(ValueError):
+                broker.validate_start_request(
+                    dict(message, provider="pi"), [project], home
+                )
+            for tier in ("daily", "system", "host"):
+                request = broker.validate_start_request(
+                    dict(message, provider="pi", tier=tier, cwd=str(project)),
+                    [project],
+                    home,
+                )
+                self.assertEqual(request[0], "pi")
+
 
 class Broker(unittest.TestCase):
     def setUp(self):

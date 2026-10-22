@@ -50,7 +50,8 @@ session environment. Do not run both service owners against the same state.
 
 * Configuration
 
-Home activation maintains six providers in writable =~/.paseo/config.json=:
+Home activation maintains eleven provider entries in writable
+=~/.paseo/config.json=:
 
 | Provider ID | Label | Broker tier |
 |-------------+-------+-------------|
@@ -60,13 +61,24 @@ Home activation maintains six providers in writable =~/.paseo/config.json=:
 | codex | 日常沙箱 codex | daily |
 | codex-system | 系统沙箱 codex | system |
 | codex-host | 宿主 codex | host |
+| pi | 日常沙箱 pi | daily |
+| pi-system | 系统沙箱 pi | system |
+| pi-host | 宿主 pi | host |
+| opencode | (disabled) | - |
+| opencode-host | 宿主 opencode | host |
 
-The default =claude=/=codex= IDs call =paseo-AGENT-daily=. Derived providers
-use =extends: "claude"= or ="codex"= and call =paseo-AGENT-system/host=.
+The default =claude=/=codex=/=pi= IDs call =paseo-AGENT-daily=. Derived
+providers use =extends: "AGENT"= and call =paseo-AGENT-system/host=.
+OpenCode is host only: Paseo runs a single =opencode serve= from
+=~/.paseo/opencode-home= for all workspaces and passes each session's directory
+over HTTP, so no per-project container can hold it.  Activation disables the
+built-in =opencode= ID (it would otherwise run the contained terminal wrapper
+from =PATH=); =opencode-host= extends it and calls =paseo-opencode-host=.
 All commands are absolute paths under =~/.guix-home/profile/bin=, computed
 on the target machine. The clients are also in the daemon profile. Legacy
 =paseo-claude= and =paseo-codex= remain aliases for daily. Terminal
-=~/.local/bin/claude= and =codex= remain the existing contained-agent overrides.
+=~/.local/bin/claude=, =codex=, =pi= and =opencode= remain the existing
+contained-agent overrides.
 Mobile clients >=0.1.45 can select custom providers when creating an agent;
 older clients hide them. This is not a live-session sandbox switch.
 
@@ -88,7 +100,7 @@ After the built-in defaults/migrations, activation applies two YAML layers:
    to =/run/secrets/paseo/config.yaml= on configured Guix System hosts.
 
 The public file uses one =&shared= anchor for lappie, hypie and storie. It
-contains only the shared relay settings, daily Claude/Codex commands, and
+contains only the shared relay settings, daily Claude/Codex/Pi commands, and
 worktree root. The derived system/host providers remain seeded by activation.
 Other application settings and providers are not managed by this public layer.
 
