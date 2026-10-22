@@ -180,19 +180,26 @@ data, not a reinstall or download of the game's data.
 ** Implementation and first deployment
 
 - =src/guix/uraj/services/redroid.scm=: Docker settings, public-only network
-  policy contribution and Android instance service using Guix's OCI service.
+  policy contribution and Android instance service.
 - =src/guix/uraj/build/redroid.scm=: Android runtime checks.
 - =env/guix/os/hypie.scm=: Docker, =restricted-network-service-type= (with
   the fwd2home bypass) and the redroid service, any egress interface.
 
-The production container starts automatically under Shepherd. The
-=redroid-maa-image= one-shot service builds a local image from the official
-Android 13 amd64 base, pinned to
+The production container starts automatically under Shepherd.  Its own
+Shepherd service, rather than Guix's OCI service, prepares every =docker run=:
+it waits for dockerd to answer, builds the layered image if needed, and
+removes a container still named =redroid-maa=.  dockerd removes the =--rm=
+container of an unclean shutdown only some time after it restarts, and
+Guix's OCI stop launches =docker rm -f= without waiting, so =herd restart=
+also raced it; both made =docker run= fail on the name.  Stop now waits for
+the removal.
+
+The layered image is built from the official Android 13 amd64 base, pinned to
 =sha256:524987f1fc489f6018e2c9d0dd622e5eccea13eb896417cb4bfb26bc3fea9afd=
 (=redroid/redroid:13.0.0-latest=, checked 2026-10-17).
 A =uraj.context= store-path label rebuilds it when either payload or recipe
 changes. Build steps have no network access; Docker may fetch the pinned
-base before executing them. Do not =herd pull= the local layered tag.
+base before executing them.
 
 ** ARM translation
 
@@ -286,13 +293,22 @@ The running kernel still needs checking.  If binderfs is missing, load
 No extra Binder DKMS module or ashmem driver is installed by this service.
 
 The Intel device is bind-mounted at =/dev/dri/intel-render= inside Android.
-The container is privileged, as in the upstream deployment recipe.  A
-small statically linked entrypoint first bind-mounts =/proc/sys/kernel/modprobe=
-read-only inside the container, then executes =/init androidboot.hardware=redroid ...=.
-If that protection fails, Android is not started.  This avoids both Android
-disabling host module autoloading (upstream [[https://github.com/remote-android/redroid-doc/issues/932][issue #932]]) and runc's rejection
-of OCI mounts at that =/proc= path.  Its behavior still needs runtime validation
-against the selected Android image.
+The container is privileged, as in the upstream deployment recipe.  The
+=modprobe= sysctl is global: Android's =init.rc= sets it to an empty string at
+early-init, which disables module autoloading on the host too (upstream
+[[https://github.com/remote-android/redroid-doc/issues/932][issue #932]]).  On hypie that broke the boot VPN: charon could not load =esp4=,
+and failed with =Requested type not found (93)=.  The host's =fuse= module,
+which Android needs, was never loaded either: vold aborted on the missing
+=/sys/fs/fuse/connections=, and Android rebooted in a loop.  The service now
+loads =fuse= at boot.
+
+A small statically linked entrypoint therefore binds a copy of
+=/system/etc/init/hw/init.rc= without that =write=, read-only, then executes
+=/init androidboot.hardware=redroid ...=.  If the image has no such command,
+or any step fails, Android is not started.  The entrypoint also bind-mounts
+=/proc/sys/kernel/modprobe= read-only, but this alone is not enough: Android 13's
+first-stage init mounts a new procfs over =/proc=, hiding it.  OCI mounts at
+that =/proc= path are rejected by runc, hence the entrypoint.
 The helper is built from =src/guix/uraj/packages/aux-files/redroid-init.c=.
 It avoids depending on Android's shell/APEX libraries before init has run.
 
@@ -322,8 +338,8 @@ adb -s 10.203.0.2:5555 install /path/to/arknights.apk
 
 Require boot completion =1=, Intel/Mesa hardware rendering rather than a
 software renderer, working DNS and game login, and intact host networking.
-Check the running container's read-only modprobe mount and compare the host
-=/proc/sys/kernel/modprobe= before/after starting it.
+Compare the host =/proc/sys/kernel/modprobe= before and after starting the
+container; it must stay the Guix modprobe wrapper, never empty.
 
 #+begin_src sh
 oci-digest docker.io/redroid/redroid:13.0.0-latest   # tag moved upstream?
@@ -359,6 +375,7 @@ The service graph and subnet/network drift checks have automated tests:
 
 #+begin_src sh
 guix repl -L src/guix -L src/guile test/guix/uraj/services/redroid.scm
+guix repl -L src/guix test/guix/uraj/build/redroid.scm
 #+end_src
 
 The nftables rules were also loaded twice in an isolated user/network
