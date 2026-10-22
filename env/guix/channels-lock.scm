@@ -2,7 +2,7 @@
        (name 'guix)
        (url "https://mirror.nju.edu.cn/git/guix.git")
        (branch "master")
-       (commit "a04b886f227804b404981da58aadffe697b27d82")
+       (commit "a22ac73df32103f8fd217937ff370b0cb0472e8b")
        (introduction
         (make-channel-introduction
          "9edb3f66fd807b096b48283debdcddccfea34bad"
@@ -12,7 +12,7 @@
        (name 'nonguix)
        (url "https://gitlab.com/nonguix/nonguix")
        (branch "master")
-       (commit "25226c35c150f03d469b0c855d10b2402a094bc1")
+       (commit "47c20df59dd9f27c9154ef20a81d383a19d4ad7f")
        (introduction
         (make-channel-introduction
          "897c1a470da759236cc11798f4e0a5f7d4d59fbc"
