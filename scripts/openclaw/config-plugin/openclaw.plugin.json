@@ -2,6 +2,10 @@
   "id": "uraj-config-policy",
   "name": "Guix checked configuration",
   "description": "Route simple config set exec calls through the Guix policy checker.",
+  "activation": {
+    "onStartup": true,
+    "onCapabilities": ["hook"]
+  },
   "configSchema": {
     "type": "object",
     "additionalProperties": false,

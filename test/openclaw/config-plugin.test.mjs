@@ -1,9 +1,23 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import plugin, { routeConfigSet } from "../../scripts/openclaw/config-plugin/index.mjs";
 
 const event = (command) => ({ toolName: "exec", params: { command, timeout: 30 } });
+
+test("shipped manifest activates the hook at Gateway startup, not only CLI inspection", () => {
+  const root = new URL("../../scripts/openclaw/config-plugin/", import.meta.url);
+  const manifest = JSON.parse(readFileSync(new URL("openclaw.plugin.json", root), "utf8"));
+  const pkg = JSON.parse(readFileSync(new URL("package.json", root), "utf8"));
+  // v2026.10.3 startup planning does not import enabled-only plugins. The
+  // startup and hook activation paths both require explicit enablement, which
+  // the generated Guix configuration tests cover separately.
+  assert.equal(manifest.id, plugin.id);
+  assert.equal(manifest.activation.onStartup, true);
+  assert.ok(manifest.activation.onCapabilities.includes("hook"));
+  assert.deepEqual(pkg.openclaw.extensions, ["./index.mjs"]);
+});
 
 test("registers an exec-only native hook", () => {
   plugin.register({ on(name, handler, options) {
@@ -41,6 +55,8 @@ test("native string and JSON forms reach checker with equivalent arguments", () 
 
 test("complex or unsupported config set calls are blocked without execution", () => {
   for (const command of [
+    "openclaw config set --help",
+    "node /app/openclaw.mjs config set --help",
     "openclaw config set bindings '[]'; echo done",
     "openclaw config set bindings '[]' | cat",
     "openclaw config set bindings '[]' > file",
