@@ -1,6 +1,7 @@
 ;;; guix repl -L src/guix -L src/guile test/guix/uraj/services/redroid.scm
 (use-modules (gnu) (gnu services) (gnu services containers)
              (gnu services docker) (gnu services shepherd) (gnu services sysctl)
+             (gnu services linux)
              (gnu services mcron) (uraj services maa)
              (gnu image) (gnu system image)
              (guix gexp) (json) (srfi srfi-1) (srfi srfi-64)
@@ -44,20 +45,29 @@
 (test-equal "daily schedule uses Beijing time" "Asia/Shanghai"
   (operating-system-timezone installed-os))
 (test-assert "installed system schedules MAA" (maa-scheduled? installed-os))
-(test-assert "Android waits for networking, firewall, sysctl, devices and Docker"
+(test-assert "Android waits for networking, firewall, sysctl, devices, modules and Docker"
   (every (lambda (r) (memq r (ancestors installed 'redroid-maa)))
-         '(restricted-network redroid-maa-ready sysctl udev dockerd)))
+         '(restricted-network redroid-maa-ready sysctl udev kernel-module-loader
+           dockerd)))
+(test-assert "FUSE is loaded at boot for vold"
+  (member "fuse"
+          (service-value
+           (fold-services (operating-system-services installed-os)
+                          #:target-type kernel-module-loader-service-type))))
 (test-assert "Android is independent of data pools and VPN secrets"
   (not (any (lambda (r) (memq r '(zfs-data-ready zfs-mount sops-secrets vpn-fwd2home)))
             (ancestors installed 'redroid-maa))))
 (test-assert "production Android starts automatically"
   (shepherd-service-auto-start? (lookup installed 'redroid-maa)))
-(test-assert "layered image is built before the container starts"
-  (memq 'redroid-maa-image (ancestors installed 'redroid-maa)))
-(test-assert "image build waits for Docker and reruns on each start"
-  (let ((image (lookup installed 'redroid-maa-image)))
-    (and (memq 'dockerd (shepherd-service-requirement image))
-         (shepherd-service-one-shot? image))))
+(test-assert "no helper services race the container for its name"
+  (not (or (lookup installed 'redroid-maa-image)
+           (lookup installed 'redroid-maa-clean))))
+(test-assert "stop waits for the container's removal"
+  (string-contains
+   (object->string
+    (gexp->approximate-sexp
+     (shepherd-service-stop (lookup installed 'redroid-maa))))
+   "\"rm\" \"--force\" \"redroid-maa\""))
 (define sysctl
   (service-value (fold-services (operating-system-services installed-os)
                                #:target-type sysctl-service-type)))

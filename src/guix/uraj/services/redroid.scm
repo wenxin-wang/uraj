@@ -3,6 +3,7 @@
   #:use-module (gnu services)
   #:use-module (gnu services containers)
   #:use-module (gnu services docker)
+  #:use-module (gnu services linux)
   #:use-module (gnu services shepherd)
   #:use-module (guix gexp)
   #:use-module (guix packages)
@@ -108,17 +109,9 @@ RUN [\"/uraj-build-tools/busybox\", \"sh\", \"/uraj-build-tools/prepare-image\"]
 " port))
                 (display "COPY system /system\n" port))))))))
 
-(define (redroid-image-program config)
-  (program-file (string-append (redroid-name config) "-image")
-    (with-uraj-modules '((uraj build redroid))
-      #~(begin
-          (use-modules (uraj build redroid))
-          (ensure-redroid-image #$(file-append docker-full "/bin/docker")
-                                #$(redroid-image-tag config)
-                                #$(redroid-image-context config))))))
-
-(define (redroid-image-service-name config)
-  (string->symbol (string-append (redroid-name config) "-image")))
+(define (redroid-log-file config)
+  (string-append "/var/log/" (redroid-name config) "/"
+                 (redroid-name config) ".log"))
 
 (define (redroid-dns-servers config)
   (let ((servers (policy-dns (network-policy-of (redroid-network config)))))
@@ -137,18 +130,7 @@ RUN [\"/uraj-build-tools/busybox\", \"sh\", \"/uraj-build-tools/prepare-image\"]
                  (redroid-image-tag config)
                  (redroid-image config)))
       (network (network-name (redroid-network config)))
-      (requirement
-       (append
-        (list 'restricted-network
-              (string->symbol (string-append (redroid-name config) "-ready")))
-        (if (redroid-native-bridge config)
-            (list (redroid-image-service-name config))
-            '())))
-      (auto-start? (redroid-auto-start? config))
-      (respawn? #t)
       (entrypoint "/redroid-init")
-      (log-file (string-append "/var/log/" (redroid-name config) "/"
-                               (redroid-name config) ".log"))
       ;; No ports, host networking, or Docker restart policy.  Shepherd owns
       ;; startup ordering, including after a daemon restart.
       (extra-arguments
@@ -196,6 +178,52 @@ RUN [\"/uraj-build-tools/busybox\", \"sh\", \"/uraj-build-tools/prepare-image\"]
              "ro.dalvik.vm.isa.arm=x86" "ro.dalvik.vm.isa.arm64=x86_64")
             '()))))))
 
+(define (redroid-ready-service-name config)
+  (string->symbol (string-append (redroid-name config) "-ready")))
+
+(define (redroid-run-program config)
+  ;; The `docker run' that oci-service-type would generate for
+  ;; redroid-container, preceded by what must hold before every run.
+  (let ((container (redroid-container config))
+        (docker (file-append docker-full "/bin/docker")))
+    (program-file (string-append (redroid-name config) "-run")
+      (with-uraj-modules '((uraj build redroid))
+        #~(begin
+            (use-modules (uraj build redroid))
+            (prepare-redroid-container
+             #$docker #$(redroid-name config)
+             #:image #$(and (redroid-native-bridge config)
+                            (redroid-image-tag config))
+             #:context #$(and (redroid-native-bridge config)
+                              (redroid-image-context config)))
+            (execl #$docker "docker" "run" "--rm"
+                   "--name" #$(redroid-name config)
+                   "--entrypoint"
+                   #$(oci-container-configuration-entrypoint container)
+                   "--network"
+                   #$(oci-container-configuration-network container)
+                   #$@(oci-container-configuration-extra-arguments container)
+                   #$(oci-container-configuration-image container)
+                   #$@(oci-container-configuration-command container)))))))
+
+(define (redroid-shepherd-service config)
+  (shepherd-service
+    (provision (list (string->symbol (redroid-name config))))
+    (requirement (list 'dockerd 'user-processes 'restricted-network
+                       (redroid-ready-service-name config)))
+    (auto-start? (redroid-auto-start? config))
+    (respawn? #t)
+    (documentation "Run the redroid Android container.")
+    (start #~(make-forkexec-constructor
+              (list #$(redroid-run-program config))
+              #:log-file #$(redroid-log-file config)))
+    ;; Unlike oci-service-type's stop, wait for the removal, so that a
+    ;; restart cannot race the old container for its name.
+    (stop #~(lambda (pid)
+              (system* #$(file-append docker-full "/bin/docker")
+                       "rm" "--force" #$(redroid-name config))
+              ((make-kill-destructor) pid)))))
+
 (define redroid-service-type
   (service-type
     (name 'redroid)
@@ -203,33 +231,21 @@ RUN [\"/uraj-build-tools/busybox\", \"sh\", \"/uraj-build-tools/prepare-image\"]
      (list
       (service-extension restricted-network-service-type
         (lambda (config) (list (redroid-network config))))
-      (service-extension oci-service-type
-        (lambda (config) (oci-extension (containers (list (redroid-container config))))))
       (service-extension service-log-service-type
         (lambda (config) (list (service-log (name (redroid-name config))))))
+      ;; Android empties the modprobe sysctl, and vold only reads FUSE's
+      ;; sysfs directory, which never triggers autoloading.
+      (service-extension kernel-module-loader-service-type (const '("fuse")))
       (service-extension shepherd-root-service-type
         (lambda (config)
-          (cons
+          (list
            (shepherd-service
-             (provision (list (string->symbol
-                               (string-append (redroid-name config) "-ready"))))
-             (requirement '(udev user-processes))
+             (provision (list (redroid-ready-service-name config)))
+             (requirement '(udev user-processes kernel-module-loader))
              (auto-start? (redroid-auto-start? config))
-             (documentation "Check Binder and Intel rendering; prepare persistent Android data.")
+             (documentation "Check Binder, FUSE and Intel rendering; prepare persistent Android data.")
              (start #~(lambda _ (invoke #$(redroid-prepare-program config)) #t))
              (stop #~(lambda _ #f)))
-           (if (redroid-native-bridge config)
-               (list
-                (shepherd-service
-                  (provision (list (redroid-image-service-name config)))
-                  (requirement '(dockerd user-processes))
-                  (auto-start? (redroid-auto-start? config))
-                  ;; Rerun on every container start, so a reconfigured tag
-                  ;; is built before Docker would try to pull it.
-                  (one-shot? #t)
-                  (documentation "Build the layered redroid image if missing.")
-                  (start #~(lambda _
-                             (invoke #$(redroid-image-program config)) #t))))
-               '()))))))
+           (redroid-shepherd-service config))))))
     (default-value (redroid-configuration))
-    (description "Run a persistent redroid Android instance under the system OCI service.")))
+    (description "Run a persistent redroid Android instance with Docker.")))
