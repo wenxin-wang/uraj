@@ -48,8 +48,11 @@ as =contained-agent= the first argument names the agent, or is =allow=.
   #+begin_src json
   "agents": { "providers": {
     "codex":  { "command": ["/home/wenxin/.guix-home/profile/bin/paseo-codex-daily"] },
-    "claude": { "command": ["/home/wenxin/.guix-home/profile/bin/paseo-claude-daily"] } } }
+    "claude": { "command": ["/home/wenxin/.guix-home/profile/bin/paseo-claude-daily"] },
+    "pi":     { "command": ["/home/wenxin/.guix-home/profile/bin/paseo-pi-daily"] } } }
   #+end_src
+  Paseo's OpenCode runs on the host only (=opencode-host=): one shared
+  server handles all workspaces, which no project container can hold.
   Restart the daemon after a change: it caches the provider version probe.
 - Approve a project's own files: =contained-agent allow [DIRECTORY]=.
 
@@ -95,8 +98,9 @@ as =contained-agent= the first argument names the agent, or is =allow=.
 ** Working directory
 
 Paseo starts =codex app-server= from its own working directory, =$HOME=,
-and tells Codex the session directory over JSON-RPC.  Claude is started with
-the session directory as working directory.  Both get =PASEO_AGENT_CWD=.
+and tells Codex the session directory over JSON-RPC.  Claude and Pi are
+started with
+the session directory as working directory.  All get =PASEO_AGENT_CWD=.
 Every process below an agent inherits that variable, so it is trusted only
 when the working directory is =$HOME=.
 

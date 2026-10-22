@@ -644,8 +644,11 @@ reliability enhancements.
 * Execution tiers
 
 Provider clients now send =tier: daily|system|host= separately from
-=provider: claude|codex=. Missing tier means daily for old clients; other values
-are rejected. The broker status includes each execution's tier. Provider/agent
+=provider: claude|codex|pi|opencode=. Missing tier means daily for old clients;
+other values are rejected. =opencode= accepts only =host=: Paseo shares one
+OpenCode server across workspaces, started in =~/.paseo/opencode-home=. That
+directory is authorized as its cwd in addition to the usual roots; its client
+ignores =PASEO_AGENT_CWD= and its executions skip branch GC. The broker status includes each execution's tier. Provider/agent
 identity serializes replacements across tiers rather than allowing two copies
 of the same agent to overlap.
 
@@ -654,8 +657,8 @@ and namespace supervisor. System is a named placeholder for future policy;
 it currently adds no permissions. Existing project grants, including uraj's
 Guix daemon and system log access, still apply to both.
 
-Host requires a server-configured absolute =--host-codex= or =--host-claude=
-binary. Guix supplies package paths, never PATH-resolved terminal overrides.
+Host requires a server-configured absolute =--host-codex=, =--host-claude=,
+=--host-pi= or =--host-opencode= binary. Guix supplies package paths, never PATH-resolved terminal overrides.
 It skips contained-agent and shared SSH preparation, retaining the broker's
 host user/mount/PID namespaces and normal HOME-backed agent settings. It still
 uses the broker's environment filtering and authorized cwd roots. It does not
@@ -704,4 +707,4 @@ its own policy design.
 =paseo-AGENT-{daily,system,host}= clients live in the Home and daemon profiles,
 not in agent containers. Legacy =paseo-AGENT= clients still select daily.
 The configure/restore trial command continues managing only legacy command
-fields; Guix activation manages the six labeled provider entries and overrides.
+fields; Guix activation manages the labeled provider entries and overrides.

@@ -57,6 +57,8 @@
                   "--supervisor" #$supervisor "--launcher" #$launcher
                   "--host-codex" #$(file-append codex "/bin/codex")
                   "--host-claude" #$(file-append claude-code "/bin/claude")
+                  "--host-pi" #$(file-append pi-coding-agent "/bin/pi")
+                  "--host-opencode" #$(file-append opencode-bin "/bin/opencode")
                   "--branch-gc" #$branch-gc-program
                   (if (and (pair? args) (string=? (car args) "serve"))
                       (cdr args) args))))))
@@ -89,7 +91,13 @@
                      ("codex" "host" "paseo-codex-host")
                      ("claude" "daily" "paseo-claude-daily")
                      ("claude" "system" "paseo-claude-system")
-                     ("claude" "host" "paseo-claude-host"))))))
+                     ("claude" "host" "paseo-claude-host")
+                     ("pi" "daily" "paseo-pi-daily")
+                     ("pi" "system" "paseo-pi-system")
+                     ("pi" "host" "paseo-pi-host")
+                     ;; Paseo's shared OpenCode server fits no project
+                     ;; container.
+                     ("opencode" "host" "paseo-opencode-host"))))))
     (home-page "https://paseo.sh")
     (synopsis "Paseo host broker clients")
     (description "Connect Paseo providers to the same-user execution broker.")

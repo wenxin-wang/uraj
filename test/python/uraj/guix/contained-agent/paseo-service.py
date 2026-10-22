@@ -92,11 +92,11 @@ overrides:
         settings = json.loads(config.read_text())
         self.assertNotIn("must-not-appear", settings)
         providers = settings["agents"]["providers"]
-        self.assertEqual(len(providers), 6)
+        self.assertEqual(len(providers), 11)
         self.assertEqual(
             providers["codex"]["env"], {"PUBLIC": "yes", "BOTH": "private"}
         )
-        for agent in ("claude", "codex"):
+        for agent in ("claude", "codex", "pi"):
             self.assertEqual(providers[agent]["label"], f"日常沙箱 {agent}")
             for tier, label in (("system", "系统沙箱"), ("host", "宿主")):
                 entry = providers[f"{agent}-{tier}"]
@@ -105,6 +105,14 @@ overrides:
                 self.assertTrue(
                     entry["command"][0].endswith(f"paseo-{agent}-{tier}")
                 )
+        self.assertEqual(providers["opencode"], {"enabled": False})
+        self.assertEqual(providers["opencode-host"]["extends"], "opencode")
+        self.assertEqual(providers["opencode-host"]["label"], "宿主 opencode")
+        self.assertTrue(
+            providers["opencode-host"]["command"][0].endswith(
+                "paseo-opencode-host"
+            )
+        )
         before = config.read_bytes(), config.stat().st_mtime_ns
         SERVICE.activate(
             self.home, public_config=public, private_config=private
@@ -150,9 +158,14 @@ overrides:
                         "claude",
                         "claude-system",
                         "claude-host",
+                        "pi",
+                        "pi-system",
+                        "pi-host",
+                        "opencode",
+                        "opencode-host",
                     },
                 )
-                for agent in ("codex", "claude"):
+                for agent in ("codex", "claude", "pi"):
                     self.assertEqual(
                         providers[agent]["command"],
                         [

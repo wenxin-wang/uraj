@@ -23,6 +23,15 @@ ROOTS = ("src", "Projects", WORKTREES)
 # Seconds to wait for a policy SOPS decrypts: at boot the daemon may start
 # before SOPS is done.
 SECRET_TIMEOUT = 10
+TIER_LABELS = {"daily": "日常沙箱", "system": "系统沙箱", "host": "宿主"}
+# Paseo runs one OpenCode server for every workspace, so it cannot be confined
+# to a single project's container: OpenCode is offered on the host only.
+PROVIDER_TIERS = {
+    "codex": ("daily", "system", "host"),
+    "claude": ("daily", "system", "host"),
+    "pi": ("daily", "system", "host"),
+    "opencode": ("host",),
+}
 
 
 def prepare_temporary_directory(home):
@@ -123,17 +132,17 @@ def activate(
         providers = settings.setdefault("agents", {}).setdefault(
             "providers", {}
         )
-        for provider in ("codex", "claude"):
-            for tier, label in (
-                ("daily", "日常沙箱"),
-                ("system", "系统沙箱"),
-                ("host", "宿主"),
-            ):
+        for provider, tiers in PROVIDER_TIERS.items():
+            if "daily" not in tiers:
+                # The built-in ID would otherwise run the contained wrapper
+                # found on PATH.
+                providers.setdefault(provider, {})["enabled"] = False
+            for tier in tiers:
                 name = provider if tier == "daily" else f"{provider}-{tier}"
                 entry = providers.setdefault(name, {})
                 entry.update(
                     {
-                        "label": f"{label} {provider}",
+                        "label": f"{TIER_LABELS[tier]} {provider}",
                         "command": [
                             str(
                                 home
@@ -158,7 +167,9 @@ def activate(
             settings.update(merged)
         resolve_home_paths(settings, home)
         configured = validate_provider_settings(settings)
-        for provider in ("codex", "claude"):
+        for provider, tiers in PROVIDER_TIERS.items():
+            if "daily" not in tiers:
+                continue
             expected = [
                 str(home / ".guix-home/profile/bin" / f"paseo-{provider}-daily")
             ]
