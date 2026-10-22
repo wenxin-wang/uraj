@@ -6,6 +6,16 @@ const mutableRoot = new Set(["agents", "bindings", "meta", "wizard"]);
 const agentFields = new Set(["name", "identity", "model", "workspace", "agentDir"]);
 const own = (value, key) => Object.hasOwn(value, key);
 
+function differingPaths(actual, expected, prefix) {
+  if (isDeepStrictEqual(actual, expected)) return [];
+  if (!actual || !expected || typeof actual !== "object" ||
+      typeof expected !== "object" || Array.isArray(actual) || Array.isArray(expected)) {
+    return [prefix];
+  }
+  return [...new Set([...Object.keys(actual), ...Object.keys(expected)])]
+    .flatMap((key) => differingPaths(actual[key], expected[key], `${prefix}.${key}`));
+}
+
 function object(value, label) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error(`${label} must be an object`);
@@ -55,7 +65,9 @@ export function validatePolicy(config, base) {
   literalTree(config);
   for (const key of new Set([...Object.keys(base), ...Object.keys(config)])) {
     if (!mutableRoot.has(key) && !isDeepStrictEqual(config[key], base[key])) {
-      throw new Error(`Guix manages ${key}`);
+      // Paths only: config values may contain credentials.
+      const paths = differingPaths(config[key], base[key], key).slice(0, 8);
+      throw new Error(`Guix manages ${key}; differing paths: ${paths.join(", ")}`);
     }
   }
   object(config.agents, "agents");
