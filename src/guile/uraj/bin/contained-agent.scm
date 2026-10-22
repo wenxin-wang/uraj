@@ -43,6 +43,7 @@
 ;;;   its keys are loaded automatically on the host before entering.  It
 ;;;   alone may also hand out credentials (see `credential-options'):
 ;;;     (env NAME (file FILE))       NAME set to the contents of FILE
+;;;     (env NAME (value VALUE))     NAME set to VALUE, only in private files
 ;;;     (github TIER)                git and gh on github.com, TIER being
 ;;;                                  public, personal or world
 ;;;     (git-credential URL FILE)    git over HTTPS below URL
@@ -386,14 +387,15 @@ unreadable or empty."
                  "echo username=x-access-token; "
                  "printf 'password=%s\\n' \"$t\"; }; f"))
 
-(define (credential-options entries directory)
+(define* (credential-options entries directory #:key (private? (const #t)))
   "Apply the central credential clauses among ENTRIES, (ORIGIN . CLAUSE)
 pairs, and return the `guix shell' options that hand them to the container.
 Values travel in the environment or in files mounted alone under DIRECTORY,
-never on a command line.  A missing, unreadable or empty file is skipped
-with a warning, and the host's own value never stands in for it; but the
-token of a (github TIER) clause is a SOPS secret, waited for and required on
-hosts that have the tokens.
+never on a command line.  (env NAME (value VALUE)) is accepted only from an
+ORIGIN satisfying PRIVATE?: other files may reach the store or Git.  A
+missing, unreadable or empty file is skipped with a warning, and the host's
+own value never stands in for it; but the token of a (github TIER) clause
+is a SOPS secret, waited for and required on hosts that have the tokens.
 
 Git configuration goes through GIT_CONFIG_COUNT, after the global file the
 agent may edit: an empty credential.helper first drops every helper of
@@ -405,21 +407,28 @@ container asks git for the current repository's token."
     (unless (string-match "^[A-Za-z_][A-Za-z0-9_]*$" name)
       (die "bad variable name ~s" name))
     name)
+  (define (pass name value)
+    (unsetenv name)
+    (if value
+        (begin
+          (setenv name value)
+          (list (string-append "--preserve=^" name "$")))
+        '()))
   (define clauses (filter credential-clause? entries))
   (define environment
     (append-map
      (match-lambda
        ((origin . ('env (? string? name) ('file (? string? file))))
-        (let* ((name (variable name))
-               (value (read-secret origin (expand-home file) name)))
-          (unsetenv name)
-          (if value
-              (begin
-                (setenv name value)
-                (list (string-append "--preserve=^" name "$")))
-              '())))
+        (let ((name (variable name)))
+          (pass name (read-secret origin (expand-home file) name))))
+       ((origin . ('env (? string? name) ('value (? string? value))))
+        (unless (private? origin)
+          (die "~a: (env ~s (value ...)) belongs in a private file; \
+use (file FILE) here" origin name))
+        (pass (variable name) value))
        ((origin . ('env _ ...))
-        (die "~a: expected (env NAME (file FILE))" origin))
+        (die "~a: expected (env NAME (file FILE)) or (env NAME (value VALUE))"
+             origin))
        (_ '()))
      clauses))
   (define credentials                   ;(ORIGIN URL FILE), in order
@@ -882,7 +891,11 @@ NUL.  All ssh-add output goes to stderr, never into this private protocol."
                            (ssh-prepared-directory project ssh ssh-tools)
                            (ssh-ensure project ssh ssh-tools))))
        ;; After every host-side use of the environment, such as SSH askpass.
-       ((credentials) (credential-options central "/run/contained-agent"))
+       ;; The Home-managed projects file is public: in Git and the store.
+       ((credentials) (credential-options
+                       central "/run/contained-agent"
+                       #:private? (lambda (origin)
+                                    (not (string=? origin projects-file)))))
        ((clauses)
         ;; (ORIGIN . CLAUSE), ORIGIN naming the file for messages.
         (append

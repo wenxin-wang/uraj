@@ -334,7 +334,7 @@ Clauses, in both places below:
   =(git-hooks "scripts/coding_style/hooks")=.
 
 Central configuration only: =(ssh-agent ...)= and the credential clauses
-=(github TIER)=, =(git-credential URL FILE)= and =(env NAME (file FILE))=,
+=(github TIER)=, =(git-credential URL FILE)= and =(env NAME ...)=,
 described below.
 
 Central: =projects.scm=, keyed by the current work tree's canonical root.
@@ -460,6 +460,11 @@ even approved, is a bad clause.
 - =(env NAME (file FILE))=: the variable =NAME= set to =FILE='s contents.
   It overrides =preserve=, which passes the launcher's own environment: the
   host's value is dropped even when the file is missing.
+- =(env NAME (value VALUE))=: the variable =NAME= set to =VALUE= as
+  written.  Only in the private files, =projects.local.scm= and the
+  SOPS-decrypted =projects.scm=; in the Home-managed =projects.scm=, which
+  is in Git and the store, it fails the launch.  Like =(file FILE)=, it
+  overrides =preserve= and never appears on a command line.
 
 The token files of =github= and =git-credential= are each mounted alone,
 read-only, at =/run/contained-agent/git-credential-N=.  The launcher
