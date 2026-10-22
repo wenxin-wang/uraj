@@ -173,6 +173,7 @@
              (uraj services strongswan)
              (uraj services storie-mounts)
              (uraj services maa)
+             (uraj services mower)
              (uraj services redroid)
              (uraj services restricted-network)
              (uraj network-policy)
@@ -386,12 +387,24 @@
               (network
                (restricted-network
                  (inherit %redroid-network)
+                 ;; Permit Mower -> Android ADB even when br_netfilter sends
+                 ;; same-bridge traffic through the inet forward hooks.
+                 (policy
+                  (network-policy
+                    (inherit (network-policy-of %redroid-network))
+                    (forward-exceptions
+                     (list (network-access (address "10.203.0.2") (ports '(5555)))))
+                    (ingress
+                     (list (network-access (address "10.203.0.3") (ports '(5555)))))))
                  (egress-interfaces #t)))
               ;; Separate from the old Android 11 /data; see the migration script.
               (data-directory "/var/lib/redroid/data/maa-houdini-13")
               (native-bridge redroid-houdini)
               (native-bridge-library "libhoudini.so")
               (auto-start? #t))))
+    ;; Commission Mower manually after setting its roster and Skland account.
+    ;; While running, its shared device lock makes the old MAA jobs skip.
+    (list (service mower-service-type))
     %maa-services
     (host-sops-services (append (map cdr %vpn-connections)
                                 %agent-secrets))

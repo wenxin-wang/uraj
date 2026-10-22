@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+umask 077
+mkdir -p "${MOWER_DATA_DIR:-/mower-data}"
+# The host maa-cli job uses the same inode. Hold it for the entire service
+# lifetime, including manual starts through the WebUI.
+exec flock --nonblock --no-fork --conflict-exit-code 75 \
+    "${MOWER_CONTROLLER_LOCK:-/run/maa-controller.lock}" \
+    python /app/uraj-bootstrap.py

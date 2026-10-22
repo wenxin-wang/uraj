@@ -2,6 +2,7 @@
 (use-modules (gnu) (gnu services) (gnu services containers)
              (gnu services docker) (gnu services shepherd) (gnu services sysctl)
              (gnu services mcron) (uraj services maa)
+             (uraj services mower)
              (gnu image) (gnu system image)
              (guix gexp) (json) (srfi srfi-1) (srfi srfi-64)
              (guix packages)
@@ -44,6 +45,22 @@
 (test-equal "daily schedule uses Beijing time" "Asia/Shanghai"
   (operating-system-timezone installed-os))
 (test-assert "installed system schedules MAA" (maa-scheduled? installed-os))
+(test-assert "Mower commissioning does not automatically take the device"
+  (every (lambda (name)
+           (not (shepherd-service-auto-start? (lookup installed name))))
+         '(mower mower-ready mower-image)))
+(test-assert "Mower waits for Android, its image, and persistent state"
+  (every (lambda (name) (memq name (ancestors installed 'mower)))
+         '(redroid-maa restricted-network dockerd mower-image mower-ready)))
+(define mower (mower-container (mower-configuration)))
+(test-assert "Mower WebUI is not published to the LAN"
+  (null? (oci-container-configuration-ports mower)))
+(test-assert "Mower shares the MAA job's host lock inode"
+  (member "type=bind,source=/var/lib/maa/daily.lock,target=/run/maa-controller.lock"
+          (oci-container-configuration-extra-arguments mower)))
+(test-assert "Mower does not receive Android's privileged mode"
+  (not (member "--privileged"
+               (oci-container-configuration-extra-arguments mower))))
 (test-assert "Android waits for networking, firewall, sysctl, devices and Docker"
   (every (lambda (r) (memq r (ancestors installed 'redroid-maa)))
          '(restricted-network redroid-maa-ready sysctl udev dockerd)))
@@ -73,7 +90,8 @@
 (for-each
  (lambda (name)
    (test-assert (format #f "installer omits ~a" name) (not (lookup live name))))
- '(containerd dockerd restricted-network redroid-maa redroid-maa-ready))
+ '(containerd dockerd restricted-network redroid-maa redroid-maa-ready
+   mower mower-image mower-ready))
 
 (define restricted
   (service-value (fold-services (operating-system-services installed-os)
@@ -86,9 +104,15 @@
   (restricted-network-config-table restricted))
 (test-equal "game protocols are not limited to HTTP" '((tcp . all) (udp . all))
   (policy-public redroid-policy))
-(test-assert "no redroid LAN, host or inbound exceptions"
-  (every null? (list (policy-exceptions redroid-policy)
-                     (policy-host redroid-policy) (policy-ingress redroid-policy))))
+(test-assert "redroid has no host-service grants"
+  (null? (policy-host redroid-policy)))
+(test-equal "only Mower's Android ADB flow is allowed inside the bridge"
+  '((("10.203.0.2" tcp (5555))) (("10.203.0.3" tcp (5555))))
+  (map (lambda (entries)
+         (map (lambda (access)
+                (list (access-address access) (access-protocol access)
+                      (access-ports access))) entries))
+       (list (policy-exceptions redroid-policy) (policy-ingress redroid-policy))))
 
 (define container (redroid-container (redroid-configuration)))
 (test-assert "no published ADB port"
