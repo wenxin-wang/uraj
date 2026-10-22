@@ -15,6 +15,7 @@
   #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-13)
   #:use-module (srfi srfi-14)
+  #:use-module (uraj services logs)
   #:use-module (uraj utils file path)
   #:export (strongswan-services))
 
@@ -37,6 +38,13 @@
       }
     }
   }
+  # Shepherd timestamps stderr into the group-readable charon-log-file.
+  filelog {
+    stderr {
+      default = 1
+      ike_name = yes
+    }
+  }
   syslog {
     daemon {
       default = -1
@@ -46,6 +54,8 @@
     }
   }
 }\n"))
+
+(define charon-log-file "/var/log/strongswan/charon.log")
 
 (define (strongswan-public-connections names)
   ;; Only public names are substituted at build time. Private fields are merged
@@ -130,7 +140,7 @@ only connect when started by hand."
                    (list #$(file-append strongswan "/libexec/ipsec/charon"))
                    #:environment-variables
                    (list (string-append "STRONGSWAN_CONF=" #$daemon-config))
-                   #:log-file "/dev/null"))
+                   #:log-file #$charon-log-file))
          (stop #~(make-kill-destructor)))
         (map
          (lambda (name file)
@@ -207,4 +217,6 @@ only connect when started by hand."
                             (status (close-pipe port)))
                        (not (and (zero? status)
                                  (string-null? (string-trim-both output))))))))))
-         names files))))))
+         names files)))
+     (simple-service 'strongswan-log service-log-service-type
+                     (list (service-log (name "strongswan")))))))

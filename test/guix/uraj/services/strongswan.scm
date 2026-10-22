@@ -13,6 +13,11 @@
 (test-equal "one daemon, two independent connections"
   '((strongswan-charon) (vpn-fwd2home) (vpn-office))
   (map shepherd-service-provision services))
+(test-assert "charon logs where log-readers can read"
+  (string-contains
+   (object->string
+    (gexp->approximate-sexp (shepherd-service-start (car services))))
+   "/var/log/strongswan/charon.log"))
 (test-assert "nothing starts on boot"
   (every (lambda (s) (not (shepherd-service-auto-start? s))) services))
 (test-assert "no automatic restart"
@@ -38,6 +43,7 @@
 (define sandbox (make-module))
 (module-use! sandbox (resolve-interface '(guile)))
 (module-use! sandbox (resolve-interface '(ice-9 textual-ports)))
+(module-use! sandbox (resolve-interface '(ice-9 regex)))
 (module-use! sandbox (resolve-interface '(srfi srfi-13)))
 (module-define! sandbox 'OPEN_READ "r")
 (module-define! sandbox 'call-with-input-file
