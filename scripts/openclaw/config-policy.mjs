@@ -6,6 +6,26 @@ const mutableRoot = new Set(["agents", "bindings", "meta", "wizard"]);
 const agentFields = new Set(["name", "identity", "model", "workspace", "agentDir"]);
 const own = (value, key) => Object.hasOwn(value, key);
 
+function disabledSkillAdditions(actual, expected) {
+  const entries = actual?.entries;
+  if (!entries || typeof entries !== "object" || Array.isArray(entries)) return [];
+  return Object.entries(entries).filter(([key, entry]) =>
+    !own(expected?.entries ?? {}, key) && isDeepStrictEqual(entry, { enabled: false }));
+}
+
+function matchesSkillsPolicy(actual, expected) {
+  if (isDeepStrictEqual(actual, expected)) return true;
+  if (!actual || typeof actual !== "object" || Array.isArray(actual)) return false;
+  const projected = structuredClone(actual);
+  for (const [key] of disabledSkillAdditions(actual, expected)) {
+    delete projected.entries[key];
+  }
+  if (projected.entries && !Array.isArray(projected.entries) &&
+      typeof projected.entries === "object" && Object.keys(projected.entries).length === 0 &&
+      !own(expected ?? {}, "entries")) delete projected.entries;
+  return isDeepStrictEqual(projected, expected ?? {}) && expected !== null;
+}
+
 function differingPaths(actual, expected, prefix) {
   if (isDeepStrictEqual(actual, expected)) return [];
   if (!actual || !expected || typeof actual !== "object" ||
@@ -64,6 +84,7 @@ export function validatePolicy(config, base) {
   object(config, "config");
   literalTree(config);
   for (const key of new Set([...Object.keys(base), ...Object.keys(config)])) {
+    if (key === "skills" && matchesSkillsPolicy(config.skills, base.skills)) continue;
     if (!mutableRoot.has(key) && !isDeepStrictEqual(config[key], base[key])) {
       // Paths only: config values may contain credentials.
       const paths = differingPaths(config[key], base[key], key).slice(0, 8);
@@ -108,6 +129,13 @@ export function reconcile(config, base) {
   if (config) {
     for (const key of mutableRoot) {
       if (own(config, key)) next[key] = structuredClone(config[key]);
+    }
+    // Doctor can disable unavailable skills. Preserve only pure disable markers;
+    // all declared entries and other skill settings still come from Guix.
+    const disabledSkills = disabledSkillAdditions(config.skills, base.skills);
+    if (disabledSkills.length) {
+      next.skills = { ...next.skills,
+        entries: { ...next.skills?.entries, ...Object.fromEntries(disabledSkills) } };
     }
     next.agents.defaults = structuredClone(base.agents.defaults);
     // Keep a user's selected model only while it remains in the approved catalog.

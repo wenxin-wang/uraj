@@ -66,6 +66,10 @@ node /etc/openclaw/config.mjs set agents.entries.research '{"name":"研究助手
 =/workspaces/= 下规范化的绝对路径；main 保留 =/workspace=。
 这些是路径字符串检查，不证明符号链接后的隔离；沙箱尚未接入。
 其他顶层配置及默认设置由 Guix 固定；meta、wizard 留给原生维护流程。
+Doctor 会将不可用的 skill 写入 =skills.entries=。对 Guix 未声明的条目，
+校验允许并在重启对齐时保留纯 ={ "enabled": false }= 禁用标记；不允许
+附加 env、apiKey、加载路径或启用 skill。Guix 已声明的 skill 配置仍须
+完全匹配，不使用整节 skills 的宽泛豁免。
 不支持 include、环境插值、任意 CLI flags 或 provider builder。
 
 校验入口先检查请求，再在私有临时文件上执行原生 =config set=，重新检查

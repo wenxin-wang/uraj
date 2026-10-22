@@ -102,3 +102,34 @@ test("restart reconciliation emits canonical exec mode and still rejects drift",
   next.tools.allow = ["read"];
   assert.throws(() => validatePolicy(next, base), /differing paths: tools.allow/);
 });
+
+test("Doctor disable-only entries survive checks, model edits and restart", async () => {
+  const config = structuredClone(base);
+  config.skills = { entries: { "1password": { enabled: false }, github: { enabled: false } } };
+  validatePolicy(config, base);
+  assert.deepEqual(reconcile(config, base).skills, config.skills);
+  await checkedSet(["agents.defaults.model", '"local/two"'], {
+    base, snapshot: async () => ({ config, hash: "revision" }),
+    mutate: async () => {
+      const candidate = structuredClone(config);
+      candidate.agents.defaults.model = "local/two";
+      return candidate;
+    },
+    submit: async (candidate) => assert.deepEqual(candidate.skills, config.skills),
+  });
+});
+
+test("skills exception cannot enable skills, add credentials or change declared entries", () => {
+  for (const skills of [
+    { entries: { github: { enabled: true } } },
+    { entries: { github: {} } },
+    { entries: { github: { enabled: false, env: { TOKEN: "x" } } } },
+    { entries: { github: { enabled: false, apiKey: "x" } } },
+    { load: { extraDirs: ["/tmp/skills"] } },
+    { entries: [] }, null, [],
+  ]) assert.throws(() => validatePolicy({ ...base, skills }, base), /Guix manages skills/);
+  const declared = { ...base, skills: { entries: { github: { enabled: true } } } };
+  assert.throws(() => validatePolicy({ ...declared,
+    skills: { entries: { github: { enabled: false } } } }, declared), /Guix manages skills/);
+  assert.throws(() => validatePolicy(base, declared), /Guix manages skills/);
+});
