@@ -7,4 +7,4 @@ if [[ $# -gt 0 ]]; then
     shift
     set -- "$uraj_target" "$@"
 fi
-maak -f "$uraj_root/env/guix/os/maak.scm" home-reconfigure "$@"
+maak -f "$uraj_root/env/guix/os/maak.scm" -- home-reconfigure -- "$@"

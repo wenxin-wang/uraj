@@ -198,8 +198,8 @@ MAIN-USER and the deployment account log in with SSH-KEY."
                                (not (string-prefix? "GUIX=" entry)))
                              (guix-configuration-environment config))))
               (substitute-urls
-               '("https://mirror.sjtu.edu.cn/guix-bordeaux"
-                 "https://mirror.sjtu.edu.cn/guix"
+               '("https://mirror.sjtu.edu.cn/guix"
+                 "https://mirror.sjtu.edu.cn/guix-bordeaux"
                  "https://bordeaux.guix.gnu.org"
                  "https://ci.guix.gnu.org"
                  "https://substitutes.nonguix.org"))

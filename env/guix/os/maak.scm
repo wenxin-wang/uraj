@@ -12,8 +12,9 @@
 (define* (system-reconfigure
           #:optional (config-path
                       (project-path
-                       (string-append "env/guix/os/" (gethostname) ".scm"))))
-  ($guix `("system" "reconfigure" ,config-path)))
+                       (string-append "env/guix/os/" (gethostname) ".scm")))
+          #:rest args)
+  ($guix `("system" "reconfigure" ,config-path ,@args)))
 
 (define* (build-iso #:optional (config-path (guix-env-path "os/lappie.scm")))
   ;; The configuration itself performs the transformation.  Environment is
@@ -49,8 +50,10 @@
                           (else            '()))))
          ($guix (append head tail) #:fork? fork?))))))
 
-(define* (home-reconfigure #:optional (config-path (guix-env-path "os/home.scm")))
-  ($guix `("home" "reconfigure" ,config-path)))
+(define* (home-reconfigure
+          #:optional (config-path (guix-env-path "os/home.scm"))
+          #:rest args)
+  ($guix `("home" "reconfigure" ,config-path ,@args)))
 
 (define* (deploy #:optional (config-path (guix-env-path "os/lappie.scm")))
   ($guix `("deploy" ,config-path)))

@@ -251,6 +251,21 @@ guix time-machine -C env/guix/channels-lock.scm -- \
 =uraj-home-reconfigure= 也支持这种方式；未传入配置文件时仍使用
 =~/src/uraj=。环境须已通过 =direnv allow= 授权；找不到环境或加载失败时停止。
 
+=uraj-system-reconfigure= 和 =uraj-home-reconfigure= 会将配置路径后的
+额外参数原样传给 Guix，例如临时指定 substitute 源：
+
+#+begin_src sh
+uraj-system-reconfigure env/guix/os/lappie.scm \
+  --substitute-urls="https://mirror.sjtu.edu.cn/guix https://mirror.sjtu.edu.cn/guix-bordeaux https://bordeaux.guix.gnu.org https://substitutes.nonguix.org"
+#+end_src
+
+直接使用 Maak 时，用 =--= 分隔任务参数，避免选项被 Maak 解析：
+
+#+begin_src sh
+maak -f env/guix/os/maak.scm -- system-reconfigure -- \
+  env/guix/os/lappie.scm --dry-run
+#+end_src
+
 入口固定 storie 的 Ed25519 主机公钥，使用端口 23333、guix-deploy
 账户和开发机 =$HOME/.ssh/simple= 私钥。本地构建，SSH 传输并激活；
 =authorize? #t= 允许远端导入开发机签名的 store 产物。
