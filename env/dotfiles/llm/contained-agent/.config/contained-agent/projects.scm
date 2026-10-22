@@ -23,6 +23,8 @@
 ;;;   (git-credential URL FILE)   git over HTTPS below URL, asked before the
 ;;;                               tier; for isolated projects, give only this
 ;;;   (env NAME (file FILE))      NAME set to the contents of FILE
+;;;   (env NAME (value VALUE))    NAME set to VALUE; private files only, never
+;;;                               here, as this file is public
 
 (project "~/src/uraj"
   ;; Build/check Home, System, packages and locked channel environments.

@@ -317,6 +317,30 @@ class Environment(Launcher):
             self.assertNotIn("GH_TOKEN", environment)
             self.assertNotIn("--preserve=^GH_TOKEN$", argv)
 
+    def test_inline_value_only_in_private_files(self):
+        clause = f'(env "GH_TOKEN" (value "{SECRET}"))'
+        self.policy(clause)
+        result, argv, _ = self.launch(GH_TOKEN="host-value")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("belongs in a private file", result.stderr)
+        self.assertIsNone(argv)
+
+        self.config.write_text("")
+        local = self.home / ".config/contained-agent/projects.local.scm"
+        local.parent.mkdir(parents=True)
+        secret = self.secrets / "projects.scm"
+        cases = ((local, {}), (secret, {"TEST_PROJECTS_SECRET": str(secret)}))
+        for private, env in cases:
+            local.unlink(missing_ok=True)
+            private.write_text(f'(project "{self.project}" {clause})')
+            result, argv, environment = self.launch(
+                GH_TOKEN="host-value", **env
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(environment["GH_TOKEN"], SECRET)
+            self.assertIn("--preserve=^GH_TOKEN$", argv)
+            self.assertFalse(any(SECRET in a for a in argv), argv)
+
     def test_projects_secret_is_waited_for_and_required(self):
         self.policy()
         secret = self.secrets / "projects.scm"
@@ -342,6 +366,7 @@ class Environment(Launcher):
         for clause in (
             f'(env "GH TOKEN" (file "{self.secret}"))',
             f'(env "GH_TOKEN" "{self.secret}")',
+            '(env "GH_TOKEN" (value 1))',
             '(github "admin")',
             '(github "public") (github "world")',
             f'(git-credential "http://example.test" "{self.secret}")',

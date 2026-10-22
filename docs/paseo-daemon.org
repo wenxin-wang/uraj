@@ -285,7 +285,8 @@ agent's socket, known_hosts snapshot and literal client config are mounted.
 This agent never shares the desktop GPG agent or the broker's project agents.
 The profile includes =ps= (procps), OpenSSH and GitHub CLI.  The policy's
 =github=, =git-credential= and =env= clauses work as in contained-agent,
-mounting token files under =/run/paseo=.  To clone every repository you can
+mounting token files under =/run/paseo=.  Both policy files are private, so
+either may hold =(env NAME (value VALUE))=.  To clone every repository you can
 reach, private ones included, give the daemon =(github "world")=; the SSH
 agent is then optional.  The daemon has a GitHub CLI configuration of its
 own, built by =(uraj home paseo)= and mounted read-only over =~/.config/gh=:
