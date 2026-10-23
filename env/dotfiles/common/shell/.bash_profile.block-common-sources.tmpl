@@ -1,8 +1,5 @@
-if [ ! -n "$HAS_MY_PROFILE" ]; then
-    # Guix Home's ~/.profile also sources ~/.profile.d (see basic-sys).
-    [[ -f ~/.profile ]] && . ~/.profile
-    # Export before sourcing ~/.bashrc: the same guard there must not load
-    # the profile a second time.
-    export HAS_MY_PROFILE=1
-fi
+# Each login shell must load its profile: an inherited HAS_MY_PROFILE does
+# not mean PATH survived login environment initialization.
+# Guix Home's ~/.profile also sources ~/.profile.d (see basic-sys).
+[[ -f ~/.profile ]] && . ~/.profile
 [[ -f ~/.bashrc ]] && . ~/.bashrc
