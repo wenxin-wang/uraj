@@ -342,9 +342,15 @@ Central configuration only: =(ssh-agent ...)= and the credential clauses
 described below.
 
 Central: =projects.scm=, keyed by the current work tree's canonical root.
-A linked worktree without an entry inherits the main work tree's entries.
-An explicit worktree entry in any central source replaces that fallback
-across all sources; even an empty =(project "PATH")= disables inheritance.
+A linked worktree without an entry inherits the entries of the checkout
+Paseo created it from, if that checkout has any, and otherwise the main
+work tree's.  The source comes from Paseo's registry
+(=$PASEO_HOME/projects/{workspaces,projects}.json=, default =~/.paseo=),
+which no container mounts; it counts only when it is a work tree of the
+same repository.  A missing or unreadable registry falls back to the main
+work tree.  An explicit worktree entry in any central source replaces that
+fallback across all sources; even an empty =(project "PATH")= disables
+inheritance.
 It reaches the program through Home, so the
 agent cannot change it, and changing it takes a reconfigure.
 
@@ -391,8 +397,8 @@ Add an exact =(project "~/src/uraj-maa" ...)= entry on the host for its
 required permissions instead of inheriting the main work tree's.  Subdirectory
 launches use that worktree's root; symlink aliases resolve to the same root.
 In Paseo, add this directory as a project and select =Local= to use it
-directly.  =New worktree= creates another path which inherits the main work
-tree's policy unless it has its own central entry.
+directly.  =New worktree= in that project creates another path which
+inherits this entry unless it has its own central entry.
 
 Worktrees share Git objects and branches, but have separate working files
 and indexes.  A branch normally cannot be checked out in two worktrees.

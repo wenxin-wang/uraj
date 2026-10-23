@@ -70,6 +70,7 @@ class Launcher(unittest.TestCase):
             CONTAINED_AGENT_PROJECTS=str(self.config),
         )
         self.env.pop("PASEO_AGENT_CWD", None)
+        self.env.pop("PASEO_HOME", None)
         self.env.pop("XDG_DATA_HOME", None)
         self.command = [
             self.tools["guile"],
@@ -843,6 +844,123 @@ class Direnv(Launcher):
             )
         hook = self.home / ".local/share/contained-agent/direnv.bash"
         self.assertIn("direnv export bash", hook.read_text())
+
+
+class PaseoSource(Launcher):
+    """Paseo worktrees inherit the checkout they were created from."""
+
+    def setUp(self):
+        super().setUp()
+        self.source = self.root / "source checkout"
+        self.worktree = self.root / "worktrees/w"
+        for args in (
+            ["-c", "user.name=T", "-c", "user.email=t@x", "commit"]
+            + ["--allow-empty", "-qm", "m"],
+            ["worktree", "add", "-qb", "source", str(self.source)],
+            ["worktree", "add", "-qb", "w", str(self.worktree)],
+        ):
+            subprocess.run(
+                [self.tools["git"], "-C", str(self.project), *args], check=True
+            )
+        self.registry = self.home / ".paseo/projects"
+        self.registry.mkdir(parents=True)
+        self.entries = {
+            self.project: '(preserve "MAIN")',
+            self.source: '(preserve "SOURCE")',
+        }
+
+    def register(self, root, worktree=None, archived=None):
+        worktree = worktree or self.worktree
+        (self.registry / "projects.json").write_text(
+            json.dumps(
+                [
+                    {"projectId": "p", "rootPath": str(root)},
+                    {"projectId": "q", "rootPath": str(self.project)},
+                ]
+            )
+        )
+        (self.registry / "workspaces.json").write_text(
+            json.dumps(
+                [
+                    {
+                        "projectId": "p",
+                        "kind": "worktree",
+                        "cwd": str(worktree),
+                        "worktreeRoot": str(worktree),
+                        "archivedAt": archived,
+                    }
+                ]
+            )
+        )
+
+    def preserved(self, cwd=None):
+        self.config.write_text(
+            "".join(
+                f'(project "{root}" {clauses})'
+                for root, clauses in self.entries.items()
+            )
+        )
+        result, argv, _ = self.launch(cwd=cwd or self.worktree)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return {
+            name
+            for name in ("MAIN", "SOURCE")
+            if f"--preserve=^{name}$" in argv
+        }, result.stderr
+
+    def test_source_checkout_entries(self):
+        self.assertEqual(self.preserved()[0], {"MAIN"})
+        self.register(self.source)
+        self.assertEqual(self.preserved()[0], {"SOURCE"})
+        # Also from a subdirectory, and for the source checkout itself.
+        (self.worktree / "nested").mkdir()
+        self.assertEqual(
+            self.preserved(self.worktree / "nested")[0], {"SOURCE"}
+        )
+        self.assertEqual(self.preserved(self.source)[0], {"SOURCE"})
+        # Through PASEO_AGENT_CWD, as Paseo launches agents from $HOME.
+        result, argv, _ = self.launch(
+            cwd=self.home, PASEO_AGENT_CWD=str(self.worktree)
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("--preserve=^SOURCE$", argv)
+        self.assertNotIn("--preserve=^MAIN$", argv)
+
+    def test_source_without_entry_falls_back_to_main(self):
+        self.register(self.source)
+        del self.entries[self.source]
+        self.assertEqual(self.preserved()[0], {"MAIN"})
+        # An explicit empty entry suppresses inheritance as for the worktree.
+        self.entries[self.source] = ""
+        self.assertEqual(self.preserved()[0], set())
+
+    def test_own_entry_wins(self):
+        self.register(self.source)
+        self.entries[self.worktree] = ""
+        self.assertEqual(self.preserved()[0], set())
+
+    def test_untrusted_or_stale_records_are_ignored(self):
+        other = self.root / "other"
+        subprocess.run(
+            [self.tools["git"], "init", "-q", str(other)], check=True
+        )
+        self.entries[other] = '(preserve "SOURCE")'
+        for root, kwargs in (
+            # Another repository, even with its own entry.
+            (other, {}),
+            (self.root / "missing", {}),
+            (self.source, {"archived": "2026-10-01T00:00:00Z"}),
+            (self.source, {"worktree": self.root / "elsewhere"}),
+        ):
+            with self.subTest(root=root, **kwargs):
+                self.register(root, **kwargs)
+                self.assertEqual(self.preserved()[0], {"MAIN"})
+
+    def test_malformed_registry_warns(self):
+        (self.registry / "workspaces.json").write_text("{")
+        preserved, stderr = self.preserved()
+        self.assertEqual(preserved, {"MAIN"})
+        self.assertIn("workspaces.json: unreadable, ignored", stderr)
 
 
 if __name__ == "__main__":

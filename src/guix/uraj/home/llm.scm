@@ -5,6 +5,7 @@
   #:use-module (gnu packages ssh)
   #:use-module (gnu packages base)
   #:use-module (gnu packages bash)
+  #:use-module (gnu packages guile)
   #:use-module (gnu services)
   #:use-module (guix gexp)
   #:use-module (guix profiles)
@@ -151,25 +152,26 @@ Homes and the headless Homes."
 (define contained-agent
   (program-file
    "contained-agent"
-   (with-uraj-modules '((uraj bin contained-agent))
-     #~(begin
-         (use-modules (uraj bin contained-agent))
-         (contained-agent-main (command-line)
-                               #:agents #$%contained-agent-specs
-                               #:common '#$%contained-agent-common
-                               #:packages
-                               (cons (string-append "--manifest="
-                                                    #$%agent-tools-manifest)
-                                     '#$%contained-agent-packages)
-                               #:ssh-tools
-                               (list (cons 'ssh-agent #$(file-append openssh "/bin/ssh-agent"))
-                                     (cons 'ssh-add #$(file-append openssh "/bin/ssh-add"))
-                                     (cons 'sha256sum #$(file-append coreutils "/bin/sha256sum"))
-                                     (cons 'bash #$(file-append bash-minimal "/bin/bash")))
-                               #:git #$(file-append git "/bin/git")
-                               #:github-secrets #$(github-token-directory)
-                               #:projects-secret
-                               #$(sandbox-policy-secret 'contained-agent))))))
+   (with-extensions (list guile-json-4)
+     (with-uraj-modules '((uraj bin contained-agent))
+       #~(begin
+           (use-modules (uraj bin contained-agent))
+           (contained-agent-main (command-line)
+                                 #:agents #$%contained-agent-specs
+                                 #:common '#$%contained-agent-common
+                                 #:packages
+                                 (cons (string-append "--manifest="
+                                                      #$%agent-tools-manifest)
+                                       '#$%contained-agent-packages)
+                                 #:ssh-tools
+                                 (list (cons 'ssh-agent #$(file-append openssh "/bin/ssh-agent"))
+                                       (cons 'ssh-add #$(file-append openssh "/bin/ssh-add"))
+                                       (cons 'sha256sum #$(file-append coreutils "/bin/sha256sum"))
+                                       (cons 'bash #$(file-append bash-minimal "/bin/bash")))
+                                 #:git #$(file-append git "/bin/git")
+                                 #:github-secrets #$(github-token-directory)
+                                 #:projects-secret
+                                 #$(sandbox-policy-secret 'contained-agent)))))))
 
 (define (contained-agent-link name)
   ;; A store item that is itself a link, so every name resolves to the one
