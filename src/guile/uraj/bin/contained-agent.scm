@@ -7,6 +7,8 @@
   #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-11)
   #:use-module (srfi srfi-26)
+  ;; Only for Paseo's registry; most launches never read it.
+  #:autoload (json parser) (json->scm)
   #:use-module (uraj bin contained-ssh)
   #:export (contained-agent-main read-all clause-options codex-spec pi-spec
             credential-clause? credential-options %github-secrets
@@ -28,7 +30,8 @@
 ;;;   able to swap them, and a mount point cannot be renamed away (EBUSY).
 ;;; - Extra per-project clauses come from the projects file, which the
 ;;;   sandbox cannot see, keyed by the current work tree's canonical root,
-;;;   falling back to the main work tree only when no entry matches:
+;;;   falling back, only when no entry matches, to the checkout Paseo created
+;;;   the worktree from (see `paseo-source-root'), then the main work tree:
 ;;;
 ;;;     (project "~/src/uraj"
 ;;;       (expose "/var/log" "~/.local/state/shepherd")
@@ -295,9 +298,60 @@ check `sudo herd status sops-secrets'"
   ;; none.
   (make-parameter #f))
 
+(define (paseo-records name)
+  "Return the records in Paseo's registry file NAME, or '() if unreadable."
+  (let ((file (string-append (or (getenv "PASEO_HOME") (expand-home "~/.paseo"))
+                             "/projects/" name)))
+    (if (file-exists? file)
+        (catch #t
+          (lambda ()
+            (match (call-with-input-file file json->scm)
+              (#((? pair? records) ...) records)
+              (_ (warn "~a: unexpected format, ignored" file) '())))
+          (lambda _
+            (warn "~a: unreadable, ignored" file)
+            '()))
+        '())))
+
+(define (paseo-source-root project common git)
+  "Return the root of the checkout Paseo created the worktree PROJECT from, if
+it is another work tree of the repository whose git directory is COMMON, or
+#f.  Paseo's registry is outside every container, so agents cannot choose
+it; Paseo itself could already start them in that checkout."
+  (define (active? record)
+    (member (assoc-ref record "archivedAt") '(#f null)))
+  (let ((ids (delete-duplicates
+              (filter-map
+               (lambda (record)
+                 (and (active? record)
+                      (equal? (assoc-ref record "kind") "worktree")
+                      (string? (assoc-ref record "worktreeRoot"))
+                      (string=? (resolve (assoc-ref record "worktreeRoot"))
+                                (resolve project))
+                      (assoc-ref record "projectId")))
+               (paseo-records "workspaces.json")))))
+    (match ids
+      (((? string? id))
+       (match (filter (lambda (record)
+                        (and (active? record)
+                             (equal? (assoc-ref record "projectId") id)
+                             (string? (assoc-ref record "rootPath"))))
+                      (paseo-records "projects.json"))
+         ((record)
+          (match (command-lines git "-C" (assoc-ref record "rootPath")
+                                "rev-parse" "--path-format=absolute"
+                                "--show-toplevel" "--git-common-dir")
+            ((top source-common)
+             (and (string=? (resolve source-common) (resolve common))
+                  (resolve top)))
+            (_ #f)))
+         (_ #f)))
+      (_ #f))))
+
 (define (central-entries file project git)
-  "Use PROJECT's central entries, or the main work tree's if none exist.
-An explicit empty entry suppresses inheritance across all policy sources."
+  "Use PROJECT's central entries, or else those of the checkout Paseo created
+it from, or else the main work tree's.  An explicit empty entry suppresses
+inheritance across all policy sources."
   (let ((secret (%projects-secret)))
     (when secret (wait-for-secret "contained-agent" secret))
     (let* ((sources
@@ -318,20 +372,23 @@ An explicit empty entry suppresses inheritance across all policy sources."
                         (read-all source))
                    '()))
              sources))
-           (own (filter (lambda (entry)
-                          (string=? (car entry) (resolve project)))
-                        entries))
+           (entries-of (lambda (root)
+                         (filter (lambda (entry)
+                                   (string=? (car entry) (resolve root)))
+                                 entries)))
+           (own (entries-of project))
            (selected
             (if (pair? own)
                 own
                 (match (command-lines git "-C" project "rev-parse"
                                       "--path-format=absolute" "--git-common-dir")
                   ((common)
-                   (if (string-suffix? "/.git" common)
-                       (filter (lambda (entry)
-                                 (string=? (car entry) (resolve (dirname common))))
-                               entries)
-                       '()))
+                   (let ((source (paseo-source-root project common git)))
+                     (match (if source (entries-of source) '())
+                       (() (if (string-suffix? "/.git" common)
+                               (entries-of (dirname common))
+                               '()))
+                       (inherited inherited))))
                   (_ '())))))
       (append-map
        (match-lambda
