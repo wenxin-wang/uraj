@@ -92,7 +92,7 @@ overrides:
         settings = json.loads(config.read_text())
         self.assertNotIn("must-not-appear", settings)
         providers = settings["agents"]["providers"]
-        self.assertEqual(len(providers), 11)
+        self.assertEqual(len(providers), 10)
         self.assertEqual(
             providers["codex"]["env"], {"PUBLIC": "yes", "BOTH": "private"}
         )
@@ -105,18 +105,46 @@ overrides:
                 self.assertTrue(
                     entry["command"][0].endswith(f"paseo-{agent}-{tier}")
                 )
-        self.assertEqual(providers["opencode"], {"enabled": False})
-        self.assertEqual(providers["opencode-host"]["extends"], "opencode")
-        self.assertEqual(providers["opencode-host"]["label"], "宿主 opencode")
+        self.assertTrue(providers["opencode"]["enabled"])
+        self.assertNotIn("extends", providers["opencode"])
+        self.assertEqual(providers["opencode"]["label"], "宿主 opencode")
         self.assertTrue(
-            providers["opencode-host"]["command"][0].endswith(
-                "paseo-opencode-host"
-            )
+            providers["opencode"]["command"][0].endswith("paseo-opencode-host")
         )
         before = config.read_bytes(), config.stat().st_mtime_ns
         SERVICE.activate(
             self.home, public_config=public, private_config=private
         )
+        self.assertEqual(
+            before, (config.read_bytes(), config.stat().st_mtime_ns)
+        )
+
+    def test_migrate_opencode_host_to_builtin(self):
+        SERVICE.activate(self.home)
+        config = self.home / ".paseo/config.json"
+        settings = json.loads(config.read_text())
+        providers = settings["agents"]["providers"]
+        providers["opencode-host"] = {
+            **providers["opencode"],
+            "extends": "opencode",
+            "env": {"EXAMPLE": "preserved"},
+        }
+        providers["opencode"] = {"enabled": False}
+        config.write_text(json.dumps(settings))
+
+        SERVICE.activate(self.home)
+        providers = json.loads(config.read_text())["agents"]["providers"]
+        self.assertNotIn("opencode-host", providers)
+        entry = providers["opencode"]
+        self.assertTrue(entry["enabled"])
+        self.assertNotIn("extends", entry)
+        self.assertEqual(entry["env"], {"EXAMPLE": "preserved"})
+        self.assertEqual(
+            entry["command"],
+            [str(self.home / ".guix-home/profile/bin/paseo-opencode-host")],
+        )
+        before = config.read_bytes(), config.stat().st_mtime_ns
+        SERVICE.activate(self.home)
         self.assertEqual(
             before, (config.read_bytes(), config.stat().st_mtime_ns)
         )
@@ -162,7 +190,6 @@ overrides:
                         "pi-system",
                         "pi-host",
                         "opencode",
-                        "opencode-host",
                     },
                 )
                 for agent in ("codex", "claude", "pi"):

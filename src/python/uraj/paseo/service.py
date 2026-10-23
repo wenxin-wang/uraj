@@ -133,12 +133,21 @@ def activate(
             "providers", {}
         )
         for provider, tiers in PROVIDER_TIERS.items():
-            if "daily" not in tiers:
-                # The built-in ID would otherwise run the contained wrapper
-                # found on PATH.
-                providers.setdefault(provider, {})["enabled"] = False
+            host_only = tiers == ("host",)
+            if host_only:
+                # Migrate the former alias onto the built-in ID. OpenCode's
+                # shared server manager keeps the first client's command.
+                old = providers.pop(f"{provider}-host", {})
+                entry = providers.setdefault(provider, {})
+                entry.update(old)
+                entry.pop("extends", None)
+                entry["enabled"] = True
             for tier in tiers:
-                name = provider if tier == "daily" else f"{provider}-{tier}"
+                name = (
+                    provider
+                    if tier == "daily" or host_only
+                    else f"{provider}-{tier}"
+                )
                 entry = providers.setdefault(name, {})
                 entry.update(
                     {
@@ -152,7 +161,7 @@ def activate(
                         ],
                     }
                 )
-                if tier != "daily":
+                if tier != "daily" and not host_only:
                     entry["extends"] = provider
         if worktrees:
             section = settings.setdefault("worktrees", {})

@@ -50,7 +50,7 @@ session environment. Do not run both service owners against the same state.
 
 * Configuration
 
-Home activation maintains eleven provider entries in writable
+Home activation maintains ten provider entries in writable
 =~/.paseo/config.json=:
 
 | Provider ID | Label | Broker tier |
@@ -64,16 +64,17 @@ Home activation maintains eleven provider entries in writable
 | pi | 日常沙箱 pi | daily |
 | pi-system | 系统沙箱 pi | system |
 | pi-host | 宿主 pi | host |
-| opencode | (disabled) | - |
-| opencode-host | 宿主 opencode | host |
+| opencode | 宿主 opencode | host |
 
 The default =claude=/=codex=/=pi= IDs call =paseo-AGENT-daily=. Derived
 providers use =extends: "AGENT"= and call =paseo-AGENT-system/host=.
 OpenCode is host only: Paseo runs a single =opencode serve= from
 =~/.paseo/opencode-home= for all workspaces and passes each session's directory
-over HTTP, so no per-project container can hold it.  Activation disables the
-built-in =opencode= ID (it would otherwise run the contained terminal wrapper
-from =PATH=); =opencode-host= extends it and calls =paseo-opencode-host=.
+over HTTP, so no per-project container can hold it.  The built-in =opencode=
+ID calls =paseo-opencode-host= directly, with full host privileges. Activation
+migrates the former =opencode-host= provider onto this built-in ID. Using only
+one provider avoids Paseo's shared OpenCode server manager retaining the
+built-in client's default command before the derived client is created.
 All commands are absolute paths under =~/.guix-home/profile/bin=, computed
 on the target machine. The clients are also in the daemon profile. Legacy
 =paseo-claude= and =paseo-codex= remain aliases for daily. Terminal
