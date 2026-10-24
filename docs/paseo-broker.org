@@ -29,10 +29,6 @@ resolved on the host for each execution and need no Paseo restart.
 
 * Implemented trial and lappie commands
 
-For a complete daemon + broker trial exported from the lappie/hypie machine
-configuration, without activating Home, see [[file:paseo-trial.org][Paseo-only trial deployment]].
-The standalone broker commands below are a lower-level interface.
-
 | File | Role |
 |------+------|
 | =src/python/uraj/paseo/broker.py= | Unix seqpacket protocol, FD passing, provider clients, configuration switch/restore, status |

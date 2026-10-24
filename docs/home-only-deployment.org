@@ -1,20 +1,19 @@
 #+title: Home-only deployment on lappie and hypie
 
-* One machine configuration, three outputs
+* One machine configuration, two outputs
 
 =env/guix/os/lappie.scm= and =env/guix/os/hypie.scm= accept
 =URAJ_DEPLOY_TARGET=:
 
-| Value             | Output                                 |
-|-------------------+----------------------------------------|
-| unset or =system= | Complete operating system (unchanged)   |
-| =home=            | The actual embedded Home environment   |
-| =paseo=           | [[file:paseo-trial.org][Paseo-only Shepherd trial bundle]]        |
+| Value             | Output                                |
+|-------------------+---------------------------------------|
+| unset or =system= | Complete operating system (unchanged) |
+| =home=            | The actual embedded Home environment  |
 
 The Home target extracts the already-configured Home from the final OS service
 graph. It does not recreate the desktop configuration or copy its arguments.
 It refuses zero or multiple embedded Homes rather than choosing an account
-implicitly. =TO_ISO= cannot be combined with either partial deployment target.
+implicitly. =TO_ISO= cannot be combined with the Home target.
 
 * Build and activate
 
@@ -64,7 +63,7 @@ simple restart necessarily reloads a changed Shepherd definition. In particular:
   require explicit reload/restart after Home activation.
 - hypie's Paseo stack is system-managed. Home-only deployment updates its Home
   configuration but *does not replace the system daemon/broker definitions*.
-  Use a System deployment or the explicit Paseo trial procedure for those.
+  Use a System deployment for those.
 - Restarting Paseo/broker can interrupt agent executions. Do it from a host
   terminal after active work has finished, not from the affected agent session.
 

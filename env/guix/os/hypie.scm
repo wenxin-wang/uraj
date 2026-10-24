@@ -178,7 +178,7 @@
              (uraj network-policy)
              (uraj system base)
              (uraj system desktop)
-             (uraj system paseo-trial)
+             (uraj system deploy-target)
              (uraj system initrd)
              (uraj system iso)
              (uraj system secrets)
@@ -445,7 +445,7 @@
 
 ;; `maak build-iso' sets TO_ISO for its Guix subprocess.  The live system
 ;; imports the pool to check it, but mounts nothing.
-(paseo-trial-target
+(deploy-target
  (if (getenv "TO_ISO")
      (to-iso
       (hypie-os
