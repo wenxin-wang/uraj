@@ -3,7 +3,7 @@
 * One machine configuration, two outputs
 
 =env/guix/os/lappie.scm=, =hypie.scm= and =storie.scm= accept
-=URAJ_DEPLOY_TARGET=:
+=OS_DEPLOY_TARGET=:
 
 | Value             | Output                                |
 |-------------------+---------------------------------------|
@@ -26,7 +26,7 @@ uraj-home-reconfigure
 
 Without a configuration argument it uses =env/guix/os/$(hostname).scm= when
 that file exists, otherwise the foreign-distro =env/guix/os/home.scm=. The
-underlying Maak task sets =URAJ_DEPLOY_TARGET=home= for the Guix subprocess
+underlying Maak task sets =OS_DEPLOY_TARGET=home= for the Guix subprocess
 only. Extra arguments are passed to Guix, for example to build first without
 activating anything:
 
@@ -37,7 +37,7 @@ uraj-home-reconfigure ~/src/uraj/env/guix/os/lappie.scm --dry-run
 The equivalent direct command is:
 
 #+begin_src sh
-URAJ_DEPLOY_TARGET=home guix time-machine \
+OS_DEPLOY_TARGET=home guix time-machine \
   -C env/guix/channels-lock.scm -- \
   home reconfigure -L src/guix -L src/guile env/guix/os/lappie.scm
 #+end_src

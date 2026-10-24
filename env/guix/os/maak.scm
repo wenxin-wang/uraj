@@ -68,7 +68,7 @@
           #:rest args)
   ;; Machine configurations return their embedded Home for this target;
   ;; home.scm ignores it.
-  (with-environment-variable "URAJ_DEPLOY_TARGET" "home"
+  (with-environment-variable "OS_DEPLOY_TARGET" "home"
     (lambda ()
       ($guix `("home" "reconfigure" ,config-path ,@args)))))
 

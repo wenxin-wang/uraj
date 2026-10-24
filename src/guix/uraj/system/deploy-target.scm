@@ -25,11 +25,11 @@
     (_ (error "Home target requires exactly one embedded Home"))))
 
 (define (deploy-target os)
-  (let ((target (getenv "URAJ_DEPLOY_TARGET")))
+  (let ((target (getenv "OS_DEPLOY_TARGET")))
     (cond
      ((or (not target) (string=? target "system")) os)
      ((string=? target "home")
       (when (getenv "TO_ISO")
         (error "Home deployment cannot be combined with TO_ISO"))
       (single-home os))
-     (else (error "Unknown URAJ_DEPLOY_TARGET" target)))))
+     (else (error "Unknown OS_DEPLOY_TARGET" target)))))
