@@ -16,18 +16,22 @@
           #:rest args)
   ($guix `("system" "reconfigure" ,config-path ,@args)))
 
+(define (with-environment-variable name value thunk)
+  (let ((old-value (getenv name)))
+    (dynamic-wind
+      (lambda () (setenv name value))
+      thunk
+      (lambda ()
+        (if old-value
+            (setenv name old-value)
+            (unsetenv name))))))
+
 (define* (build-iso #:optional (config-path (guix-env-path "os/lappie.scm")))
   ;; The configuration itself performs the transformation.  Environment is
   ;; used because maak's CLI rejects task-specific --options.
-  (let ((old-value (getenv "TO_ISO")))
-    (dynamic-wind
-      (lambda () (setenv "TO_ISO" "1"))
-      (lambda ()
-        ($guix `("system" "image" "-t" "iso9660" ,config-path)))
-      (lambda ()
-        (if old-value
-            (setenv "TO_ISO" old-value)
-            (unsetenv "TO_ISO"))))))
+  (with-environment-variable "TO_ISO" "1"
+    (lambda ()
+      ($guix `("system" "image" "-t" "iso9660" ,config-path)))))
 
 (define* (home-container #:optional (config-path (guix-env-path "os/home.scm"))
 	                 #:key (fork? (my-fork?))
@@ -50,10 +54,23 @@
                           (else            '()))))
          ($guix (append head tail) #:fork? fork?))))))
 
+(define (default-home-config)
+  ;; On Guix System hosts, deploy the Home embedded in the machine
+  ;; configuration; elsewhere use the foreign-distro Home.
+  (let ((machine (guix-env-path
+                  (string-append "os/" (gethostname) ".scm"))))
+    (if (file-exists? machine)
+        machine
+        (guix-env-path "os/home.scm"))))
+
 (define* (home-reconfigure
-          #:optional (config-path (guix-env-path "os/home.scm"))
+          #:optional (config-path (default-home-config))
           #:rest args)
-  ($guix `("home" "reconfigure" ,config-path ,@args)))
+  ;; Machine configurations return their embedded Home for this target;
+  ;; home.scm ignores it.
+  (with-environment-variable "URAJ_DEPLOY_TARGET" "home"
+    (lambda ()
+      ($guix `("home" "reconfigure" ,config-path ,@args)))))
 
 (define* (deploy #:optional (config-path (guix-env-path "os/lappie.scm")))
   ($guix `("deploy" ,config-path)))

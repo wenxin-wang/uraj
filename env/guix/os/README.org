@@ -251,6 +251,10 @@ guix time-machine -C env/guix/channels-lock.scm -- \
 =uraj-home-reconfigure= 也支持这种方式；未传入配置文件时仍使用
 =~/src/uraj=。环境须已通过 =direnv allow= 授权；找不到环境或加载失败时停止。
 
+=uraj-home-reconfigure= 未传入配置文件时，若存在 =env/guix/os/$(hostname).scm=
+则部署该机器配置中嵌入的 Home（见 [[file:../../../docs/home-only-deployment.org][Home-only deployment]]），否则使用
+=env/guix/os/home.scm=。
+
 =uraj-system-reconfigure= 和 =uraj-home-reconfigure= 会将配置路径后的
 额外参数原样传给 Guix，例如临时指定 substitute 源：
 

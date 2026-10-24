@@ -2,7 +2,7 @@
 
 * One machine configuration, two outputs
 
-=env/guix/os/lappie.scm= and =env/guix/os/hypie.scm= accept
+=env/guix/os/lappie.scm=, =hypie.scm= and =storie.scm= accept
 =URAJ_DEPLOY_TARGET=:
 
 | Value             | Output                                |
@@ -17,16 +17,24 @@ implicitly. =TO_ISO= cannot be combined with the Home target.
 
 * Build and activate
 
-On the target host, as the account owning the embedded Home (=wenxin=), from
-the repository root, first build without activating anything:
+On the target host, as the account owning the embedded Home (=wenxin=), run
+without sudo:
 
 #+begin_src sh
-URAJ_DEPLOY_TARGET=home guix time-machine \
-  -C env/guix/channels-lock.scm -- \
-  home build -L src/guix -L src/guile env/guix/os/lappie.scm
+uraj-home-reconfigure
 #+end_src
 
-Then deploy that complete Home environment, without sudo:
+Without a configuration argument it uses =env/guix/os/$(hostname).scm= when
+that file exists, otherwise the foreign-distro =env/guix/os/home.scm=. The
+underlying Maak task sets =URAJ_DEPLOY_TARGET=home= for the Guix subprocess
+only. Extra arguments are passed to Guix, for example to build first without
+activating anything:
+
+#+begin_src sh
+uraj-home-reconfigure ~/src/uraj/env/guix/os/lappie.scm --dry-run
+#+end_src
+
+The equivalent direct command is:
 
 #+begin_src sh
 URAJ_DEPLOY_TARGET=home guix time-machine \
@@ -34,10 +42,9 @@ URAJ_DEPLOY_TARGET=home guix time-machine \
   home reconfigure -L src/guix -L src/guile env/guix/os/lappie.scm
 #+end_src
 
-On hypie, replace =lappie.scm= with =hypie.scm=. Do not use the foreign-distro
-=env/guix/os/home.scm= for either machine. Keep the environment assignment local
-to the command instead of exporting it in your shell: a later System deployment
-must evaluate the default =system= target.
+Keep the environment assignment local to the command instead of exporting it
+in your shell: a later System deployment must evaluate the default =system=
+target.
 
 * What changes, and what does not
 
