@@ -148,6 +148,7 @@
              (uraj services paseo)
              (uraj services host-macvlan)
              (uraj system base)
+             (uraj system deploy-target)
              (uraj system server)
              (uraj system secrets)
              (uraj utils file path)
@@ -493,15 +494,16 @@
              (cons (local-file (guix-env-path "os/keys/lappie-signing-key.pub"))
                    (guix-configuration-authorized-keys config))))))))))
 
-(if (getenv "TO_ISO")
-    (to-iso
-     (operating-system
-       (inherit storie-os)
-       ;; Exercise pool imports without mounting the old system over the ISO.
-       (services
-        (cons (service zfs-data-service-type
-                (zfs-configuration
-                  (zfs zfs-linux)
-                  (auto-mount? #f)))
-              (operating-system-user-services %server-os)))))
-    storie-os)
+(deploy-target
+ (if (getenv "TO_ISO")
+     (to-iso
+      (operating-system
+        (inherit storie-os)
+        ;; Exercise pool imports without mounting the old system over the ISO.
+        (services
+         (cons (service zfs-data-service-type
+                 (zfs-configuration
+                   (zfs zfs-linux)
+                   (auto-mount? #f)))
+               (operating-system-user-services %server-os)))))
+     storie-os))

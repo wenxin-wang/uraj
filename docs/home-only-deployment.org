@@ -1,0 +1,89 @@
+#+title: Home-only deployment on lappie and hypie
+
+* One machine configuration, two outputs
+
+=env/guix/os/lappie.scm=, =hypie.scm= and =storie.scm= accept
+=OS_DEPLOY_TARGET=:
+
+| Value             | Output                                |
+|-------------------+---------------------------------------|
+| unset or =system= | Complete operating system (unchanged) |
+| =home=            | The actual embedded Home environment  |
+
+The Home target extracts the already-configured Home from the final OS service
+graph. It does not recreate the desktop configuration or copy its arguments.
+It refuses zero or multiple embedded Homes rather than choosing an account
+implicitly. =TO_ISO= cannot be combined with the Home target.
+
+* Build and activate
+
+On the target host, as the account owning the embedded Home (=wenxin=), run
+without sudo:
+
+#+begin_src sh
+uraj-home-reconfigure
+#+end_src
+
+Without a configuration argument it uses =env/guix/os/$(hostname).scm= when
+that file exists, otherwise the foreign-distro =env/guix/os/home.scm=. The
+underlying Maak task sets =OS_DEPLOY_TARGET=home= for the Guix subprocess
+only. Extra arguments are passed to Guix, for example to build first without
+activating anything:
+
+#+begin_src sh
+uraj-home-reconfigure ~/src/uraj/env/guix/os/lappie.scm --dry-run
+#+end_src
+
+The equivalent direct command is:
+
+#+begin_src sh
+OS_DEPLOY_TARGET=home guix time-machine \
+  -C env/guix/channels-lock.scm -- \
+  home reconfigure -L src/guix -L src/guile env/guix/os/lappie.scm
+#+end_src
+
+Keep the environment assignment local to the command instead of exporting it
+in your shell: a later System deployment must evaluate the default =system=
+target.
+
+* What changes, and what does not
+
+This is a normal, complete Guix Home reconfiguration, not a temporary overlay
+and not a Paseo-only update. It updates the Home profile, managed files and
+activation actions; it does not replace arbitrary files in =~/= or deploy the
+kernel, bootloader or System services. Existing system-provisioned secrets,
+permissions and dependencies must already be compatible with the new Home.
+Changes to those prerequisites still need System reconfiguration.
+
+The active Home can temporarily differ from the Home embedded in the current
+System generation. That is not inherently an invalid state, but a later System
+activation (including boot-time Home activation) can restore that generation's
+Home. Once validated, deploy the System from the same source revision and
+channel lock to synchronize the formal machine configuration. Avoid concurrent
+Home/System deployment.
+
+Existing shells and running services may retain their previous environment or
+loaded definitions. Do not assume activation restarts everything, or that a
+simple restart necessarily reloads a changed Shepherd definition. In particular:
+
+- lappie's Paseo stack is user-managed; changes to its running definitions may
+  require explicit reload/restart after Home activation.
+- hypie's Paseo stack is system-managed. Home-only deployment updates its Home
+  configuration but *does not replace the system daemon/broker definitions*.
+  Use a System deployment for those.
+- Restarting Paseo/broker can interrupt agent executions. Do it from a host
+  terminal after active work has finished, not from the affected agent session.
+
+* Recovery
+
+Before deploying, record the current Home generations with
+=guix home list-generations= and preserve any important mutable configuration.
+=guix home roll-back= can reactivate the previous Home generation if one exists,
+but is not a transaction that undoes every activation-script side effect or
+restores running process state. Embedded System activation and standalone Home
+deployment need not have identical generation histories: do not assume the
+previous standalone Home generation is the currently deployed System's Home.
+
+For a known configuration, rerun Home reconfigure from the known-good source
+revision and lock, or normally deploy the known-good System. Provider settings
+merged into writable files may require a separate backup/restore.
