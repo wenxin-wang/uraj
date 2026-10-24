@@ -70,6 +70,7 @@
              (uraj hardware asus)
              (uraj system base)
              (uraj system desktop)
+             (uraj system paseo-trial)
              (uraj system initrd)
              (uraj system iso)
              (uraj system secrets)
@@ -153,6 +154,7 @@
 ;; `maak build-iso' sets TO_ISO for its Guix subprocess.  Keeping the switch
 ;; here means this remains the single source of truth for both the installed
 ;; system and its hardware-matched live image.
-(if (getenv "TO_ISO")
-    (to-iso lappie-os)
-    lappie-os)
+(paseo-trial-target
+ (if (getenv "TO_ISO")
+     (to-iso lappie-os)
+     lappie-os))

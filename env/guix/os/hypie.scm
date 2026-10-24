@@ -178,6 +178,7 @@
              (uraj network-policy)
              (uraj system base)
              (uraj system desktop)
+             (uraj system paseo-trial)
              (uraj system initrd)
              (uraj system iso)
              (uraj system secrets)
@@ -444,14 +445,15 @@
 
 ;; `maak build-iso' sets TO_ISO for its Guix subprocess.  The live system
 ;; imports the pool to check it, but mounts nothing.
-(if (getenv "TO_ISO")
-    (to-iso
-     (hypie-os
-      (cons (service zfs-data-service-type
-              (zfs-configuration
-                (zfs zfs-linux)
-                (auto-mount? #f)))
-            (append %live-vpn-services
-                    (strongswan-services
-                     `(("fwd2home" . ,%live-vpn-secret)))))))
-    hypie-installed-os)
+(paseo-trial-target
+ (if (getenv "TO_ISO")
+     (to-iso
+      (hypie-os
+       (cons (service zfs-data-service-type
+               (zfs-configuration
+                 (zfs zfs-linux)
+                 (auto-mount? #f)))
+             (append %live-vpn-services
+                     (strongswan-services
+                      `(("fwd2home" . ,%live-vpn-secret)))))))
+     hypie-installed-os))

@@ -1,0 +1,109 @@
+#+title: Paseo-only trial deployment
+
+* Scope
+
+This is a temporary Shepherd override, not a System or Home reconfiguration.
+It replaces only =paseo= and =paseo-broker=. It does not activate Home, change
+profiles, migrate =~/.paseo/config.json=, install secrets, create log directories,
+or change permissions/cgroup delegation. Those prerequisites must already exist.
+A config-only fix therefore still needs an explicit, separately backed-up config
+edit; building this bundle alone does not apply provider migrations.
+
+Both machine files remain the single source of truth:
+
+- =env/guix/os/lappie.scm=: user Shepherd stack.
+- =env/guix/os/hypie.scm=: system Shepherd stack, retaining its user/group,
+  supplementary groups, dependencies, environment and log paths.
+
+=URAJ_DEPLOY_TARGET=paseo= exports the actual folded Shepherd definitions from
+that machine's OS and embedded Home, rather than reconstructing their settings.
+The default output remains the OS. =URAJ_DEPLOY_TARGET=home= separately supports
+[[file:home-only-deployment.org][complete Home-only deployment]]; it is not a Paseo trial. Unknown targets,
+mixed/duplicate ownership, incomplete stacks and combining a partial deployment
+with =TO_ISO= are rejected.
+
+Existing non-Paseo dependencies remain installed and are not exported. A trial
+that changes those dependencies requires a normal deployment first. Reboot or
+normal service reloading may restore the formally deployed definitions. Do not
+run a normal reconfigure concurrently with a trial.
+
+* Build without touching running services
+
+Run on the target host from the repository root. For hypie replace =lappie=:
+
+#+begin_src sh
+mkdir -p "$HOME/.local/state/paseo-trial"
+URAJ_DEPLOY_TARGET=paseo guix time-machine \
+  -C env/guix/channels-lock.scm -- \
+  build -L src/guix -L src/guile \
+  -r "$HOME/.local/state/paseo-trial/candidate" \
+  -f env/guix/os/lappie.scm
+#+end_src
+
+The GC-rooted bundle contains =owner= (=user= or =system=), =paseo.scm= and
+=paseo-broker.scm=. Building does not stop or restart anything.
+
+* Prepare recovery before switching
+
+Build a second bundle from the known-good configuration matching the deployed
+services, using a *different* GC root (for example =paseo-trial/baseline=).
+Keep both roots until the trial is finished. Do not assume the current checkout
+matches the currently deployed generation. If the old revision lacks the trial
+export helper, use a separate worktree with only the export plumbing applied;
+do not include candidate runtime changes in the baseline.
+
+Without a known-good baseline, do not unload services. This initial interface
+intentionally does not pretend that a freshly built baseline is an automatic
+snapshot of the running Shepherd state.
+
+* Explicit switch (disruptive)
+
+Finish all agent executions first. Broker replacement can terminate its agents;
+do this from a host terminal, not a Paseo session that will be interrupted.
+Ensure the baseline and candidate =owner= files agree and describe the current
+service owner. Never load the candidate into both Shepherds.
+
+For lappie's user Shepherd:
+
+#+begin_src sh
+bundle=$(readlink -f "$HOME/.local/state/paseo-trial/candidate")
+herd status paseo
+herd status paseo-broker
+# Run each command separately; stop on any unexpected error.
+herd stop paseo
+herd stop paseo-broker
+herd unload root paseo
+herd unload root paseo-broker
+herd load root "$bundle/paseo-broker.scm"
+herd load root "$bundle/paseo.scm"
+herd start paseo-broker
+herd start paseo
+herd status paseo-broker
+herd status paseo
+#+end_src
+
+For hypie's system stack, use =sudo herd= for *every* =herd= command above.
+Do not use =sudo= for lappie's user stack. Loading only registers definitions;
+starting the services is explicit. A restart alone would reuse old definitions.
+
+* Restore
+
+Repeat the stop/unload/load/start sequence with =bundle= pointing to the
+=baseline= root instead of =candidate=. If a switch failed partway through,
+inspect =herd status= first and unload only definitions that were registered;
+do not blindly continue loading a duplicate provision. Restore any separately
+edited config from its own backup before starting Paseo.
+
+This restores the selected known-good service definitions, not arbitrary state
+of running agents. It is not a rollback of Home or System. Once validated,
+normal System reconfiguration is still the way to make the change persistent.
+
+* Tests
+
+#+begin_src sh
+guix repl -L src/guix test/guix/paseo-trial.scm
+#+end_src
+
+The tests exercise export selection and refusal cases with synthetic System
+and Home services. Host-side builds and service switching require the target's
+channels, installed prerequisites and an interruption-safe maintenance window.
