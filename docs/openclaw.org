@@ -92,39 +92,47 @@ Gateway 必须在线。批量变更可替换整个 =agents.entries= 或 =binding
 原生命令经 exec hook 转接、合法模型修改成功、受管字段/agent 权限覆盖被拒绝、两个并发写入冲突，
 以及修改后的 Gateway 加载结果。仓库单元测试不代替真实镜像验收。
 
-* 执行沙箱接入选择（尚未启用）
+* 执行沙箱（实施中，尚未启用）
 
 Gateway 已在 Docker 容器中运行，但未启用 OpenClaw 的工具执行沙箱，
 已经开放 =exec=、=process=。在 Gateway 内直接执行命令会以同一个
-UID 1000 运行，能读取挂载的三个凭据和运行状态；=workspaceOnly=
+UID 运行，能读取挂载的三个凭据和运行状态；=workspaceOnly=
 不是 shell 的文件系统隔离。
 
-上游当前支持通过 =agents.defaults.sandbox= 选择工具执行后端。
-接入后仍使用原有文件和命令工具，由 OpenClaw 把操作交给执行环境，
-不需要 agent 自行调用 =contained-agent=。当前部署镜像是否支持所选
-后端和字段，必须由镜像自身的 schema 与端到端调用确认。
+采用的结构：Shepherd 用 compose 另起一个 Docker 引擎容器，其中运行
+rootless Podman API；Gateway 只拿到这个引擎的 Unix socket，按上游
+=backend: podman= 创建平级沙箱，不接触宿主 Docker socket。沙箱流量从
+引擎容器经 Docker 网桥出去，由单独声明的 restricted 网络
+=sandboxed-agents= 约束，无需按 UID 的出站规则。Gateway、引擎、沙箱
+共用一个专用 UID；工作区经 =log-readers= 组供管理员只读查看。
 
-- Docker 后端：由 OpenClaw 创建执行容器。容器化 Gateway 需要能调用
-  Docker CLI 并连接 daemon；直接挂宿主机 socket 会扩大 Gateway 权限，
-  不能把它当作无代价的配置开关。当前未提供该 socket。
-- SSH 后端：由 Guix 管理独立执行容器，Gateway 只持有该环境的 SSH
-  身份及固定 host key。执行容器预装 shell、Python 和 GNU 工具，
-  不挂载飞书、new-api、Gateway 凭据或 Docker socket。Gateway 与执行
-  容器之间需单独允许 SSH 连通，执行环境的外网权限另行配置。
+上游 Podman 后端不做路径转换：工作区须在 Gateway、引擎中挂在与宿主
+相同的绝对路径。沙箱只覆盖 exec、process 和文件工具；web_fetch、
+web_search、原生插件和 MCP 仍在 Gateway 执行。
 
-单用户长期使用可考虑 =mode: all=、=scope: agent= 和
-=workspaceAccess: rw=，使日常会话复用同一个工作环境。这些字段本身
-不决定数据持久化、自动清理或工具可见性，还需配合持久化目录、生命周期
-配置，以及全局和沙箱的工具白名单。执行环境不可用时应失败，不能回退
-到带服务凭据的 Gateway 执行。
+嵌套参数沿用 contained-agent Podman runtime 原型的经验，但那是在
+rootless Podman 外层上验证的。正式接入前先在 storie 上以管理员身份
+（UID 1000、docker 组）运行一次性验证：
 
-上游当前 SSH 后端只在初始化时播种工作区；随后以远端工作区为准，
-不自动同步回 Gateway 本地目录。实施前需安排现有身份、记忆的迁移和
-远端备份，并确认提示词实际加载的内容。不能把删除并重建沙箱当作无损
-重启，或把 SSH 到宿主机普通账号当作隔离环境。
+#+begin_src sh
+guix shell python docker-cli -- python3 scripts/openclaw/try-docker-engine.py
+#+end_src
 
-参考：[[https://docs.openclaw.ai/gateway/sandboxing/ssh-backend][SSH 后端]]、
-[[https://docs.openclaw.ai/gateway/sandboxing/modes-scope-and-backend][沙箱模式与作用域]]。
+脚本只创建 =openclaw-engine-probe-*= 容器和 =/var/tmp/openclaw-engine-*=
+目录，结束后删除容器与引擎存储，保留 =results.json=、=commands.log=、
+生成的 seccomp profile。引擎从最小参数开始：在镜像自带 seccomp profile
+基础上放开嵌套所需调用、=systempaths=unconfined=、只加回 SETUID/SETGID、
+不设 no-new-privileges、按需暴露 =/dev/fuse= 与 =/dev/net/tun=，不使用
+=--privileged= 或 SYS_ADMIN。另起一个按 Gateway 加固参数运行的客户端，
+以上游创建沙箱的参数建 keep-id 沙箱，检查同路径读写、未挂载文件不可见、
+只读子挂载、catatonit、请求挂载 =/= 时只能看到引擎视图，以及默认接入
+=static-agent= 时公网可达、其他内网地址不可达。引擎内部的从属 UID/GID
+取 524288 起的 65536 个，避免与宿主账号重叠；没有 Docker 用户命名空间时
+它们就是宿主 UID。
+
+若某项失败，可用 =--seccomp=、=--cap-add=、=--no-unmask=、=--storage=
+逐项对照；新增 SYS_ADMIN 或改为特权容器前须重新评估方案。=results.json=
+中的 =engine_process_status= 记录引擎实际的 capability 与 seccomp 状态。
 
 * 图片生成接入
 
