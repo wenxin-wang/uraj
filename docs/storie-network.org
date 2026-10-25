@@ -105,6 +105,9 @@ alone verifies export discovery, not NFSv4 mounting or write permissions.
 Installed lappie and hypie systems use Guix's =autofs= service (not systemd)
 to mount =172.31.0.5:/core-data= at =/core-data= and
 =172.31.0.5:/media-data= at =/media-data=, the same paths as on storie.
+The shares are mounted under =/mnt/storie/= and these paths are symlinks to
+them: Guix writes direct autofs entries into =auto.master= in a form
+automount rejects.
 Reconfigure each client to enable this service; the live installers do not
 include it.
 Deploy the server's current LAN allowlist first.
