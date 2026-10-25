@@ -707,9 +707,9 @@ and relative binds, read-only/path isolation, and actual CPU/memory/PID limits
 with seccomp active.  See [[file:podman-runtime-prototype.org][the experiment record]].
 The persistent supervisor still needs deployed concurrency/reboot smoke tests
 and a real Harbor trial in traj-record.  Default privileged tasks are not promised: the tested
-privileged variant explicitly binds /sys read-only.  Those results used VFS;
-the overlay default still needs the same host run.  A Guix-built runtime image
-also remains follow-up work.
+privileged variant explicitly binds /sys read-only.  The same extended run
+with =--delegate-cgroup= also passes with the overlay default in both engines
+(2026-10-25, lappie).  A Guix-built runtime image remains follow-up work.
 
 * Optional Guix daemon access
 
