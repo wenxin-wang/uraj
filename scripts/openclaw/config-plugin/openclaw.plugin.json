@@ -1,10 +1,13 @@
 {
   "id": "uraj-config-policy",
   "name": "Guix checked configuration",
-  "description": "Route simple config set exec calls through the Guix policy checker.",
+  "description": "Gateway-side tool for Guix-checked agent and binding edits.",
   "activation": {
     "onStartup": true,
     "onCapabilities": ["hook"]
+  },
+  "contracts": {
+    "tools": ["openclaw_config_set"]
   },
   "configSchema": {
     "type": "object",

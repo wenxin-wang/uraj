@@ -345,6 +345,11 @@
   (openclaw-configuration
     (image "sha256:6ea31e154475c6240ee1c20d1b94952bdcbd84a3d4579ac9561b1a1b40cae28d")
     (image-repository "localhost/openclaw-feishu")
+    ;; Placeholders until built on storie; see docs/openclaw.org.
+    (engine-image
+     "sha256:0000000000000000000000000000000000000000000000000000000000000000")
+    (sandbox-image
+     "sha256:0000000000000000000000000000000000000000000000000000000000000000")
     (secrets-file
      (local-file (project-path "secrets/hosts/storie/openclaw.yaml")))
     (feishu-app-id "cli_aa5a187288381c05")
@@ -436,7 +441,17 @@
                        (forward-exceptions
                         (list (network-access
                                 (address "172.31.0.9")
-                                (ports '(3000))))))))))))
+                                (ports '(3000))))))))
+                  ;; OpenClaw's sandbox engine.  Its own bridge keeps agent
+                  ;; commands away from the Gateway and new-api.
+                  (restricted-network
+                    (name "sandboxed-agents") (bridge "br-sbx-agents")
+                    (subnet "10.204.1.0/24") (gateway "10.204.1.1")
+                    (egress-interfaces #t)
+                    (policy
+                     (network-policy
+                       (dns-servers 'host)
+                       (public-egress '((tcp 80 443))))))))))
             ;; Standby for hypie's MAA (docs/maa.org), with its own login and
             ;; data.  Start redroid-maa by hand; scheduled runs are skipped
             ;; while it is stopped.

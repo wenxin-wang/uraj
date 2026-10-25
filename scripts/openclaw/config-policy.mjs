@@ -72,9 +72,9 @@ function model(value, base) {
   }
 }
 
-function directory(value, root, exception) {
-  if (exception !== undefined && value === exception) return;
-  if (typeof value !== "string" || !value.startsWith(`${root}/`) ||
+function directory(value, root) {
+  if (typeof root !== "string" || typeof value !== "string" ||
+      !value.startsWith(`${root}/`) ||
       path.posix.normalize(value) !== value || value === root) {
     throw new Error(`Directory must be a normalized path below ${root}`);
   }
@@ -107,6 +107,10 @@ export function validatePolicy(config, base) {
     throw new Error("Guix manages agent defaults except model selection");
   }
   object(agents.entries ?? {}, "agents.entries");
+  // Roots follow Guix's declared main agent; sandboxes bind these host paths.
+  const workspaces = path.posix.dirname(base.agents.defaults.workspace);
+  const mainDir = base.agents.entries?.main?.agentDir;
+  const agentDirs = mainDir && path.posix.dirname(path.posix.dirname(mainDir));
   for (const [id, entry] of Object.entries(agents.entries ?? {})) {
     if (!/^[a-z0-9][a-z0-9_-]*$/.test(id)) throw new Error("Invalid agent ID");
     object(entry, `agent ${id}`);
@@ -115,9 +119,9 @@ export function validatePolicy(config, base) {
     }
     if (own(entry, "model")) model(entry.model, base);
     // Explicit paths avoid several agents silently sharing the default workspace.
-    directory(entry.workspace, "/workspaces", id === "main" ? "/workspace" : undefined);
+    directory(entry.workspace, workspaces);
     if (!own(entry, "workspace")) throw new Error(`Agent ${id} needs a workspace`);
-    if (own(entry, "agentDir")) directory(entry.agentDir, "/home/node/.openclaw/agents");
+    if (own(entry, "agentDir")) directory(entry.agentDir, agentDirs);
   }
   if (config.bindings !== undefined && !Array.isArray(config.bindings)) {
     throw new Error("bindings must be an array");

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// This is a checked convenience command until exec is isolated from the Gateway.
+// Checked configuration command. Runs only in the Gateway: at startup and
+// through the openclaw_config_set tool; sandboxed exec cannot reach it.
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -8,7 +9,7 @@ import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import { reconcile, validatePolicy } from "./config-policy.mjs";
 
-const CONFIG = "/home/node/.openclaw/openclaw.json";
+const CONFIG = process.env.OPENCLAW_CONFIG_PATH;
 const BASE = "/etc/openclaw/base.json";
 const CLI = "/app/openclaw.mjs";
 
@@ -78,6 +79,9 @@ export async function checkedSet(args, { base, snapshot, mutate, submit }) {
 }
 
 async function main(args) {
+  if (!CONFIG || !path.isAbsolute(CONFIG)) {
+    throw new Error("OPENCLAW_CONFIG_PATH must be an absolute path");
+  }
   const base = await read(BASE);
   if (args.length === 1 && args[0] === "reconcile") {
     // Only run during service start, after the previous Gateway has stopped.
