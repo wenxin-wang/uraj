@@ -2,6 +2,7 @@
   #:use-module (gnu packages base)
   #:use-module (gnu packages bash)
   #:use-module (gnu packages elf)
+  #:use-module (gnu packages gcc)
   #:use-module (gnu packages xorg)
   #:use-module (gnu packages chromium)
   #:use-module (gnu packages linux)
@@ -142,12 +143,20 @@
       #:install-plan #~'(("." "share/pi"))
       #:phases
       #~(modify-phases %standard-phases
-          ;; Preserve Bun's embedded payload: only change the interpreter.
+          ;; Preserve Bun's embedded payload: only change the dynamic section.
+          ;; glibc dlopens libgcc_s.so.1 when a thread exits, such as a
+          ;; terminated Worker, and aborts if it is not found.  That dlopen
+          ;; ignores the program's RUNPATH, and the ld.so cache lists only
+          ;; NEEDED libraries, so load libgcc_s at startup.
           (add-after 'install 'wrap-pi
             (lambda* (#:key inputs #:allow-other-keys)
               (let ((program (string-append #$output "/share/pi/pi")))
                 (invoke "patchelf" "--set-interpreter"
                         (search-input-file inputs "/lib/ld-linux-x86-64.so.2")
+                        "--set-rpath"
+                        (dirname (search-input-file inputs
+                                                    "/lib/libgcc_s.so.1"))
+                        "--add-needed" "libgcc_s.so.1"
                         program)
                 (mkdir-p (string-append #$output "/bin"))
                 ;; Keep the executable beside its themes, docs and addons.
@@ -155,9 +164,19 @@
                   (lambda (port)
                     (format port "#!~a~%exec ~a \"$@\"~%"
                             (search-input-file inputs "/bin/bash") program)))
-                (chmod (string-append #$output "/bin/pi") #o755)))))))
+                (chmod (string-append #$output "/bin/pi") #o755))))
+          (add-after 'wrap-pi 'check-thread-exit
+            (lambda _
+              (call-with-output-file "worker.js"
+                (lambda (port)
+                  (display "const w = new Worker(URL.createObjectURL(
+  new Blob([\"postMessage(1)\"])));
+w.onmessage = () => { w.terminate(); setTimeout(() => {}, 500); };
+" port)))
+              (setenv "BUN_BE_BUN" "1")
+              (invoke (string-append #$output "/share/pi/pi") "worker.js"))))))
     (native-inputs (list patchelf))
-    (inputs (list bash-minimal glibc libxcb))
+    (inputs (list bash-minimal glibc `(,gcc "lib") libxcb))
     (home-page "https://pi.dev")
     (synopsis "Terminal coding agent with extensible tools")
     (description "Pi is a coding agent with file editing, shell tools,
