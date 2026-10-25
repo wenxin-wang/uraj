@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 import pwd
+import re
 import shlex
 import shutil
 import signal
@@ -175,8 +176,15 @@ class Experiment:
         run_directory=None,
         persistent=False,
         storage_driver="overlay",
+        outer_url=None,
+        name="contained-agent-runtime-probe",
     ):
         self.directory = directory
+        # Persistent runtimes reach the outer engine through the host service:
+        # rootless Podman needs the host's ID helpers, unavailable inside the
+        # Paseo supervisor's single-ID user namespace.
+        self.outer_url = outer_url
+        self.name = name
         self.storage_driver = storage_driver
         self.run_directory = run_directory or directory
         self.persistent = persistent
@@ -196,7 +204,11 @@ class Experiment:
             "CONTAINERS_CONF": str(directory / "containers.conf"),
             "CONTAINERS_STORAGE_CONF": str(directory / "storage.conf"),
         }
-        self.local = [podman, "--remote=false"]
+        self.local = (
+            [podman, "--remote", "--url", outer_url]
+            if outer_url
+            else [podman, "--remote=false"]
+        )
         self.remote = [
             podman,
             "--remote",
@@ -297,7 +309,8 @@ class Experiment:
         )
         if not info["host"]["security"]["rootless"]:
             raise RuntimeError("Outer Podman is not rootless")
-        self.check_driver("outer", info)
+        if not self.outer_url:
+            self.check_driver("outer", info)
         print(
             "Pulling runtime image (first run may take several minutes)...",
             flush=True,
@@ -372,7 +385,7 @@ class Experiment:
         command = self.local + [
             "run",
             "--detach",
-            "--name=contained-agent-runtime-probe",
+            "--name=" + self.name,
             "--cgroups=enabled"
             if self.delegate_cgroup
             else "--cgroups=disabled",
@@ -517,7 +530,7 @@ class Experiment:
                         self.local
                         + [
                             "exec",
-                            "contained-agent-runtime-probe",
+                            self.name,
                             "cat",
                             "/proc/1/status",
                         ]
@@ -548,7 +561,7 @@ class Experiment:
                 + [
                     "inspect",
                     "--format={{.State.Running}}",
-                    "contained-agent-runtime-probe",
+                    self.name,
                 ]
             ).stdout.strip()
             if state != "true":
@@ -748,7 +761,7 @@ class Experiment:
             self.local
             + [
                 "exec",
-                "contained-agent-runtime-probe",
+                self.name,
                 "sh",
                 "-c",
                 "cat /proc/self/cgroup; ls -ld /sys/fs/cgroup; "
@@ -817,10 +830,63 @@ class Experiment:
         if failures:
             raise RuntimeError("Extended checks failed: " + ", ".join(failures))
 
+    def remove_through_runtime(self, paths):
+        """Remove PATHS, deleting subordinate-ID files in a disposable task.
+
+        `podman unshare` needs the host ID helpers, so files the inner engine
+        created under other mapped IDs are removed by namespace root in a
+        container of the outer engine instead.
+        """
+        remaining = []
+        for path in map(Path, paths):
+            try:
+                shutil.rmtree(path)
+            except FileNotFoundError:
+                pass
+            except OSError:
+                remaining.append(path)
+        if not remaining:
+            return
+        command = self.local + [
+            "run",
+            "--rm",
+            "--network=none",
+            "--cgroups=disabled",
+            "--userns=keep-id:uid=1000,gid=1000",
+            "--user=0:0",
+            "--security-opt=label=disable",
+        ]
+        targets = []
+        for index, path in enumerate(remaining):
+            targets.append(f"/cleanup/{index}")
+            command.extend(["--volume", f"{path}:{targets[-1]}:rw"])
+        command.extend(
+            [
+                "--entrypoint=/bin/sh",
+                self.expected_image or self.runtime_image,
+                "-ec",
+                'for d; do find "$d" -mindepth 1 -delete; done',
+                "sh",
+                *targets,
+            ]
+        )
+        result = self.run(command, check=False)
+        try:
+            for path in remaining:
+                shutil.rmtree(path)
+        except OSError as error:
+            self.log.close()
+            raise RuntimeError(
+                "Runtime state cleanup failed: "
+                + str(error)
+                + "\n"
+                + result.stderr[-4000:]
+            ) from error
+
     def cleanup(self, preserve_storage=False):
         if self.started:
             logs = self.run(
-                self.local + ["logs", "contained-agent-runtime-probe"],
+                self.local + ["logs", self.name],
                 check=False,
             )
             (self.directory / "runtime.log").write_text(
@@ -832,7 +898,7 @@ class Experiment:
                     "rm",
                     "--force",
                     "--ignore",
-                    "contained-agent-runtime-probe",
+                    self.name,
                 ],
                 check=False,
             )
@@ -853,19 +919,26 @@ class Experiment:
                 str(self.directory / name)
                 for name in ("inner", "outer-storage", "home")
             )
-        removal = self.run(
-            self.local
-            + [
-                "unshare",
-                sys.executable,
-                "-c",
-                _CLEANUP_STORAGE,
-                str(self.run_directory / "run" / "netns"),
-                *paths,
-            ],
-            check=False,
+        if self.outer_url:
+            self.remove_through_runtime(paths)
+            paths = []
+        removal = (
+            self.run(
+                self.local
+                + [
+                    "unshare",
+                    sys.executable,
+                    "-c",
+                    _CLEANUP_STORAGE,
+                    str(self.run_directory / "run" / "netns"),
+                    *paths,
+                ],
+                check=False,
+            )
+            if paths
+            else None
         )
-        if removal.returncode:
+        if removal and removal.returncode:
             self.log.close()
             raise RuntimeError(
                 "Storage cleanup failed; retained under "
@@ -987,6 +1060,11 @@ def main():
     return status
 
 
+RUNTIME_ID = re.compile("[0-9a-f]{32}")
+# 4: the outer engine is the shared host service, not one per runtime.
+SPEC_SCHEMA = 4
+
+
 def session_mounts(options):
     """Translate the launcher's ordered Guix project mounts, failing closed."""
     mounts = []
@@ -1064,7 +1142,7 @@ def runtime_spec(project, mounts, image, podman, storage_driver="overlay"):
             else []
         )
     return {
-        "schema": 3,
+        "schema": SPEC_SCHEMA,
         "uid": os.getuid(),
         "gid": os.getgid(),
         "project": str(Path(project).resolve(strict=True)),
@@ -1101,8 +1179,9 @@ def atomic_json(path, value):
 class SharedRuntime:
     """Serialize engine mutations; keep a shared lease while an agent runs."""
 
-    def __init__(self, root, run_root, spec, image_reference):
+    def __init__(self, root, run_root, spec, image_reference, outer_url):
         self.spec = spec
+        self.outer_url = outer_url
         self.key = runtime_key(spec)
         self.directory = root / self.key
         self.run_directory = run_root / self.key
@@ -1130,6 +1209,8 @@ class SharedRuntime:
             run_directory=self.run_directory,
             persistent=True,
             storage_driver=self.spec["storage_driver"],
+            outer_url=self.outer_url,
+            name="contained-agent-runtime-" + self.key,
         )
 
     @contextlib.contextmanager
@@ -1152,7 +1233,7 @@ class SharedRuntime:
         ):
             return False
         status = engine.run(
-            engine.local + ["inspect", "contained-agent-runtime-probe"],
+            engine.local + ["inspect", engine.name],
             check=False,
         )
         if status.returncode:
@@ -1229,8 +1310,57 @@ class SharedRuntime:
 
     def detach(self):
         if self.lease:
+            # Idle collection measures its grace period from the last exit.
+            (self.directory / "last-detach").touch()
             self.lease.close()
             self.lease = None
+
+    def stop_if_idle(self, grace):
+        """Stop a runtime without sessions or running tasks for GRACE seconds.
+
+        Never waits: a startup in progress or any session lease skips it.
+        """
+        with (
+            (self.directory / "startup.lock").open("a+") as startup,
+            (self.directory / "sessions.lock").open("a+") as lease,
+        ):
+            try:
+                fcntl.flock(startup, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                fcntl.flock(lease, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                return False
+            ready = self.directory / "ready.json"
+            try:
+                if json.loads(ready.read_text()).get("boot") != self.boot:
+                    return False
+            except (OSError, ValueError):
+                return False
+            since = max(
+                path.stat().st_mtime
+                for path in (ready, self.directory / "last-detach")
+                if path.exists()
+            )
+            if time.time() - since < grace:
+                return False
+            engine = self.engine()
+            try:
+                try:
+                    tasks = engine.run(
+                        engine.remote + ["ps", "--quiet"],
+                        check=False,
+                        timeout=15,
+                    )
+                    # Detached tasks keep the runtime; an unresponsive API
+                    # does not.
+                    if tasks.returncode == 0 and tasks.stdout.strip():
+                        return False
+                except subprocess.TimeoutExpired:
+                    pass
+                engine.prepare()
+                self.stop_engine(engine)
+            finally:
+                engine.log.close()
+            return True
 
     def stop(self):
         with (
@@ -1249,6 +1379,126 @@ class SharedRuntime:
                 self.stop_engine(engine)
             finally:
                 engine.log.close()
+
+
+def default_runtime_root():
+    # Guix System's Paseo service creates this at boot. Unlike
+    # XDG_RUNTIME_DIR, it exists before login and survives logout.
+    system = Path("/run/contained-podman") / str(os.getuid())
+    if system.is_dir():
+        return system
+    return (
+        Path(os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}"))
+        / "contained-podman"
+    )
+
+
+def host_socket(runtime_root):
+    return runtime_root / "host" / "podman.sock"
+
+
+def collect_idle(state_root, runtime_root, outer_url, grace):
+    for directory in sorted(state_root.iterdir()):
+        if not RUNTIME_ID.fullmatch(directory.name):
+            continue
+        try:
+            spec = json.loads((directory / "spec.json").read_text())
+            if spec.get("schema") != SPEC_SCHEMA:
+                continue
+            manager = SharedRuntime(
+                state_root, runtime_root, spec, spec["image"], outer_url
+            )
+            if manager.key != directory.name:
+                continue
+            if manager.stop_if_idle(grace):
+                print("Stopped idle runtime " + manager.key, flush=True)
+        except FileNotFoundError:
+            continue
+        except (
+            RuntimeError,
+            OSError,
+            ValueError,
+            KeyError,
+            subprocess.TimeoutExpired,
+        ) as error:
+            print(
+                "Idle check failed for " + directory.name + ": " + str(error),
+                flush=True,
+            )
+
+
+def host_service_main(args):
+    """Serve the shared outer engine and stop idle project runtimes.
+
+    Stopping this service leaves runtimes running; each is owned by its own
+    conmon, as with any detached rootless container.
+    """
+    state = args.state_root / "host"
+    run = args.runtime_root / "host"
+    for path in (state, state / "home", run, run / "xdg"):
+        private_directory(path)
+    # Separate configuration, storage and pause process from the user's
+    # ordinary Podman: prune or reset there never reaches project runtimes.
+    (state / "containers.conf").write_text(
+        '[engine]\ncgroup_manager="cgroupfs"\nevents_logger="file"\n'
+        '[containers]\ncgroups="enabled"\n'
+    )
+    (state / "storage.conf").write_text(
+        '[storage]\ndriver="overlay"\ngraphroot='
+        + json.dumps(str(state / "storage"))
+        + "\nrunroot="
+        + json.dumps(str(run / "storage"))
+        + "\n"
+    )
+    env = {
+        "PATH": "/run/privileged/bin:" + os.environ.get("PATH", ""),
+        "HOME": str(state / "home"),
+        "XDG_RUNTIME_DIR": str(run / "xdg"),
+        "CONTAINERS_CONF": str(state / "containers.conf"),
+        "CONTAINERS_STORAGE_CONF": str(state / "storage.conf"),
+    }
+    socket = host_socket(args.runtime_root)
+    socket.unlink(missing_ok=True)
+    service = subprocess.Popen(
+        [
+            args.podman,
+            "--remote=false",
+            "system",
+            "service",
+            "--time=0",
+            "unix://" + str(socket),
+        ],
+        env=env,
+    )
+    stopping = []
+
+    def stop(signum, _frame):
+        stopping.append(signum)
+
+    for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
+        signal.signal(sig, stop)
+    print("Host Podman service: " + str(socket), flush=True)
+    collect_at = time.monotonic() + args.collect_interval
+    try:
+        while not stopping and service.poll() is None:
+            time.sleep(1)
+            if time.monotonic() >= collect_at and socket.exists():
+                collect_idle(
+                    args.state_root,
+                    args.runtime_root,
+                    "unix://" + str(socket),
+                    args.idle_minutes * 60,
+                )
+                collect_at = time.monotonic() + args.collect_interval
+    finally:
+        if service.poll() is None:
+            service.terminate()
+            try:
+                service.wait(timeout=30)
+            except subprocess.TimeoutExpired:
+                service.kill()
+                service.wait()
+    return 0 if stopping else 1
 
 
 def session_main():
@@ -1270,12 +1520,21 @@ def session_main():
         default=Path.home() / ".local/share/contained-agent/podman",
     )
     parser.add_argument(
-        "--runtime-root",
-        type=Path,
-        default=Path(
-            os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
-        )
-        / "contained-podman",
+        "--runtime-root", type=Path, default=default_runtime_root()
+    )
+    parser.add_argument(
+        "--host-service",
+        action="store_true",
+        help="Serve the shared outer engine and stop idle runtimes",
+    )
+    parser.add_argument(
+        "--idle-minutes",
+        type=float,
+        default=30,
+        help="Stop a runtime this long after its last session exits",
+    )
+    parser.add_argument(
+        "--collect-interval", type=float, default=60, help=argparse.SUPPRESS
     )
     parser.add_argument(
         "--stop",
@@ -1294,6 +1553,16 @@ def session_main():
     os.umask(0o077)
     private_directory(args.state_root)
     private_directory(args.runtime_root)
+    if args.host_service:
+        return host_service_main(args)
+    socket = host_socket(args.runtime_root)
+    if not socket.exists():
+        parser.error(
+            "Host Podman service is not running ("
+            + str(socket)
+            + "); start it with `contained-agent podman-service`"
+        )
+    outer_url = "unix://" + str(socket)
     if args.stop:
         if len(args.stop) != 32 or any(
             c not in "0123456789abcdef" for c in args.stop
@@ -1305,7 +1574,11 @@ def session_main():
         if runtime_key(spec) != args.stop:
             parser.error("Stored runtime policy does not match its ID")
         manager = SharedRuntime(
-            args.state_root, args.runtime_root, spec, args.runtime_image
+            args.state_root,
+            args.runtime_root,
+            spec,
+            args.runtime_image,
+            outer_url,
         )
         with contextlib.redirect_stdout(sys.stderr):
             manager.stop()
@@ -1349,7 +1622,7 @@ def session_main():
         args.storage_driver,
     )
     manager = SharedRuntime(
-        args.state_root, args.runtime_root, spec, args.runtime_image
+        args.state_root, args.runtime_root, spec, args.runtime_image, outer_url
     )
     if len(os.fsencode(manager.run_directory / "api/podman.sock")) > 107:
         parser.error(

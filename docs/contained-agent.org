@@ -606,8 +606,10 @@ filesystem view limits available bind sources.  A request to bind / exposes
 that runtime's root, not the host root.  Shared files use the host user's mapped
 identity, so no agent-podman ACLs or users-group permission changes are needed.
 Paths overlapping runtime infrastructure and host runtime state are rejected.
-The implementation currently rejects mount paths containing =, colon, comma
-or newline instead of guessing how the engine will parse them.
+Mapped share/expose clauses bind their source at the mapped target, so the
+runtime sees the paths the agent sees.  Both ends are checked; paths
+containing =, colon, comma or newline are rejected instead of guessing how the
+engine will parse them.
 
 The agent manifest must supply podman and its chosen Compose provider.  The
 launcher sets CONTAINER_HOST and DOCKER_HOST to
@@ -623,6 +625,38 @@ executable through the Guix package closure.  The host needs the existing
 /dev/fuse, /dev/net/tun and permission to create a child of /sys/fs/cgroup with
 cpu, memory and pids already enabled.  It does not request sudo or alter global
 controller settings when those prerequisites are missing.
+
+** Host Podman service
+
+The outer engine of every runtime is one long-running rootless
+=podman system service=, outside any agent session.  Sessions reach it through
+its socket and never start Podman themselves.  This is required under the
+Paseo broker: its supervisor runs the launcher in a user namespace mapping only
+the user's own ID, where the subordinate-ID helpers cannot work, and its PID
+namespace would kill a runtime started from a session when that session ends.
+
+| Deployment                        | Started by                                                |
+|-----------------------------------+-----------------------------------------------------------|
+| Guix System with =paseo-service-type= | Root Shepherd service =contained-podman=, as the Paseo user, at boot |
+| Home with Paseo autostart          | User Shepherd service =contained-podman=                   |
+| Otherwise                          | =contained-agent podman-service= in a host terminal        |
+
+The service has its own =containers.conf=, overlay storage and pause process
+under =~/.local/share/contained-agent/podman/host/=, apart from the user's
+ordinary Podman, so pruning or resetting that never reaches project runtimes.
+Its socket is =RUNTIME_ROOT/host/podman.sock= and is never mounted into an
+agent.  =RUNTIME_ROOT= is =/run/contained-podman/UID= when the system service
+has created it at boot, before any login and unaffected by logout; otherwise
+=$XDG_RUNTIME_DIR/contained-podman=.  A session fails with a hint when the
+service is not running.  Stopping the service leaves running runtimes alone;
+each is owned by its own conmon.
+
+The same service stops idle runtimes.  Every minute it checks each runtime
+without blocking: one is stopped, as by =podman-stop=, only when no startup
+or session holds its locks, its last session left at least 30 minutes ago
+(=--idle-minutes=), and its inner engine reports no running containers.
+Detached tasks therefore keep a runtime alive; an unresponsive inner API does
+not.  Images, volumes and storage are always retained.
 
 Each runtime creates a dedicated host cgroup subtree.  The outer runtime is
 rootless, uses a private cgroup namespace and a custom seccomp profile, and
@@ -657,13 +691,15 @@ trust boundary, not isolation between agents authorized for that project.
 
 Persistent state and logs live under
 =~/.local/share/contained-agent/podman/<runtime-id>/=.  Socket and transient
-engine state live under =$XDG_RUNTIME_DIR/contained-podman/<runtime-id>/=
-(defaulting to /run/user/<uid>).  Both directories must be private to the user.
+engine state live under =RUNTIME_ROOT/<runtime-id>/= (see above).  Both
+directories must be private to the user.  The outer container is named
+=contained-agent-runtime-<runtime-id>= in the host service.
 Startup prints the runtime ID and log location.  A startup lock serializes
 creation/recovery; shared session locks prevent an ordinary stop while another
 supervised agent session is attached.
 
-Leaving a session does not stop the runtime.  To stop it after all sessions exit:
+Leaving a session does not stop the runtime; the host service stops it after
+the idle period.  To stop it earlier, after all sessions exit:
 
 #+begin_src sh
 contained-agent podman-stop RUNTIME_ID
@@ -680,15 +716,16 @@ After reboot, the next session recreates the service, socket and cgroup using
 the persistent storage; cached images remain available.  It does not resume
 old tasks automatically.  Old task metadata may remain and cause name conflicts.
 An interrupted startup is retried on the next attachment when no session holds
-a lease.  There is no background idle reaper or automatic storage purge; unused
-policy versions retain their own caches.  Both engines use native rootless
-overlay storage by default; the inner graphroot is a host bind mount, so no
-overlay is stacked on another.  Startup fails unless both engines report the
-selected driver.  =--storage-driver=vfs= keeps the earlier configuration for
-comparison; the driver is part of the runtime identity, so switching selects
-separate storage.  Storage is shared only by clients of the same runtime, not
-by independent engines or the user's ordinary host Podman.  No shared
-read-only image library is used.
+a lease.  There is no automatic storage purge; unused policy versions retain
+their own caches.  The host service and each inner engine use native rootless
+overlay storage; the inner graphroot is a host bind mount, so no overlay is
+stacked on another.  Startup fails unless the inner engine reports the
+selected driver.  =--storage-driver=vfs= selects VFS for the inner engine; the
+driver is part of the runtime identity, so switching selects separate storage.
+All runtimes share the host service's copy of the pinned runtime image.  Inner
+storage is shared only by clients of the same runtime, not by other runtimes
+or the user's ordinary host Podman.  No shared read-only image library is
+used.
 
 This implementation does not install an agent-podman account or SSH service.
 Hosts that deployed the earlier experimental SSH service can remove that

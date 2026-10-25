@@ -256,7 +256,7 @@ class PodmanRemote(Launcher):
             "#!" + shutil.which("python3") + "\n"
             "import json, os, sys\n"
             f"json.dump(sys.argv[1:], open({str(self.runtime_record)!r}, 'w'))\n"
-            "if sys.argv[1:2] == ['--stop']: sys.exit(0)\n"
+            "if sys.argv[1] in ('--stop', '--host-service'): sys.exit(0)\n"
             "command = sys.argv[sys.argv.index('--') + 1:]\n"
             "os.execvp(command[0], command)\n"
         )
@@ -277,6 +277,13 @@ class PodmanRemote(Launcher):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
             json.loads(self.runtime_record.read_text()), ["--stop", runtime_id]
+        )
+
+    def test_service_dispatches_without_project_policy(self):
+        result, _, _ = self.launch("podman-service", cwd=self.root)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            json.loads(self.runtime_record.read_text()), ["--host-service"]
         )
 
     def test_central_opt_in_and_local_refusal(self):

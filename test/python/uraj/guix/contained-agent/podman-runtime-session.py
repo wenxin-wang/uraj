@@ -9,14 +9,14 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[5]
-SPEC = importlib.util.spec_from_file_location(
-    "contained_podman", ROOT / "src/python/uraj/contained_podman.py"
-)
+MODULE = ROOT / "src/python/uraj/contained_podman.py"
+SPEC = importlib.util.spec_from_file_location("contained_podman", MODULE)
 RUNTIME = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(RUNTIME)
 
@@ -79,17 +79,23 @@ class Mounts(unittest.TestCase):
 
 
 class Session(unittest.TestCase):
-    def exercise(self, fail_start=False):
+    def exercise(self, fail_start=False, service=True):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             project = root / "project"
             project.mkdir()
             state = root / "state"
             state.mkdir(mode=0o700)
+            socket = root / "run/host/podman.sock"
+            if service:
+                socket.parent.parent.mkdir(mode=0o700)
+                socket.parent.mkdir(mode=0o700)
+                socket.touch()
             calls = []
 
             class Manager:
                 def __init__(self, *args):
+                    calls.append(args[-1])
                     self.key = "fixture"
                     self.directory = state
                     self.run_directory = state
@@ -137,10 +143,21 @@ class Session(unittest.TestCase):
             ):
                 previous_umask = os.umask(0o077)
                 try:
+                    if not service:
+                        with (
+                            self.assertRaises(SystemExit),
+                            mock.patch("sys.stderr", io.StringIO()) as error,
+                        ):
+                            RUNTIME.session_main()
+                        self.assertIn("podman-service", error.getvalue())
+                        self.assertEqual(calls, [])
+                        return
                     status = RUNTIME.session_main()
                 finally:
                     os.umask(previous_umask)
-            self.assertEqual(calls, ["attach", "detach"])
+            self.assertEqual(
+                calls, ["unix://" + str(socket), "attach", "detach"]
+            )
             if fail_start:
                 self.assertEqual(status, 1)
                 self.assertFalse(output.exists())
@@ -156,6 +173,9 @@ class Session(unittest.TestCase):
 
     def test_exit_code_socket_mapping_and_detach(self):
         self.exercise()
+
+    def test_requires_host_service(self):
+        self.exercise(service=False)
 
     def test_detach_after_startup_failure(self):
         self.exercise(fail_start=True)
@@ -254,11 +274,13 @@ class SharedRuntime(unittest.TestCase):
         self.starts = 0
         self.cleanups = []
         self.fail_start = False
+        self.tasks = ""
         owner = self
 
         class Engine:
             local = ["local"]
             remote = ["remote"]
+            name = "contained-agent-runtime-fixture"
 
             def __init__(self):
                 self.log = io.StringIO()
@@ -284,6 +306,10 @@ class SharedRuntime(unittest.TestCase):
                             "Image": owner.spec["image"],
                         }
                     ]
+                elif "ps" in command:
+                    return subprocess.CompletedProcess(
+                        command, 0, owner.tasks, ""
+                    )
                 else:
                     value = {"host": {"security": {"rootless": True}}}
                 return subprocess.CompletedProcess(
@@ -298,7 +324,11 @@ class SharedRuntime(unittest.TestCase):
 
     def manager(self):
         result = RUNTIME.SharedRuntime(
-            self.root / "state", self.root / "run", self.spec, "image"
+            self.root / "state",
+            self.root / "run",
+            self.spec,
+            "image",
+            "unix:///fixture/host.sock",
         )
         self.addCleanup(result.detach)
         return result
@@ -321,6 +351,43 @@ class SharedRuntime(unittest.TestCase):
         stopper.stop()
         self.assertFalse(self.running)
         self.assertTrue(all(self.cleanups))
+
+    def test_idle_stop_waits_for_grace_sessions_and_tasks(self):
+        manager = self.manager()
+        self.assertFalse(manager.stop_if_idle(0))  # never started
+        manager.attach()
+        self.assertFalse(self.manager().stop_if_idle(0))  # live session
+        manager.detach()
+        self.assertTrue((manager.directory / "last-detach").exists())
+        self.assertFalse(self.manager().stop_if_idle(3600))
+        self.tasks = "0123456789ab\n"
+        self.assertFalse(self.manager().stop_if_idle(0))
+        self.assertTrue(self.running)
+        self.tasks = ""
+        cleanups = len(self.cleanups)
+        old = 1_000_000
+        for name in ("ready.json", "last-detach"):
+            os.utime(manager.directory / name, (old, old))
+        self.assertTrue(self.manager().stop_if_idle(60))
+        self.assertFalse(self.running)
+        self.assertEqual(self.cleanups[cleanups:], [True])
+
+    def test_collect_idle_stops_only_current_runtimes(self):
+        manager = self.manager()
+        manager.attach()
+        manager.detach()
+        state = self.root / "state"
+        (state / "host").mkdir()
+        stale = state / ("b" * 32)
+        stale.mkdir()
+        (stale / "spec.json").write_text(json.dumps({"schema": 2}))
+        with mock.patch("sys.stdout", io.StringIO()) as output:
+            RUNTIME.collect_idle(
+                state, self.root / "run", "unix:///fixture/host.sock", 0
+            )
+        self.assertFalse(self.running)
+        self.assertIn(manager.key, output.getvalue())
+        self.assertNotIn("b" * 32, output.getvalue())
 
     def test_boot_change_restarts_but_same_boot_reuses(self):
         first = self.manager()
@@ -431,6 +498,123 @@ class SharedRuntime(unittest.TestCase):
         )
         for name in ("inner", "outer-storage", "home"):
             self.assertNotIn(str(state / name), argv)
+
+
+class RemoteCleanup(unittest.TestCase):
+    def test_subordinate_files_are_removed_by_runtime_task(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plain, owned = root / "plain", root / "inner-run"
+            for path in (plain, owned):
+                (path / "nested").mkdir(parents=True)
+            engine = RUNTIME.Experiment(
+                root,
+                "/fixture/podman",
+                "image",
+                "",
+                "nested",
+                expected_image="f" * 64,
+                outer_url="unix:///fixture/host.sock",
+            )
+            self.addCleanup(engine.log.close)
+            real = RUNTIME.shutil.rmtree
+            denied = []
+
+            def rmtree(path):
+                # The first attempt on OWNED fails as for subordinate IDs.
+                if Path(path) == owned and not denied:
+                    denied.append(path)
+                    raise PermissionError(13, "denied", str(path))
+                real(path)
+
+            with (
+                mock.patch.object(RUNTIME.shutil, "rmtree", rmtree),
+                mock.patch.object(engine, "run") as run,
+            ):
+                run.return_value = subprocess.CompletedProcess([], 0, "", "")
+                engine.remove_through_runtime(
+                    [str(plain), str(owned), str(root / "missing")]
+                )
+            argv = run.call_args.args[0]
+            self.assertEqual(
+                argv[:4],
+                [
+                    "/fixture/podman",
+                    "--remote",
+                    "--url",
+                    "unix:///fixture/host.sock",
+                ],
+            )
+            self.assertIn(f"{owned}:/cleanup/0:rw", argv)
+            self.assertNotIn(f"{plain}:/cleanup/0:rw", argv)
+            self.assertIn("--userns=keep-id:uid=1000,gid=1000", argv)
+            self.assertIn("f" * 64, argv)
+            self.assertFalse(plain.exists())
+            self.assertFalse(owned.exists())
+
+
+class HostService(unittest.TestCase):
+    def test_private_engine_configuration_and_clean_stop(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            record = root / "podman.json"
+            fake = root / "podman"
+            fake.write_text(
+                "#!" + sys.executable + "\n"
+                "import json, os, pathlib, sys, time\n"
+                f"json.dump([sys.argv[1:], dict(os.environ)], open({str(record)!r}, 'w'))\n"
+                "pathlib.Path(sys.argv[-1].removeprefix('unix://')).touch()\n"
+                "time.sleep(60)\n"
+            )
+            fake.chmod(0o755)
+            process = subprocess.Popen(
+                [
+                    sys.executable,
+                    str(MODULE),
+                    "--session",
+                    "--host-service",
+                    "--podman",
+                    str(fake),
+                    "--state-root",
+                    str(root / "state"),
+                    "--runtime-root",
+                    str(root / "run"),
+                    "--collect-interval",
+                    "0.1",
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            socket = root / "run/host/podman.sock"
+            for _ in range(100):
+                if socket.exists() and record.exists():
+                    break
+                time.sleep(0.05)
+            time.sleep(1.5)  # at least one idle collection pass
+            process.terminate()
+            stdout, stderr = process.communicate(timeout=40)
+            self.assertEqual(process.returncode, 0, stderr)
+            self.assertNotIn("Idle check failed", stdout)
+            argv, env = json.loads(record.read_text())
+            self.assertEqual(
+                argv,
+                [
+                    "--remote=false",
+                    "system",
+                    "service",
+                    "--time=0",
+                    "unix://" + str(socket),
+                ],
+            )
+            state = root / "state/host"
+            self.assertEqual(env["HOME"], str(state / "home"))
+            self.assertEqual(env["XDG_RUNTIME_DIR"], str(root / "run/host/xdg"))
+            self.assertTrue(env["PATH"].startswith("/run/privileged/bin:"))
+            storage = Path(env["CONTAINERS_STORAGE_CONF"]).read_text()
+            self.assertIn('driver="overlay"', storage)
+            self.assertIn(str(state / "storage"), storage)
+            self.assertEqual(Path(env["CONTAINERS_CONF"]).parent, state)
 
 
 class CleanupScript(unittest.TestCase):
