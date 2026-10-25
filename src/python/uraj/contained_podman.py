@@ -1508,7 +1508,11 @@ def session_main():
     parser.add_argument("--podman", required=True)
     parser.add_argument("--project")
     parser.add_argument(
-        "--runtime-image", default="quay.io/podman/stable:latest"
+        "--runtime-image",
+        # Podman 5.8.7's manifest list: a tag would move once a fresh host
+        # store has to pull it, failing the image ID check below.
+        default="quay.io/podman/stable@sha256:"
+        "2fb39ca923dd9e0ee33f9e319c3a107a2bfde022a6a31560cbd56a862821e7d3",
     )
     parser.add_argument(
         "--expected-image",
