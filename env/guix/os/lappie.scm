@@ -143,7 +143,7 @@
             (list (local-file
                    (guix-env-path "os/keys/storie-signing-key.pub"))))
            (if (getenv "TO_ISO") '()
-               (append (list storie-mounts-service)
+               (append storie-mounts-services
                        (host-sops-services
                         (append (map cdr %vpn-connections)
                                 %agent-secrets))
