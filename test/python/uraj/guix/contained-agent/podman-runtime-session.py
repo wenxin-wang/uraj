@@ -5,6 +5,7 @@ import importlib.util
 import io
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -430,6 +431,46 @@ class SharedRuntime(unittest.TestCase):
         )
         for name in ("inner", "outer-storage", "home"):
             self.assertNotIn(str(state / name), argv)
+
+
+class CleanupScript(unittest.TestCase):
+    @unittest.skipUnless(shutil.which("unshare"), "needs unshare")
+    def test_unmounts_overlay_home_before_removal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            netns = root / "run/netns"
+            netns.mkdir(parents=True)
+            home = root / "outer storage/overlay"
+            (home / "l").mkdir(parents=True)
+            script = root / "cleanup.py"
+            script.write_text(RUNTIME._CLEANUP_STORAGE)
+            # Mirror the overlay driver's private self-bind, plus a nested
+            # mount, in a throwaway user/mount namespace.
+            result = subprocess.run(
+                [
+                    "unshare",
+                    "-rm",
+                    "sh",
+                    "-ec",
+                    'mount --bind "$1" "$1"; mount --make-private "$1"; '
+                    'mount --bind "$1/l" "$1/l"; shift; exec "$@"',
+                    "sh",
+                    str(home),
+                    sys.executable,
+                    str(script),
+                    str(netns),
+                    str(root / "run"),
+                    str(root / "outer storage"),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if "Operation not permitted" in result.stderr:
+                self.skipTest("user namespaces unavailable")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertFalse((root / "run").exists())
+            self.assertFalse((root / "outer storage").exists())
 
 
 if __name__ == "__main__":

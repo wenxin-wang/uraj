@@ -20,27 +20,53 @@ from pathlib import Path
 
 # Run only inside the disposable engine's user/mount namespace. Podman's
 # rootless network setup can leave run/netns mounted after its last container
-# exits. Removing the directory without unmounting it fails with EBUSY.
+# exits, and the overlay driver bind-mounts its graphroot/overlay home onto
+# itself. Removing either without unmounting it fails with EBUSY.
 _CLEANUP_STORAGE = """
 import ctypes
 import errno
 import os
+import re
 import shutil
 import sys
 
-netns, *paths = sys.argv[1:]
+roots = [os.path.realpath(path) for path in sys.argv[1:]]
 libc = ctypes.CDLL(None, use_errno=True)
-# ismount misses same-filesystem bind mounts. Also handle stacked mounts.
+
+
+def mounted():
+    # ismount misses same-filesystem bind mounts; mountinfo lists them all.
+    with open("/proc/self/mountinfo") as table:
+        points = {
+            re.sub(r"\\\\([0-7]{3})", lambda m: chr(int(m[1], 8)),
+                   line.split()[4])
+            for line in table
+        }
+    return sorted(
+        (
+            point
+            for point in points
+            for root in roots
+            if point == root or point.startswith(root.rstrip("/") + "/")
+        ),
+        key=len,
+        reverse=True,
+    )
+
+
+# Deepest first; repeat for stacked mounts.
 for _ in range(32):
-    if libc.umount2(os.fsencode(netns), 2) == 0:  # MNT_DETACH
-        continue
-    error = ctypes.get_errno()
-    if error in (errno.EINVAL, errno.ENOENT):
+    points = mounted()
+    if not points:
         break
-    raise OSError(error, os.strerror(error), netns)
+    for point in points:
+        if libc.umount2(os.fsencode(point), 2):  # MNT_DETACH
+            error = ctypes.get_errno()
+            if error not in (errno.EINVAL, errno.ENOENT):
+                raise OSError(error, os.strerror(error), point)
 else:
-    raise RuntimeError("Too many stacked mounts at " + netns)
-for path in paths:
+    raise RuntimeError("Too many stacked mounts under " + ", ".join(roots))
+for path in sys.argv[2:]:
     if os.path.lexists(path):
         shutil.rmtree(path)
 """
