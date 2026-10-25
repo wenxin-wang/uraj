@@ -332,6 +332,31 @@ SYS_ADMIN。调试中确认的约束：
   同网桥流量不经 restricted-network 的转发过滤。因此引擎必须接独立的
   =sandboxed-agents= 网络。
 
+* 沙箱里的浏览器
+
+沙箱镜像 =env/docker/openclaw-sandbox= 带 agent-browser、固定版本的官方
+Google Chrome、Xvfb 和中日韩及 emoji 字体。命令和浏览器在同一个沙箱
+容器里运行；不使用 OpenClaw 内置的 =browser= 工具，上游 Podman 后端也
+不支持内置浏览器沙箱。
+
+浏览器默认以 headed 模式运行：没有 =DISPLAY= 时，agent-browser 自动
+启动私有 Xvfb，避免无头 Chrome 的 =HeadlessChrome= UA 等特征。
+登录状态保存在 workspace 的 =.agent-browser/profile=。同一沙箱内并发会话
+共用一个 profile，Chrome 的 profile 锁会让第二个浏览器启动失败。
+没有 GPU 时 WebGL 走软件渲染。镜像已带 Mesa 和 cage，用于后续验证
+共用 Intel render node：Xvfb 无法使用硬件加速，需改用无头 Wayland
+合成器；trixie 的 Mesa 也比 bookworm 新。
+
+Skill 由 Gateway 加载，再由 OpenClaw 复制进沙箱（state 下的
+=.openclaw/sandbox/skills-workspaces=），所以不放在镜像里，也不经过 Home
+的 agent skill 服务。服务字段 =skills= 接受 =(NAME DIRECTORY)= 列表，
+Guix 把它们解开符号链接复制成 =/etc/openclaw/skills=，以只读方式挂进
+Gateway，并写入 =skills.load.extraDirs=。storie 直接取 Guix =agent-browser=
+包内的 skill；测试检查 Dockerfile 的 =AGENT_BROWSER_VERSION= 与包版本
+一致。该 skill 只是入口，正文由镜像里的 CLI 通过
+=agent-browser skills get core= 提供。=requires.bins= 在 Gateway 侧检查，
+agent-browser 的 skill 未声明此项，Gateway 镜像无需安装它。
+
 * 图片生成接入
 
 聊天模型与图片模型是两项配置。单独把 Luna 切换成 Sol 或 Astra，
@@ -438,17 +463,20 @@ sudo docker image inspect --format '{{.Id}}' localhost/openclaw-gateway:2026.10.
 ** 沙箱引擎与沙箱镜像
 
 两个镜像都以 UID/GID 2010 构建，须与 =openclaw-configuration= 的 =uid=、
-=gid= 一致。引擎基于固定 digest 的 =quay.io/podman/stable:v5.8.9=；沙箱基于
-上游 sandbox Dockerfile 的固定 =debian:bookworm-slim=，加少量常用工具，
-=HOME= 为可写的 =/tmp=。
+=gid= 一致。引擎基于固定 digest 的 =quay.io/podman/stable:v5.8.9=；沙箱参照
+上游 sandbox Dockerfile，改用固定的 =debian:trixie-slim=，加少量常用工具和
+浏览器（见“沙箱里的浏览器”），=HOME= 为可写的 =/tmp=。Debian 包未锁版本，
+以 image ID 记录产物。Google 的软件源会删除旧版 Chrome；下载失败时，从
+=dists/stable/main/binary-amd64/Packages= 取当前的 Version 和 SHA256 更新
+=CHROME_VERSION=、=CHROME_SHA256=。
 
 #+begin_src sh
 sudo docker build --network=host -t localhost/openclaw-sandbox-engine:5.8.9-1 \
   env/docker/openclaw-sandbox-engine
-sudo docker build --network=host -t localhost/openclaw-sandbox:bookworm-1 \
+sudo docker build --network=host -t localhost/openclaw-sandbox:trixie-1 \
   env/docker/openclaw-sandbox
 sudo docker image inspect --format '{{.Id}}' localhost/openclaw-sandbox-engine:5.8.9-1
-sudo docker image inspect --format '{{.Id}}' localhost/openclaw-sandbox:bookworm-1
+sudo docker image inspect --format '{{.Id}}' localhost/openclaw-sandbox:trixie-1
 #+end_src
 
 引擎的 seccomp profile 由镜像自带的 =/usr/share/containers/seccomp.json=
@@ -468,10 +496,19 @@ git diff env/docker/openclaw-sandbox-engine/seccomp.json
 
 #+begin_src sh
 sudo /etc/openclaw/compose up -d --wait engine
-sudo docker save localhost/openclaw-sandbox:bookworm-1 \
+sudo docker save localhost/openclaw-sandbox:trixie-1 \
   | sudo /etc/openclaw/compose exec -T engine podman load
 sudo /etc/openclaw/compose exec -T engine podman image ls
 sudo herd start openclaw
+#+end_src
+
+导入引擎前可先冒烟测试沙箱镜像。脚本以去掉全部 capability、只读根和
+tmpfs 运行它，接入 =sandboxed-agents=，检查文件桥接工具、CLI 版本和内置
+skill，再用 headed Chrome 打开 =https://example.com=，打印 UA、
+=navigator.webdriver= 和 WebGL renderer：
+
+#+begin_src sh
+scripts/openclaw/try-sandbox-image localhost/openclaw-sandbox:trixie-1
 #+end_src
 
 更换沙箱镜像或挂载后，需要重建旧沙箱。若在线 CLI 提示需要独占离线

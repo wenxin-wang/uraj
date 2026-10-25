@@ -64,6 +64,9 @@
   ;; engine image must be built with the same IDs.
   (uid openclaw-uid (default 2010))
   (gid openclaw-gid (default 2010))
+  ;; (NAME DIRECTORY) skills loaded by the Gateway and copied into sandboxes;
+  ;; their programs must be in the sandbox image.
+  (skills openclaw-skills (default '()))
   (data-directory openclaw-data-directory (default "/data/openclaw"))
   (network openclaw-network (default "static-agent"))
   (sandbox-network openclaw-sandbox-network (default "sandboxed-agents")))
@@ -160,6 +163,15 @@
     (unless (and (= (length aliases) (length (delete-duplicates (map car aliases))))
                  (= (length aliases) (length (delete-duplicates (map cdr aliases)))))
       (error "Duplicate OpenClaw model alias or reference")))
+  (let ((names (map (lambda (skill)
+                      (unless (and (list? skill) (= 2 (length skill))
+                                   (string? (car skill))
+                                   (string-match "^[a-z0-9][a-z0-9-]*$" (car skill)))
+                        (error "Invalid OpenClaw skill entry" skill))
+                      (car skill))
+                    (openclaw-skills config))))
+    (unless (= (length names) (length (delete-duplicates names)))
+      (error "Duplicate OpenClaw skill name")))
   (unless (and (string-prefix? "/data/" (openclaw-data-directory config))
                (not (member ".." (string-split (openclaw-data-directory config) #\/))))
     (error "OpenClaw data must be below /data")))
@@ -193,6 +205,20 @@
                                                  (openclaw-provider-reasoning-models provider))
                                          '((reasoning . #t)) '())))
                            (delete-duplicates (openclaw-provider-models provider))))))))
+
+;;; The Gateway container has no store: copy the skills, following links.
+(define (openclaw-skills-directory config)
+  (computed-file
+   "openclaw-skills"
+   (with-imported-modules '((guix build utils))
+     #~(begin
+         (use-modules (guix build utils))
+         (mkdir-p #$output)
+         (for-each (lambda (name directory)
+                     (copy-recursively directory (string-append #$output "/" name)
+                                       #:follow-symlinks? #t))
+                   '#$(map car (openclaw-skills config))
+                   (list #$@(map cadr (openclaw-skills config))))))))
 
 (define (openclaw-config-file config)
   (validate-config config)
@@ -270,6 +296,8 @@
                 (elevated . ((enabled . #f)))
                 ;; The checked configuration tool runs in the Gateway.
                 (sandbox . ((tools . ((alsoAllow . #("openclaw_config_set"))))))))
+      ,@(if (null? (openclaw-skills config)) '()
+            '((skills . ((load . ((extraDirs . #("/etc/openclaw/skills"))))))))
       (browser . ((enabled . #f)))
       (cron . ((enabled . #f)))
       (session . ((dmScope . "per-channel-peer")))
@@ -348,6 +376,8 @@
                       (bind "/etc/openclaw/config.mjs" "/etc/openclaw/config.mjs" #t)
                       (bind "/etc/openclaw/config-policy.mjs" "/etc/openclaw/config-policy.mjs" #t)
                       (bind "/etc/openclaw/config-plugin" "/etc/openclaw/config-plugin" #t))
+                (if (null? (openclaw-skills config)) '()
+                    (list (bind "/etc/openclaw/skills" "/etc/openclaw/skills" #t)))
                 (map (lambda (name) (bind (string-append "/run/openclaw/" name)
                                           (string-append "/run/secrets/" name) #t))
                      (secret-names config)))))
@@ -517,6 +547,8 @@
            (service-extension etc-service-type
              (lambda (config)
                `(("openclaw/base.json" ,(openclaw-config-file config))
+                 ,@(if (null? (openclaw-skills config)) '()
+                       `(("openclaw/skills" ,(openclaw-skills-directory config))))
                  ("openclaw/config-plugin"
                   ,(local-file "../../../../scripts/openclaw/config-plugin"
                                #:recursive? #t))

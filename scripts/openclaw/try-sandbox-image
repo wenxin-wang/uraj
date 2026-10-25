@@ -1,0 +1,44 @@
+#!/bin/sh
+# Run on storie as the administrator.  Start the sandbox image with the
+# hardening OpenClaw's sandbox applies, then drive headed Chrome once.
+# Usage: try-sandbox-image IMAGE [NETWORK] [DNS]
+set -eu
+
+image=${1:?usage: try-sandbox-image IMAGE [NETWORK] [DNS]}
+network=${2:-sandboxed-agents}
+dns=${3:-}
+workspace=$(mktemp -d /var/tmp/openclaw-sandbox-image.XXXXXX)
+echo "workspace: $workspace"
+
+run() {
+  docker run --rm --network "$network" ${dns:+--dns "$dns"} \
+    --read-only --tmpfs /tmp --tmpfs /var/tmp --tmpfs /run \
+    --cap-drop ALL --security-opt no-new-privileges \
+    --user "$(id -u):$(id -g)" --shm-size 64m \
+    --mount "type=bind,source=$workspace,target=/workspace" \
+    "$image" sh -euc "$1"
+}
+
+run '
+echo "== file bridge tools"
+stat -c "%F|%s|%y" /workspace
+readlink -n -f /workspace; echo
+python3 -c "print(\"python3 ok\")"
+echo "== agent-browser"
+agent-browser --version
+agent-browser skills get core | head -n 3
+'
+
+run '
+ab() { agent-browser "$@"; }
+ab open https://example.com
+ab get title
+ab eval "navigator.userAgent"
+ab eval "navigator.webdriver"
+ab eval "(() => { const gl = document.createElement(\"canvas\").getContext(\"webgl\");
+  const ext = gl && gl.getExtension(\"WEBGL_debug_renderer_info\");
+  return ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : String(gl); })()"
+ab close
+test -d /workspace/.agent-browser/profile && echo "profile persisted"
+'
+echo "done; remove $workspace when finished"

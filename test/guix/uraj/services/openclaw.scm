@@ -1,8 +1,8 @@
 ;;; guix repl -L src/guix -L src/guile test/guix/uraj/services/openclaw.scm
 (use-modules (gnu) (gnu services) (gnu services shepherd)
              (guix gexp) (json) (sops secrets) (sops services sops)
-             (srfi srfi-1) (srfi srfi-64)
-             (uraj build openclaw) (uraj services openclaw))
+             (srfi srfi-1) (srfi srfi-64) (ice-9 rdelim) (ice-9 regex)
+             (uraj build openclaw) (uraj packages llm) (uraj services openclaw))
 
 (define image
   (string-append "localhost/openclaw-gateway:2026.10.3@sha256:" (make-string 64 #\a)))
@@ -465,6 +465,40 @@
     (and (not (car result)) (caddr result)
          (= 1 (count (lambda (call) (member "up" call)) (cadr result))))))
 (test-equal "invalid tag has no effects" '(#f () #f) (start "../bad"))
+(test-assert "no skills: no skill mount or load path"
+  (and (not (at app "skills"))
+       (not (any (lambda (v) (equal? "/etc/openclaw/skills" (at v "target")))
+                 volumes))))
+(let* ((skill-config (openclaw-configuration (inherit config)
+                       (skills `(("agent-browser" ,(plain-file "SKILL.md" "x"))))))
+       (skill-app (json-string->scm (plain-file-content
+                                     (openclaw-config-file skill-config))))
+       (skill-gateway (at (json-string->scm (plain-file-content
+                                             (openclaw-compose-file skill-config)))
+                          "services" "gateway")))
+  (test-equal "declared skills load from their read-only mount"
+    '#("/etc/openclaw/skills") (at skill-app "skills" "load" "extraDirs"))
+  (test-assert "skill directory is mounted read-only"
+    (any (lambda (v) (and (equal? "/etc/openclaw/skills" (at v "source"))
+                          (equal? "/etc/openclaw/skills" (at v "target"))
+                          (at v "read_only")))
+         (vector->list (at skill-gateway "volumes")))))
+(for-each
+ (lambda (skills)
+   (test-error "invalid or duplicate skill refused" #t
+     (openclaw-config-file (openclaw-configuration (inherit config) (skills skills)))))
+ `((("../x" ,(plain-file "x" "x")))
+   (("a" ,(plain-file "x" "x")) ("a" ,(plain-file "y" "y")))))
+(test-equal "sandbox image ships the Guix agent-browser version"
+  (package-version agent-browser)
+  (call-with-input-file "env/docker/openclaw-sandbox/Dockerfile"
+    (lambda (port)
+      (let loop ()
+        (let ((line (read-line port)))
+          (cond ((eof-object? line) #f)
+                ((string-match "^ARG AGENT_BROWSER_VERSION=(.*)$" line)
+                 => (lambda (m) (match:substring m 1)))
+                (else (loop))))))))
 
 (define failures (test-runner-fail-count (test-runner-current)))
 (test-end "openclaw")
