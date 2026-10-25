@@ -178,7 +178,12 @@ class Session(unittest.TestCase):
                     subprocess.CompletedProcess(
                         [],
                         0,
-                        json.dumps({"host": {"security": {"rootless": True}}}),
+                        json.dumps(
+                            {
+                                "host": {"security": {"rootless": True}},
+                                "store": {"graphDriverName": "overlay"},
+                            }
+                        ),
                         "",
                     ),
                     subprocess.CompletedProcess([], 0 if cached else 1, "", ""),
@@ -200,6 +205,35 @@ class Session(unittest.TestCase):
                     self.assertEqual("pull" in commands, not cached)
                     self.assertNotIn("run", commands)
                     self.assertFalse(engine.started)
+
+    def test_storage_driver_is_configured_and_verified(self):
+        for driver in ("overlay", "vfs"):
+            with (
+                self.subTest(driver=driver),
+                tempfile.TemporaryDirectory() as tmp,
+            ):
+                engine = RUNTIME.Experiment(
+                    Path(tmp),
+                    "/fixture/podman",
+                    "image",
+                    "",
+                    "nested",
+                    storage_driver=driver,
+                )
+                self.addCleanup(engine.log.close)
+                engine.prepare()
+                for name in ("storage.conf", "inner-storage.conf"):
+                    self.assertIn(
+                        f'driver="{driver}"\n',
+                        (Path(tmp) / name).read_text(),
+                    )
+                other = "vfs" if driver == "overlay" else "overlay"
+                info = {"store": {"graphDriverName": other}}
+                with self.assertRaisesRegex(RuntimeError, "storage driver"):
+                    engine.check_driver("inner", info)
+                info["store"]["graphDriverName"] = driver
+                engine.check_driver("inner", info)
+                self.assertEqual(engine.results["inner_storage_driver"], driver)
 
 
 class SharedRuntime(unittest.TestCase):
@@ -352,6 +386,19 @@ class SharedRuntime(unittest.TestCase):
             "/fixture/podman",
         )
         self.assertNotEqual(original, RUNTIME.runtime_key(replaced))
+
+    def test_identity_includes_storage_driver(self):
+        self.assertEqual(self.spec["storage_driver"], "overlay")
+        vfs = RUNTIME.runtime_spec(
+            self.project,
+            [(self.project, str(self.project), "rw")],
+            "a" * 64,
+            "/fixture/podman",
+            "vfs",
+        )
+        self.assertNotEqual(
+            RUNTIME.runtime_key(self.spec), RUNTIME.runtime_key(vfs)
+        )
 
     def test_cleanup_preserves_graphroots_and_home(self):
         state, run = self.root / "state", self.root / "run"

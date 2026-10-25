@@ -681,9 +681,14 @@ the persistent storage; cached images remain available.  It does not resume
 old tasks automatically.  Old task metadata may remain and cause name conflicts.
 An interrupted startup is retried on the next attachment when no session holds
 a lease.  There is no background idle reaper or automatic storage purge; unused
-policy versions retain their own caches.  Both engines still use VFS.  Storage
-is shared only by clients of the same runtime, not by independent engines or
-the user's ordinary host Podman.  No shared read-only image library is used.
+policy versions retain their own caches.  Both engines use native rootless
+overlay storage by default; the inner graphroot is a host bind mount, so no
+overlay is stacked on another.  Startup fails unless both engines report the
+selected driver.  =--storage-driver=vfs= keeps the earlier configuration for
+comparison; the driver is part of the runtime identity, so switching selects
+separate storage.  Storage is shared only by clients of the same runtime, not
+by independent engines or the user's ordinary host Podman.  No shared
+read-only image library is used.
 
 This implementation does not install an agent-podman account or SSH service.
 Hosts that deployed the earlier experimental SSH service can remove that
@@ -702,8 +707,9 @@ and relative binds, read-only/path isolation, and actual CPU/memory/PID limits
 with seccomp active.  See [[file:podman-runtime-prototype.org][the experiment record]].
 The persistent supervisor still needs deployed concurrency/reboot smoke tests
 and a real Harbor trial in traj-record.  Default privileged tasks are not promised: the tested
-privileged variant explicitly binds /sys read-only.  VFS performance and a
-Guix-built runtime image also remain follow-up work.
+privileged variant explicitly binds /sys read-only.  Those results used VFS;
+the overlay default still needs the same host run.  A Guix-built runtime image
+also remains follow-up work.
 
 * Optional Guix daemon access
 

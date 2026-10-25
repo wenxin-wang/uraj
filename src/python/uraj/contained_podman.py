@@ -148,8 +148,10 @@ class Experiment:
         expected_image=None,
         run_directory=None,
         persistent=False,
+        storage_driver="overlay",
     ):
         self.directory = directory
+        self.storage_driver = storage_driver
         self.run_directory = run_directory or directory
         self.persistent = persistent
         self.socket_directory = self.run_directory / "api"
@@ -234,9 +236,13 @@ class Experiment:
             else (self.directory / "containers.conf").read_text()
         )
         (self.directory / "inner-containers.conf").write_text(inner_config)
-        # Keep VFS for both engines until nested overlay is validated.
+        # Native rootless overlay in both engines; the inner graphroot is a
+        # host bind mount, not the outer engine's overlay rootfs. VFS remains
+        # selectable for comparison.
+        driver = 'driver="' + self.storage_driver + '"\n'
         (self.directory / "storage.conf").write_text(
-            '[storage]\ndriver="vfs"\n'
+            "[storage]\n"
+            + driver
             + "graphroot="
             + json.dumps(str(self.directory / "outer-storage"))
             + "\nrunroot="
@@ -244,10 +250,20 @@ class Experiment:
             + "\n"
         )
         (self.directory / "inner-storage.conf").write_text(
-            '[storage]\ndriver="vfs"\n'
-            'graphroot="/home/podman/.local/share/containers/storage"\n'
+            "[storage]\n"
+            + driver
+            + 'graphroot="/home/podman/.local/share/containers/storage"\n'
             'runroot="/run/user/1000/storage"\n'
         )
+
+    def check_driver(self, engine, info):
+        driver = info.get("store", {}).get("graphDriverName")
+        self.results[engine + "_storage_driver"] = driver
+        if driver != self.storage_driver:
+            raise RuntimeError(
+                f"{engine.capitalize()} Podman uses storage driver "
+                f"{driver!r}, not {self.storage_driver!r}"
+            )
 
     def start(self):
         info = json.loads(
@@ -255,6 +271,7 @@ class Experiment:
         )
         if not info["host"]["security"]["rootless"]:
             raise RuntimeError("Outer Podman is not rootless")
+        self.check_driver("outer", info)
         print(
             "Pulling runtime image (first run may take several minutes)...",
             flush=True,
@@ -469,6 +486,7 @@ class Experiment:
                     )
                     if not self.results["inner_rootless"]:
                         raise RuntimeError("Inner Podman is not rootless")
+                    self.check_driver("inner", info)
                     status = self.run(
                         self.local
                         + [
@@ -867,6 +885,9 @@ def main():
         help="Print read-only host cgroup diagnostics; do not run containers",
     )
     parser.add_argument(
+        "--storage-driver", choices=("overlay", "vfs"), default="overlay"
+    )
+    parser.add_argument(
         "--delegate-cgroup",
         action="store_true",
         help="Create and clean up a private host cgroup subtree for this runtime",
@@ -906,6 +927,7 @@ def main():
         args.outer_seccomp,
         args.extended,
         args.delegate_cgroup,
+        storage_driver=args.storage_driver,
     )
     status = 1
     try:
@@ -1001,7 +1023,7 @@ def private_directory(path):
         )
 
 
-def runtime_spec(project, mounts, image, podman):
+def runtime_spec(project, mounts, image, podman, storage_driver="overlay"):
     user = pwd.getpwuid(os.getuid()).pw_name
     subids = {}
     for name in ("subuid", "subgid"):
@@ -1016,12 +1038,13 @@ def runtime_spec(project, mounts, image, podman):
             else []
         )
     return {
-        "schema": 2,
+        "schema": 3,
         "uid": os.getuid(),
         "gid": os.getgid(),
         "project": str(Path(project).resolve(strict=True)),
         "image": image,
         "podman": str(Path(podman).resolve()),
+        "storage_driver": storage_driver,
         "subids": subids,
         "mounts": [
             {
@@ -1080,6 +1103,7 @@ class SharedRuntime:
             expected_image=self.spec["image"],
             run_directory=self.run_directory,
             persistent=True,
+            storage_driver=self.spec["storage_driver"],
         )
 
     @contextlib.contextmanager
@@ -1232,6 +1256,9 @@ def session_main():
         metavar="RUNTIME_ID",
         help="Stop an idle runtime, retaining images and volumes",
     )
+    parser.add_argument(
+        "--storage-driver", choices=("overlay", "vfs"), default="overlay"
+    )
     parser.add_argument("--mount-option", action="append", default=[])
     parser.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args()
@@ -1288,7 +1315,13 @@ def session_main():
         parser.error(
             "Session command must mount exactly one runtime socket directory"
         )
-    spec = runtime_spec(args.project, mounts, args.expected_image, args.podman)
+    spec = runtime_spec(
+        args.project,
+        mounts,
+        args.expected_image,
+        args.podman,
+        args.storage_driver,
+    )
     manager = SharedRuntime(
         args.state_root, args.runtime_root, spec, args.runtime_image
     )

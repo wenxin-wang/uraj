@@ -232,7 +232,9 @@ This experiment uses a separate temporary outer Podman database and downloads
 configurable with --runtime-image and --task-image; immutable digest references
 can also be supplied.  The image IDs are recorded by the pull commands in the
 log.  It does not read the user's normal registry credentials.  Allow several
-minutes and disk space for the images; both engines use VFS for this first test.
+minutes and disk space for the images.  Both engines now default to native
+rootless overlay storage and fail unless =podman info= reports it; pass
+=--storage-driver vfs= to repeat the earlier VFS runs below.
 
 The outer container is rootless and does not use --privileged.  It uses
 keep-id to map the host user to the image's podman user (UID/GID 1000), exposes
