@@ -35,8 +35,8 @@
          firefox                        ;Mozilla Firefox from the Nonguix channel
          kdeconnect                     ;kdeconnect-app/-cli and plugins
          ksshaskpass-with-qtkeychain      ;GNOME Keyring on niri, no SSH agent
-         scrcpy                         ;hypie-maa screen/login
-         android-platform-tools         ;adb for hypie-maa; Guix's crashes
+         scrcpy                         ;remote-maa screen/login
+         android-platform-tools         ;adb for remote-maa; Guix's crashes
          (specifications->packages
           '("font-jigmo"
             "font-jetbrains-mono"

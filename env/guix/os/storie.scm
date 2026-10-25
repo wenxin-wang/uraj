@@ -137,11 +137,14 @@
              (sops secrets)
              (sops services sops)
              (uraj packages hwmon)
+             (uraj packages redroid)
              (uraj home llm)
              (uraj services immich)
              (uraj services new-api)
              (uraj services openclaw)
              (uraj services docker-lan)
+             (uraj services maa)
+             (uraj services redroid)
              (uraj network-policy)
              (uraj services restricted-network)
              (uraj services paseo-relay)
@@ -434,6 +437,19 @@
                         (list (network-access
                                 (address "172.31.0.9")
                                 (ports '(3000))))))))))))
+            ;; Standby for hypie's MAA (docs/maa.org), with its own login and
+            ;; data.  Start redroid-maa by hand; scheduled runs are skipped
+            ;; while it is stopped.
+            (service redroid-service-type
+              (redroid-configuration
+                (network
+                 (restricted-network
+                   (inherit %redroid-network)
+                   (egress-interfaces #t)))
+                (data-directory "/var/lib/redroid/data/maa-houdini-13")
+                (native-bridge redroid-houdini)
+                (native-bridge-library "libhoudini.so")
+                (auto-start? #f)))
             ;; Prepare host0 before DHCP; enp1s0 is only the macvlan parent.
             (service host-macvlan-service-type
               (host-macvlan-configuration
@@ -466,6 +482,7 @@
                (address "172.31.0.6"))))
       %storage-timer-services
       %storie-fan-services
+      %maa-services
       (if (or (getenv "TO_ISO") (not %openclaw-configuration)) '()
           (list (service openclaw-service-type %openclaw-configuration)))
       (if (getenv "TO_ISO") '()

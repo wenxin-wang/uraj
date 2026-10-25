@@ -347,22 +347,64 @@ sudo docker images --digests redroid/redroid          # on hypie
 #+end_src
 
 For remote scrcpy, tunnel ADB through SSH instead of exposing it on the LAN:
-=hypie-maa= (=env/dotfiles/desktop/apps/.local/bin=) runs on another machine
-that can SSH to hypie; =adb= and =scrcpy= come from the desktop home profile
-(scrcpy from the small-guix channel, since Guix lacks it).
+=remote-maa= (=env/dotfiles/desktop/apps/.local/bin=) runs on another machine
+that can SSH to hypie (or another host set by =REMOTE_MAA_HOST=); =adb= and
+=scrcpy= come from the desktop home profile (scrcpy from the small-guix
+channel, since Guix lacks it).
 
 #+begin_src sh
-hypie-maa login                     # scrcpy: log in to the game once
-hypie-maa install arknights.apk     # install or update from a local APK
-hypie-maa upgrade                   # download the official APK, install it
-hypie-maa status                    # boot state and game version
-hypie-maa adb shell ...             # anything else
-hypie-maa connect                   # keep the forward open for other tools
+remote-maa login                     # scrcpy: log in to the game once
+remote-maa install arknights.apk     # install or update from a local APK
+remote-maa upgrade                   # download the official APK, install it
+remote-maa status                    # boot state and game version
+remote-maa adb shell ...             # anything else
+remote-maa connect                   # keep the forward open for other tools
+remote-maa hack-fsync                # fsync off in Android (restarts it)
+remote-maa hack-fsync 0              # fsync back, then sync the host
 #+end_src
+
+The game's resource download calls fsync after every 8 KiB write.  On
+storie's Btrfs each takes 5--17 ms, capping the download at 1--4 MB/s with
+11--20 times write amplification; without it the download reached about
+20 MB/s, limited by CPU.  The game's anti-cheat exits once it is traced, so
+strace fault injection is out; Docker ignores seccomp profiles for this
+=--privileged= container; and =wrap.<package>= with LD_PRELOAD bypasses
+Houdini, so the ARM libraries fail to load.  =hack-fsync= instead preloads
+a libc-free shim into zygote, from which every app forks: a wrapper
+bind-mounted over =/system/bin/app_process64= sets =LD_PRELOAD=, then
+zygote restarts.  This also closes the game.  =install= and =upgrade= turn
+it on for the installation unless it already is.
+
+While it is on, a host crash can lose or corrupt Android's recent writes;
+=sync= on the host still flushes them.  The anti-cheat may notice the
+library in the game's mappings, with unknown consequences.  Recreating the
+container also removes the shim.  A file system with cheap fsync for the
+game's data would avoid both risks, but is not implemented.
 
 MAA's StartUp task neither installs the game nor enters credentials, and can
 only switch between accounts that are already logged in, so the first login
 is manual.  The session persists in the data directory.
+
+** storie standby
+
+hypie went offline during its site's maintenance in late October 2026.
+storie (Celeron J6412, UHD Gen11, 15 GiB) carries the same redroid and MAA
+services as a manual standby, with =auto-start? #f= for =redroid-maa=.
+Every host's scheduled run first tries a TCP connection to the instance's
+ADB port, and skips the run (exit 0, one line in mcron's log) unless it
+connects within 5 s.  =sudo herd start redroid-maa= on storie takes over;
+=sudo herd stop redroid-maa= hands back to hypie and stays stopped across
+reboots.  Stop it before hypie returns: two clients on one account log each
+other out.
+
+Its Android data is a fresh directory, not a copy of hypie's: log in and
+download the game resources once, with
+=REMOTE_MAA_HOST=storie.home.labbies.wenxinwang.me remote-maa login=.  The
+redroid network reuses =10.203.0.0/24=; storie's =static-agent= network is
+=10.204.0.0/24=.  Adding it needed =sudo herd restart restricted-network=,
+which also restarts openclaw, its only dependent.  The CPU is roughly half
+of hypie's i5-7500, so measure game startup and a full daily round before
+relying on it.
 
 ** Validation status
 

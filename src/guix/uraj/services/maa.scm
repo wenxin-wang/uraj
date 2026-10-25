@@ -1,4 +1,4 @@
-;;; Scheduled MAA controller for hypie's private redroid instance.
+;;; Scheduled MAA controller for a host's private redroid instance.
 (define-module (uraj services maa)
   #:use-module (gnu services)
   #:use-module (gnu services base)
@@ -44,7 +44,24 @@
 (define %maa-daily-command
   (program-file
    "maa-daily"
-   #~(begin
+   #~(let ((sock (socket PF_INET SOCK_STREAM 0)))
+       ;; A host runs redroid-maa only while it is in charge, e.g. a standby
+       ;; while the primary is down.  Skip the run, successfully, unless ADB
+       ;; (env/maa/profiles/default.toml) connects within 5 s; Android that
+       ;; is still booting is skipped as well.
+       (fcntl sock F_SETFL (logior O_NONBLOCK (fcntl sock F_GETFL)))
+       (unless (and (catch 'system-error
+                      (lambda ()
+                        (connect sock AF_INET (inet-pton AF_INET "10.203.0.2")
+                                 5555)
+                        #t)
+                      (lambda args
+                        (= (system-error-errno args) EINPROGRESS)))
+                    (pair? (cadr (select '() (list sock) '() 5)))
+                    (zero? (getsockopt sock SOL_SOCKET SO_ERROR)))
+         (display "redroid-maa is not running; skipped\n")
+         (exit 0))
+       (close-port sock)
        (setenv "HOME" "/var/lib/maa")
        ;; MaaCore's PosixIO uses execlp("sh", ...) for ADB commands.
        (setenv "PATH"
@@ -70,7 +87,7 @@
               "--kill-after=30s" "2h"
               #$%maa-run))))
 
-;; mcron uses the system timezone: hypie inherits Asia/Shanghai.
+;; mcron uses the system timezone, Asia/Shanghai from (uraj system base).
 (define %maa-daily-job
   #~(job '(next-hour '(2 5 11 14 21)) #$%maa-daily-command #:user "maa"))
 

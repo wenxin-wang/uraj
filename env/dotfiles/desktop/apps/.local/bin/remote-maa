@@ -1,0 +1,272 @@
+#!/usr/bin/env bash
+# Operate a host's redroid-maa Android (default hypie) from this desktop.
+#
+# ADB listens only on the host's private redroid bridge (10.203.0.2:5555, see
+# docs/maa.org), so every command runs through a short-lived SSH forward to
+# 127.0.0.1:$REMOTE_MAA_PORT here; the forward is torn down when it finishes.
+# A forward left by another running remote-maa is reused.
+
+set -euo pipefail
+
+host=${REMOTE_MAA_HOST:-hypie.home.labbies.wenxinwang.me}
+port=${REMOTE_MAA_PORT:-15555}
+remote=10.203.0.2:5555
+serial=127.0.0.1:$port
+package=com.hypergryph.arknights
+# Official server's "latest Android client" link on ak.hypergryph.com.
+apk_url=${REMOTE_MAA_APK_URL:-https://ak.hypergryph.com/downloads/android_lastest}
+cache=${XDG_CACHE_HOME:-$HOME/.cache}/remote-maa
+nofsync_upload=/data/local/tmp/libnofsync.so
+
+usage() {
+    cat <<EOF
+Usage: remote-maa COMMAND [ARGS...]
+
+  screen [SCRCPY-ARGS]  Show and control Android (scrcpy), e.g. to log in.
+  login                 Same as screen.
+  install APK           Install or update the game from a local APK.
+  upgrade               Download the official latest APK, then install it.
+                        Both skip fsync in Android apps meanwhile.
+  hack-fsync [0]        Make fsync/fdatasync no-ops in every Android app,
+                        e.g. for resource downloads; 0 restores them and
+                        syncs the host.  Either restarts Android's framework,
+                        closing the game.
+  status                Android boot state and installed game version.
+  adb ARGS...           Run adb against the instance.
+  connect               Keep the forward open for other tools (Ctrl-C ends).
+
+Environment: REMOTE_MAA_HOST ($host), REMOTE_MAA_PORT ($port),
+REMOTE_MAA_APK_URL.
+EOF
+}
+
+# adb and scrcpy come from the desktop home profile ((uraj home basic-desktop)).
+for tool in adb scrcpy curl ssh; do
+    if ! command -v "$tool" >/dev/null; then
+        printf 'remote-maa: %s not found in PATH\n' "$tool" >&2
+        exit 127
+    fi
+done
+# scrcpy embeds Guix's adb, whose server crashes; use the one in PATH
+# (android-platform-tools) so both talk to the same server.
+export ADB=${ADB:-$(command -v adb)}
+
+say() { printf 'remote-maa: %s\n' "$*" >&2; }
+
+ctl=
+nofsync_temporary=
+cleanup() {
+    [[ -n $nofsync_temporary ]] && nofsync_off
+    if [[ -n $ctl ]]; then
+        adb disconnect "$serial" >/dev/null 2>&1 || true
+        ssh -S "$ctl" -O exit "$host" >/dev/null 2>&1 || true
+        rm -rf -- "$(dirname -- "$ctl")"
+    fi
+}
+trap cleanup EXIT
+
+open_forward() {
+    adb start-server >/dev/null
+    if adb connect "$serial" 2>/dev/null | grep -qE '^(already )?connected' &&
+        [[ $(adb -s "$serial" get-state 2>/dev/null) == device ]]; then
+        return # another remote-maa already forwards this port
+    fi
+    adb disconnect "$serial" >/dev/null 2>&1 || true
+    ctl=$(mktemp -d)/ctl
+    say "forwarding $serial to $host:$remote over SSH"
+    ssh -f -N -M -S "$ctl" -o ExitOnForwardFailure=yes \
+        -L "127.0.0.1:$port:$remote" "$host"
+    local i
+    for i in 1 2 3 4 5; do
+        adb connect "$serial" 2>/dev/null | grep -qE '^(already )?connected' && break
+        sleep 1
+    done
+    # wait-for-device would block forever on an unauthorized/offline device.
+    if ! timeout 30 adb -s "$serial" wait-for-device; then
+        say "device not ready after 30s:"
+        adb devices -l >&2
+        exit 1
+    fi
+}
+
+game_version() {
+    adb -s "$serial" shell dumpsys package "$package" |
+        sed -n '/^ *versionName=/{s///p;q}'
+}
+
+# The image has no su, but is userdebug: adbd can restart as root, which
+# drops the TCP connection until it is reconnected.
+adb_root() {
+    [[ $(adb -s "$serial" shell id -u) == 0 ]] && return
+    say "restarting adbd as root"
+    adb -s "$serial" root >/dev/null
+    local i
+    for i in 1 2 3 4 5 6 7 8 9 10; do
+        sleep 1
+        adb connect "$serial" 2>/dev/null | grep -qE '^(already )?connected' &&
+            [[ $(adb -s "$serial" shell id -u 2>/dev/null) == 0 ]] && return
+    done
+    say "adbd did not come back as root"
+    exit 1
+}
+
+# The game downloads resources with an fsync per 8 KiB write, about 5 ms
+# each on storie's Btrfs.  It exits under strace, and wrap.<package> loses
+# Houdini, so preload the shim into zygote itself, from which every app
+# forks: a wrapper bind-mounted over app_process64 sets LD_PRELOAD.  All
+# changes live in the container's root file system and /data/local/tmp,
+# and vanish when the container is recreated.
+nofsync_remote='set -e
+lib=/system/lib64/libnofsync.so
+bin=/system/bin/app_process64
+active() { grep -q " $bin " /proc/mounts; }
+
+# Restart zygote, then wait for a new system_server to serve packages.
+restart_zygote() {
+    old=$(pidof system_server || true)
+    setprop ctl.restart zygote
+    i=0
+    while [ $i -lt 120 ]; do
+        sleep 1
+        i=$((i + 1))
+        new=$(pidof system_server || true)
+        [ -n "$new" ] && [ "$new" != "$old" ] || continue
+        service check package | grep -q ": found" && return 0
+    done
+    echo "Android framework did not come back within 120s" >&2
+    exit 1
+}
+
+case $1 in
+    active)
+        active
+        ;;
+    on)
+        active && { echo "fsync is already off" >&2; exit 0; }
+        cp /data/local/tmp/libnofsync.so "$lib"
+        chmod 644 "$lib"
+        cp -p "$bin" "$bin.real"
+        printf "#!/system/bin/sh\nLD_PRELOAD=%s exec %s \"\$@\"\n" \
+            "$lib" "$bin.real" >"$bin.nofsync"
+        chmod 755 "$bin.nofsync"
+        mount --bind "$bin.nofsync" "$bin"
+        restart_zygote
+        grep -q libnofsync "/proc/$(pidof zygote64)/maps" || {
+            echo "zygote64 did not load $lib" >&2
+            exit 1
+        }
+        ;;
+    off)
+        if active; then
+            umount "$bin"
+            restart_zygote
+        fi
+        rm -f "$bin.nofsync" "$bin.real" "$lib" /data/local/tmp/libnofsync.so
+        ;;
+esac
+'
+
+# Run nofsync_remote as root in Android with ARGS.
+nofsync_run() {
+    adb_root
+    printf '%s' "$nofsync_remote" | adb -s "$serial" shell "sh -s $*"
+}
+
+# Without libc, so that Android's linker loads a host-built library.
+nofsync_on() {
+    local so=$cache/libnofsync.so
+    if [[ ! -f $so ]]; then
+        mkdir -p -- "$cache"
+        printf '%s\n' 'int fsync(int fd) { (void)fd; return 0; }' \
+            'int fdatasync(int fd) { (void)fd; return 0; }' >"$cache/nofsync.c"
+        say "building $so"
+        guix shell gcc-toolchain -- gcc -shared -fPIC -nostdlib -O2 \
+            -fno-stack-protector -Wl,-soname,libnofsync.so \
+            -Wl,--hash-style=both -o "$so.part" "$cache/nofsync.c"
+        mv -- "$so.part" "$so"
+    fi
+    adb -s "$serial" push "$so" "$nofsync_upload" >/dev/null
+    say "restarting Android's framework without fsync"
+    nofsync_run on
+}
+
+# Android's page cache is the host's: sync there once fsync is back.
+nofsync_off() {
+    nofsync_temporary=
+    say "restarting Android's framework with fsync"
+    nofsync_run off
+    say "syncing $host"
+    ssh "$host" sync
+}
+
+install_apk() {
+    local apk=$1 before after
+    before=$(game_version)
+    say "installing $apk ($(du -h -- "$apk" | cut -f1)); this can take minutes"
+    # PackageInstallerSession writes the APK in system_server.
+    if ! nofsync_run active; then
+        nofsync_temporary=1
+        nofsync_on
+    fi
+    adb -s "$serial" install -r "$apk"
+    [[ -n $nofsync_temporary ]] && nofsync_off
+    after=$(game_version)
+    printf 'game version: %s -> %s\n' "${before:-none}" "${after:-none}"
+}
+
+cmd=${1:-}
+[[ $# -gt 0 ]] && shift
+case $cmd in
+    screen | login)
+        open_forward
+        # redroid has no opus encoder, and audio capture aborts the server.
+        scrcpy -s "$serial" --window-title "${host%%.*} redroid-maa" --no-audio "$@"
+        ;;
+    install)
+        [[ $# -eq 1 && -f $1 ]] || { usage >&2; exit 2; }
+        open_forward
+        install_apk "$1"
+        ;;
+    upgrade)
+        mkdir -p -- "$cache"
+        say "downloading $apk_url"
+        curl -fL --retry 3 -o "$cache/arknights.apk.part" "$apk_url"
+        # An HTML error page is not an APK: require the ZIP signature.
+        if [[ $(head -c 2 "$cache/arknights.apk.part") != PK ]]; then
+            printf 'remote-maa: %s did not return an APK\n' "$apk_url" >&2
+            exit 1
+        fi
+        mv -- "$cache/arknights.apk.part" "$cache/arknights.apk"
+        open_forward
+        install_apk "$cache/arknights.apk"
+        ;;
+    hack-fsync)
+        case ${1-} in
+            '') open_forward; nofsync_on ;;
+            0) open_forward; nofsync_off ;;
+            *) usage >&2; exit 2 ;;
+        esac
+        ;;
+    status)
+        open_forward
+        printf 'boot completed: %s\n' \
+            "$(adb -s "$serial" shell getprop sys.boot_completed)"
+        printf 'game version: %s\n' "$(game_version || true)"
+        ;;
+    adb)
+        open_forward
+        adb -s "$serial" "$@"
+        ;;
+    connect)
+        open_forward
+        printf 'adb serial %s; Ctrl-C to close\n' "$serial"
+        while sleep 3600; do :; done
+        ;;
+    -h | --help | help)
+        usage
+        ;;
+    *)
+        usage >&2
+        exit 2
+        ;;
+esac
