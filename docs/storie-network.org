@@ -103,9 +103,10 @@ alone verifies export discovery, not NFSv4 mounting or write permissions.
 ** On-demand mounts on lappie and hypie
 
 Installed lappie and hypie systems use Guix's =autofs= service (not systemd)
-to mount =172.31.0.5:/core-data= at =/mnt/storie/core-data= and
-=172.31.0.5:/media-data= at =/mnt/storie/media-data=. Reconfigure each
-client to enable this service; the live installers do not include it.
+to mount =172.31.0.5:/core-data= at =/core-data= and
+=172.31.0.5:/media-data= at =/media-data=, the same paths as on storie.
+Reconfigure each client to enable this service; the live installers do not
+include it.
 Deploy the server's current LAN allowlist first.
 
 Boot starts the local automounter without contacting storie. Accessing a
@@ -128,8 +129,8 @@ To verify after reconfiguration:
 sudo herd status autofs
 # Before accessing either share, expect no corresponding NFS mount.
 findmnt -rn -t nfs,nfs4
-ls /mnt/storie/core-data
-ls /mnt/storie/media-data
+ls /core-data
+ls /media-data
 findmnt -rn -t nfs,nfs4
 #+end_src
 

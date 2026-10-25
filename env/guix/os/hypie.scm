@@ -369,7 +369,7 @@
 (define hypie-installed-os
   (hypie-os
    (append
-    (list storie-mounts-service)
+    storie-mounts-services
     (list (service zfs-data-service-type
             (zfs-configuration (zfs zfs-linux)))
           (zfs-data-ready-service
