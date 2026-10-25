@@ -32,6 +32,11 @@ class Profile(unittest.TestCase):
                     "includes": {"caps": ["CAP_SYS_ADMIN"]},
                 },
                 {"names": ["sethostname"], "action": "SCMP_ACT_ERRNO"},
+                {
+                    "names": ["chroot"],
+                    "action": "SCMP_ACT_ALLOW",
+                    "includes": {"caps": ["CAP_SYS_CHROOT"]},
+                },
             ],
         }
         original = copy.deepcopy(profile)
@@ -49,14 +54,13 @@ class Profile(unittest.TestCase):
             },
             result["syscalls"],
         )
-        hostname_rules = [
-            rule
-            for rule in result["syscalls"]
-            if "sethostname" in rule["names"]
-        ]
-        self.assertEqual(len(hostname_rules), 1)
-        self.assertEqual(hostname_rules[0]["action"], "SCMP_ACT_ALLOW")
-        self.assertNotIn("includes", hostname_rules[0])
+        for name in ("sethostname", "chroot"):
+            rules = [
+                rule for rule in result["syscalls"] if name in rule["names"]
+            ]
+            self.assertEqual(len(rules), 1)
+            self.assertEqual(rules[0]["action"], "SCMP_ACT_ALLOW")
+            self.assertNotIn("includes", rules[0])
 
     def test_rejects_allow_by_default(self):
         with self.assertRaises(RuntimeError):

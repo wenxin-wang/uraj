@@ -121,7 +121,8 @@ guix shell python docker-cli -- python3 scripts/openclaw/try-docker-engine.py
 脚本只创建 =openclaw-engine-probe-*= 容器和 =/var/tmp/openclaw-engine-*=
 目录，结束后删除容器与引擎存储，保留 =results.json=、=commands.log=、
 生成的 seccomp profile。引擎从最小参数开始：在镜像自带 seccomp profile
-基础上放开嵌套所需调用、=systempaths=unconfined=、只加回 SETUID/SETGID、
+基础上放开嵌套所需调用（含基础 profile 以外层 capability 为条件的
+chroot、setns、sethostname）、=systempaths=unconfined=、只加回 SETUID/SETGID、
 不设 no-new-privileges、按需暴露 =/dev/fuse= 与 =/dev/net/tun=，不使用
 =--privileged= 或 SYS_ADMIN。另起一个按 Gateway 加固参数运行的客户端，
 以上游创建沙箱的参数建 keep-id 沙箱，检查同路径读写、未挂载文件不可见、
@@ -133,6 +134,22 @@ guix shell python docker-cli -- python3 scripts/openclaw/try-docker-engine.py
 若某项失败，可用 =--seccomp=、=--cap-add=、=--no-unmask=、=--storage=
 逐项对照；新增 SYS_ADMIN 或改为特权容器前须重新评估方案。=results.json=
 中的 =engine_process_status= 记录引擎实际的 capability 与 seccomp 状态。
+
+2026-10-24 在 storie 上全部通过（引擎镜像 =quay.io/podman/stable=
+=sha256:f790c751…=，内层 Podman 5.8.9、crun 1.28）。引擎 capability 上限只有
+SETUID/SETGID，nested seccomp 生效，no-new-privileges 关闭；未用特权模式或
+SYS_ADMIN。调试中确认的约束：
+
+- 镜像自带 profile 以 =CAP_SYS_CHROOT= 为条件放行 =chroot=；Docker 外层去掉
+  全部 capability 后该规则失效，需由 nested profile 无条件放行。
+- =newuidmap= 要求进程 GID 等于镜像 passwd 中该用户的主组。
+- keep-id 让 crun 在嵌套用户命名空间里访问 rootfs 与挂载源，那里的
+  DAC_OVERRIDE 只覆盖已映射的 ID。挂进引擎的存储、runroot 与工作区路径若属于
+  未映射的组（如 =log-readers=），每一级都须保留其他人可穿越（=o+x=），
+  否则启动报 =crun: readlink ``= （podman#27785）。
+- 沙箱与 Gateway 同在 =static-agent= 网桥时能连到 Gateway 的 18789 端口；
+  同网桥流量不经 restricted-network 的转发过滤。因此引擎必须接独立的
+  =sandboxed-agents= 网络。
 
 * 图片生成接入
 

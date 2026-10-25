@@ -1,9 +1,12 @@
 """Seccomp profiles for engines that run nested rootless containers."""
 
-# Calls that a nested rootless engine needs without CAP_SYS_ADMIN in the
-# outer container.  Kernel namespace and capability checks still apply.
+# Calls that a nested rootless engine needs without CAP_SYS_ADMIN or
+# CAP_SYS_CHROOT in the outer container: base profiles condition some of them
+# on outer capabilities.  Kernel checks in the inner user namespace still
+# apply.
 NESTED_SYSCALLS = frozenset(
     {
+        "chroot",
         "clone",
         "mount",
         "umount",

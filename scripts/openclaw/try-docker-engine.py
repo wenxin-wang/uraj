@@ -14,6 +14,8 @@ import subprocess
 import sys
 import tempfile
 import time
+from ipaddress import ip_address
+from ipaddress import IPv4Address
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -24,6 +26,9 @@ _SECCOMP = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(_SECCOMP)
 
 SOCKET_DIRECTORY = "/run/openclaw-engine"
+# The podman user in quay.io/podman/stable.
+ENGINE_UID = 1000
+ENGINE_GID = 1000
 # Without a Docker user namespace these become real host UIDs/GIDs.  Keep
 # them away from host accounts and from the main user's own subordinate IDs.
 SUBORDINATE_START = 524288
@@ -42,6 +47,19 @@ SANDBOX_ARGS = [
 ]
 
 
+def ipv4_upstream(text):
+    try:
+        address = ip_address(text)
+    except ValueError:
+        return False
+    return isinstance(address, IPv4Address) and not (
+        address.is_loopback
+        or address.is_link_local
+        or address.is_multicast
+        or address.is_reserved
+    )
+
+
 class Probe:
     def __init__(self, args, directory):
         self.args = args
@@ -49,7 +67,9 @@ class Probe:
         self.suffix = directory.name.rsplit("-", 1)[-1]
         self.engine = "openclaw-engine-probe-" + self.suffix
         self.uid = os.getuid()
-        self.gid = os.getgid()
+        # newuidmap requires the process GID to match the image's passwd
+        # entry for podman, not the caller's primary group.
+        self.gid = ENGINE_GID
         self.results = {}
         self.log = (directory / "commands.log").open("w")
 
@@ -78,8 +98,13 @@ class Probe:
         return self.directory / name
 
     def prepare(self):
-        for name in ("api", "run", "storage", "shared", "protected"):
-            self.path(name).mkdir(mode=0o700)
+        self.path("api").mkdir(mode=0o700)
+        # keep-id runs crun in a nested user namespace whose DAC_OVERRIDE
+        # covers only mapped IDs; the caller's primary group is unmapped, so
+        # these paths must be traversable by others (podman#27785).
+        for name in ("run", "storage", "shared", "protected"):
+            self.path(name).mkdir()
+            self.path(name).chmod(0o711)
         self.path("unshared-secret").write_text("not exposed\n")
         self.path("protected/sentinel").write_text("original\n")
         self.path("shared/from-host").write_text("host\n")
@@ -130,17 +155,36 @@ class Probe:
         return ["--security-opt=seccomp=" + str(target)]
 
     def dns_options(self):
-        resolver = Path("/run/restricted-network/resolv.conf")
-        if self.args.network == "none" or not resolver.exists():
+        if self.args.network == "none":
             return []
-        return [
-            "--dns=" + line.split()[1]
-            for line in resolver.read_text().splitlines()
-            if line.startswith("nameserver ")
-        ]
+        servers = self.args.dns
+        source = "argument"
+        if not servers:
+            # The restricted-network snapshot may be root-only.  Its servers
+            # come from the host resolver's directly usable IPv4 entries.
+            for name in (
+                "/run/restricted-network/resolv.conf",
+                "/etc/resolv.conf",
+            ):
+                try:
+                    lines = Path(name).read_text().splitlines()
+                except OSError:
+                    continue
+                servers = [
+                    line.split()[1]
+                    for line in lines
+                    if line.startswith("nameserver ")
+                    and ipv4_upstream(line.split()[1])
+                ]
+                source = name
+                break
+        if not servers:
+            raise RuntimeError("No usable IPv4 DNS server; pass --dns")
+        self.results["dns"] = {"source": source, "servers": servers}
+        return ["--dns=" + server for server in servers]
 
     def start_engine(self):
-        if self.uid != 1000:
+        if self.uid != ENGINE_UID:
             raise RuntimeError("Run as UID 1000 to match the image's podman")
         self.run(["docker", "pull", self.args.engine_image], timeout=900)
         image = self.run(
@@ -288,6 +332,56 @@ class Probe:
         if identity != [str(self.uid), str(self.gid)]:
             raise RuntimeError("Unexpected sandbox identity " + str(identity))
 
+    def bisect_start(self):
+        """Find which sandbox option prevents a container from starting."""
+        engine = self.run(
+            [
+                "docker",
+                "exec",
+                self.engine,
+                "sh",
+                "-c",
+                "command -v catatonit; ls /usr/libexec/podman; "
+                "podman info --format "
+                "'{{.Host.OCIRuntime.Path}} {{.Host.OCIRuntime.Version}}'; "
+                "grep -E '^ *(init_path|helper_binaries_dir)' "
+                "/usr/share/containers/containers.conf /etc/containers/*.conf",
+            ],
+            check=False,
+        )
+        results = {"engine": (engine.stdout + engine.stderr).strip()[-2000:]}
+        full = [
+            *SANDBOX_ARGS,
+            "--network=" + self.args.sandbox_network,
+            f"--user={self.uid}:{self.gid}",
+            f"--userns=keep-id:uid={self.uid},gid={self.gid}",
+        ]
+        variants = {
+            "minimal": ["--network=none"],
+            "init": ["--network=none", "--init"],
+            "pasta": ["--network=" + self.args.sandbox_network],
+            "keep_id": [
+                "--network=none",
+                f"--userns=keep-id:uid={self.uid},gid={self.gid}",
+            ],
+            "full_without_init": [arg for arg in full if arg != "--init"],
+        }
+        for name, options in variants.items():
+            result = self.client(
+                "run",
+                "--rm",
+                *options,
+                self.args.task_image,
+                "true",
+                check=False,
+            )
+            results[name] = (
+                "PASS"
+                if result.returncode == 0
+                else "FAIL: " + result.stderr.strip()[-600:]
+            )
+        return results
+
     def same_path(self):
         shared = self.path("shared")
         self.sandbox_exec(
@@ -392,6 +486,7 @@ class Probe:
                 raise RuntimeError("Engine must be rootless and remote")
             self.check("sandbox_create", self.create_sandbox)
             if self.results["sandbox_create"] != "PASS":
+                self.results["start_bisect"] = self.bisect_start()
                 return
             self.check("same_path_write", self.same_path)
             self.check("isolation", self.isolation)
@@ -443,6 +538,11 @@ def main():
         default="vfs",
     )
     parser.add_argument("--network", default="static-agent")
+    parser.add_argument(
+        "--dns",
+        action="append",
+        help="Engine DNS server; repeat (default: host resolver IPv4)",
+    )
     parser.add_argument("--sandbox-network", default="pasta")
     parser.add_argument("--allowed-url", default="https://example.com/")
     parser.add_argument("--blocked-url", default="http://172.31.0.6:2283/")
