@@ -465,7 +465,7 @@
             ;; docs/new-api.org.  Bump the tag together with a new build.
             (service new-api-service-type
               (new-api-configuration
-               (image "localhost/new-api-traj:v1.0.0-rc.41-2270579b9e2d")
+               (image "localhost/new-api-traj:v1.0.0-rc.41-8482c37b7f25")
                (address "172.31.0.9")))
             (service immich-service-type
               (immich-configuration
