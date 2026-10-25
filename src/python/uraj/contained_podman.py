@@ -962,24 +962,29 @@ def session_mounts(options):
             source, mode = option[len("--expose=") :], "ro"
         else:
             raise ValueError("Not a project mount: " + option)
-        path = Path(source)
-        if (
-            not path.is_absolute()
-            or source == "/"
-            or ".." in path.parts
-            or any(char in source for char in ("=", ":", ",", "\n"))
-        ):
-            raise ValueError("Unsupported runtime mount: " + source)
+        # Guix's SOURCE=TARGET form; the agent addresses TARGET.
+        source, _, target = source.partition("=")
+        target = target or source
+        for end in (source, target):
+            if (
+                not Path(end).is_absolute()
+                or end == "/"
+                or ".." in Path(end).parts
+                or any(char in end for char in ("=", ":", ",", "\n"))
+            ):
+                raise ValueError("Unsupported runtime mount: " + option)
         if any(
-            source == root
-            or source.startswith(root + "/")
-            or root.startswith(source.rstrip("/") + "/")
+            end == root
+            or end.startswith(root + "/")
+            or root.startswith(end.rstrip("/") + "/")
+            for end in (source, target)
             for root in reserved
         ):
-            raise ValueError("Mount overlaps runtime infrastructure: " + source)
+            raise ValueError("Mount overlaps runtime infrastructure: " + option)
+        path = Path(source)
         if not path.exists():
             raise ValueError("Project mount disappeared: " + source)
-        mounts.append((path, source, mode))
+        mounts.append((path, target, mode))
     return mounts
 
 

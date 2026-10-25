@@ -38,6 +38,29 @@ class Mounts(unittest.TestCase):
                 ],
             )
 
+    def test_mapped_mount_uses_target(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "instances"
+            source.mkdir()
+            target = tmp + "/work tree/instances"
+            result = RUNTIME.session_mounts(
+                [f"--share={source}={target}", f"--expose={source}={target}"]
+            )
+            self.assertEqual(
+                result, [(source, target, "rw"), (source, target, "ro")]
+            )
+            for mapped in (
+                f"{source}=relative",
+                f"{source}=/run/x",
+                f"{source}=/home/podman",
+                f"{source}=/tmp/../etc",
+                f"{source}=/tmp/a=b",
+                f"{source}=/tmp/a:b",
+                f"/etc={target}",
+            ):
+                with self.subTest(mapped=mapped), self.assertRaises(ValueError):
+                    RUNTIME.session_mounts(["--share=" + mapped])
+
     def test_infrastructure_and_ambiguous_paths_rejected(self):
         for path in (
             "/",
