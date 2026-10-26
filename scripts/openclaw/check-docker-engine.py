@@ -2,7 +2,9 @@
 """Probe a Docker-hosted rootless Podman engine for OpenClaw sandboxes.
 
 Run on storie as a docker-group user whose UID matches the engine image's
-podman user (1000).  It creates only disposable containers named
+podman user (1000). This tests nesting primitives, not the deployed Compose
+stack (UID 2010, ACLs, skill mounts and OpenClaw routing need separate checks).
+It creates only disposable containers named
 openclaw-engine-probe-*, and files below /var/tmp/openclaw-engine-*.
 """
 
@@ -10,6 +12,7 @@ import argparse
 import importlib.util
 import json
 import os
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -385,7 +388,7 @@ class Probe:
     def same_path(self):
         shared = self.path("shared")
         self.sandbox_exec(
-            f"grep -qx host {shared}/from-host; "
+            f"grep -qx host {shared}/from-host && "
             f"echo sandbox > {shared}/from-sandbox"
         )
         written = shared / "from-sandbox"
@@ -397,18 +400,21 @@ class Probe:
     def isolation(self):
         shared = self.path("shared")
         self.sandbox_exec(
-            f"! cat {shared}/escape 2>/dev/null; "
-            f"! test -e {self.path('unshared-secret')}; "
-            f"grep -qx original {shared}/readonly/sentinel; "
+            f"! cat {shared}/escape 2>/dev/null && "
+            f"! test -e {self.path('unshared-secret')} && "
+            f"grep -qx original {shared}/readonly/sentinel && "
             f"! touch {shared}/readonly/x 2>/dev/null"
         )
 
     def init_process(self):
-        return self.sandbox_exec("cat /proc/1/comm").stdout.strip()
+        name = self.sandbox_exec("cat /proc/1/comm").stdout.strip()
+        if name not in ("catatonit", "podman-init"):
+            raise RuntimeError(f"Unexpected PID 1: {name}")
+        return name
 
     def egress(self, url, expect):
         result = self.sandbox_exec(
-            f"wget -q -T 8 -O /dev/null {url} && echo open || echo closed",
+            f"wget -q -T 8 -O /dev/null {shlex.quote(url)} && echo open || echo closed",
             check=False,
         )
         state = result.stdout.strip().splitlines()[-1:] or ["error"]
@@ -429,7 +435,13 @@ class Probe:
             "|| echo hidden",
             check=False,
         )
-        return result.stdout.strip() or "FAIL: " + result.stderr[-500:]
+        if result.returncode or result.stdout.strip() != "hidden":
+            raise RuntimeError(
+                "Host path isolation failed: "
+                + result.stdout.strip()
+                + result.stderr[-500:]
+            )
+        return "hidden"
 
     def same_bridge_gateway(self):
         address = self.run(
@@ -513,7 +525,9 @@ class Probe:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--engine-image", default="quay.io/podman/stable")
+    parser.add_argument(
+        "--engine-image", default="quay.io/podman/stable:v5.8.9"
+    )
     parser.add_argument("--task-image", default="docker.io/library/alpine:3.21")
     parser.add_argument(
         "--seccomp",

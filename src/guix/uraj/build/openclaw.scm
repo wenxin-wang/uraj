@@ -7,7 +7,7 @@
   #:use-module (srfi srfi-1)
   #:export (openclaw-image-for-tag prepare-openclaw))
 
-(define* (openclaw-image-for-tag image tag #:optional (local-repository "localhost/openclaw-feishu"))
+(define* (openclaw-image-for-tag image tag #:optional (local-repository "localhost/openclaw-gateway"))
   "Select TAG in IMAGE's repository, or retain the declared digest."
   (let* ((base (car (string-split image #\@)))
          (colon (string-rindex base #\:))

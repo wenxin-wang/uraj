@@ -344,7 +344,7 @@
 (define %openclaw-configuration
   (openclaw-configuration
     (image "sha256:cf70e2d4fdaa425c5d4e82c1be46a706192ea6bac9ac3f0747bc4650af4e7092")
-    (image-repository "localhost/openclaw-feishu")
+    (image-repository "localhost/openclaw-gateway")
     ;; Built from env/docker/openclaw-{engine,sandbox}; see docs/openclaw.org.
     (engine-image
      "sha256:e4a6f63d8faab21dfe3d04cf55a8856192125dd17b52ab60ca644feeb7f801cc")

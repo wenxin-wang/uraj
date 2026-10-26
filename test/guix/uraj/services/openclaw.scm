@@ -5,7 +5,7 @@
              (uraj build openclaw) (uraj services openclaw))
 
 (define image
-  (string-append "localhost/openclaw-feishu:2026.10.3@sha256:" (make-string 64 #\a)))
+  (string-append "localhost/openclaw-gateway:2026.10.3@sha256:" (make-string 64 #\a)))
 (define provider
   (openclaw-provider (name "new-api") (api "openai-completions")
                      (models '("test-model"))))
@@ -259,7 +259,7 @@
 (test-equal "Feishu uses file SecretRef" "feishu-app-secret"
   (at app "channels" "feishu" "accounts" "main" "appSecret" "provider"))
 (test-equal "plain restart restores pinned declaration" image (openclaw-image-for-tag image #f))
-(test-equal "temporary tag removes digest" "localhost/openclaw-feishu:trial"
+(test-equal "temporary tag removes digest" "localhost/openclaw-gateway:trial"
   (openclaw-image-for-tag image "trial"))
 (test-equal "local image ID selects the configured repository" "localhost/custom:trial"
   (openclaw-image-for-tag (string-append "sha256:" (make-string 64 #\b))
@@ -378,10 +378,17 @@
       (list result (reverse calls) stopped?))))
 (let* ((result (start "trial")) (up (last (cadr result))))
   (test-equal "reports requested version and immutable image ID"
-    '("localhost/openclaw-feishu:trial" "sha256:resolved-local-image") (car result))
+    '("localhost/openclaw-gateway:trial" "sha256:resolved-local-image") (car result))
   (test-assert "executes resolved ID with no pulls or builds"
     (and (member "OPENCLAW_IMAGE=sha256:resolved-local-image" up)
          (member "never" up) (member "--no-build" up) (member "--force-recreate" up))))
+(let* ((calls (cadr (start #f)))
+       (ups (filter (lambda (call) (member "up" call)) calls)))
+  (test-equal "engine is started only once" "engine" (last (car ups)))
+  (test-assert "Gateway startup cannot recreate the checked engine"
+    (and (= 2 (length ups))
+         (equal? "gateway" (last (cadr ups)))
+         (member "--no-deps" (cadr ups)))))
 (test-equal "missing local image never prepares files or starts containers"
   '(#f () #f) (start "absent" #:missing? #t))
 (test-assert "failed Compose start stops the partial stack" (caddr (start #f #:fail-up? #t)))

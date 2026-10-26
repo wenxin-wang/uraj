@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Write the OpenClaw engine's seccomp profile from its image's base profile.
 
-Usage: engine-seccomp.py [IMAGE] > env/docker/openclaw-engine/seccomp.json
+Usage: engine-seccomp.py [IMAGE] > env/docker/openclaw-sandbox-engine/seccomp.json
 
 With IMAGE, read /usr/share/containers/seccomp.json from that local Docker
 image; otherwise read the base profile from standard input.

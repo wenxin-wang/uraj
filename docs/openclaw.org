@@ -136,11 +136,13 @@ home 与引擎存储仍为 0700，不对该组开放。
 
 引擎的放宽参数沿用 contained-agent Podman runtime 原型的经验，但那是在
 rootless Podman 外层上验证的，Docker 外层另做了一次性验证。更换引擎基础
-镜像、Docker 或内核后，在 storie 上以管理员身份（UID 1000、docker 组）
-重新运行：
+镜像、Docker 或内核后，可用它单独诊断 seccomp、keep-id 和存储驱动。
+它使用上游 UID 1000 镜像与 Alpine，并不启动正式 Compose 服务；通过不代表
+UID 2010、ACL、skill 嵌套挂载、独立网络和 OpenClaw 工具路由都已验收。
+正式部署仍须执行本文“验证”一节。在 storie 上以 UID 1000、docker 组运行：
 
 #+begin_src sh
-guix shell python docker-cli -- python3 scripts/openclaw/try-docker-engine.py
+guix shell python docker-cli -- python3 scripts/openclaw/check-docker-engine.py
 #+end_src
 
 脚本只创建 =openclaw-engine-probe-*= 容器和 =/var/tmp/openclaw-engine-*=
@@ -159,6 +161,9 @@ chroot、setns、sethostname）、=systempaths=unconfined=、只加回 SETUID/SE
 若某项失败，可用 =--seccomp=、=--cap-add=、=--no-unmask=、=--storage=
 逐项对照；新增 SYS_ADMIN 或改为特权容器前须重新评估方案。=results.json=
 中的 =engine_process_status= 记录引擎实际的 capability 与 seccomp 状态。
+网络检查只记录 wget 能否完成请求：目标服务宕机、HTTP 错误也可能表现为
+“closed”，不能单凭这一项证明防火墙阻断；需确认目标服务正常，并结合
+restricted-network 规则验收。
 
 2026-10-24 在 storie 上全部通过（引擎镜像 =quay.io/podman/stable=
 =sha256:f790c751…=，内层 Podman 5.8.9、crun 1.28）。引擎 capability 上限只有
@@ -220,13 +225,13 @@ git clone --branch v2026.10.3 --depth 1 https://github.com/openclaw/openclaw.git
 cd openclaw-source
 git rev-parse HEAD
 docker build --build-arg OPENCLAW_EXTENSIONS=feishu \
-  --tag localhost/openclaw-feishu:2026.10.3 .
+  --tag localhost/openclaw-gateway:2026.10.3 .
 # 检查 /app/dist 中的代码能否解析飞书 SDK；失败时不要部署该镜像。
 docker run --rm --network none --read-only --user 1000:1000 \
   --workdir /app/dist --entrypoint node \
-  localhost/openclaw-feishu:2026.10.3 \
+  localhost/openclaw-gateway:2026.10.3 \
   --input-type=module -e 'await import("@larksuiteoapi/node-sdk")'
-docker save --output openclaw-2026.10.3.tar localhost/openclaw-feishu:2026.10.3
+docker save --output openclaw-2026.10.3.tar localhost/openclaw-gateway:2026.10.3
 scp openclaw-2026.10.3.tar storie.home.labbies.wenxinwang.me:/tmp/
 #+end_src
 
@@ -236,11 +241,11 @@ scp openclaw-2026.10.3.tar storie.home.labbies.wenxinwang.me:/tmp/
 
 #+begin_src sh
 sudo docker load --input /tmp/openclaw-2026.10.3.tar
-sudo docker image inspect --format '{{.Id}}' localhost/openclaw-feishu:2026.10.3
+sudo docker image inspect --format '{{.Id}}' localhost/openclaw-gateway:2026.10.3
 #+end_src
 
 把输出的完整 =sha256:...= 填入 =image=，=image-repository= 保持
-=localhost/openclaw-feishu=。本地构建镜像不一定有 RepoDigest，不能把
+=localhost/openclaw-gateway=。本地构建镜像不一定有 RepoDigest，不能把
 image ID 拼成 =repository@sha256:...=；两者含义不同。服务也接受真正的
 registry manifest digest 引用，但它同样必须已存在于本机。默认配置
 不接受仅 tag 的可变引用。
@@ -269,13 +274,13 @@ from /app/dist/...=，说明运行时从该路径无法解析飞书 SDK，即使
 #+begin_src sh
 sudo docker build --network=host --pull=false \
   --build-arg BASE_IMAGE=sha256:f855681d24db345dcab753842f1137d5e5354ad83da7be28caacc7c0f9c939b0 \
-  -t localhost/openclaw-feishu:2026.10.3-sandbox1 \
-  env/docker/openclaw-feishu
+  -t localhost/openclaw-gateway:2026.10.3-sandbox1 \
+  env/docker/openclaw-gateway
 sudo docker run --rm --network none --read-only \
   --user 1000:1000 --workdir /app/dist --entrypoint node \
-  localhost/openclaw-feishu:2026.10.3-sandbox1 \
+  localhost/openclaw-gateway:2026.10.3-sandbox1 \
   --input-type=module -e 'await import("@larksuiteoapi/node-sdk")'
-sudo docker image inspect --format '{{.Id}}' localhost/openclaw-feishu:2026.10.3-sandbox1
+sudo docker image inspect --format '{{.Id}}' localhost/openclaw-gateway:2026.10.3-sandbox1
 #+end_src
 
 把输出的新 ID 写入 =env/guix/os/storie.scm= 的 OpenClaw =image= 字段，
@@ -289,11 +294,11 @@ sudo docker image inspect --format '{{.Id}}' localhost/openclaw-feishu:2026.10.3
 =HOME= 为可写的 =/tmp=。
 
 #+begin_src sh
-sudo docker build --network=host -t localhost/openclaw-engine:5.8.9-1 \
-  env/docker/openclaw-engine
+sudo docker build --network=host -t localhost/openclaw-sandbox-engine:5.8.9-1 \
+  env/docker/openclaw-sandbox-engine
 sudo docker build --network=host -t localhost/openclaw-sandbox:bookworm-1 \
   env/docker/openclaw-sandbox
-sudo docker image inspect --format '{{.Id}}' localhost/openclaw-engine:5.8.9-1
+sudo docker image inspect --format '{{.Id}}' localhost/openclaw-sandbox-engine:5.8.9-1
 sudo docker image inspect --format '{{.Id}}' localhost/openclaw-sandbox:bookworm-1
 #+end_src
 
@@ -303,8 +308,8 @@ sudo docker image inspect --format '{{.Id}}' localhost/openclaw-sandbox:bookworm
 
 #+begin_src sh
 sudo guix shell python docker-cli -- python3 scripts/openclaw/engine-seccomp.py \
-  localhost/openclaw-engine:5.8.9-1 > env/docker/openclaw-engine/seccomp.json
-git diff env/docker/openclaw-engine/seccomp.json
+  localhost/openclaw-sandbox-engine:5.8.9-1 > env/docker/openclaw-sandbox-engine/seccomp.json
+git diff env/docker/openclaw-sandbox-engine/seccomp.json
 #+end_src
 
 把两个 ID 写入 =engine-image= 与 =sandbox-image=。沙箱从不拉取镜像；

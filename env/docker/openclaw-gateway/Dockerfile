@@ -1,7 +1,7 @@
 # Repair SDK resolution from /app/dist in the locally built v2026.10.3 image.
 # Version from upstream extensions/feishu/package.json at
 # 59cb44796b0f1f0daa0e37af8b1495abb45d9bc1.
-ARG BASE_IMAGE=localhost/openclaw-feishu:2026.10.3
+ARG BASE_IMAGE=localhost/openclaw-gateway:2026.10.3
 FROM ${BASE_IMAGE}
 
 USER root

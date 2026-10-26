@@ -46,7 +46,7 @@
   ;; declared image; restart TAG is an explicit temporary exception.
   (image openclaw-image)
   ;; Used for restart TAG when IMAGE is a locally built sha256 image ID.
-  (image-repository openclaw-image-repository (default "localhost/openclaw-feishu"))
+  (image-repository openclaw-image-repository (default "localhost/openclaw-gateway"))
   (secrets-file openclaw-secrets-file)
   (feishu-app-id openclaw-feishu-app-id)
   ;; Full provider/model reference, explicitly present in PROVIDERS.
@@ -317,7 +317,7 @@
               (interval . "30s") (timeout . "10s")
               (start_period . "60s") (retries . 5)))))
           ;; Rootless Podman nested in Docker; see docs/openclaw.org for why
-          ;; each relaxation is needed.  It holds no credentials or state.
+          ;; each relaxation is needed.  Only selected sandbox state is shared.
           (engine .
            ((image . ,(openclaw-engine-image config))
             (pull_policy . "never") (restart . "on-failure")
@@ -445,7 +445,8 @@
                   (invoke #$(file-append coreutils "/bin/env")
                           (string-append "OPENCLAW_IMAGE=" id)
                           #$command "up" "-d" "--pull" "never" "--no-build"
-                          "--force-recreate" "--wait" "--wait-timeout" "180")
+                          "--force-recreate" "--no-deps" "--wait" "--wait-timeout" "180"
+                          "gateway")
                   (list image id))
                 (lambda args
                   (system* #$command "stop" "--timeout" "30")
@@ -478,7 +479,7 @@
                   ,(local-file "../../../../scripts/openclaw/config-plugin"
                                #:recursive? #t))
                  ("openclaw/engine-seccomp.json"
-                  ,(local-file "../../../../env/docker/openclaw-engine/seccomp.json"))
+                  ,(local-file "../../../../env/docker/openclaw-sandbox-engine/seccomp.json"))
                  ("openclaw/config.mjs"
                   ,(local-file "../../../../scripts/openclaw/config.mjs"))
                  ("openclaw/config-policy.mjs"
