@@ -7,16 +7,18 @@ import { readFile } from "node:fs/promises";
 
 const readJson = async (path) => JSON.parse(await readFile(path, "utf8"));
 const pkg = await readJson("/app/package.json");
-const config = await readJson("/home/node/.openclaw/openclaw.json");
+const config = await readJson(process.env.OPENCLAW_CONFIG_PATH);
 const tools = config.tools ?? {};
 console.log(JSON.stringify({
   version: pkg.version,
   workspace: config.agents?.defaults?.workspace,
+  sandbox: config.agents?.defaults?.sandbox,
   tools: {
     profile: tools.profile,
     allow: tools.allow,
     deny: tools.deny,
     workspaceOnly: tools.fs?.workspaceOnly,
+    exec: tools.exec,
     applyPatch: tools.exec?.applyPatch,
   },
   imageModel: config.agents?.defaults?.mediaModels?.image?.primary,

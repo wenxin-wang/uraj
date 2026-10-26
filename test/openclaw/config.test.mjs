@@ -5,14 +5,19 @@ import { reconcile, validatePolicy } from "../../scripts/openclaw/config-policy.
 
 const base = {
   models: { providers: { local: { models: [{ id: "one" }, { id: "two" }] } } },
-  tools: { allow: ["exec"], exec: { host: "gateway", mode: "full" } },
+  tools: { allow: ["exec"], exec: { host: "sandbox", mode: "full" } },
   plugins: { entries: { feishu: { enabled: true } } },
-  agents: { defaults: { workspace: "/workspace", model: { primary: "local/one" } } },
+  agents: {
+    defaults: { workspace: "/data/openclaw/workspaces/main", model: { primary: "local/one" } },
+    entries: { main: { workspace: "/data/openclaw/workspaces/main",
+      agentDir: "/data/openclaw/home/.openclaw/agents/main/agent" } },
+  },
 };
+const alice = "/data/openclaw/workspaces/alice";
 
 test("reconcile preserves registrations and approved model, restores managed values", () => {
   const existing = structuredClone(base);
-  existing.agents.entries = { alice: { workspace: "/workspaces/alice" } };
+  existing.agents.entries = { alice: { workspace: alice } };
   existing.bindings = [{ agentId: "alice", match: { channel: "feishu" } }];
   existing.agents.defaults.model = "local/two";
   existing.tools.allow.push("browser");
@@ -30,7 +35,9 @@ test("policy rejects override, include, environment, traversal and unapproved mo
     (c) => { c.hooks = { enabled: true }; },
     (c) => { c.agents.defaults.sandbox = { mode: "off" }; },
     (c) => { c.agents.entries.alice.tools = { allow: ["browser"] }; },
-    (c) => { c.agents.entries.alice.workspace = "/workspaces/../secrets"; },
+    (c) => { c.agents.entries.alice.workspace = "/data/openclaw/workspaces/../home"; },
+    (c) => { c.agents.entries.alice.workspace = "/workspaces/alice"; },
+    (c) => { c.agents.entries.alice.agentDir = "/data/openclaw/workspaces/alice/agent"; },
     (c) => { c.agents.entries.alice.workspace = "${HOME}/workspace"; },
     (c) => { delete c.agents.entries.alice.workspace; },
     (c) => { c.agents.entries.alice.agentDir = "/run/secrets"; },
@@ -39,16 +46,23 @@ test("policy rejects override, include, environment, traversal and unapproved mo
   ];
   for (const edit of edits) {
     const c = structuredClone(base);
-    c.agents.entries = { alice: { workspace: "/workspaces/alice" } };
+    c.agents.entries = { alice: { workspace: alice } };
     edit(c);
     assert.throws(() => validatePolicy(c, base));
   }
 });
 
+test("agents may use host workspace and state paths below Guix's roots", () => {
+  const c = structuredClone(base);
+  c.agents.entries.alice = { workspace: alice,
+    agentDir: "/data/openclaw/home/.openclaw/agents/alice/agent" };
+  validatePolicy(c, base);
+});
+
 test("forbidden edit is rejected before native CLI can evaluate its contents", async () => {
   let invoked = false;
   await assert.rejects(checkedSet(["agents.entries.alice", JSON.stringify({
-    workspace: "/workspaces/alice", tools: { exec: { security: "full" } },
+    workspace: alice, tools: { exec: { security: "full" } },
   })], {
     base, snapshot: async () => ({ config: base, hash: "revision" }),
     mutate: async () => { invoked = true; },
@@ -94,7 +108,7 @@ test("restart reconciliation emits canonical exec mode and still rejects drift",
   const legacy = structuredClone(base);
   legacy.tools.exec = { host: "gateway", security: "full", ask: "off" };
   const next = reconcile(legacy, base);
-  assert.deepEqual(next.tools.exec, { host: "gateway", mode: "full" });
+  assert.deepEqual(next.tools.exec, { host: "sandbox", mode: "full" });
   validatePolicy(next, base);
   next.tools.exec.mode = "auto";
   assert.throws(() => validatePolicy(next, base), /differing paths: tools.exec.mode/);

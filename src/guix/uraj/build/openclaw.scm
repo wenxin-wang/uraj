@@ -1,4 +1,4 @@
-;;; Runtime preparation for the trusted OpenClaw Gateway.
+;;; Runtime preparation for the OpenClaw Gateway and its sandbox engine.
 (define-module (uraj build openclaw)
   #:use-module (guix build syscalls)
   #:use-module (ice-9 rdelim)
@@ -7,7 +7,7 @@
   #:use-module (srfi srfi-1)
   #:export (openclaw-image-for-tag prepare-openclaw))
 
-(define* (openclaw-image-for-tag image tag #:optional (local-repository "localhost/openclaw-feishu"))
+(define* (openclaw-image-for-tag image tag #:optional (local-repository "localhost/openclaw-gateway"))
   "Select TAG in IMAGE's repository, or retain the declared digest."
   (let* ((base (car (string-split image #\@)))
          (colon (string-rindex base #\:))
@@ -29,12 +29,12 @@
   (unless (eq? 'directory (stat:type (lstat path)))
     (error "Expected a real directory" path)))
 
-(define (private-directory path uid gid)
+(define* (private-directory path uid gid #:optional (mode #o700))
   (real-directory (dirname path))
   (unless (file-exists? path) (mkdir path #o700))
   (real-directory path)
   (chown path uid gid)
-  (chmod path #o700))
+  (chmod path mode))
 
 (define (resolver-addresses path)
   (let ((addresses
@@ -60,9 +60,12 @@
 
 (define* (prepare-openclaw data secret-files
                           #:key (runtime "/run/openclaw")
+                          (engine-runtime "/run/openclaw-engine")
+                          (sandbox-state '())
                           (resolver "/run/restricted-network/resolv.conf")
                           (data-mount "/data") (data-type "btrfs")
-                          (uid 1000) (gid 1000)
+                          (uid 2010) (gid 2010) (readers "log-readers")
+                          (setfacl "setfacl")
                           (current-mounts (mounts)))
   "Check prerequisites before writing, then stage private files and DNS."
   (unless (and (string-prefix? (string-append data-mount "/") data)
@@ -82,14 +85,42 @@
                     (positive? (stat:size info)))
          (error "Missing or empty OpenClaw secret" (car entry)))))
    secret-files)
-  (let ((dns (resolver-addresses resolver)))
+  (let ((dns (resolver-addresses resolver))
+        ;; READERS may list and read workspaces, e.g. to collect reports.
+        (reader-gid (if (integer? readers) readers (group:gid (getgrnam readers)))))
     (umask #o077)
     ;; DATA stays root-owned; do not recursively chmod/chown user state.
-    (private-directory data 0 0)
+    ;; Readers may traverse to workspaces, but not into home or engine.
+    (private-directory data 0 reader-gid #o750)
     (private-directory (string-append data "/home") uid gid)
-    (private-directory (string-append data "/workspaces") uid gid)
-    (private-directory (string-append data "/workspaces/main") uid gid)
+    ;; The engine binds these before OpenClaw would create them.
+    (for-each
+     (lambda (part)
+       (let loop ((parts (string-split part #\/))
+                  (path (string-append data "/home")))
+         (unless (null? parts)
+           (let ((next (string-append path "/" (car parts))))
+             (private-directory next uid gid)
+             (loop (cdr parts) next)))))
+     sandbox-state)
+    (private-directory (string-append data "/engine") uid gid)
+    (for-each
+     (lambda (path)
+       ;; Readers get access only through ACLs.  crun creates mount points
+       ;; here in a keep-id user namespace, where root's DAC override needs
+       ;; both owner and group mapped; the reader group is not
+       ;; (podman#27785), so it must not own these directories.
+       (private-directory path uid gid #o750)
+       (let ((acl (format #f "g:~a:rX,d:g:~a:rX" reader-gid reader-gid)))
+         (unless (zero? (system* setfacl "-m" acl path))
+           (error "Could not set the workspace reader ACL" path))))
+     (list (string-append data "/workspaces")
+           (string-append data "/workspaces/main")))
     (private-directory runtime 0 0)
+    (private-directory engine-runtime uid gid)
+    ;; A socket left by a killed engine would block its restart.
+    (let ((socket (string-append engine-runtime "/podman.sock")))
+      (when (false-if-exception (lstat socket)) (delete-file socket)))
     (for-each
      (lambda (entry)
        (let* ((target (string-append runtime "/" (car entry)))
@@ -103,7 +134,8 @@
      secret-files)
     (call-with-output-file (string-append runtime "/compose-dns.json.new")
       (lambda (port)
-        (scm->json `((services . ((gateway . ((dns . ,(list->vector dns)))))))
-                   port)))
+        (let ((entry `((dns . ,(list->vector dns)))))
+          (scm->json `((services . ((gateway . ,entry) (engine . ,entry))))
+                     port))))
     (rename-file (string-append runtime "/compose-dns.json.new")
                  (string-append runtime "/compose-dns.json"))))

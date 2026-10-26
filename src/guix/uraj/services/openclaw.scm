@@ -1,10 +1,14 @@
-;;; Trusted Gateway with checked runtime configuration; credentials stay out of
-;;; the store. See docs/openclaw.org for image preparation and activation.
+;;; Gateway with checked runtime configuration and a nested Podman engine for
+;;; sandboxed tools; credentials stay out of the store and the engine.  See
+;;; docs/openclaw.org for image preparation and activation.
 (define-module (uraj services openclaw)
+  #:use-module (gnu packages acl)
+  #:use-module (gnu packages admin)
   #:use-module (gnu packages base)
   #:use-module (gnu packages guile)
   #:use-module (gnu services)
   #:use-module (gnu services shepherd)
+  #:use-module (gnu system shadow)
   #:use-module (guix gexp)
   #:use-module (guix records)
   #:use-module (ice-9 regex)
@@ -42,7 +46,7 @@
   ;; declared image; restart TAG is an explicit temporary exception.
   (image openclaw-image)
   ;; Used for restart TAG when IMAGE is a locally built sha256 image ID.
-  (image-repository openclaw-image-repository (default "localhost/openclaw-feishu"))
+  (image-repository openclaw-image-repository (default "localhost/openclaw-gateway"))
   (secrets-file openclaw-secrets-file)
   (feishu-app-id openclaw-feishu-app-id)
   ;; Full provider/model reference, explicitly present in PROVIDERS.
@@ -51,8 +55,31 @@
   (providers openclaw-providers)
   ;; Alist of declared provider/model references to slash-command aliases.
   (model-aliases openclaw-model-aliases (default '()))
+  ;; Engine and sandbox images are local image IDs; see docs/openclaw.org.
+  (engine-image openclaw-engine-image)
+  (sandbox-image openclaw-sandbox-image)
+  ;; Shared by the Gateway, the engine's Podman user and sandboxes; the
+  ;; engine image must be built with the same IDs.
+  (uid openclaw-uid (default 2010))
+  (gid openclaw-gid (default 2010))
   (data-directory openclaw-data-directory (default "/data/openclaw"))
-  (network openclaw-network (default "static-agent")))
+  (network openclaw-network (default "static-agent"))
+  (sandbox-network openclaw-sandbox-network (default "sandboxed-agents")))
+
+;; The engine serves Podman here; only the Gateway mounts it.
+(define %engine-runtime "/run/openclaw-engine")
+(define %engine-socket (string-append "unix://" %engine-runtime "/podman.sock"))
+
+(define (data-path config . parts)
+  (string-join (cons (openclaw-data-directory config) parts) "/"))
+
+;; State subdirectories OpenClaw binds read-only into sandboxes: skill copies
+;; for rw workspaces and subagent attachments.  Never credentials.
+(define %sandbox-state-mounts
+  '(".openclaw/sandbox/skills-workspaces" ".openclaw/attachments/subagents"))
+
+(define (owner config)
+  (format #f "~a:~a" (openclaw-uid config) (openclaw-gid config)))
 
 (define %secret-names '("feishu-app-secret" "new-api-token" "gateway-token"))
 
@@ -63,6 +90,15 @@
   (unless (string-match "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
                         (openclaw-image-repository config))
     (error "Invalid OpenClaw image repository"))
+  (for-each (lambda (image)
+              (unless (string-match "^sha256:[0-9a-f]{64}$" image)
+                (error "OpenClaw engine and sandbox images must be local image IDs"
+                       image)))
+            (list (openclaw-engine-image config) (openclaw-sandbox-image config)))
+  ;; Podman rejects UID or GID 0 for rootless keep-id sandboxes.
+  (unless (and (every (lambda (id) (and (exact-integer? id) (< 0 id 65536)))
+                      (list (openclaw-uid config) (openclaw-gid config))))
+    (error "OpenClaw needs a nonzero dedicated UID and GID"))
   (unless (string-match "^cli_[A-Za-z0-9]+$" (openclaw-feishu-app-id config))
     (error "OpenClaw requires a Feishu App ID"))
   (let ((providers (openclaw-providers config)))
@@ -167,7 +203,7 @@
        ((mode . "replace")
         (catalogRefresh . ((enabled . #f)))
         (providers . ,(map provider-config (openclaw-providers config)))))
-      (agents . ((defaults . ((workspace . "/workspace")
+      (agents . ((defaults . ((workspace . ,(data-path config "workspaces/main"))
                              (model . ((primary . ,(openclaw-model config))))
                              (models . ,(if (null? (openclaw-model-aliases config))
                                             '()
@@ -175,16 +211,36 @@
                                                    (cons (car entry)
                                                          `((alias . ,(cdr entry)))))
                                                  (openclaw-model-aliases config))))
-                             (heartbeat . ((every . "0m")))))
+                             (heartbeat . ((every . "0m")))
+                             ;; Every session runs tools in the engine; the
+                             ;; Podman backend needs host paths, see
+                             ;; docs/openclaw.org.
+                             (sandbox
+                              . ((mode . "all") (backend . "podman")
+                                 (scope . "agent") (workspaceAccess . "rw")
+                                 (workspaceRoot
+                                  . ,(data-path config "workspaces/.sandboxes"))
+                                 (docker
+                                  . ((image . ,(string-drop
+                                                (openclaw-sandbox-image config) 7))
+                                     (network . "pasta") (readOnlyRoot . #t)
+                                     (capDrop . #("ALL"))
+                                     (user . ,(owner config))))))))
                  (ownership . "explicit")
-                 (entries . ((main . ((workspace . "/workspace")
-                                      (agentDir . "/home/node/.openclaw/agents/main/agent")))))))
-      ;; Gateway exec is intentionally trusted until a separate sandbox is added.
-      (tools . ((allow . #("read" "write" "edit" "apply_patch" "exec" "process"))
+                 (entries . ((main . ((workspace . ,(data-path config "workspaces/main"))
+                                      (agentDir
+                                       . ,(data-path config
+                                                     "home/.openclaw/agents/main/agent"))))))))
+      (tools . ((allow . #("read" "write" "edit" "apply_patch" "exec" "process"
+                           "openclaw_config_set"))
                 (fs . ((workspaceOnly . #t)))
-                (exec . ((host . "gateway") (mode . "full")
+                ;; No fallback to the Gateway, which holds the credentials.
+                (exec . ((host . "sandbox") (mode . "full")
                          (applyPatch . ((enabled . #t)
-                                       (workspaceOnly . #t)))))))
+                                       (workspaceOnly . #t)))))
+                (elevated . ((enabled . #f)))
+                ;; The checked configuration tool runs in the Gateway.
+                (sandbox . ((tools . ((alsoAllow . #("openclaw_config_set"))))))))
       (browser . ((enabled . #f)))
       (cron . ((enabled . #f)))
       (session . ((dmScope . "per-channel-peer")))
@@ -211,50 +267,91 @@
 
 (define (openclaw-compose-file config)
   (validate-config config)
-  (plain-file
-   "openclaw-compose.json"
-   (scm->json-string
-    `((name . "openclaw")
-      (services .
-       ((gateway .
-         ((image . ,(string-append "${OPENCLAW_IMAGE:-" (openclaw-image config) "}"))
-          (pull_policy . "never") (restart . "on-failure")
-          (user . "1000:1000") (read_only . #t)
-          (cap_drop . #("ALL")) (security_opt . #("no-new-privileges:true"))
-          (pids_limit . 512) (mem_limit . "4g")
-          (tmpfs . #("/tmp:rw,nosuid,nodev,size=512m,mode=1777"
-                     ;; OpenClaw's secure-temp resolver may fall back here.
-                     "/home/node/.cache:rw,nosuid,nodev,size=128m,uid=1000,gid=1000,mode=0700"))
-          ,(compose-logging "openclaw")
-          (environment . ((HOME . "/home/node")
-                          (OPENCLAW_STATE_DIR . "/home/node/.openclaw")
-                          (OPENCLAW_CONFIG_PATH . "/home/node/.openclaw/openclaw.json")
-                          (OPENCLAW_DISABLE_BONJOUR . "1")))
-          (command . #("node" "openclaw.mjs" "gateway"))
-          (volumes .
-           ,(list->vector
-             (append
-              (list (bind (string-append (openclaw-data-directory config) "/home")
-                          "/home/node")
-                    (bind (string-append (openclaw-data-directory config) "/workspaces/main")
-                          "/workspace")
-                    (bind (string-append (openclaw-data-directory config) "/workspaces")
-                          "/workspaces")
-                    (bind "/etc/openclaw/base.json" "/etc/openclaw/base.json" #t)
-                    (bind "/etc/openclaw/config.mjs" "/etc/openclaw/config.mjs" #t)
-                    (bind "/etc/openclaw/config-policy.mjs" "/etc/openclaw/config-policy.mjs" #t)
-                    (bind "/etc/openclaw/config-plugin" "/etc/openclaw/config-plugin" #t))
-              (map (lambda (name) (bind (string-append "/run/openclaw/" name)
-                                        (string-append "/run/secrets/" name) #t))
-                   %secret-names))))
-          ;; The startup program adds explicit DNS from the firewall snapshot.
-          (networks . #("restricted"))
-          (healthcheck .
-           ((test . #("CMD" "node" "-e"
-                      "fetch('http://127.0.0.1:18789/startupz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"))
-            (interval . "30s") (timeout . "10s")
-            (start_period . "60s") (retries . 5)))))))
-      (networks . ((restricted . ((external . #t) (name . ,(openclaw-network config))))))))))
+  (let ((home (data-path config "home"))
+        (workspaces (data-path config "workspaces"))
+        (uid (openclaw-uid config)) (gid (openclaw-gid config)))
+    (plain-file
+     "openclaw-compose.json"
+     (scm->json-string
+      `((name . "openclaw")
+        (services .
+         ((gateway .
+           ((image . ,(string-append "${OPENCLAW_IMAGE:-" (openclaw-image config) "}"))
+            (pull_policy . "never") (restart . "on-failure")
+            (user . ,(owner config)) (read_only . #t)
+            (cap_drop . #("ALL")) (security_opt . #("no-new-privileges:true"))
+            (pids_limit . 512) (mem_limit . "4g")
+            (tmpfs . #("/tmp:rw,nosuid,nodev,size=512m,mode=1777"
+                       ;; OpenClaw's secure-temp resolver may fall back here.
+                       ,(format #f "~a/.cache:rw,nosuid,nodev,size=128m,uid=~a,gid=~a,mode=0700"
+                                home uid gid)))
+            ,(compose-logging "openclaw")
+            ;; The Podman backend binds Gateway paths into sandboxes, so
+            ;; state and workspaces keep their host paths.
+            (environment . ((HOME . ,home)
+                            (OPENCLAW_STATE_DIR . ,(string-append home "/.openclaw"))
+                            (OPENCLAW_CONFIG_PATH
+                             . ,(string-append home "/.openclaw/openclaw.json"))
+                            (OPENCLAW_DISABLE_BONJOUR . "1")
+                            (CONTAINER_HOST . ,%engine-socket)))
+            (command . #("node" "openclaw.mjs" "gateway"))
+            (depends_on . ((engine . ((condition . "service_healthy")))))
+            (volumes .
+             ,(list->vector
+               (append
+                (list (bind home home)
+                      (bind workspaces workspaces)
+                      (bind %engine-runtime %engine-runtime)
+                      (bind "/etc/openclaw/base.json" "/etc/openclaw/base.json" #t)
+                      (bind "/etc/openclaw/config.mjs" "/etc/openclaw/config.mjs" #t)
+                      (bind "/etc/openclaw/config-policy.mjs" "/etc/openclaw/config-policy.mjs" #t)
+                      (bind "/etc/openclaw/config-plugin" "/etc/openclaw/config-plugin" #t))
+                (map (lambda (name) (bind (string-append "/run/openclaw/" name)
+                                          (string-append "/run/secrets/" name) #t))
+                     %secret-names))))
+            ;; The startup program adds explicit DNS from the firewall snapshot.
+            (networks . #("restricted"))
+            (healthcheck .
+             ((test . #("CMD" "node" "-e"
+                        "fetch('http://127.0.0.1:18789/startupz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"))
+              (interval . "30s") (timeout . "10s")
+              (start_period . "60s") (retries . 5)))))
+          ;; Rootless Podman nested in Docker; see docs/openclaw.org for why
+          ;; each relaxation is needed.  Only selected sandbox state is shared.
+          (engine .
+           ((image . ,(openclaw-engine-image config))
+            (pull_policy . "never") (restart . "on-failure")
+            (user . ,(owner config))
+            (cap_drop . #("ALL")) (cap_add . #("SETUID" "SETGID"))
+            (security_opt . #("seccomp=/etc/openclaw/engine-seccomp.json"
+                              "systempaths=unconfined"))
+            (devices . #("/dev/fuse" "/dev/net/tun"))
+            ;; Shared by all sandboxes; Docker mounts cgroups read-only.
+            (pids_limit . 4096) (mem_limit . "8g")
+            (tmpfs . #(,(format #f "/run/user/~a:rw,nosuid,nodev,size=256m,uid=~a,gid=~a,mode=0700"
+                                uid uid gid)))
+            ,(compose-logging "openclaw")
+            (volumes .
+             ,(list->vector
+               (append
+                (list (bind workspaces workspaces)
+                      (bind (data-path config "engine")
+                            "/home/podman/.local/share/containers")
+                      (bind %engine-runtime %engine-runtime))
+                (map (lambda (part)
+                       (let ((path (string-append home "/" part)))
+                         (bind path path #t)))
+                     %sandbox-state-mounts))))
+            (networks . #("sandbox"))
+            (healthcheck .
+             ((test . #("CMD" "podman" "--remote" "--url" ,%engine-socket
+                        "info" "--format" "{{.Host.Security.Rootless}}"))
+              (interval . "30s") (timeout . "10s")
+              (start_period . "30s") (retries . 5)))))))
+        (networks .
+         ((restricted . ((external . #t) (name . ,(openclaw-network config))))
+          (sandbox . ((external . #t)
+                      (name . ,(openclaw-sandbox-network config)))))))))))
 
 (define (openclaw-prepare-program config)
   (validate-config config)
@@ -268,7 +365,11 @@
             #$(openclaw-data-directory config)
             (list #$@(map (lambda (name secret)
                             #~(cons #$name #$(sops-secret->secret-file secret)))
-                          %secret-names (openclaw-secrets config)))))))))
+                          %secret-names (openclaw-secrets config)))
+            #:uid #$(openclaw-uid config) #:gid #$(openclaw-gid config)
+            #:engine-runtime #$%engine-runtime
+            #:sandbox-state '#$%sandbox-state-mounts
+            #:setfacl #$(file-append acl "/bin/setfacl")))))))
 
 (define (openclaw-command config)
   (program-file
@@ -334,10 +435,18 @@
                           (string-append "OPENCLAW_IMAGE=" id)
                           #$command "run" "--rm" "--no-deps" "--pull" "never"
                           "gateway" "node" "openclaw.mjs" "config" "validate")
+                  ;; Sandboxes never pull; their image must already be in
+                  ;; the engine's persistent store.
+                  (invoke #$command "up" "-d" "--pull" "never" "--no-build"
+                          "--force-recreate" "--wait" "--wait-timeout" "120"
+                          "engine")
+                  (invoke #$command "exec" "-T" "engine" "podman" "image" "exists"
+                          #$(string-drop (openclaw-sandbox-image config) 7))
                   (invoke #$(file-append coreutils "/bin/env")
                           (string-append "OPENCLAW_IMAGE=" id)
                           #$command "up" "-d" "--pull" "never" "--no-build"
-                          "--force-recreate" "--wait" "--wait-timeout" "180")
+                          "--force-recreate" "--no-deps" "--wait" "--wait-timeout" "180"
+                          "gateway")
                   (list image id))
                 (lambda args
                   (system* #$command "stop" "--timeout" "30")
@@ -345,11 +454,21 @@
        (stop #~(lambda _ (invoke #$command "stop" "--timeout" "30") #f))
        (actions (list (shepherd-configuration-action (openclaw-compose-file config))))))))
 
+(define (openclaw-accounts config)
+  ;; Names the dedicated IDs on the host; the containers use them numerically.
+  (list (user-group (name "openclaw") (id (openclaw-gid config)) (system? #t))
+        (user-account
+          (name "openclaw") (uid (openclaw-uid config)) (group "openclaw")
+          (system? #t) (comment "OpenClaw Gateway and sandboxes")
+          (home-directory "/var/empty") (create-home-directory? #f)
+          (shell (file-append shadow "/sbin/nologin")))))
+
 (define openclaw-service-type
   (service-type
     (name 'openclaw)
     (extensions
      (list (service-extension shepherd-root-service-type openclaw-shepherd-services)
+           (service-extension account-service-type openclaw-accounts)
            (service-extension sops-secrets-service-type openclaw-secrets)
            (service-extension service-log-service-type
              (lambda (_) (list (service-log (name "openclaw") (containers? #t)))))
@@ -359,10 +478,12 @@
                  ("openclaw/config-plugin"
                   ,(local-file "../../../../scripts/openclaw/config-plugin"
                                #:recursive? #t))
+                 ("openclaw/engine-seccomp.json"
+                  ,(local-file "../../../../env/docker/openclaw-sandbox-engine/seccomp.json"))
                  ("openclaw/config.mjs"
                   ,(local-file "../../../../scripts/openclaw/config.mjs"))
                  ("openclaw/config-policy.mjs"
                   ,(local-file "../../../../scripts/openclaw/config-policy.mjs"))
                  ("openclaw/compose.json" ,(openclaw-compose-file config))
                  ("openclaw/compose" ,(openclaw-command config)))))))
-    (description "Administrator-paired OpenClaw Gateway on the restricted workload network.")))
+    (description "Administrator-paired OpenClaw Gateway with sandboxed tool execution.")))

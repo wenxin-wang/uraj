@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import plugin, { routeConfigSet } from "../../scripts/openclaw/config-plugin/index.mjs";
+import plugin, { blockConfigSet, createConfigSetTool }
+  from "../../scripts/openclaw/config-plugin/index.mjs";
 
 const event = (command) => ({ toolName: "exec", params: { command, timeout: 30 } });
 
-test("shipped manifest activates the hook at Gateway startup, not only CLI inspection", () => {
+test("shipped manifest activates at startup and declares the Gateway tool", () => {
   const root = new URL("../../scripts/openclaw/config-plugin/", import.meta.url);
   const manifest = JSON.parse(readFileSync(new URL("openclaw.plugin.json", root), "utf8"));
   const pkg = JSON.parse(readFileSync(new URL("package.json", root), "utf8"));
@@ -16,74 +16,79 @@ test("shipped manifest activates the hook at Gateway startup, not only CLI inspe
   assert.equal(manifest.id, plugin.id);
   assert.equal(manifest.activation.onStartup, true);
   assert.ok(manifest.activation.onCapabilities.includes("hook"));
+  assert.deepEqual(manifest.contracts.tools, ["openclaw_config_set"]);
   assert.deepEqual(pkg.openclaw.extensions, ["./index.mjs"]);
 });
 
-test("registers an exec-only native hook", () => {
-  plugin.register({ on(name, handler, options) {
-    assert.equal(name, "before_tool_call");
-    assert.equal(handler, routeConfigSet);
-    assert.deepEqual(options.matcher, ["exec"]);
-  } });
+test("registers the declared tool and an exec-only hook", () => {
+  const tools = [];
+  plugin.register({
+    registerTool(tool) { tools.push(tool.name); },
+    on(name, handler, options) {
+      assert.equal(name, "before_tool_call");
+      assert.equal(handler, blockConfigSet);
+      assert.deepEqual(options.matcher, ["exec"]);
+    },
+  });
+  assert.deepEqual(tools, ["openclaw_config_set"]);
 });
 
-test("native string and JSON forms reach checker with equivalent arguments", () => {
-  for (const [command, expected] of [
-    ["openclaw config set agents.defaults.model local/one", '"local/one"'],
-    ["node /app/openclaw.mjs config set bindings '[]' --strict-json", "[]"],
-    ['openclaw config set --json bindings "[]"', "[]"],
-    ["openclaw config set agents.entries.a '{\"name\":\"研究 助手\",\"workspace\":\"/workspaces/a\"}'",
-      JSON.stringify({ name: "研究 助手", workspace: "/workspaces/a" })],
-    ["openclaw config set 'bindings[0].agentId' research", '"research"'],
-    ["openclaw config set agents.entries.a.name ''", '""'],
-    [String.raw`openclaw config set agents.entries.a.name 'a'\''b $HOME $(touch nope)'`,
-      JSON.stringify("a'b $HOME $(touch nope)")],
-  ]) {
-    const result = routeConfigSet(event(command));
-    assert.equal(result.params.timeout, 30);
-    // Ask the real POSIX shell to decode the generated command into argv without
-    // executing node or any payload: replace node with a shell function.
-    const script = 'node() { printf "%s\\0" "$@"; }; ' + result.params.command;
-    const run = spawnSync("sh", ["-c", script], { encoding: "utf8" });
-    assert.equal(run.status, 0, run.stderr);
-    const argv = run.stdout.split("\0").slice(0, -1);
-    assert.equal(argv[0], "/etc/openclaw/config.mjs");
-    assert.equal(argv[1], "set");
-    assert.equal(argv[3], expected);
-  }
+test("tool passes exactly one path and JSON value to the checker", async () => {
+  let call;
+  const tool = createConfigSetTool(async (args) => {
+    call = args;
+    return { ok: true, stdout: "Configuration committed.\n", stderr: "" };
+  });
+  const value = { name: "研究 助手", workspace: "/data/openclaw/workspaces/a" };
+  const result = await tool.execute("call", { path: "agents.entries.a", value });
+  assert.deepEqual(call, ["set", "agents.entries.a", JSON.stringify(value)]);
+  assert.equal(result.content[0].text, "Configuration committed.");
+  assert.equal(result.details.ok, true);
 });
 
-test("complex or unsupported config set calls are blocked without execution", () => {
+test("tool reports checker refusals and rejects incomplete calls", async () => {
+  const tool = createConfigSetTool(async () => ({
+    ok: false, stdout: "", stderr: "Only agent and binding edits are accepted\n",
+  }));
+  const result = await tool.execute("call", { path: "tools.allow", value: ["*"] });
+  assert.equal(result.details.ok, false);
+  assert.match(result.content[0].text, /Only agent and binding edits/);
+  await assert.rejects(tool.execute("call", { path: "bindings" }));
+  await assert.rejects(tool.execute("call", { value: [] }));
+});
+
+test("the checker runs without blocking the Gateway event loop", async () => {
+  // A synchronous child would starve the Gateway RPC it calls back into.
+  let ticked = false;
+  const tool = createConfigSetTool(() => new Promise((resolve) => {
+    setImmediate(() => { ticked = true; resolve({ ok: true, stdout: "ok", stderr: "" }); });
+  }));
+  await tool.execute("call", { path: "bindings", value: [] });
+  assert.equal(ticked, true);
+  const source = readFileSync(new URL(
+    "../../scripts/openclaw/config-plugin/index.mjs", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /spawnSync|execFileSync/);
+});
+
+test("native config set attempts are redirected without execution", () => {
   for (const command of [
-    "openclaw config set --help",
-    "node /app/openclaw.mjs config set --help",
+    "openclaw config set agents.defaults.model local/one",
+    "node /app/openclaw.mjs config set bindings '[]' --strict-json",
     "openclaw config set bindings '[]'; echo done",
-    "openclaw config set bindings '[]' | cat",
-    "openclaw config set bindings '[]' > file",
-    'openclaw config set agents.defaults.model "$MODEL"',
-    "openclaw config set bindings $(cat file)",
-    "openclaw config set bindings `cat file`",
-    "OPENCLAW_CONFIG_PATH=/tmp/x openclaw config set bindings '[]'",
-    "openclaw config set bindings '[]' --dry-run",
-    "openclaw config set --batch-json '[]'",
-    "openclaw config set bindings '[{unquoted:true}]'",
-    "openclaw config set bindings '[]'\necho done",
-    "openclaw config set agents.entries.a.name 'unfinished",
-    "openclaw config set agents.defaults.model local/one --strict-json",
+    "cd /tmp && openclaw  config   set x 1",
   ]) {
-    const result = routeConfigSet(event(command));
+    const result = blockConfigSet(event(command));
     assert.equal(result.block, true, command);
-    assert.equal(result.params, undefined);
+    assert.match(result.blockReason, /openclaw_config_set/);
   }
 });
 
-test("unrelated shell, reads, checker calls and non-shell tools are untouched", () => {
-  for (const command of ["ls | head", "openclaw config get tools", "echo $HOME",
-    "node /etc/openclaw/config.mjs set bindings '[]'"]) {
-    assert.equal(routeConfigSet(event(command)), undefined);
+test("unrelated shell, reads and non-shell tools are untouched", () => {
+  for (const command of ["ls | head", "openclaw config get tools", "echo $HOME"]) {
+    assert.equal(blockConfigSet(event(command)), undefined);
   }
-  assert.equal(routeConfigSet({ ...event("openclaw config set x 1"),
+  assert.equal(blockConfigSet({ ...event("openclaw config set x 1"),
     toolName: "read" }), undefined);
-  assert.equal(routeConfigSet({ ...event("openclaw config set x 1"),
+  assert.equal(blockConfigSet({ ...event("openclaw config set x 1"),
     toolKind: "code_mode_exec" }), undefined);
 });

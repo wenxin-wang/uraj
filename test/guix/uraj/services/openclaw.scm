@@ -5,13 +5,15 @@
              (uraj build openclaw) (uraj services openclaw))
 
 (define image
-  (string-append "localhost/openclaw-feishu:2026.10.3@sha256:" (make-string 64 #\a)))
+  (string-append "localhost/openclaw-gateway:2026.10.3@sha256:" (make-string 64 #\a)))
 (define provider
   (openclaw-provider (name "new-api") (api "openai-completions")
                      (models '("test-model"))))
 (define config
   (openclaw-configuration
     (image image) (secrets-file (plain-file "fixture.yaml" "fixture"))
+    (engine-image (string-append "sha256:" (make-string 64 #\c)))
+    (sandbox-image (string-append "sha256:" (make-string 64 #\d)))
     (feishu-app-id "cli_test") (model "new-api/test-model")
     (providers (list provider))))
 (define (at value . keys)
@@ -19,6 +21,7 @@
 (define manifest (json-string->scm (plain-file-content (openclaw-compose-file config))))
 (define app (json-string->scm (plain-file-content (openclaw-config-file config))))
 (define gateway (at manifest "services" "gateway"))
+(define engine (at manifest "services" "engine"))
 
 (test-begin "openclaw")
 (define alias-config
@@ -35,33 +38,73 @@
  '((("new-api/missing" . "missing-6"))
    (("new-api/test-model" . "bad/name"))
    (("new-api/test-model" . "test-6") ("new-api/test-model" . "other-6"))))
-(test-equal "one container" '("gateway") (map car (at manifest "services")))
+(test-equal "Gateway and sandbox engine" '("engine" "gateway")
+  (sort (map car (at manifest "services")) string<?))
 (test-equal "only restricted network" '#("restricted") (at gateway "networks"))
-(test-assert "network owned externally" (at manifest "networks" "restricted" "external"))
+(test-equal "engine only on the sandbox network" '#("sandbox") (at engine "networks"))
+(test-assert "networks owned externally"
+  (and (at manifest "networks" "restricted" "external")
+       (at manifest "networks" "sandbox" "external")))
 (test-equal "uses static-agent" "static-agent" (at manifest "networks" "restricted" "name"))
-(test-assert "no host network or published ports"
-  (not (or (at gateway "ports") (at gateway "network_mode"))))
-(test-equal "no reboot bypass" "on-failure" (at gateway "restart"))
-(test-equal "never pulls" "never" (at gateway "pull_policy"))
-(test-equal "runs non-root" "1000:1000" (at gateway "user"))
+(test-equal "sandboxes use their own network" "sandboxed-agents"
+  (at manifest "networks" "sandbox" "name"))
+(for-each
+ (lambda (service)
+   (test-assert "no host network or published ports"
+     (not (or (at service "ports") (at service "network_mode"))))
+   (test-equal "no reboot bypass" "on-failure" (at service "restart"))
+   (test-equal "never pulls" "never" (at service "pull_policy"))
+   (test-equal "runs as the dedicated user" "2010:2010" (at service "user"))
+   (test-equal "no capabilities by default" '#("ALL") (at service "cap_drop")))
+ (list gateway engine))
 (test-assert "read-only root" (at gateway "read_only"))
 (test-assert "native runtime writes are enabled"
   (not (at gateway "environment" "OPENCLAW_CONFIG_READONLY")))
-(test-equal "runtime config is persistent" "/home/node/.openclaw/openclaw.json"
+(test-equal "runtime config is persistent at its host path"
+  "/data/openclaw/home/.openclaw/openclaw.json"
   (at gateway "environment" "OPENCLAW_CONFIG_PATH"))
+(test-equal "Gateway reaches only the nested engine"
+  "unix:///run/openclaw-engine/podman.sock"
+  (at gateway "environment" "CONTAINER_HOST"))
+(test-equal "Gateway waits for a healthy engine" "service_healthy"
+  (at gateway "depends_on" "engine" "condition"))
+(test-equal "engine regains only ID-mapping capabilities" '#("SETUID" "SETGID")
+  (at engine "cap_add"))
+(test-equal "engine uses the checked nested seccomp profile"
+  '#("seccomp=/etc/openclaw/engine-seccomp.json" "systempaths=unconfined")
+  (at engine "security_opt"))
+(test-assert "engine is never privileged" (not (at engine "privileged")))
+(define engine-volumes (vector->list (at engine "volumes")))
+(test-equal "engine sees workspaces, its store, its socket and sandbox state"
+  '(("/data/openclaw/workspaces" . "/data/openclaw/workspaces")
+    ("/data/openclaw/engine" . "/home/podman/.local/share/containers")
+    ("/run/openclaw-engine" . "/run/openclaw-engine")
+    ("/data/openclaw/home/.openclaw/sandbox/skills-workspaces"
+     . "/data/openclaw/home/.openclaw/sandbox/skills-workspaces")
+    ("/data/openclaw/home/.openclaw/attachments/subagents"
+     . "/data/openclaw/home/.openclaw/attachments/subagents"))
+  (map (lambda (v) (cons (at v "source") (at v "target"))) engine-volumes))
+(test-assert "engine gets only read-only sandbox state, never config or secrets"
+  (every (lambda (v)
+           (and (not (string-prefix? "/run/openclaw/" (at v "source")))
+                (not (string-prefix? "/etc/" (at v "source")))
+                (or (not (string-prefix? "/data/openclaw/home" (at v "source")))
+                    (eq? #t (at v "read_only")))))
+         engine-volumes))
 (test-equal "Feishu uses its built-in typing reaction" #t
   (at app "channels" "feishu" "typingIndicator"))
 (test-assert "custom GET receipt is disabled"
   (not (assoc "OPENCLAW_FEISHU_RECEIPT_REACTION" (at gateway "environment"))))
-(test-equal "no capabilities" '#("ALL") (at gateway "cap_drop"))
 (define volumes (vector->list (at gateway "volumes")))
-(test-equal "whole home is a writable persistent mount" 1
-  (count (lambda (v) (and (equal? "/data/openclaw/home" (at v "source"))
-                          (equal? "/home/node" (at v "target"))
+(test-equal "state and workspaces keep their host paths for sandbox binds" 2
+  (count (lambda (v) (and (member (at v "source")
+                                  '("/data/openclaw/home" "/data/openclaw/workspaces"))
+                          (equal? (at v "source") (at v "target"))
                           (eq? #f (at v "read_only")))) volumes))
 (test-assert "no Docker socket or host home"
   (every (lambda (v) (or (string-prefix? "/data/openclaw/" (at v "source"))
                          (string-prefix? "/run/openclaw/" (at v "source"))
+                         (equal? "/run/openclaw-engine" (at v "source"))
                          (member (at v "source")
                                  '("/etc/openclaw/base.json"
                                    "/etc/openclaw/config-plugin"
@@ -77,8 +120,31 @@
   '#("/etc/openclaw/config-plugin") (at app "plugins" "load" "paths"))
 (test-equal "checked config plugin is enabled" #t
   (at app "plugins" "entries" "uraj-config-policy" "enabled"))
-(test-equal "exec explicitly runs in the Gateway" "gateway"
+(test-equal "exec never falls back to the Gateway" "sandbox"
   (at app "tools" "exec" "host"))
+(test-equal "elevated escape is disabled" #f (at app "tools" "elevated" "enabled"))
+(define sandbox (at app "agents" "defaults" "sandbox"))
+(test-equal "every session is sandboxed" "all" (at sandbox "mode"))
+(test-equal "sandbox uses the Podman engine" "podman" (at sandbox "backend"))
+(test-equal "sandbox writes the host workspace" "rw" (at sandbox "workspaceAccess"))
+(test-equal "sandbox image is the declared local ID" (make-string 64 #\d)
+  (at sandbox "docker" "image"))
+(test-equal "sandbox user matches the engine's keep-id mapping" "2010:2010"
+  (at sandbox "docker" "user"))
+(test-equal "sandbox egress through the engine network" "pasta"
+  (at sandbox "docker" "network"))
+(test-assert "sandbox root is read-only without capabilities"
+  (and (at sandbox "docker" "readOnlyRoot")
+       (equal? '#("ALL") (at sandbox "docker" "capDrop"))))
+(test-equal "agent paths are host paths" "/data/openclaw/workspaces/main"
+  (at app "agents" "entries" "main" "workspace"))
+(test-equal "checked config tool is allowed in sandboxed sessions"
+  '#("openclaw_config_set") (at app "tools" "sandbox" "tools" "alsoAllow"))
+(test-error "engine image must be a local ID" #t
+  (openclaw-compose-file (openclaw-configuration (inherit config)
+                           (engine-image "quay.io/podman/stable"))))
+(test-error "root sandbox user refused" #t
+  (openclaw-config-file (openclaw-configuration (inherit config) (uid 0))))
 (test-equal "exec uses canonical full mode" "full"
   (at app "tools" "exec" "mode"))
 (test-assert "no legacy exec fields for Doctor to rewrite"
@@ -93,8 +159,9 @@
 (test-equal "DMs require administrator pairing approval" "pairing"
   (at app "channels" "feishu" "dmPolicy"))
 (test-equal "groups disabled" "disabled" (at app "channels" "feishu" "groupPolicy"))
-(test-equal "file and process tools explicitly allowed"
-  '#("read" "write" "edit" "apply_patch" "exec" "process") (at app "tools" "allow"))
+(test-equal "file, process and config tools explicitly allowed"
+  '#("read" "write" "edit" "apply_patch" "exec" "process" "openclaw_config_set")
+  (at app "tools" "allow"))
 (test-assert "file tools are not blocked by the old deny-all policy"
   (not (at app "tools" "deny")))
 (test-equal "file tools restricted to workspace" #t
@@ -192,7 +259,7 @@
 (test-equal "Feishu uses file SecretRef" "feishu-app-secret"
   (at app "channels" "feishu" "accounts" "main" "appSecret" "provider"))
 (test-equal "plain restart restores pinned declaration" image (openclaw-image-for-tag image #f))
-(test-equal "temporary tag removes digest" "localhost/openclaw-feishu:trial"
+(test-equal "temporary tag removes digest" "localhost/openclaw-gateway:trial"
   (openclaw-image-for-tag image "trial"))
 (test-equal "local image ID selects the configured repository" "localhost/custom:trial"
   (openclaw-image-for-tag (string-append "sha256:" (make-string 64 #\b))
@@ -287,7 +354,7 @@
 
 ;; Execute the generated start closure without Docker or real credentials.
 (define* (start tag #:key (missing? #f) (fail-up? #f) (fail-validation? #f)
-                (fail-reconcile? #f))
+                (fail-reconcile? #f) (fail-image? #f))
   (let ((m (make-fresh-user-module)) (calls '()) (stopped? #f))
     (for-each (lambda (interface) (module-use! m (resolve-interface interface)))
               (remove (lambda (interface) (member interface %default-modules))
@@ -303,6 +370,7 @@
           (error "simulated policy failure"))
         (when (and fail-validation? (member "validate" args))
           (error "simulated schema failure"))
+        (when (and fail-image? (member "exists" args)) (error "simulated missing image"))
         (when (and fail-up? (member "up" args)) (error "simulated failed startup"))))
     (module-define! m 'system* (lambda _ (set! stopped? #t) 0))
     (let* ((proc (eval (gexp->approximate-sexp (shepherd-service-start service)) m))
@@ -310,10 +378,17 @@
       (list result (reverse calls) stopped?))))
 (let* ((result (start "trial")) (up (last (cadr result))))
   (test-equal "reports requested version and immutable image ID"
-    '("localhost/openclaw-feishu:trial" "sha256:resolved-local-image") (car result))
+    '("localhost/openclaw-gateway:trial" "sha256:resolved-local-image") (car result))
   (test-assert "executes resolved ID with no pulls or builds"
     (and (member "OPENCLAW_IMAGE=sha256:resolved-local-image" up)
          (member "never" up) (member "--no-build" up) (member "--force-recreate" up))))
+(let* ((calls (cadr (start #f)))
+       (ups (filter (lambda (call) (member "up" call)) calls)))
+  (test-equal "engine is started only once" "engine" (last (car ups)))
+  (test-assert "Gateway startup cannot recreate the checked engine"
+    (and (= 2 (length ups))
+         (equal? "gateway" (last (cadr ups)))
+         (member "--no-deps" (cadr ups)))))
 (test-equal "missing local image never prepares files or starts containers"
   '(#f () #f) (start "absent" #:missing? #t))
 (test-assert "failed Compose start stops the partial stack" (caddr (start #f #:fail-up? #t)))
@@ -326,12 +401,16 @@
   (let ((result (start #f #:fail-reconcile? #t)))
     (and (not (car result))
          (not (any (lambda (call) (member "up" call)) (cadr result))))))
-(test-equal "stop and reconcile precede native validation and startup"
-  '("stop" "reconcile" "validate" "up")
+(test-equal "stop and reconcile precede validation, engine and Gateway startup"
+  '("stop" "reconcile" "validate" "up" "exists" "up")
   (filter-map (lambda (call)
                 (find (lambda (word) (member word call))
-                      '("stop" "reconcile" "validate" "up")))
+                      '("stop" "reconcile" "validate" "up" "exists")))
               (cadr (start #f))))
+(test-assert "missing sandbox image never starts Gateway"
+  (let ((result (start #f #:fail-image? #t)))
+    (and (not (car result)) (caddr result)
+         (= 1 (count (lambda (call) (member "up" call)) (cadr result))))))
 (test-equal "invalid tag has no effects" '(#f () #f) (start "../bad"))
 
 (define failures (test-runner-fail-count (test-runner-current)))

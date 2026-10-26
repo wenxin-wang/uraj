@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// This is a checked convenience command until exec is isolated from the Gateway.
+// Checked configuration command. Runs only in the Gateway: at startup and
+// through the openclaw_config_set tool; sandboxed exec cannot reach it.
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -8,7 +9,7 @@ import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import { reconcile, validatePolicy } from "./config-policy.mjs";
 
-const CONFIG = "/home/node/.openclaw/openclaw.json";
+const CONFIG = process.env.OPENCLAW_CONFIG_PATH;
 const BASE = "/etc/openclaw/base.json";
 const CLI = "/app/openclaw.mjs";
 
@@ -33,8 +34,13 @@ function cli(args, config = CONFIG) {
     encoding: "utf8", timeout: 120_000, maxBuffer: 8 * 1024 * 1024,
   });
   // Do not echo native diagnostics: they can contain config values or credentials.
+  // Name only the step and how it ended.
   if (result.error || result.status !== 0) {
-    throw new Error("Native OpenClaw command failed; no successful commit confirmed");
+    const step = args[0] === "gateway" ? `gateway call ${args[2]}` : `${args[0]} ${args[1]}`;
+    const outcome = result.error?.code === "ETIMEDOUT" ? "timed out"
+      : result.error ? `could not run (${result.error.code ?? "error"})`
+        : `exited with status ${result.status}`;
+    throw new Error(`Native OpenClaw ${step} ${outcome}; no successful commit confirmed`);
   }
   return result.stdout;
 }
@@ -78,6 +84,9 @@ export async function checkedSet(args, { base, snapshot, mutate, submit }) {
 }
 
 async function main(args) {
+  if (!CONFIG || !path.isAbsolute(CONFIG)) {
+    throw new Error("OPENCLAW_CONFIG_PATH must be an absolute path");
+  }
   const base = await read(BASE);
   if (args.length === 1 && args[0] === "reconcile") {
     // Only run during service start, after the previous Gateway has stopped.

@@ -7,6 +7,9 @@
 (define pool (string-append root "/pool"))
 (define data (string-append pool "/openclaw"))
 (define runtime (string-append root "/runtime"))
+(define engine-runtime (string-append root "/engine-runtime"))
+(define acl-log (string-append root "/setfacl.log"))
+(define setfacl (string-append root "/setfacl"))
 (define resolver (string-append root "/resolv.conf"))
 (define secret (string-append root "/secret"))
 (define names '("feishu-app-secret" "new-api-token" "gateway-token"))
@@ -15,18 +18,24 @@
   (call-with-output-file path (lambda (p) (display value p))))
 (mkdir pool)
 (write secret "test-credential\n")
+(write setfacl (string-append "#!/bin/sh\necho \"$*\" >> " acl-log "\n"))
+(chmod setfacl #o755)
 (write resolver "nameserver 172.31.0.1\nnameserver 1.1.1.1\n")
 
 ;; Real files and permissions, but fake mount metadata and root-only chown.
 ;; Run as an ordinary user; never touch /data, /run, Docker or host mounts.
-(define runtime-module (resolve-module '(uraj build openclaw)))
+;; Replace the core binding: compiled modules reference it directly, so a
+;; module-local definition would leave the real chown in place.
 (define ownership '())
-(module-define! runtime-module 'chown
+(module-set! (resolve-module '(guile)) 'chown
   (lambda (path uid gid) (set! ownership (cons (list path uid gid) ownership))))
 (define (mount type)
   ((@@ (guix build syscalls) %mount) "test-device" pool 0 type '()))
 (define* (prepare #:key (mounts (list (mount "btrfs"))))
   (prepare-openclaw data inputs #:runtime runtime #:resolver resolver
+                    #:engine-runtime engine-runtime
+                    #:sandbox-state '(".openclaw/sandbox/skills-workspaces")
+                    #:uid 2010 #:gid 2011 #:readers 973 #:setfacl setfacl
                     #:data-mount pool #:current-mounts mounts))
 (test-error "absent mount rejected" #t (prepare #:mounts '()))
 (test-assert "mount failure creates no state" (not (file-exists? data)))
@@ -48,15 +57,44 @@
 (prepare)
 (test-equal "private runtime" #o700 (stat:perms (stat runtime)))
 (test-equal "home private" #o700 (stat:perms (stat (string-append data "/home"))))
-(test-assert "only private runtime data is assigned to container UID"
+(for-each
+ (lambda (part)
+   (let ((path (string-append data "/home/" part)))
+     (test-equal "sandbox state bind source private" #o700 (stat:perms (stat path)))
+     (test-equal "sandbox state owned by the dedicated user" '(2010 2011)
+       (cdr (find (lambda (e) (equal? path (car e))) ownership)))))
+ '(".openclaw" ".openclaw/sandbox" ".openclaw/sandbox/skills-workspaces"))
+(test-equal "engine storage private" #o700
+  (stat:perms (stat (string-append data "/engine"))))
+(test-equal "engine socket directory private" #o700
+  (stat:perms (stat engine-runtime)))
+(test-equal "readers may enter data, not other users" #o750
+  (stat:perms (stat data)))
+(for-each
+ (lambda (path)
+   ;; Readers use the ACL; no setgid or other access, see prepare-openclaw.
+   (test-equal "workspace private apart from the reader ACL" #o750
+     (logand #o7777 (stat:perms (stat path)))))
+ (list (string-append data "/workspaces") (string-append data "/workspaces/main")))
+(define (owner path)
+  (let ((entry (find (lambda (e) (equal? path (car e))) ownership)))
+    (and entry (cdr entry))))
+(test-equal "data owned by root and the reader group" '(0 973) (owner data))
+(test-equal "home owned by the dedicated user" '(2010 2011)
+  (owner (string-append data "/home")))
+(test-equal "workspaces keep the mapped dedicated group" '(2010 2011)
+  (owner (string-append data "/workspaces/main")))
+(test-equal "engine owns its socket directory" '(2010 2011) (owner engine-runtime))
+(test-assert "reader ACL applied to both workspace levels"
+  (let ((log (call-with-input-file acl-log get-string-all)))
+    (every (lambda (path)
+             (string-contains log (string-append "-m g:973:rX,d:g:973:rX " path)))
+           (list (string-append data "/workspaces")
+                 (string-append data "/workspaces/main")))))
+(test-assert "only expected paths change owner"
   (every (lambda (entry)
-           (or (zero? (cadr entry))
-               (and (= 1000 (cadr entry))
-                    (or (string-prefix? runtime (car entry))
-                        (member (car entry)
-                                (list (string-append data "/home")
-                                      (string-append data "/workspaces")
-                                      (string-append data "/workspaces/main")))))))
+           (or (member (cadr entry) '(0 2010))
+               (string-prefix? runtime (car entry))))
          ownership))
 (for-each
  (lambda (name)
@@ -65,22 +103,27 @@
      (test-equal "SecretRef file regular" 'regular (stat:type (lstat path)))
      (test-equal "SecretRef file not hardlinked" 1 (stat:nlink (stat path)))))
  names)
-(define (dns)
+(define* (dns #:optional (service "gateway"))
   (let ((json (call-with-input-file (string-append runtime "/compose-dns.json") json->scm)))
-    (assoc-ref (assoc-ref (assoc-ref json "services") "gateway") "dns")))
+    (assoc-ref (assoc-ref (assoc-ref json "services") service) "dns")))
 (test-equal "Docker receives the firewall resolver snapshot"
   '#("172.31.0.1" "1.1.1.1") (dns))
+(test-equal "engine uses the same resolver snapshot"
+  '#("172.31.0.1" "1.1.1.1") (dns "engine"))
 (define note (string-append data "/workspaces/main/note"))
 (write note "persist across restarts")
 (write secret "rotated-test-credential\n")
 (write resolver "nameserver 9.9.9.9\n")
+(write (string-append engine-runtime "/podman.sock") "stale")
 (prepare)
+(test-assert "stale engine socket removed"
+  (not (file-exists? (string-append engine-runtime "/podman.sock"))))
 (test-equal "restart preserves workspace" "persist across restarts"
   (call-with-input-file note get-string-all))
 (test-equal "restart refreshes DNS" '#("9.9.9.9") (dns))
 (test-equal "restart replaces secret contents" "rotated-test-credential\n"
   (call-with-input-file (string-append runtime "/gateway-token") get-string-all))
-(rmdir (string-append data "/home"))
+(delete-file-recursively (string-append data "/home"))
 (symlink pool (string-append data "/home"))
 (test-error "container-controlled symlink is rejected" #t (prepare))
 (delete-file (string-append data "/home"))

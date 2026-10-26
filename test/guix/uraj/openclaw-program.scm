@@ -6,6 +6,8 @@
   (openclaw-configuration
     (image (string-append "sha256:" (make-string 64 #\a)))
     (secrets-file (plain-file "fixture.yaml" "fixture"))
+    (engine-image (string-append "sha256:" (make-string 64 #\c)))
+    (sandbox-image (string-append "sha256:" (make-string 64 #\d)))
     (feishu-app-id "cli_test") (model "new-api/test-model")
     (providers (list (openclaw-provider (name "new-api")
                                       (api "openai-responses")

@@ -5,9 +5,9 @@
 一个飞书 bot、一个 Gateway 容器、一个默认 agent，通过 new-api 调用模型。
 飞书采用主动建立的 WebSocket 长连接，不需要公网地址或 webhook 入站。
 私聊需管理员批准配对，不需要事先查询 =open_id=；群聊关闭。
-开放文件工具及 =exec=、=process=；命令在 Gateway 容器内以 UID 1000
-执行，不逐条询问。浏览器、主动发消息和飞书文档工具保持关闭。
-文件工具的 workspaceOnly 限制不适用于 shell。
+开放文件工具及 =exec=、=process=；它们在独立引擎容器创建的 Podman
+沙箱中以专用 UID 2010 执行，不逐条询问，也不回退到持有凭据的 Gateway。
+浏览器、主动发消息和飞书文档工具保持关闭。
 执行策略使用 =tools.exec.mode="full"=；不要同时声明旧的 =security/ask=。
 2026.10.3 启动时的 Doctor 会将 =security="full", ask="off"= 迁移成
 =mode="full"=，混用旧模板会导致不变量检查报差异。
@@ -26,7 +26,7 @@ DeepSeek 尚未配置。Live ISO 不声明 OpenClaw。
 原生写入路径。这里不修改 OpenClaw 源码，也不使用 =$include=。
 
 Guix 生成只读的 =/etc/openclaw/base.json=，同时作为初始配置和受管字段的
-期望值。正式配置是持久化的 =/home/node/.openclaw/openclaw.json=。
+期望值。正式配置是持久化的 =/data/openclaw/home/.openclaw/openclaw.json=。
 Shepherd 启动时先停止旧 Gateway，再运行 reconcile：对齐基础字段，
 保留 agent、bindings、meta、wizard 和仍在批准列表中的默认模型；在镜像 schema
 校验通过后替换主文件，旧配置保存在 =openclaw.json.before-guix=。
@@ -34,37 +34,31 @@ Shepherd 启动时先停止旧 Gateway，再运行 reconcile：对齐基础字�
 
 Guix 只读挂载并启用 =uraj-config-policy= 插件。清单显式声明
 =activation.onStartup=true= 和 =onCapabilities=["hook"]=，保证 Gateway
-启动时导入并注册 hook；仅 =enabled=true= 或 plugins list 显示 enabled
-不代表 hook 已在运行进程注册。它通过原生
-=before_tool_call= hook 改写 OpenClaw shell exec 的参数，agent 可以继续
-使用常见的原生命令形式：
+启动时导入插件；仅 =enabled=true= 或 plugins list 显示 enabled 不代表
+已在运行进程注册。exec 在沙箱中运行，那里没有 OpenClaw CLI、配置或
+管理凭据，因此插件注册 Gateway 侧工具 =openclaw_config_set=，参数为
+点分路径和 JSON 值，在 Gateway 进程内调用校验入口。该工具同时列入
+=tools.allow= 和 =tools.sandbox.tools.alsoAllow=。agent 在 exec 中尝试
+=openclaw config set= 时，=before_tool_call= hook 直接拒绝并提示改用该工具；
+这只是引导，不是安全边界，沙箱本身无法修改配置。
+
+管理员也可以在 Gateway 容器内直接使用以下入口（值必须为 JSON）：
 
 #+begin_src sh
-openclaw config set agents.defaults.model new-api-gpt/gpt-6-luna
-openclaw config set agents.entries.research '{"name":"研究助手","workspace":"/workspaces/research","agentDir":"/home/node/.openclaw/agents/research/agent"}' --strict-json
-#+end_src
-
-支持独立的 =openclaw config set=、=node openclaw.mjs config set= 和
-=node /app/openclaw.mjs config set=，可选 =--strict-json= 或 =--json=。
-普通字符串转换成 JSON 字符串后转交校验入口；JSON 对象和数组应按 shell
-规则加引号。JSON5、batch、dry-run 和其他参数暂不转接。识别到的复杂调用
-（管道、重定向、变量或命令展开、多条命令）会被阻止并提示使用独立命令。
-其他 exec 调用和配置读取不改写。它不拦截 Gateway 内部写入、手动终端、
-间接脚本或其他 harness 的原生命令，也不试图识别所有 shell 等价写法。
-
-管理员也可以直接使用以下入口（值必须为 JSON）：
-
-#+begin_src sh
-node /etc/openclaw/config.mjs check
-node /etc/openclaw/config.mjs set agents.defaults.model '"new-api-gpt/gpt-6-luna"'
-node /etc/openclaw/config.mjs set agents.entries.research '{"name":"研究助手","workspace":"/workspaces/research","agentDir":"/home/node/.openclaw/agents/research/agent"}'
+sudo /etc/openclaw/compose exec gateway node /etc/openclaw/config.mjs check
+sudo /etc/openclaw/compose exec gateway node /etc/openclaw/config.mjs set \
+  agents.defaults.model '"new-api-gpt/gpt-6-luna"'
+sudo /etc/openclaw/compose exec gateway node /etc/openclaw/config.mjs set \
+  agents.entries.research '{"name":"研究助手","workspace":"/data/openclaw/workspaces/research","agentDir":"/data/openclaw/home/.openclaw/agents/research/agent"}'
 #+end_src
 
 允许修改 =agents.entries=、默认模型和 =bindings=。agent 条目只允许
 =name=、=identity=、=model=、=workspace=、=agentDir=；禁止工具、沙箱、
-插件等覆盖。模型必须来自 Guix provider 列表。新 workspace 必须使用
-=/workspaces/= 下规范化的绝对路径；main 保留 =/workspace=。
-这些是路径字符串检查，不证明符号链接后的隔离；沙箱尚未接入。
+插件等覆盖。模型必须来自 Guix provider 列表。workspace 必须是 Guix
+声明的 main workspace 父目录（=/data/openclaw/workspaces/=）下规范化的
+绝对路径，=agentDir= 必须位于 =/data/openclaw/home/.openclaw/agents/= 下。
+路径保持宿主机原值，因为 Podman 后端把 Gateway 路径直接作为沙箱 bind
+源。这些是路径字符串检查；隔离由沙箱只挂载 workspace 提供。
 其他顶层配置及默认设置由 Guix 固定；meta、wizard 留给原生维护流程。
 Doctor 会将不可用的 skill 写入 =skills.entries=。对 Guix 未声明的条目，
 校验允许并在重启对齐时保留纯 ={ "enabled": false }= 禁用标记；不允许
@@ -81,50 +75,113 @@ Gateway 必须在线。批量变更可替换整个 =agents.entries= 或 =binding
 原生 CLI schema 不接受的操作仍会失败。错误不打印原生诊断或配置值，
 避免意外输出凭据；管理员可在受控终端进一步诊断。
 
-本阶段按“先 exec，后沙箱”实施。=exec= 可以直接写正式配置、调用原生
-管理接口并读取容器凭据，因此校验入口目前防误操作，不是权限隔离。
-不要据此认为多个 agent 的记忆对 shell 相互隔离。下一阶段应让 exec
-无法访问 Gateway 的配置、状态和管理凭据，并只开放校验入口。
+沙箱只挂载 agent 自己的 workspace，看不到 Gateway 的配置、状态和凭据，
+配置修改只能经过校验工具。各 agent 的 workspace 仍在同一 UID 下，
+尚不是多用户隐私隔离。
 =channels.feishu.configWrites=true= 允许可信插件写回；未自动开启动态
 注册或群聊。=OPENCLAW_CONFIG_READONLY= 不再设置。
 
 部署验收需要用固定镜像检查：首次初始化、重启保留 agent/binding、
-原生命令经 exec hook 转接、合法模型修改成功、受管字段/agent 权限覆盖被拒绝、两个并发写入冲突，
+校验工具合法修改模型成功、exec 中的原生命令被拒绝并提示工具、
+受管字段/agent 权限覆盖被拒绝、两个并发写入冲突，
 以及修改后的 Gateway 加载结果。仓库单元测试不代替真实镜像验收。
 
-* 执行沙箱接入选择（尚未启用）
+* 执行沙箱
 
-Gateway 已在 Docker 容器中运行，但未启用 OpenClaw 的工具执行沙箱，
-已经开放 =exec=、=process=。在 Gateway 内直接执行命令会以同一个
-UID 1000 运行，能读取挂载的三个凭据和运行状态；=workspaceOnly=
-不是 shell 的文件系统隔离。
+Shepherd 用 compose 同时启动 Gateway 与引擎容器 =engine=。引擎内运行
+rootless Podman API，socket 在 =/run/openclaw-engine/podman.sock=，只挂给
+Gateway；Gateway 以上游 =backend: "podman"= 经 =CONTAINER_HOST= 创建沙箱，
+不接触宿主 Docker socket。=mode: "all"=、=scope: "agent"=、
+=workspaceAccess: "rw"=：每个 agent 一个长期沙箱，直接读写自己的
+workspace。=tools.exec.host= 为 =sandbox=，=tools.elevated.enabled= 为 false，
+沙箱不可用时失败，不回退到 Gateway。
 
-上游当前支持通过 =agents.defaults.sandbox= 选择工具执行后端。
-接入后仍使用原有文件和命令工具，由 OpenClaw 把操作交给执行环境，
-不需要 agent 自行调用 =contained-agent=。当前部署镜像是否支持所选
-后端和字段，必须由镜像自身的 schema 与端到端调用确认。
+| 组件     | 网络             | 挂载                                       | 凭据 |
+|----------+------------------+--------------------------------------------+------|
+| Gateway  | =static-agent=     | home、workspaces、引擎 socket、=/etc/openclaw= | 有   |
+| 引擎     | =sandboxed-agents= | workspaces、引擎存储、socket、两处只读 state | 无   |
+| 沙箱     | 经引擎 pasta 出网 | 自己的 workspace（容器内 =/workspace=）     | 无   |
 
-- Docker 后端：由 OpenClaw 创建执行容器。容器化 Gateway 需要能调用
-  Docker CLI 并连接 daemon；直接挂宿主机 socket 会扩大 Gateway 权限，
-  不能把它当作无代价的配置开关。当前未提供该 socket。
-- SSH 后端：由 Guix 管理独立执行容器，Gateway 只持有该环境的 SSH
-  身份及固定 host key。执行容器预装 shell、Python 和 GNU 工具，
-  不挂载飞书、new-api、Gateway 凭据或 Docker socket。Gateway 与执行
-  容器之间需单独允许 SSH 连通，执行环境的外网权限另行配置。
+上游 Podman 后端不做路径转换：Gateway 中的 state 与 workspace 路径就是
+bind 源，因此 Gateway 和引擎都把它们挂在宿主机相同的绝对路径。除 workspace
+外，OpenClaw 还把 state 下两个目录只读挂入沙箱：=rw= 沙箱的 skill 副本
+=.openclaw/sandbox/skills-workspaces= 和子 agent 附件
+=.openclaw/attachments/subagents=。引擎只读挂载这两个目录，准备程序预先创建；
+其余 state（配置、认证、会话）仍不进入引擎。沙箱只覆盖
+exec、process 和文件工具；web_fetch、web_search、原生插件和 MCP 仍在
+Gateway 执行，本部署未开放前两者。
 
-单用户长期使用可考虑 =mode: all=、=scope: agent= 和
-=workspaceAccess: rw=，使日常会话复用同一个工作环境。这些字段本身
-不决定数据持久化、自动清理或工具可见性，还需配合持久化目录、生命周期
-配置，以及全局和沙箱的工具白名单。执行环境不可用时应失败，不能回退
-到带服务凭据的 Gateway 执行。
+=sandboxed-agents= 与 Gateway 的 =static-agent= 是不同网桥，沿用同一份
+网络策略：继承宿主 DNS，公网 TCP 80/443，其他内网、宿主和已登记网段都被
+拒绝，包括 Gateway 与 new-api。以后放行某个内部服务，在该网络的
+=forward-exceptions= 中声明。沙箱使用 =network: "pasta"=，流量从引擎容器
+的网卡离开，受上述规则约束；=none= 也可用于不需要联网的场景。
 
-上游当前 SSH 后端只在初始化时播种工作区；随后以远端工作区为准，
-不自动同步回 Gateway 本地目录。实施前需安排现有身份、记忆的迁移和
-远端备份，并确认提示词实际加载的内容。不能把删除并重建沙箱当作无损
-重启，或把 SSH 到宿主机普通账号当作隔离环境。
+Gateway、引擎内的 Podman 用户和沙箱共用 UID/GID 2010（宿主账号
+=openclaw=）。引擎内部的从属 ID 为 524288 起的 65536 个。引擎镜像必须
+用相同 UID/GID 构建，否则 newuidmap 或 keep-id 映射失败。引擎对所有沙箱
+统一限制 8 GiB 内存和 4096 个进程；Docker 以只读方式挂载 cgroup，暂不对
+单个沙箱限额。
 
-参考：[[https://docs.openclaw.ai/gateway/sandboxing/ssh-backend][SSH 后端]]、
-[[https://docs.openclaw.ai/gateway/sandboxing/modes-scope-and-backend][沙箱模式与作用域]]。
+管理员通过 =log-readers= 组读取 workspace，例如收集报告：
+=/data/openclaw= 为 =root:log-readers 0750=，=workspaces= 与 =workspaces/main=
+为 =openclaw:openclaw 0750=，再加访问与默认 ACL =g:log-readers:rX=。新文件
+按默认 ACL 授予该组读取，但受创建模式的 mask 限制：0644 的文件可读，0600
+的不可读。workspace 不能属于 =log-readers= 或带 setgid：crun 在 keep-id 下以
+容器 root 于 workspace 内创建挂载点，只有属主和属组都已映射时它才有 DAC
+越权，否则报 =openat2 `workspace`: Permission denied=。
+home 与引擎存储仍为 0700，不对该组开放。
+
+** 引擎参数的验证
+
+引擎的放宽参数沿用 contained-agent Podman runtime 原型的经验，但那是在
+rootless Podman 外层上验证的，Docker 外层另做了一次性验证。更换引擎基础
+镜像、Docker 或内核后，可用它单独诊断 seccomp、keep-id 和存储驱动。
+它使用上游 UID 1000 镜像与 Alpine，并不启动正式 Compose 服务；通过不代表
+UID 2010、ACL、skill 嵌套挂载、独立网络和 OpenClaw 工具路由都已验收。
+正式部署仍须执行本文“验证”一节。在 storie 上以 UID 1000、docker 组运行：
+
+#+begin_src sh
+guix shell python docker-cli -- python3 scripts/openclaw/check-docker-engine.py
+#+end_src
+
+脚本只创建 =openclaw-engine-probe-*= 容器和 =/var/tmp/openclaw-engine-*=
+目录，结束后删除容器与引擎存储，保留 =results.json=、=commands.log=、
+生成的 seccomp profile。引擎从最小参数开始：在镜像自带 seccomp profile
+基础上放开嵌套所需调用（含基础 profile 以外层 capability 为条件的
+chroot、setns、sethostname）、=systempaths=unconfined=、只加回 SETUID/SETGID、
+不设 no-new-privileges、按需暴露 =/dev/fuse= 与 =/dev/net/tun=，不使用
+=--privileged= 或 SYS_ADMIN。另起一个按 Gateway 加固参数运行的客户端，
+以上游创建沙箱的参数建 keep-id 沙箱，检查同路径读写、未挂载文件不可见、
+只读子挂载、catatonit、请求挂载 =/= 时只能看到引擎视图，以及默认接入
+=static-agent= 时公网可达、其他内网地址不可达。引擎内部的从属 UID/GID
+取 524288 起的 65536 个，避免与宿主账号重叠；没有 Docker 用户命名空间时
+它们就是宿主 UID。
+
+若某项失败，可用 =--seccomp=、=--cap-add=、=--no-unmask=、=--storage=
+逐项对照；新增 SYS_ADMIN 或改为特权容器前须重新评估方案。=results.json=
+中的 =engine_process_status= 记录引擎实际的 capability 与 seccomp 状态。
+网络检查只记录 wget 能否完成请求：目标服务宕机、HTTP 错误也可能表现为
+“closed”，不能单凭这一项证明防火墙阻断；需确认目标服务正常，并结合
+restricted-network 规则验收。
+
+2026-10-24 在 storie 上全部通过（引擎镜像 =quay.io/podman/stable=
+=sha256:f790c751…=，内层 Podman 5.8.9、crun 1.28）。引擎 capability 上限只有
+SETUID/SETGID，nested seccomp 生效，no-new-privileges 关闭；未用特权模式或
+SYS_ADMIN。调试中确认的约束：
+
+- 镜像自带 profile 以 =CAP_SYS_CHROOT= 为条件放行 =chroot=；Docker 外层去掉
+  全部 capability 后该规则失效，需由 nested profile 无条件放行。
+- =newuidmap= 要求进程 GID 等于镜像 passwd 中该用户的主组。
+- keep-id 让 crun 在嵌套用户命名空间里访问 rootfs 与挂载源，那里的
+  DAC_OVERRIDE 只覆盖属主和属组都已映射的 inode。挂载源路径若属于未映射的组，
+  只有其他人权限可用：仅穿越时 =o+x= 即可，否则报 =crun: readlink ``=
+  （podman#27785）；在其中创建挂载点（如 workspace 内的 skill 挂载）还需读写，
+  会报 =openat2 … Permission denied=。因此正式部署的 workspace 不用未映射的
+  组，读取者只经 ACL 授权。
+- 沙箱与 Gateway 同在 =static-agent= 网桥时能连到 Gateway 的 18789 端口；
+  同网桥流量不经 restricted-network 的转发过滤。因此引擎必须接独立的
+  =sandboxed-agents= 网络。
 
 * 图片生成接入
 
@@ -168,13 +225,13 @@ git clone --branch v2026.10.3 --depth 1 https://github.com/openclaw/openclaw.git
 cd openclaw-source
 git rev-parse HEAD
 docker build --build-arg OPENCLAW_EXTENSIONS=feishu \
-  --tag localhost/openclaw-feishu:2026.10.3 .
+  --tag localhost/openclaw-gateway:2026.10.3 .
 # 检查 /app/dist 中的代码能否解析飞书 SDK；失败时不要部署该镜像。
 docker run --rm --network none --read-only --user 1000:1000 \
   --workdir /app/dist --entrypoint node \
-  localhost/openclaw-feishu:2026.10.3 \
+  localhost/openclaw-gateway:2026.10.3 \
   --input-type=module -e 'await import("@larksuiteoapi/node-sdk")'
-docker save --output openclaw-2026.10.3.tar localhost/openclaw-feishu:2026.10.3
+docker save --output openclaw-2026.10.3.tar localhost/openclaw-gateway:2026.10.3
 scp openclaw-2026.10.3.tar storie.home.labbies.wenxinwang.me:/tmp/
 #+end_src
 
@@ -184,11 +241,11 @@ scp openclaw-2026.10.3.tar storie.home.labbies.wenxinwang.me:/tmp/
 
 #+begin_src sh
 sudo docker load --input /tmp/openclaw-2026.10.3.tar
-sudo docker image inspect --format '{{.Id}}' localhost/openclaw-feishu:2026.10.3
+sudo docker image inspect --format '{{.Id}}' localhost/openclaw-gateway:2026.10.3
 #+end_src
 
 把输出的完整 =sha256:...= 填入 =image=，=image-repository= 保持
-=localhost/openclaw-feishu=。本地构建镜像不一定有 RepoDigest，不能把
+=localhost/openclaw-gateway=。本地构建镜像不一定有 RepoDigest，不能把
 image ID 拼成 =repository@sha256:...=；两者含义不同。服务也接受真正的
 registry manifest digest 引用，但它同样必须已存在于本机。默认配置
 不接受仅 tag 的可变引用。
@@ -208,25 +265,69 @@ from /app/dist/...=，说明运行时从该路径无法解析飞书 SDK，即使
 已经成功。日志也可能在 =/var/log/messages=，可用
 =sudo grep 'openclaw/' /var/log/messages | tail -n 80= 查看。
 
-针对现有 =v2026.10.3= 镜像，可在本仓库根目录构建 SDK 修复层。
-它安装上游飞书插件声明的 =@larksuiteoapi/node-sdk@1.74.0=，保留原有
-pnpm 依赖树，并在构建中以运行用户验证导入。此补丁只解决 SDK 解析，
-不保证解决 Doctor 的其它错误；传递依赖未锁定，应记录构建产物 ID。
+针对现有 =v2026.10.3= 镜像，在本仓库根目录构建部署层。它安装上游飞书插件
+声明的 =@larksuiteoapi/node-sdk@1.74.0=，保留原有 pnpm 依赖树，并在构建中
+以运行用户验证导入；同时按固定 sha256 安装与引擎一致的 Podman 5.8.9 静态
+远程客户端，供 Podman 沙箱后端使用。SDK 补丁不保证解决 Doctor 的其它错误；
+传递依赖未锁定，应记录构建产物 ID。
 
 #+begin_src sh
 sudo docker build --network=host --pull=false \
   --build-arg BASE_IMAGE=sha256:f855681d24db345dcab753842f1137d5e5354ad83da7be28caacc7c0f9c939b0 \
-  -t localhost/openclaw-feishu:2026.10.3-sdk1 \
-  env/docker/openclaw-feishu
+  -t localhost/openclaw-gateway:2026.10.3-sandbox1 \
+  env/docker/openclaw-gateway
 sudo docker run --rm --network none --read-only \
   --user 1000:1000 --workdir /app/dist --entrypoint node \
-  localhost/openclaw-feishu:2026.10.3-sdk1 \
+  localhost/openclaw-gateway:2026.10.3-sandbox1 \
   --input-type=module -e 'await import("@larksuiteoapi/node-sdk")'
-sudo docker image inspect --format '{{.Id}}' localhost/openclaw-feishu:2026.10.3-sdk1
+sudo docker image inspect --format '{{.Id}}' localhost/openclaw-gateway:2026.10.3-sandbox1
 #+end_src
 
 把输出的新 ID 写入 =env/guix/os/storie.scm= 的 OpenClaw =image= 字段，
 重新部署并检查启动日志。保留原镜像以便回退。
+
+** 沙箱引擎与沙箱镜像
+
+两个镜像都以 UID/GID 2010 构建，须与 =openclaw-configuration= 的 =uid=、
+=gid= 一致。引擎基于固定 digest 的 =quay.io/podman/stable:v5.8.9=；沙箱基于
+上游 sandbox Dockerfile 的固定 =debian:bookworm-slim=，加少量常用工具，
+=HOME= 为可写的 =/tmp=。
+
+#+begin_src sh
+sudo docker build --network=host -t localhost/openclaw-sandbox-engine:5.8.9-1 \
+  env/docker/openclaw-sandbox-engine
+sudo docker build --network=host -t localhost/openclaw-sandbox:bookworm-1 \
+  env/docker/openclaw-sandbox
+sudo docker image inspect --format '{{.Id}}' localhost/openclaw-sandbox-engine:5.8.9-1
+sudo docker image inspect --format '{{.Id}}' localhost/openclaw-sandbox:bookworm-1
+#+end_src
+
+引擎的 seccomp profile 由镜像自带的 =/usr/share/containers/seccomp.json=
+生成，仓库保存结果。初始文件取自 Podman 5.8.9 对应的 container-libs
+=common/v0.67.2=；构建或更换引擎镜像后，用实际镜像重新生成并检查 diff：
+
+#+begin_src sh
+sudo guix shell python docker-cli -- python3 scripts/openclaw/engine-seccomp.py \
+  localhost/openclaw-sandbox-engine:5.8.9-1 > env/docker/openclaw-sandbox-engine/seccomp.json
+git diff env/docker/openclaw-sandbox-engine/seccomp.json
+#+end_src
+
+把两个 ID 写入 =engine-image= 与 =sandbox-image=。沙箱从不拉取镜像；
+沙箱镜像须导入引擎的持久存储 =/data/openclaw/engine=。Shepherd 启动时先
+单独启动引擎并检查该 ID，缺失则不启动 Gateway。首次部署或更换沙箱镜像时，
+在 =herd start openclaw= 失败后导入，再重新启动：
+
+#+begin_src sh
+sudo /etc/openclaw/compose up -d --wait engine
+sudo docker save localhost/openclaw-sandbox:bookworm-1 \
+  | sudo /etc/openclaw/compose exec -T engine podman load
+sudo /etc/openclaw/compose exec -T engine podman image ls
+sudo herd start openclaw
+#+end_src
+
+更换沙箱镜像后旧沙箱容器仍按旧配置存在；用
+=sudo /etc/openclaw/compose exec gateway node openclaw.mjs sandbox recreate --all=
+重建。重启引擎会清除所有沙箱容器，workspace 不受影响。
 
 * 飞书与模型
 
@@ -376,13 +477,13 @@ Gateway token 可用密码管理器生成至少 32 字节随机值，直接填�
 
 服务自动向已有的 =sops-secrets-service-type= 贡献三个 secret，全部
 解密为 root:root 0400。每次启动复制到 root-only 的 =/run/openclaw/=
-下，文件归容器 UID/GID 1000 所有、模式 0400，单独只读挂载到容器
-=/run/secrets/=。SecretRef 引用这些普通文件，Guix store、Compose 和
+下，文件归专用 UID/GID 2010 所有、模式 0400，只单独只读挂载到 Gateway
+的 =/run/secrets/=，不挂给引擎或沙箱。SecretRef 引用这些普通文件，Guix store、Compose 和
 声明配置都只有路径及引用，没有凭据值。容器不获得主机 age/GPG 私钥。
 
-运行 UID 1000 与上游镜像一致；宿主机相同 UID 的用户属于本部署信任
-范围。文件挂载及容器负责限制可见路径，不把 SecretRef 当作任意代码
-执行场景中的秘密隔离边界。
+Gateway、引擎和沙箱都以宿主账号 =openclaw=（UID 2010）运行，不再与管理员
+共用 UID 1000。凭据隔离来自挂载：沙箱进程虽是同一 UID，但其挂载命名空间
+里没有这些文件。SecretRef 本身不是任意代码执行场景中的秘密隔离边界。
 
 轮换时先更新密文及系统声明，再重新解密，然后重建容器：
 
@@ -403,8 +504,9 @@ sudo herd restart openclaw
 在 storie 的仓库开发环境中，先确认声明的镜像确实存在（此命令不拉取）：
 
 #+begin_src sh
-sudo docker image inspect --format '{{.Id}} {{.Architecture}}' \
-  sha256:f855681d24db345dcab753842f1137d5e5354ad83da7be28caacc7c0f9c939b0
+for image in <image> <engine-image> <sandbox-image>; do
+  sudo docker image inspect --format '{{.Id}} {{.Architecture}}' "$image"
+done
 #+end_src
 
 确认使用含飞书插件的镜像后，在仓库根目录部署：
@@ -432,43 +534,63 @@ new-api 的 token 权限、模型名称及协议均可用。不要以 Gateway �
 |------------------------------------+------------------------------+------|
 | /etc/openclaw/base.json             | 同路径，只读                 | Guix 初始配置与不变量 |
 | /etc/openclaw/config*.mjs           | 同路径，只读                 | 校验入口与策略 |
-| /etc/openclaw/config-plugin         | 同路径，只读                 | exec 命令转接插件 |
-| /data/openclaw/home                 | /home/node                   | 状态、认证、备份及维护文件 |
-| /data/openclaw/workspaces/main      | /workspace                   | main workspace |
-| /data/openclaw/workspaces           | /workspaces                  | 动态 agent 工作区 |
-| /run/openclaw/<secret>             | /run/secrets/<secret>         | 运行时秘密 |
+| /etc/openclaw/config-plugin         | 同路径，只读                 | 校验工具插件 |
+| /etc/openclaw/engine-seccomp.json   | 引擎的 seccomp profile        | Docker 读取 |
+| /data/openclaw/home                 | 同路径（Gateway）            | 状态、认证、备份及维护文件 |
+| /data/openclaw/workspaces           | 同路径（Gateway、引擎）      | 各 agent 工作区，main 在 =main/= |
+| /data/openclaw/engine               | 引擎 Podman 存储             | 沙箱镜像与容器 |
+| /run/openclaw-engine                | 同路径（Gateway、引擎）      | 引擎 API socket |
+| /run/openclaw/<secret>             | /run/secrets/<secret>         | 运行时秘密，仅 Gateway |
 | /var/log/openclaw/containers.log    | syslog 接收                  | 运维日志，轮转 |
 
 附件初期随 state 保存；=/media-data/openclaw/= 暂不创建。
-home、workspace 都是私有数据，不赋予 =log-readers= 读取权限。
+home 是私有数据；workspace 可由 =log-readers= 读取，见“执行沙箱”。
 HOME 整体可写，允许上游创建 =.openclaw=、=.config/openclaw= 和
 =.openclaw.update-captures= 等目录；镜像根文件系统和声明配置仍只读。
 运行配置可写；启动前先对齐 Guix 基础字段并验证，Doctor 修复与升级迁移
 仍属于受信任维护操作。若它们引入策略不支持的 agent 字段，下次校验或
 启动会拒绝，应审查后调整策略，不自动删除动态数据。
-旧布局的 =state=、=auth-key=、=update-captures= 不自动迁移或删除。
-若明确不保留旧数据，先停服务并移除容器，再清空数据目录，然后部署
-新配置。启动程序会创建权限为 0700、属主为 1000:1000 的新 HOME。
+旧布局（HOME 挂在 =/home/node=、workspace 挂在 =/workspace=、属主 1000）
+不自动迁移。接入沙箱时数据基本为空，按清空处理：停服务并移除容器，
+备份后清空 =/data/openclaw=，然后部署新配置：
+
+#+begin_src sh
+sudo herd stop openclaw
+sudo /etc/openclaw/compose down
+sudo mkdir -p /core-data/backups/openclaw
+sudo tar -C /data -czf /core-data/backups/openclaw/before-sandbox.tar.gz openclaw
+sudo rm -rf /data/openclaw
+#+end_src
+
+启动程序按上文创建目录与属主；新 HOME 权限为 0700、属主为 2010:2010。
+首次加入 =sandboxed-agents= 后，正在运行的 =restricted-network= 不会因
+reconfigure 重新执行，网络与规则尚不存在；Compose 要求所有外部网络存在，
+因此连启动前的 reconcile 也会失败。部署后先执行
+=sudo herd restart restricted-network=（会短暂重启依赖它的服务），再启动
+OpenClaw。
 容器 stdout/stderr 遵循现有日志组规则；它们也可能带有聊天相关诊断信息。
 不要开启含凭据或完整消息的调试日志。应用自己的临时文件日志在容器
-=/tmp=，不作长期保存。=/home/node/.cache= 另挂载 128 MiB tmpfs，
-由容器 UID/GID 1000 拥有、权限 0700，支持 OpenClaw 的安全临时目录
-fallback（例如 =openclaw-1000=）；缓存随容器销毁，不进入持久数据目录。
+=/tmp=，不作长期保存。HOME 下的 =.cache= 另挂载 128 MiB tmpfs，
+由 UID/GID 2010 拥有、权限 0700，支持 OpenClaw 的安全临时目录
+fallback；缓存随容器销毁，不进入持久数据目录。
 
 Shepherd 等待 =dockerd=、=restricted-network=、=sops-secrets=、
 =syslogd= 和 =file-system-/data=。每次 start 再检查 /data 确为 Btrfs
 挂载、秘密非空和 DNS 快照有效，之后才创建目录。拒绝符号链接目录，
-不递归更改已有用户数据权限。Docker bind mount 禁止自动创建缺失路径。
+不递归更改已有用户数据权限，并删除引擎上次遗留的 socket。Docker bind
+mount 禁止自动创建缺失路径。
 
-容器仅连接 =static-agent=。启动器把网络服务的
-=/run/restricted-network/resolv.conf= 转成 Docker 显式 DNS override，
-不会使用主机实时 resolver。网络允许公网 TCP 80/443 以及 new-api
-=172.31.0.9:3000=；它不是域名白名单，同桥也不是容器间隔离。
+Gateway 仅连接 =static-agent=，引擎仅连接 =sandboxed-agents=。启动器把网络服务的
+=/run/restricted-network/resolv.conf= 转成两个服务的 Docker 显式 DNS override，
+不会使用主机实时 resolver。=static-agent= 允许公网 TCP 80/443 以及 new-api
+=172.31.0.9:3000=；=sandboxed-agents= 只允许公网 TCP 80/443。它们不是域名
+白名单，同桥也不是容器间隔离。
 刷新 DNS 时先停 OpenClaw，再重启 restricted-network，最后启动 OpenClaw。
 
 Compose 采用 =on-failure=，不会随 Docker daemon 启动而绕过 Shepherd。
 镜像本地检查、运行时准备之后，先用所选镜像执行 =config validate=，
-再启动 Gateway，等待 =/startupz=。这个检查不代表飞书和模型都连通；
+再启动引擎并等待其 Podman API 健康、确认沙箱镜像已导入，最后启动
+Gateway，等待 =/startupz=。这个检查不代表飞书和模型都连通；
 需要下面的端到端验收。容器健康状态变成 unhealthy 不会由 Docker 的
 on-failure 自动重启；该策略只处理进程退出。
 
@@ -548,6 +670,7 @@ guix repl -L src/guix -L src/guile test/guix/uraj/services/openclaw.scm
 guix repl -L src/guix test/guix/uraj/openclaw-runtime.scm
 node --test test/openclaw/*.test.mjs
 guix build -L src/guix -L src/guile -f test/guix/uraj/openclaw-program.scm
+python3 test/python/uraj/container/seccomp.py
 #+end_src
 
 服务测试检查 Guix/SOPS 组合、权限、网络、SecretRef、镜像选择和失败
@@ -559,6 +682,16 @@ guix build -L src/guix -L src/guile -f test/guix/uraj/openclaw-program.scm
 3. 重启 Gateway 后上下文仍在，停止期间没有意外启动的容器。
 4. 重启主机后网络规则与秘密先就绪，镜像和数据均被保留。
 5. 实测秘密轮换、备份恢复，以及临时版本切回声明版本。
+6. 在 Gateway 中 =podman info= 报告 rootless 与 remote；引擎内看不到
+   =/run/secrets=、=/etc/openclaw= 和 HOME。
+7. 让 agent 执行 =id; ls /run/secrets; ls /data/openclaw/home=，以及访问
+   new-api、Gateway 18789 端口和一个公网 HTTPS 站点：应为 UID 2010，
+   凭据与 state 不可见，内部地址不通，公网可达。
+8. agent 在 workspace 写的文件在宿主上属于 =openclaw:log-readers=，
+   管理员不用 sudo 即可读取；=sandbox list= 显示引擎 socket，重启 Gateway
+   后沙箱复用，重启引擎后自动重建。
+9. 用 =openclaw_config_set= 修改默认模型成功；exec 中的
+   =openclaw config set= 被拒绝并提示该工具。
 
 仓库已包含用户提供的 image ID 和加密凭据。此处的自动测试不验证
 storie 上的镜像内容、凭据有效性或飞书授权，也未执行主机 reconfigure。
