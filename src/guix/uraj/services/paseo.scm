@@ -82,6 +82,38 @@
                  #:log-file "/var/log/paseo/broker.log"))
        (stop #~(make-kill-destructor)))
       (shepherd-service
+       (provision '(contained-podman))
+       (requirement (cons 'cgroups2-fs-owner (paseo-requirements config)))
+       (documentation "Serve persistent project Podman runtimes for agents.")
+       ;; Runtime sockets live in a boot-cleared directory created here, as
+       ;; the broker may launch agents before any login creates
+       ;; XDG_RUNTIME_DIR, and logout would remove that.
+       (start #~(lambda args
+                  (let* ((account (getpwnam #$user))
+                         (directory (string-append
+                                     "/run/contained-podman/"
+                                     (number->string (passwd:uid account)))))
+                    (unless (file-exists? "/run/contained-podman")
+                      (mkdir "/run/contained-podman" #o755))
+                    (unless (file-exists? directory)
+                      (mkdir directory #o700))
+                    (chown directory (passwd:uid account) (passwd:gid account))
+                    (chmod directory #o700)
+                    (apply (make-forkexec-constructor
+                            (list #$contained-podman-service)
+                            #:user #$user #:group #$group
+                            #:supplementary-groups
+                            '#$(delete-duplicates (cons "cgroup" groups))
+                            #:directory #$(paseo-home config)
+                            #:environment-variables
+                            (list (string-append "HOME=" #$(paseo-home config))
+                                  (string-append "USER=" #$user)
+                                  (string-append "LOGNAME=" #$user)
+                                  "PATH=/run/current-system/profile/bin")
+                            #:log-file "/var/log/paseo/contained-podman.log")
+                           args))))
+       (stop #~(make-kill-destructor)))
+      (shepherd-service
        (provision '(paseo))
        (requirement '(paseo-broker))
        (documentation "Run Paseo in a Guix container sharing the host network.")

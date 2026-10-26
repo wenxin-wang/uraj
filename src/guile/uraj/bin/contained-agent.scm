@@ -183,13 +183,16 @@ tree, and the mount options for WORKDIR."
   ;; Credentials, Paseo's keys (control of every session), our own
   ;; configuration and approvals, the build daemon (use the explicit
   ;; guix-daemon clause instead), decrypted SOPS secrets (use the explicit
-  ;; credential clauses instead), and the user's service managers.
+  ;; credential clauses instead), the user's service managers, and Podman
+  ;; runtime state: the host service's socket runs any container as the user.
   '("~/.paseo" "~/.paseo-password" "~/.ssh" "~/.gnupg" "~/.password-store"
     "~/.config/contained-agent" "~/.local/state/contained-agent"
+    "~/.local/share/contained-agent"
     "~/.local/state/paseo-broker"
     "~/.config/paseo" "~/.local/state/paseo-sandbox"
     "~/.cache/contained-agent"
-    "/var/guix/daemon-socket" "/run/secrets" "/run/user"))
+    "/var/guix/daemon-socket" "/run/secrets" "/run/user"
+    "/run/contained-podman"))
 
 (define (resolve file)
   (if (file-exists? file) (canonicalize-path file) file))
@@ -266,6 +269,66 @@ tree, and the mount options for WORKDIR."
     (('preserve (? string? names) ...)
      (map (cut string-append "--preserve=^" <> "$") names))
     (_ (die "~a: bad clause ~s" origin clause))))
+
+(define (podman-remote-policy clauses)
+  "Parse the central permission and optional host-visible temporary directory."
+  (match (filter (lambda (x)
+                   (and (pair? x) (eq? (car x) 'podman-remote))) clauses)
+    (() #f)
+    ((('podman-remote)) '())
+    ((('podman-remote ('tmpdir (? string? path))))
+     (let ((path (expand-home path)))
+       (unless (string-prefix? "/" path)
+         (die "podman-remote: TMPDIR must be absolute or start with ~/: ~a" path))
+       (when (any (lambda (part) (member part '("." "..")))
+                  (string-split path #\/))
+         (die "podman-remote: TMPDIR must not contain . or .. components"))
+       `((tmpdir . ,path))))
+    (_ (die "expected one central (podman-remote [(tmpdir PATH)]) clause"))))
+
+(define (podman-remote-mounts policy)
+  (let ((tmpdir (and policy (assq-ref policy 'tmpdir))))
+    (if tmpdir
+        (begin
+          ;; Validate before creating anything on the host.  Canonicalize after
+          ;; creation as well, so symlink ancestors cannot bypass the denylist.
+          (when (denied? tmpdir) (die "podman-remote: denied TMPDIR ~a" tmpdir))
+          (let loop ((parent tmpdir) (suffix ""))
+            (if (file-exists? parent)
+                (when (denied? (string-append (canonicalize-path parent) suffix))
+                  (die "podman-remote: denied TMPDIR parent ~a" parent))
+                (loop (dirname parent)
+                      (string-append "/" (basename parent) suffix))))
+          (mkdir-p tmpdir)
+          (unless (directory? tmpdir)
+            (die "podman-remote: TMPDIR is not a directory: ~a" tmpdir))
+          (when (denied? tmpdir) (die "podman-remote: denied TMPDIR ~a" tmpdir))
+          (share tmpdir))
+        '())))
+
+(define %podman-launcher (make-parameter #f))
+
+(define %podman-remote-setup
+  ;; Local API socket belongs to this session's isolated runtime.
+  ;; Keep the wrapper after direnv initialization and overlay setup.
+  "set -eu
+tmpdir=$1; shift
+if [ -n \"$tmpdir\" ]; then export TMPDIR=$tmpdir; fi
+real=$(command -v podman) || { echo 'podman-remote: no podman in the container; add it to the project manifest, and if a warning above says the project files are new or changed, review them and run `contained-agent allow` on the host' >&2; exit 1; }
+d=$HOME/.local/share/contained-agent/podman-remote
+mkdir -p \"$d\"
+export CONTAINER_HOST=unix:///run/contained-agent/podman/podman.sock
+export DOCKER_HOST=$CONTAINER_HOST
+unset CONTAINER_CONNECTION CONTAINER_SSHKEY
+unset DOCKER_CONTEXT DOCKER_TLS_VERIFY DOCKER_CERT_PATH
+export CONTAINED_AGENT_PODMAN=$real
+cat > \"$d/podman\" <<'EOF'
+#!/bin/sh
+exec \"$CONTAINED_AGENT_PODMAN\" --remote \"$@\"
+EOF
+chmod 700 \"$d/podman\"
+export PATH=$d:$PATH
+exec \"$@\"")
 
 (define (read-all file)
   (call-with-input-file file
@@ -1025,7 +1088,7 @@ NUL.  All ssh-add output goes to stderr, never into this private protocol."
                    ((origin . clause)
                     (or (credential-clause? (cons origin clause))
                         (and (pair? clause)
-                             (memq (car clause) '(ssh-agent manifest))))))
+                             (memq (car clause) '(ssh-agent manifest podman-remote))))))
                  central)
          (match (local-file "contained-agent.scm")
            (#f '())
@@ -1039,10 +1102,32 @@ NUL.  All ssh-add output goes to stderr, never into this private protocol."
       (aside (append (seeds spec) (seeds common)) "seed"))
     (define kept                        ;bound back over the overlays
       (aside (append (persisted spec) (persisted common)) "persist"))
-    (apply execlp "guix" "guix" "shell"
+    (define podman?
+      (and (not (member args '(("--version") ("auth" "status"))))
+           (podman-remote-policy (map cdr central))))
+    (define podman-tmp (podman-remote-mounts podman?))
+    (define project-options
+      (append-map (match-lambda
+                    ((origin . clause) (clause-options origin clause))) clauses))
+    (define launch
+      (if podman?
+          (begin
+            (unless (%podman-launcher)
+              (die "podman-remote: host runtime launcher is not configured"))
+            (append (%podman-launcher)
+                    (list "--project" project)
+                    (map (cut string-append "--mount-option=" <>)
+                         (filter (lambda (option)
+                                   (or (string-prefix? "--share=" option)
+                                       (string-prefix? "--expose=" option)))
+                                 (append mounts project-options podman-tmp)))
+                    '("--" "guix")))
+          '("guix")))
+    (apply execlp (car launch) (car launch)
+           (append (cdr launch) (list "shell"
            "--container" "--no-cwd" "--network" "--expose=/gnu/store"
            ;; Shebangs written for other systems, as Guix System has it.
-           "--symlink=/usr/bin/env=bin/env"
+           "--symlink=/usr/bin/env=bin/env")
            (append
             ;; Broad common mounts (such as read-only ~/src) must precede
             ;; the writable work tree and its nested Git protections.
@@ -1063,6 +1148,10 @@ NUL.  All ssh-add output goes to stderr, never into this private protocol."
                         clauses)
             (if (any (lambda (entry) (equal? (cdr entry) '(guix-daemon))) clauses)
                 (guix-daemon-options project)
+                '())
+            podman-tmp
+            (if podman?
+                '("--expose=@CONTAINED_PODMAN_SOCKET@=/run/contained-agent/podman")
                 '())
             ;; Only this central-policy exception may expose SSH resources.
             ;; Mount the socket itself, never the runtime directory or keys.
@@ -1154,13 +1243,18 @@ exec \"$@\""
             (if ssh-dir
                 '("env" "SSH_AUTH_SOCK=/run/contained-agent/ssh.sock")
                 '())
+            (if podman?
+                (list "bash" "-c" %podman-remote-setup "podman-remote"
+                      (or (assq-ref podman? 'tmpdir) ""))
+                '())
             (list (assq-ref spec 'program))
             (or (assq-ref spec 'arguments) '())
-            args))))
+            args)))))
 
 (define* (contained-agent-main command-line
                                #:key agents common packages git
                                (ssh-tools '())
+                               (podman-launcher #f)
                                (projects-file
                                 "~/.config/contained-agent/projects.scm")
                                (github-secrets (%github-secrets))
@@ -1176,7 +1270,8 @@ GitHub token tiers, or #f if this host has none, and PROJECTS-SECRET, if not
 #f, is a host-private projects file; SOPS decrypts both."
   (catch 'contained-ssh-error
    (lambda ()
-    (parameterize ((%github-secrets github-secrets)
+    (parameterize ((%podman-launcher podman-launcher)
+                   (%github-secrets github-secrets)
                    (%projects-secret projects-secret))
     (match command-line
     ((program args ...)
@@ -1187,6 +1282,27 @@ GitHub token tiers, or #f if this host has none, and PROJECTS-SECRET, if not
         (inherit "." git projects-file ssh-tools))
        (("contained-agent" "inherit" directory)
         (inherit directory git projects-file ssh-tools))
+       (("contained-agent" "podman-stop" runtime-id)
+        (unless podman-launcher
+          (die "Podman runtime launcher is not configured"))
+        (apply execlp (car podman-launcher)
+               (append podman-launcher (list "--stop" runtime-id))))
+       (("contained-agent" "podman-list")
+        (unless podman-launcher
+          (die "Podman runtime launcher is not configured"))
+        (apply execlp (car podman-launcher)
+               (append podman-launcher (list "--list"))))
+       (("contained-agent" "podman-check" runtime-id)
+        (unless podman-launcher
+          (die "Podman runtime launcher is not configured"))
+        (apply execlp (car podman-launcher)
+               (append podman-launcher (list "--check" runtime-id))))
+       (("contained-agent" "podman-service")
+        ;; The shared outer engine; Home or system Shepherd normally runs it.
+        (unless podman-launcher
+          (die "Podman runtime launcher is not configured"))
+        (apply execlp (car podman-launcher)
+               (append podman-launcher (list "--host-service"))))
        (("contained-agent" "ssh-service")
         (serve-project-ssh git projects-file ssh-tools))
        (("contained-agent" (and action (or "ssh-start" "ssh-stop" "ssh-socket"))
@@ -1212,7 +1328,7 @@ GitHub token tiers, or #f if this host has none, and PROJECTS-SECRET, if not
        (("contained-agent" name args ...)
         (run-agent name args agents common packages git projects-file ssh-tools))
        (("contained-agent")
-        (die "usage: contained-agent AGENT [ARGS...] | allow|inherit|ssh-start|ssh-stop|ssh-socket [DIRECTORY]"))
+        (die "usage: contained-agent AGENT [ARGS...] | allow|inherit|ssh-start|ssh-stop|ssh-socket [DIRECTORY] | podman-service | podman-list | podman-check|podman-stop RUNTIME_ID"))
        ((name args ...)
         (run-agent name args agents common packages git projects-file ssh-tools)))))))
    (lambda (_ message) (die "~a" message))))

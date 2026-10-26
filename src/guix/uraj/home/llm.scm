@@ -1,11 +1,14 @@
 (define-module (uraj home llm)
   #:use-module (gnu home)
   #:use-module (gnu home services)
+  #:use-module (gnu home services shepherd)
   #:use-module (gnu packages version-control)
   #:use-module (gnu packages ssh)
   #:use-module (gnu packages base)
   #:use-module (gnu packages bash)
   #:use-module (gnu packages guile)
+  #:use-module (gnu packages containers)
+  #:use-module (gnu packages python)
   #:use-module (gnu services)
   #:use-module (guix gexp)
   #:use-module (guix profiles)
@@ -21,7 +24,8 @@
   #:use-module (uraj utils file path)
   #:export (home-agent-skills-service-type
             agent-common-services
-            agent-desktop-services agent-headless-services contained-agent))
+            agent-desktop-services agent-headless-services contained-agent
+            contained-podman-service))
 
 ;;; Agent skills: a list of (NAME DIRECTORY) entries, DIRECTORY being a
 ;;; file-like skill directory containing SKILL.md (use file-append to pick a
@@ -149,6 +153,37 @@ Homes and the headless Homes."
     "nss-certs" "patch" "perl" "procps" "python-wrapper" "ripgrep" "sed" "tar"
     "unzip" "wget" "which" "xz" "zip"))
 
+(define %contained-podman-launcher
+  ;; Shared by sessions, podman-stop and the host service.
+  #~(list #$(file-append python "/bin/python3")
+          #$(local-file (project-path "src/python/uraj/contained_podman.py"))
+          "--podman" #$(file-append podman "/bin/podman")))
+
+(define contained-podman-service
+  ;; The shared outer engine for persistent project Podman runtimes, which
+  ;; also stops idle ones.  It must run outside the Paseo broker's
+  ;; supervisor namespace, which lacks the subordinate-ID helpers.
+  (program-file
+   "contained-podman-service"
+   #~(let ((launcher #$%contained-podman-launcher))
+       (apply execl (car launcher) (append launcher '("--host-service"))))))
+
+(define* (contained-podman-home-services #:key (requirements '()))
+  "Run the host Podman service in user Shepherd, beside a Home-started
+broker.  Boot deployments start it through the root Shepherd instead."
+  (list
+   (simple-service 'contained-podman home-shepherd-service-type
+     (list (shepherd-service
+            (provision '(contained-podman))
+            (requirement requirements)
+            (documentation "Serve persistent project Podman runtimes.")
+            (modules '((shepherd support)))
+            (start #~(make-forkexec-constructor
+                      (list #$contained-podman-service)
+                      #:log-file (in-vicinity %user-log-dir
+                                              "contained-podman.log")))
+            (stop #~(make-kill-destructor)))))))
+
 (define contained-agent
   (program-file
    "contained-agent"
@@ -168,6 +203,7 @@ Homes and the headless Homes."
                                        (cons 'ssh-add #$(file-append openssh "/bin/ssh-add"))
                                        (cons 'sha256sum #$(file-append coreutils "/bin/sha256sum"))
                                        (cons 'bash #$(file-append bash-minimal "/bin/bash")))
+                                 #:podman-launcher #$%contained-podman-launcher
                                  #:git #$(file-append git "/bin/git")
                                  #:github-secrets #$(github-token-directory)
                                  #:projects-secret
@@ -218,7 +254,13 @@ settings."
                               '(home-ready gnome-keyring-secrets))
            #:askpass? #t)
           (paseo-home-services
-           #:autostart? (paseo-setup-autostart? setup)))
+           #:autostart? (paseo-setup-autostart? setup))
+          (if (paseo-setup-autostart? setup)
+              (contained-podman-home-services
+               #:requirements (if (home-target-foreign? (current-home-target))
+                                  '()
+                                  '(home-ready)))
+              '()))
          '())
      (list
       (simple-service 'llm-desktop-packages
