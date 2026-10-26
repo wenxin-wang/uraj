@@ -614,7 +614,8 @@ class Checks(unittest.TestCase):
             "if mkdir '" + hooks + "/.contained-podman-check-", script
         )
         self.assertIn(
-            ": >> " + shlex.quote(str(self.project / ".git/config")), script
+            "( : >> " + shlex.quote(str(self.project / ".git/config")) + " )",
+            script,
         )
         self.assertEqual((self.project / ".git/config").read_text(), "[core]\n")
         subcommands = [c[4:6] for c in self.commands]
@@ -637,6 +638,38 @@ class Checks(unittest.TestCase):
         manager.attach.assert_called_once()
         manager.detach.assert_called_once()
         self.assertIn(["network", "rm"], [c[4:6] for c in self.commands])
+
+
+class ReadOnlyScript(unittest.TestCase):
+    @unittest.skipIf(os.getuid() == 0, "root ignores file modes")
+    def test_real_shell_passes_protected_and_fails_writable_paths(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            directory, file = root / "hooks dir", root / "config"
+            directory.mkdir()
+            file.write_text("[core]\n")
+            paths = [(str(directory), True), (str(file), False)]
+            directory.chmod(0o555)
+            file.chmod(0o444)
+            try:
+                script = RUNTIME.read_only_script(paths, "1")
+                protected = subprocess.run(
+                    ["sh", "-ec", script], capture_output=True, text=True
+                )
+                self.assertEqual(protected.returncode, 0, protected.stderr)
+                for index, mode in ((0, 0o755), (1, 0o644)):
+                    target = Path(paths[index][0])
+                    target.chmod(mode)
+                    writable = subprocess.run(
+                        ["sh", "-ec", script], capture_output=True, text=True
+                    )
+                    self.assertEqual(writable.returncode, 31)
+                    self.assertIn("writable: " + str(target), writable.stderr)
+                    target.chmod(0o555 if index == 0 else 0o444)
+                self.assertEqual(list(directory.iterdir()), [])
+                self.assertEqual(file.read_text(), "[core]\n")
+            finally:
+                directory.chmod(0o755)
 
 
 class Listing(unittest.TestCase):

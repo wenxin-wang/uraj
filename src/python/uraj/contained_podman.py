@@ -774,6 +774,36 @@ class SharedRuntime:
 CHECK_IMAGE = "docker.io/library/busybox:1.37"
 
 
+def read_only_script(paths, suffix):
+    """Shell code exiting non-zero if any of PATHS accepts writes.
+
+    PATHS holds (path, is_directory).  Nothing changes even if a protection
+    were missing: files are only opened for append, and a probe directory is
+    removed at once.
+    """
+    script = []
+    for path, directory in paths:
+        quoted = shlex.quote(path)
+        if directory:
+            probe = shlex.quote(path + "/.contained-podman-check-" + suffix)
+            script.append(
+                f"if mkdir {probe} 2>/dev/null; then rmdir {probe}; "
+                f"echo 'writable: '{quoted} >&2; exit 31; fi"
+            )
+        else:
+            # A failed redirection on a special built-in such as `:` exits
+            # the shell, so probe in a subshell.
+            script.append(
+                f"if ( : >> {quoted} ) 2>/dev/null; then "
+                f"echo 'writable: '{quoted} >&2; exit 31; fi"
+            )
+        script.append(
+            f"if mount -o remount,bind,rw {quoted} 2>/dev/null; then "
+            f"echo 'remounted: '{quoted} >&2; exit 32; fi"
+        )
+    return "; ".join(script)
+
+
 def runtime_checks(engine):
     """Exercise the inner API as an agent would, yielding (name, check).
 
@@ -860,32 +890,17 @@ def runtime_checks(engine):
         protected = [m for m in mounts if m[2] == "ro" and m[0].exists()]
         if not protected:
             return "skipped: no read-only mount"
-        script, options = [], []
-        for source, target, _ in protected:
-            quoted = shlex.quote(target)
-            if source.is_dir():
-                probe = shlex.quote(
-                    target + "/.contained-podman-check-" + suffix
-                )
-                script.append(
-                    f"if mkdir {probe} 2>/dev/null; then rmdir {probe}; "
-                    f"echo 'writable: '{quoted} >&2; exit 31; fi"
-                )
-            else:
-                # Opening for append changes nothing even if it succeeds.
-                script.append(
-                    f"if : >> {quoted} 2>/dev/null; then "
-                    f"echo 'writable: '{quoted} >&2; exit 31; fi"
-                )
-            script.append(
-                f"if mount -o remount,bind,rw {quoted} 2>/dev/null; then "
-                f"echo 'remounted: '{quoted} >&2; exit 32; fi"
-            )
+        script = read_only_script(
+            [(target, source.is_dir()) for source, target, _ in protected],
+            suffix,
+        )
+        options = []
+        for _, target, _ in protected:
             options += ["--volume", f"{target}:{target}"]
         # Default privileged tasks fail at sysfs creation; test the variant
         # with the runtime's read-only sysfs as well as ordinary tasks.
         for extra in ([], ["--privileged", "--volume", "/sys:/sys:ro"]):
-            task("; ".join(script), *extra, *options)
+            task(script, *extra, *options)
         return f"{len(protected)} mount(s), ordinary and privileged"
 
     def root_isolation():
@@ -981,7 +996,7 @@ def check_main(manager):
                 note = check()
             except (RuntimeError, OSError, subprocess.TimeoutExpired) as error:
                 failures += 1
-                print(f"FAIL {name}: {error}", flush=True)
+                print(f"FAIL {name}: {str(error).rstrip()}", flush=True)
             else:
                 print(
                     f"PASS {name}" + (f" ({note})" if note else ""), flush=True
