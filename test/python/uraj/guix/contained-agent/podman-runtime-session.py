@@ -1,6 +1,7 @@
 """Session lifecycle and mount boundary tests, without a host Podman engine."""
 
 import concurrent.futures
+import fcntl
 import importlib.util
 import io
 import json
@@ -636,6 +637,76 @@ class Checks(unittest.TestCase):
         manager.attach.assert_called_once()
         manager.detach.assert_called_once()
         self.assertIn(["network", "rm"], [c[4:6] for c in self.commands])
+
+
+class Listing(unittest.TestCase):
+    def test_lists_state_sessions_and_writable_mounts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current, old = root / ("a" * 32), root / ("b" * 32)
+            for directory, schema in ((current, RUNTIME.SPEC_SCHEMA), (old, 2)):
+                directory.mkdir()
+                (directory / "spec.json").write_text(
+                    json.dumps(
+                        {
+                            "schema": schema,
+                            "project": "/src/" + directory.name[0],
+                            "mounts": [
+                                {"target": "/src/w", "mode": "rw"},
+                                {"target": "/src/w/.git/config", "mode": "ro"},
+                            ],
+                        }
+                    )
+                )
+            (root / "host").mkdir()
+            with (current / "sessions.lock").open("a+") as lease:
+                fcntl.flock(lease, fcntl.LOCK_SH)
+                with mock.patch("sys.stdout", io.StringIO()) as output:
+                    self.assertEqual(
+                        RUNTIME.list_main(
+                            root, root / "missing.sock", "podman"
+                        ),
+                        0,
+                    )
+            lines = output.getvalue().splitlines()
+            self.assertEqual(lines[0].split()[:2], ["ID", "STATE"])
+            rows = {line.split()[0]: line for line in lines[1:]}
+            self.assertEqual(set(rows), {"a" * 32, "b" * 32})
+            self.assertIn("unknown  1 session(s)", rows["a" * 32])
+            self.assertEqual(rows["a" * 32].split()[-2:], ["/src/a", "/src/w"])
+            self.assertIn("idle", rows["b" * 32])
+            self.assertIn("(old schema)", rows["b" * 32])
+            self.assertNotIn(".git/config", output.getvalue())
+
+
+class CgroupRemoval(unittest.TestCase):
+    def test_reports_remaining_processes_instead_of_forcing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            group = Path(tmp) / "contained-podman-x"
+            (group / "conmon").mkdir(parents=True)
+            (group / "cgroup.events").write_text("populated 1\nfrozen 0\n")
+            (group / "cgroup.procs").write_text("")
+            (group / "conmon/cgroup.procs").write_text("42\n7\n")
+            with self.assertRaisesRegex(RuntimeError, "Processes 7 42 remain"):
+                RUNTIME.remove_cgroup(group, timeout=0.3)
+            self.assertTrue(group.exists())
+
+    def test_waits_for_drain_then_removes_subtree(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            group = Path(tmp) / "contained-podman-x"
+            (group / "conmon").mkdir(parents=True)
+            reads = iter(["populated 1\n", "populated 1\n", "populated 0\n"])
+            removed = []
+            with (
+                mock.patch.object(Path, "read_text", lambda self: next(reads)),
+                mock.patch.object(
+                    Path, "rmdir", lambda self: removed.append(self)
+                ),
+                mock.patch.object(RUNTIME.time, "sleep"),
+            ):
+                RUNTIME.remove_cgroup(group)
+            self.assertEqual(removed, [group / "conmon", group])
+            RUNTIME.remove_cgroup(Path(tmp) / "missing")
 
 
 class HostService(unittest.TestCase):

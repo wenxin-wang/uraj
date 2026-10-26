@@ -699,7 +699,9 @@ Persistent state and logs live under
 engine state live under =RUNTIME_ROOT/<runtime-id>/= (see above).  Both
 directories must be private to the user.  The outer container is named
 =contained-agent-runtime-<runtime-id>= in the host service.
-Startup prints the runtime ID and log location.  A startup lock serializes
+Startup prints the runtime ID and log location.  =contained-agent podman-list=
+lists every runtime with its ID, whether its container is running, how many
+sessions hold it, when it was last used, its project and writable mounts.  A startup lock serializes
 creation/recovery; shared session locks prevent an ordinary stop while another
 supervised agent session is attached.
 
@@ -713,7 +715,9 @@ contained-agent podman-stop RUNTIME_ID
 This stops its tasks and removes transient state and the private cgroup, while
 retaining images, volumes and writable storage.  It refuses while a session
 supervisor holds a lease.  Detached tasks do not hold session leases: stopping
-an otherwise idle runtime also stops those tasks.  SIGKILL of a supervisor can
+an otherwise idle runtime also stops those tasks.  It waits up to 30 seconds
+for conmon's cleanup to leave the private cgroup and otherwise reports the
+remaining processes, never killing them; rerun it once they exit.  SIGKILL of a supervisor can
 release its lease before a surviving agent exits; close such orphaned agents
 before explicitly stopping the runtime.
 

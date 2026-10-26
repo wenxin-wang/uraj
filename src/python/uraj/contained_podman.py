@@ -48,6 +48,39 @@ def nested_seccomp(profile):
     return {**profile, "syscalls": rules}
 
 
+def remove_cgroup(group, timeout=30):
+    """Remove GROUP's subtree once its processes have exited.
+
+    conmon runs the container cleanup command from its own child group after
+    the container is gone, so wait for that instead of failing at once. Never
+    move or kill processes to force removal.
+    """
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            events = (group / "cgroup.events").read_text().splitlines()
+        except FileNotFoundError:
+            return
+        if "populated 0" in events:
+            break
+        if time.monotonic() >= deadline:
+            remaining = sorted(
+                {
+                    pid
+                    for path in group.rglob("cgroup.procs")
+                    for pid in path.read_text().split()
+                },
+                key=int,
+            )
+            raise RuntimeError(
+                f"Processes {' '.join(remaining)} remain in {group}; "
+                "retry once they exit"
+            )
+        time.sleep(0.2)
+    for parent, _, _ in os.walk(group, topdown=False):
+        Path(parent).rmdir()
+
+
 class Engine:
     """One project's outer runtime container and its inner Podman API.
 
@@ -211,7 +244,8 @@ class Engine:
                 "Host root has not enabled cpu/memory/pids; no global changes made"
             )
         self.cgroup = root / ("contained-podman-" + self.directory.name)
-        self.cgroup.mkdir(mode=0o700)
+        # An interrupted stop may have left the empty or draining group.
+        self.cgroup.mkdir(mode=0o700, exist_ok=True)
         (self.cgroup / "cgroup.subtree_control").write_text(
             "+cpu +memory +pids"
         )
@@ -418,19 +452,7 @@ class Engine:
             ]
         )
         if self.cgroup is not None:
-            # Remove only our subtree, after runtime termination. Never move
-            # or kill unrelated host processes to force cleanup.
-            for attempt in range(10):
-                try:
-                    for parent, _, _ in os.walk(self.cgroup, topdown=False):
-                        Path(parent).rmdir()
-                    break
-                except FileNotFoundError:
-                    break
-                except OSError:
-                    if attempt == 9:
-                        raise
-                    time.sleep(0.2)
+            remove_cgroup(self.cgroup)
 
 
 RUNTIME_ID = re.compile("[0-9a-f]{32}")
@@ -973,6 +995,98 @@ def check_main(manager):
     return 1 if failures else 0
 
 
+def held_locks(path):
+    """Count flock holders of PATH without taking, and so racing, its lock."""
+    try:
+        info = path.stat()
+    except FileNotFoundError:
+        return 0
+    identity = "{:02x}:{:02x}:{}".format(
+        os.major(info.st_dev), os.minor(info.st_dev), info.st_ino
+    )
+    with open("/proc/locks") as table:
+        return sum(
+            1
+            for line in table
+            if "->" not in line
+            and line.split()[1:2] == ["FLOCK"]
+            and line.split()[5:6] == [identity]
+        )
+
+
+def list_main(state_root, socket, podman):
+    """Print one line per runtime; runtime IDs select podman-check/stop."""
+    running = None
+    if socket.exists():
+        names = subprocess.run(
+            [podman, "--remote", "--url", "unix://" + str(socket)]
+            + ["ps", "--format", "{{.Names}}"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+        )
+        if names.returncode == 0:
+            running = set(names.stdout.split())
+    rows = []
+    for directory in sorted(state_root.iterdir()):
+        if not RUNTIME_ID.fullmatch(directory.name):
+            continue
+        try:
+            spec = json.loads((directory / "spec.json").read_text())
+        except (OSError, ValueError):
+            continue
+        project = spec.get("project", "?")
+        if spec.get("schema") != SPEC_SCHEMA:
+            project += " (old schema)"
+        if running is None:
+            state = "unknown"
+        elif "contained-agent-runtime-" + directory.name in running:
+            state = "running"
+        else:
+            state = "stopped"
+        sessions = held_locks(directory / "sessions.lock")
+        sessions = f"{sessions} session(s)" if sessions else "idle"
+        used = [
+            path.stat().st_mtime
+            for path in (directory / "last-detach", directory / "ready.json")
+            if path.exists()
+        ]
+        rows.append(
+            (
+                max(used, default=0),
+                [
+                    directory.name,
+                    state,
+                    sessions,
+                    time.strftime("%Y-%m-%d %H:%M", time.localtime(max(used)))
+                    if used
+                    else "-",
+                    project,
+                    " ".join(
+                        item["target"]
+                        for item in spec.get("mounts", [])
+                        if item.get("mode") == "rw"
+                    ),
+                ],
+            )
+        )
+    header = ["ID", "STATE", "SESSIONS", "LAST USED", "PROJECT", "WRITABLE"]
+    lines = [header] + [row for _, row in sorted(rows, reverse=True)]
+    widths = [max(len(line[i]) for line in lines) for i in range(5)]
+    for line in lines:
+        print(
+            "  ".join(cell.ljust(width) for cell, width in zip(line, widths))
+            + "  "
+            + line[5]
+        )
+    if running is None:
+        print(
+            "Host Podman service unreachable at " + str(socket), file=sys.stderr
+        )
+    return 0
+
+
 def default_runtime_root():
     # Guix System's Paseo service creates this at boot. Unlike
     # XDG_RUNTIME_DIR, it exists before login and survives logout.
@@ -1138,6 +1252,11 @@ def session_main():
         help="Stop an idle runtime, retaining images and volumes",
     )
     parser.add_argument(
+        "--list",
+        action="store_true",
+        help="List runtimes with their state, project and writable mounts",
+    )
+    parser.add_argument(
         "--check",
         metavar="RUNTIME_ID",
         help="Start or attach a runtime and exercise its API as an agent would",
@@ -1157,6 +1276,8 @@ def session_main():
     if args.host_service:
         return host_service_main(args)
     socket = host_socket(args.runtime_root)
+    if args.list:
+        return list_main(args.state_root, socket, args.podman)
     if not socket.exists():
         parser.error(
             "Host Podman service is not running ("
@@ -1182,8 +1303,12 @@ def session_main():
         )
         if args.check:
             return check_main(manager)
-        with contextlib.redirect_stdout(sys.stderr):
-            manager.stop()
+        try:
+            with contextlib.redirect_stdout(sys.stderr):
+                manager.stop()
+        except (RuntimeError, OSError, subprocess.TimeoutExpired) as error:
+            print("contained-agent runtime: " + str(error), file=sys.stderr)
+            return 1
         return 0
     if not command or not args.project or not args.mount_option:
         parser.error(
