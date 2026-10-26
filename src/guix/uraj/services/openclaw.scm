@@ -73,6 +73,11 @@
 (define (data-path config . parts)
   (string-join (cons (openclaw-data-directory config) parts) "/"))
 
+;; State subdirectories OpenClaw binds read-only into sandboxes: skill copies
+;; for rw workspaces and subagent attachments.  Never credentials.
+(define %sandbox-state-mounts
+  '(".openclaw/sandbox/skills-workspaces" ".openclaw/attachments/subagents"))
+
 (define (owner config)
   (format #f "~a:~a" (openclaw-uid config) (openclaw-gid config)))
 
@@ -327,9 +332,16 @@
                                 uid uid gid)))
             ,(compose-logging "openclaw")
             (volumes .
-             #(,(bind workspaces workspaces)
-               ,(bind (data-path config "engine") "/home/podman/.local/share/containers")
-               ,(bind %engine-runtime %engine-runtime)))
+             ,(list->vector
+               (append
+                (list (bind workspaces workspaces)
+                      (bind (data-path config "engine")
+                            "/home/podman/.local/share/containers")
+                      (bind %engine-runtime %engine-runtime))
+                (map (lambda (part)
+                       (let ((path (string-append home "/" part)))
+                         (bind path path #t)))
+                     %sandbox-state-mounts))))
             (networks . #("sandbox"))
             (healthcheck .
              ((test . #("CMD" "podman" "--remote" "--url" ,%engine-socket
@@ -356,6 +368,7 @@
                           %secret-names (openclaw-secrets config)))
             #:uid #$(openclaw-uid config) #:gid #$(openclaw-gid config)
             #:engine-runtime #$%engine-runtime
+            #:sandbox-state '#$%sandbox-state-mounts
             #:setfacl #$(file-append acl "/bin/setfacl")))))))
 
 (define (openclaw-command config)

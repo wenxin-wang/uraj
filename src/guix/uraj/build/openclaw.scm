@@ -61,6 +61,7 @@
 (define* (prepare-openclaw data secret-files
                           #:key (runtime "/run/openclaw")
                           (engine-runtime "/run/openclaw-engine")
+                          (sandbox-state '())
                           (resolver "/run/restricted-network/resolv.conf")
                           (data-mount "/data") (data-type "btrfs")
                           (uid 2010) (gid 2010) (readers "log-readers")
@@ -92,6 +93,16 @@
     ;; Readers may traverse to workspaces, but not into home or engine.
     (private-directory data 0 reader-gid #o750)
     (private-directory (string-append data "/home") uid gid)
+    ;; The engine binds these before OpenClaw would create them.
+    (for-each
+     (lambda (part)
+       (let loop ((parts (string-split part #\/))
+                  (path (string-append data "/home")))
+         (unless (null? parts)
+           (let ((next (string-append path "/" (car parts))))
+             (private-directory next uid gid)
+             (loop (cdr parts) next)))))
+     sandbox-state)
     (private-directory (string-append data "/engine") uid gid)
     (for-each
      (lambda (path)

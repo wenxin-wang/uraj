@@ -34,6 +34,7 @@
 (define* (prepare #:key (mounts (list (mount "btrfs"))))
   (prepare-openclaw data inputs #:runtime runtime #:resolver resolver
                     #:engine-runtime engine-runtime
+                    #:sandbox-state '(".openclaw/sandbox/skills-workspaces")
                     #:uid 2010 #:gid 2011 #:readers 973 #:setfacl setfacl
                     #:data-mount pool #:current-mounts mounts))
 (test-error "absent mount rejected" #t (prepare #:mounts '()))
@@ -56,6 +57,13 @@
 (prepare)
 (test-equal "private runtime" #o700 (stat:perms (stat runtime)))
 (test-equal "home private" #o700 (stat:perms (stat (string-append data "/home"))))
+(for-each
+ (lambda (part)
+   (let ((path (string-append data "/home/" part)))
+     (test-equal "sandbox state bind source private" #o700 (stat:perms (stat path)))
+     (test-equal "sandbox state owned by the dedicated user" '(2010 2011)
+       (cdr (find (lambda (e) (equal? path (car e))) ownership)))))
+ '(".openclaw" ".openclaw/sandbox" ".openclaw/sandbox/skills-workspaces"))
 (test-equal "engine storage private" #o700
   (stat:perms (stat (string-append data "/engine"))))
 (test-equal "engine socket directory private" #o700
@@ -115,7 +123,7 @@
 (test-equal "restart refreshes DNS" '#("9.9.9.9") (dns))
 (test-equal "restart replaces secret contents" "rotated-test-credential\n"
   (call-with-input-file (string-append runtime "/gateway-token") get-string-all))
-(rmdir (string-append data "/home"))
+(delete-file-recursively (string-append data "/home"))
 (symlink pool (string-append data "/home"))
 (test-error "container-controlled symlink is rejected" #t (prepare))
 (delete-file (string-append data "/home"))

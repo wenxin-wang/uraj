@@ -75,15 +75,21 @@
   (at engine "security_opt"))
 (test-assert "engine is never privileged" (not (at engine "privileged")))
 (define engine-volumes (vector->list (at engine "volumes")))
-(test-equal "engine sees workspaces, its store and its socket only"
+(test-equal "engine sees workspaces, its store, its socket and sandbox state"
   '(("/data/openclaw/workspaces" . "/data/openclaw/workspaces")
     ("/data/openclaw/engine" . "/home/podman/.local/share/containers")
-    ("/run/openclaw-engine" . "/run/openclaw-engine"))
+    ("/run/openclaw-engine" . "/run/openclaw-engine")
+    ("/data/openclaw/home/.openclaw/sandbox/skills-workspaces"
+     . "/data/openclaw/home/.openclaw/sandbox/skills-workspaces")
+    ("/data/openclaw/home/.openclaw/attachments/subagents"
+     . "/data/openclaw/home/.openclaw/attachments/subagents"))
   (map (lambda (v) (cons (at v "source") (at v "target"))) engine-volumes))
-(test-assert "engine has no secrets, state or Docker socket"
-  (every (lambda (v) (not (or (string-prefix? "/run/openclaw/" (at v "source"))
-                              (string-prefix? "/etc/" (at v "source"))
-                              (string-prefix? "/data/openclaw/home" (at v "source")))))
+(test-assert "engine gets only read-only sandbox state, never config or secrets"
+  (every (lambda (v)
+           (and (not (string-prefix? "/run/openclaw/" (at v "source")))
+                (not (string-prefix? "/etc/" (at v "source")))
+                (or (not (string-prefix? "/data/openclaw/home" (at v "source")))
+                    (eq? #t (at v "read_only")))))
          engine-volumes))
 (test-equal "Feishu uses its built-in typing reaction" #t
   (at app "channels" "feishu" "typingIndicator"))

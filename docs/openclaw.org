@@ -99,11 +99,15 @@ workspace。=tools.exec.host= 为 =sandbox=，=tools.elevated.enabled= 为 false
 | 组件     | 网络             | 挂载                                       | 凭据 |
 |----------+------------------+--------------------------------------------+------|
 | Gateway  | =static-agent=     | home、workspaces、引擎 socket、=/etc/openclaw= | 有   |
-| 引擎     | =sandboxed-agents= | workspaces、引擎存储、socket 目录            | 无   |
+| 引擎     | =sandboxed-agents= | workspaces、引擎存储、socket、两处只读 state | 无   |
 | 沙箱     | 经引擎 pasta 出网 | 自己的 workspace（容器内 =/workspace=）     | 无   |
 
 上游 Podman 后端不做路径转换：Gateway 中的 state 与 workspace 路径就是
-bind 源，因此 Gateway 和引擎都把它们挂在宿主机相同的绝对路径。沙箱只覆盖
+bind 源，因此 Gateway 和引擎都把它们挂在宿主机相同的绝对路径。除 workspace
+外，OpenClaw 还把 state 下两个目录只读挂入沙箱：=rw= 沙箱的 skill 副本
+=.openclaw/sandbox/skills-workspaces= 和子 agent 附件
+=.openclaw/attachments/subagents=。引擎只读挂载这两个目录，准备程序预先创建；
+其余 state（配置、认证、会话）仍不进入引擎。沙箱只覆盖
 exec、process 和文件工具；web_fetch、web_search、原生插件和 MCP 仍在
 Gateway 执行，本部署未开放前两者。
 
