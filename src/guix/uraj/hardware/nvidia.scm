@@ -12,7 +12,6 @@
   #:use-module (guix gexp)
   #:use-module (guix i18n)
   #:use-module (guix packages)
-  #:use-module ((guix profiles) #:select (profile profile? profile-content))
   #:use-module (guix utils)
   #:use-module (ice-9 regex)
   #:use-module (ice-9 textual-ports)
@@ -191,41 +190,33 @@ the loaded kernel module reports a version."
       ("__EGL_EXTERNAL_PLATFORM_CONFIG_DIRS"
        . "/usr/share/egl/egl_external_platform.d:/etc/egl/egl_external_platform.d:$HOME/.guix-home/profile/share/egl/egl_external_platform.d"))))
 
-(define (package-or-profile? obj)
-  (or (package? obj) (profile? obj)))
+(define (graft-packages graft)
+  "Return a procedure for the home-environment transformation field that
+applies GRAFT to packages, leaving profiles, derivations, and other
+file-likes alone.
 
-(define (graft-over-profiles graft)
-  "Return a procedure for with-transformation that applies GRAFT to a
-package, and to the manifest of a <profile> while leaving its hooks
-alone.
-
-with-transformation wraps every procedure it meets so that the values
-it returns are transformed too.  A profile's hooks return monadic
-values, which run to <derivation> records, which it then rebuilds input
-by input -- the whole derivation DAG unfolded into a tree, with no
-memoization, until the machine runs out of memory.  Paseo's daemon
-profile, referenced from a Home Shepherd service, is one such profile;
-hence profiles are leaves here."
+Lowering a profile still grafts the packages in its manifest, but its hooks
+are never traversed: that unfolded a profile's whole derivation DAG into a
+tree and exhausted even 32 GiB with Paseo's daemon profile."
   (lambda (obj)
-    (if (profile? obj)
-        (profile
-         (inherit obj)
-         (content (with-transformation graft (profile-content obj))))
-        (graft obj))))
+    (if (package? obj)
+        (graft obj)
+        obj)))
 
 (define (home-transformation-nvidia he)
   "Return the home environment HE with nonguix's nvda grafted over Guix's
 mesa, pinned to the NVIDIA kernel module loaded on the host.
 
-Every package in HE's `packages' and `services' gets its references to
-mesa rewritten to nvda in place, so niri and the rest of the profile --
-whose libEGL, libgbm, GBM backends and EGL vendors all come from mesa --
-are not rebuilt, and nvda is added to the profile so its search paths
-are exported to the session.  This is what lets a niri session advertise
-the NVIDIA driver's dmabuf feedback instead of falling back to
-llvmpipe.  Because that export also reaches host apps, which must not
-be pointed at Guix's mesa, @code{host-egl-precedence-service} is added
-to put the host's own EGL directories first.
+Every package HE lowers -- directly, in the home profile, or in a profile
+a service references -- gets its references to mesa rewritten to nvda in
+place, so niri and the rest of the profile -- whose libEGL, libgbm, GBM
+backends and EGL vendors all come from mesa -- are not rebuilt, and nvda
+is added to the profile so its search paths are exported to the session.
+This is what lets a niri session advertise the NVIDIA driver's dmabuf
+feedback instead of falling back to llvmpipe.  Because that export also
+reaches host apps, which must not be pointed at Guix's mesa,
+@code{host-egl-precedence-service} is added to put the host's own EGL
+directories first.
 
 The userspace and the kernel module must match exactly (\"NVRM: API
 mismatch\" otherwise), so with no loaded NVIDIA driver HE is returned
@@ -247,16 +238,13 @@ leaving the home profile on mesa.  Add the ~a installer to \
       he)
      (else
       (let* ((nvda (pinned-nvda (assoc-ref %nvidia-driver-pins version)))
-             (graft (graft-over-profiles
-                     (package-input-grafting `((,mesa . ,nvda))))))
+             (package-graft (package-input-grafting `((,mesa . ,nvda))))
+             (transform (compose (home-environment-transformation he)
+                                 (graft-packages package-graft))))
         (home-environment
          (inherit he)
-         (packages
-          (cons nvda
-                (with-transformation graft (home-environment-packages he)
-                                     package-or-profile?)))
+         (packages (cons nvda (home-environment-packages he)))
          (services
           (cons host-egl-precedence-service
-                (with-transformation graft
-                  (home-environment-user-services he)
-                  package-or-profile?)))))))))
+                (home-environment-user-services he)))
+         (transformation transform)))))))
