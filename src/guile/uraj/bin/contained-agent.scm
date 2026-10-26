@@ -314,7 +314,7 @@ tree, and the mount options for WORKDIR."
   "set -eu
 tmpdir=$1; shift
 if [ -n \"$tmpdir\" ]; then export TMPDIR=$tmpdir; fi
-real=$(command -v podman) || { echo 'podman-remote requires podman in the manifest' >&2; exit 1; }
+real=$(command -v podman) || { echo 'podman-remote: no podman in the container; add it to the project manifest, and if a warning above says the project files are new or changed, review them and run `contained-agent allow` on the host' >&2; exit 1; }
 d=$HOME/.local/share/contained-agent/podman-remote
 mkdir -p \"$d\"
 export CONTAINER_HOST=unix:///run/contained-agent/podman/podman.sock
