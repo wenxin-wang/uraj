@@ -740,14 +740,13 @@ the same files from the agent and runtime.  No extra /jobs mount is needed.
 Use project-local output paths and the configured TMPDIR for generated bind
 sources; synthetic HOME and private /tmp files are not runtime bind sources.
 
-The host experiment has passed builds with uploaded contexts, Compose DNS/HTTP
-and relative binds, read-only/path isolation, and actual CPU/memory/PID limits
-with seccomp active.  See [[file:podman-runtime-prototype.org][the experiment record]].
-The persistent supervisor still needs deployed concurrency/reboot smoke tests
-and a real Harbor trial in traj-record.  Default privileged tasks are not promised: the tested
-privileged variant explicitly binds /sys read-only.  The same extended run
-with =--delegate-cgroup= also passes with the overlay default in both engines
-(2026-10-25, lappie).  A Guix-built runtime image remains follow-up work.
+The host experiment (2026-10-25, lappie, overlay storage) passed builds with
+uploaded contexts, Compose DNS/HTTP and relative binds, read-only/path
+isolation, and actual CPU/memory/PID limits with seccomp active.  The
+persistent runtime still needs deployed concurrency/reboot smoke tests and a
+real Harbor trial in traj-record.  Default privileged tasks are not promised:
+the tested privileged variant explicitly binds /sys read-only.  A Guix-built
+runtime image remains follow-up work.
 
 * Optional Guix daemon access
 
