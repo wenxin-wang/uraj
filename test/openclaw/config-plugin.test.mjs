@@ -35,28 +35,39 @@ test("registers the declared tool and an exec-only hook", () => {
 
 test("tool passes exactly one path and JSON value to the checker", async () => {
   let call;
-  const tool = createConfigSetTool((command, args, options) => {
-    call = { command, args, options };
-    return { status: 0, stdout: "Configuration committed.\n", stderr: "" };
+  const tool = createConfigSetTool(async (args) => {
+    call = args;
+    return { ok: true, stdout: "Configuration committed.\n", stderr: "" };
   });
   const value = { name: "研究 助手", workspace: "/data/openclaw/workspaces/a" };
   const result = await tool.execute("call", { path: "agents.entries.a", value });
-  assert.equal(call.command, process.execPath);
-  assert.deepEqual(call.args,
-    ["/etc/openclaw/config.mjs", "set", "agents.entries.a", JSON.stringify(value)]);
+  assert.deepEqual(call, ["set", "agents.entries.a", JSON.stringify(value)]);
   assert.equal(result.content[0].text, "Configuration committed.");
   assert.equal(result.details.ok, true);
 });
 
 test("tool reports checker refusals and rejects incomplete calls", async () => {
-  const tool = createConfigSetTool(() => ({
-    status: 1, stdout: "", stderr: "Only agent and binding edits are accepted\n",
+  const tool = createConfigSetTool(async () => ({
+    ok: false, stdout: "", stderr: "Only agent and binding edits are accepted\n",
   }));
   const result = await tool.execute("call", { path: "tools.allow", value: ["*"] });
   assert.equal(result.details.ok, false);
   assert.match(result.content[0].text, /Only agent and binding edits/);
   await assert.rejects(tool.execute("call", { path: "bindings" }));
   await assert.rejects(tool.execute("call", { value: [] }));
+});
+
+test("the checker runs without blocking the Gateway event loop", async () => {
+  // A synchronous child would starve the Gateway RPC it calls back into.
+  let ticked = false;
+  const tool = createConfigSetTool(() => new Promise((resolve) => {
+    setImmediate(() => { ticked = true; resolve({ ok: true, stdout: "ok", stderr: "" }); });
+  }));
+  await tool.execute("call", { path: "bindings", value: [] });
+  assert.equal(ticked, true);
+  const source = readFileSync(new URL(
+    "../../scripts/openclaw/config-plugin/index.mjs", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /spawnSync|execFileSync/);
 });
 
 test("native config set attempts are redirected without execution", () => {

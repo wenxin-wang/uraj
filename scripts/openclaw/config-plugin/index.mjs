@@ -1,9 +1,19 @@
 // Exec runs in the sandbox, which cannot reach the Gateway's configuration.
 // Configuration edits therefore go through a Gateway-side tool that invokes
 // the checked command; the hook only redirects native CLI attempts.
-import { spawnSync } from "node:child_process";
+import { execFile } from "node:child_process";
 
 const CHECKER = "/etc/openclaw/config.mjs";
+
+// Asynchronous: the checker calls back into this Gateway over RPC, which a
+// blocked event loop could never answer.
+function runChecker(args) {
+  return new Promise((resolve) => {
+    execFile(process.execPath, [CHECKER, ...args],
+      { encoding: "utf8", timeout: 180_000, maxBuffer: 1024 * 1024 },
+      (error, stdout, stderr) => resolve({ ok: !error, stdout, stderr }));
+  });
+}
 
 const redirect = {
   block: true,
@@ -20,7 +30,7 @@ export function blockConfigSet(event) {
   if (/openclaw[\s\S]*\bconfig\s+set\b/.test(event.params.command)) return { ...redirect };
 }
 
-export function createConfigSetTool(spawn = spawnSync) {
+export function createConfigSetTool(run = runChecker) {
   return {
     name: "openclaw_config_set",
     description: "Change OpenClaw agent registrations, agent models or bindings " +
@@ -43,10 +53,8 @@ export function createConfigSetTool(spawn = spawnSync) {
       }
       // The checker validates before and after native normalization, and
       // never echoes native diagnostics that may contain credentials.
-      const result = spawn(process.execPath,
-        [CHECKER, "set", params.path, JSON.stringify(params.value)],
-        { encoding: "utf8", timeout: 180_000, maxBuffer: 1024 * 1024 });
-      const ok = !result.error && result.status === 0;
+      const result = await run(["set", params.path, JSON.stringify(params.value)]);
+      const ok = result.ok;
       const text = (ok ? result.stdout : result.stderr || "Configuration check failed")
         .trim();
       return { content: [{ type: "text", text }], details: { ok } };
