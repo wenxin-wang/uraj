@@ -256,7 +256,7 @@ class PodmanRemote(Launcher):
             "#!" + shutil.which("python3") + "\n"
             "import json, os, sys\n"
             f"json.dump(sys.argv[1:], open({str(self.runtime_record)!r}, 'w'))\n"
-            "if sys.argv[1] in ('--stop', '--host-service'): sys.exit(0)\n"
+            "if sys.argv[1] in ('--stop', '--check', '--host-service'): sys.exit(0)\n"
             "command = sys.argv[sys.argv.index('--') + 1:]\n"
             "os.execvp(command[0], command)\n"
         )
@@ -277,6 +277,14 @@ class PodmanRemote(Launcher):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
             json.loads(self.runtime_record.read_text()), ["--stop", runtime_id]
+        )
+
+    def test_check_dispatches_without_project_policy(self):
+        runtime_id = "b" * 32
+        result, _, _ = self.launch("podman-check", runtime_id, cwd=self.root)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            json.loads(self.runtime_record.read_text()), ["--check", runtime_id]
         )
 
     def test_service_dispatches_without_project_policy(self):

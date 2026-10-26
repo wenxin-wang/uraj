@@ -5,7 +5,7 @@ import importlib.util
 import io
 import json
 import os
-import shutil
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -19,6 +19,26 @@ MODULE = ROOT / "src/python/uraj/contained_podman.py"
 SPEC = importlib.util.spec_from_file_location("contained_podman", MODULE)
 RUNTIME = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(RUNTIME)
+
+
+def engine_fixture(directory, run_directory=None, mounts=(), **options):
+    options = {"expected_image": "a" * 64, **options}
+    if run_directory is None:
+        run_directory = directory / "run-root"
+        run_directory.mkdir()
+    engine = RUNTIME.Engine(
+        directory,
+        run_directory,
+        "/fixture/podman",
+        "unix:///fixture/host.sock",
+        "contained-agent-runtime-fixture",
+        "image",
+        mounts=list(mounts),
+        **options,
+    )
+    engine.log.close()
+    engine.log = io.StringIO()
+    return engine
 
 
 class Mounts(unittest.TestCase):
@@ -186,25 +206,12 @@ class Session(unittest.TestCase):
                 self.subTest(cached=cached),
                 tempfile.TemporaryDirectory() as tmp,
             ):
-                engine = RUNTIME.Experiment(
-                    Path(tmp),
-                    "/fixture/podman",
-                    "image",
-                    "",
-                    "nested",
-                    expected_image="expected",
-                )
-                self.addCleanup(engine.log.close)
+                engine = engine_fixture(Path(tmp), expected_image="expected")
                 responses = [
                     subprocess.CompletedProcess(
                         [],
                         0,
-                        json.dumps(
-                            {
-                                "host": {"security": {"rootless": True}},
-                                "store": {"graphDriverName": "overlay"},
-                            }
-                        ),
+                        json.dumps({"host": {"security": {"rootless": True}}}),
                         "",
                     ),
                     subprocess.CompletedProcess([], 0 if cached else 1, "", ""),
@@ -222,7 +229,7 @@ class Session(unittest.TestCase):
                     ):
                         engine.start()
                     self.assertEqual(run.call_count, 3 if cached else 4)
-                    commands = [call.args[0][2] for call in run.call_args_list]
+                    commands = [call.args[0][4] for call in run.call_args_list]
                     self.assertEqual("pull" in commands, not cached)
                     self.assertNotIn("run", commands)
                     self.assertFalse(engine.started)
@@ -233,49 +240,22 @@ class Session(unittest.TestCase):
                 self.subTest(driver=driver),
                 tempfile.TemporaryDirectory() as tmp,
             ):
-                engine = RUNTIME.Experiment(
-                    Path(tmp),
-                    "/fixture/podman",
-                    "image",
-                    "",
-                    "nested",
-                    storage_driver=driver,
-                )
-                self.addCleanup(engine.log.close)
+                engine = engine_fixture(Path(tmp), storage_driver=driver)
                 engine.prepare()
-                for name in ("storage.conf", "inner-storage.conf"):
-                    self.assertIn(
-                        f'driver="{driver}"\n',
-                        (Path(tmp) / name).read_text(),
-                    )
+                self.assertIn(
+                    f'driver="{driver}"\n',
+                    (Path(tmp) / "inner-storage.conf").read_text(),
+                )
+                # The host service owns the outer engine's configuration.
+                for name in ("containers.conf", "storage.conf"):
+                    self.assertFalse((Path(tmp) / name).exists(), name)
+                self.assertNotIn("CONTAINERS_CONF", engine.env)
                 other = "vfs" if driver == "overlay" else "overlay"
                 info = {"store": {"graphDriverName": other}}
                 with self.assertRaisesRegex(RuntimeError, "storage driver"):
-                    engine.check_driver("inner", info)
+                    engine.check_driver(info)
                 info["store"]["graphDriverName"] = driver
-                engine.check_driver("inner", info)
-                self.assertEqual(engine.results["inner_storage_driver"], driver)
-
-    def test_remote_outer_engine_has_no_local_configuration(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            engine = RUNTIME.Experiment(
-                Path(tmp),
-                "/fixture/podman",
-                "image",
-                "",
-                "nested",
-                delegate_cgroup=True,
-                mounts=[],
-                persistent=True,
-                outer_url="unix:///fixture/host.sock",
-            )
-            self.addCleanup(engine.log.close)
-            engine.prepare()
-            for name in ("containers.conf", "storage.conf", "shared"):
-                self.assertFalse((Path(tmp) / name).exists(), name)
-            self.assertTrue((Path(tmp) / "inner-storage.conf").exists())
-            self.assertNotIn("CONTAINERS_CONF", engine.env)
-            self.assertNotIn("CONTAINERS_STORAGE_CONF", engine.env)
+                engine.check_driver(info)
 
 
 class SharedRuntime(unittest.TestCase):
@@ -315,8 +295,8 @@ class SharedRuntime(unittest.TestCase):
                     raise RuntimeError("injected failure")
                 owner.running = True
 
-            def cleanup(self, preserve_storage=False):
-                owner.cleanups.append(preserve_storage)
+            def stop(self):
+                owner.cleanups.append(True)
                 owner.running = False
 
             def run(self, command, **kwargs):
@@ -489,36 +469,26 @@ class SharedRuntime(unittest.TestCase):
             RUNTIME.runtime_key(self.spec), RUNTIME.runtime_key(vfs)
         )
 
-    def test_cleanup_preserves_graphroots_and_home(self):
+    def test_stop_removes_run_state_but_keeps_storage(self):
         state, run = self.root / "state", self.root / "run"
         state.mkdir()
         run.mkdir()
-        engine = RUNTIME.Experiment(
-            state,
-            "podman",
-            "image",
-            "",
-            "nested",
-            run_directory=run,
-            persistent=True,
-        )
-        self.addCleanup(engine.log.close)
-        with mock.patch.object(engine, "run") as command:
+        engine = engine_fixture(state, run_directory=run)
+        engine.started = True
+        with (
+            mock.patch.object(engine, "run") as command,
+            mock.patch.object(engine, "remove_run_state") as remove,
+        ):
             command.return_value = subprocess.CompletedProcess([], 0, "", "")
-            engine.cleanup(preserve_storage=True)
-        argv = command.call_args.args[0]
+            engine.stop()
         self.assertEqual(
-            argv[6:],
-            [
-                str(run / "run/netns"),
-                str(run / "inner-run"),
-                str(run / "outer-run"),
-                str(run / "run"),
-                str(run / "api"),
-            ],
+            [call.args[0][4] for call in command.call_args_list],
+            ["logs", "rm"],
         )
-        for name in ("inner", "outer-storage", "home"):
-            self.assertNotIn(str(state / name), argv)
+        self.assertEqual(
+            remove.call_args.args[0],
+            [str(run / "inner-run"), str(run / "run"), str(run / "api")],
+        )
 
 
 class RemoteCleanup(unittest.TestCase):
@@ -528,16 +498,7 @@ class RemoteCleanup(unittest.TestCase):
             plain, owned = root / "plain", root / "inner-run"
             for path in (plain, owned):
                 (path / "nested").mkdir(parents=True)
-            engine = RUNTIME.Experiment(
-                root,
-                "/fixture/podman",
-                "image",
-                "",
-                "nested",
-                expected_image="f" * 64,
-                outer_url="unix:///fixture/host.sock",
-            )
-            self.addCleanup(engine.log.close)
+            engine = engine_fixture(root, expected_image="f" * 64)
             real = RUNTIME.shutil.rmtree
             denied = []
 
@@ -553,7 +514,7 @@ class RemoteCleanup(unittest.TestCase):
                 mock.patch.object(engine, "run") as run,
             ):
                 run.return_value = subprocess.CompletedProcess([], 0, "", "")
-                engine.remove_through_runtime(
+                engine.remove_run_state(
                     [str(plain), str(owned), str(root / "missing")]
                 )
             argv = run.call_args.args[0]
@@ -574,6 +535,101 @@ class RemoteCleanup(unittest.TestCase):
             self.assertFalse(owned.exists())
 
 
+class Checks(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        self.project = self.root / "project space"
+        (self.project / ".git/hooks").mkdir(parents=True)
+        (self.project / ".git/config").write_text("[core]\n")
+        mounts = [
+            (self.project, str(self.project), "rw"),
+            (
+                self.project / ".git/hooks",
+                str(self.project / ".git/hooks"),
+                "ro",
+            ),
+            (
+                self.project / ".git/config",
+                str(self.project / ".git/config"),
+                "ro",
+            ),
+        ]
+        state = self.root / "state" / ("c" * 32)
+        state.mkdir(parents=True)
+        self.engine = engine_fixture(state, mounts=mounts)
+        self.commands = []
+        self.failing = None
+        self.engine.run = self.fake_run
+
+    def fake_run(self, command, **kwargs):
+        self.commands.append(command)
+        shell = command[-1]
+        if self.failing and self.failing in shell:
+            raise RuntimeError("injected")
+        if "from task" in shell:
+            # The task writes through its same-path bind.
+            output = shlex.split(shell)[-1]
+            Path(output).write_text("from task\n")
+        stdout = "network works\n" if "wget" in shell else ""
+        return subprocess.CompletedProcess(command, 0, stdout, "")
+
+    def test_all_checks_run_against_inner_api_and_clean_up(self):
+        notes = {
+            name: check() for name, check in RUNTIME.runtime_checks(self.engine)
+        }
+        self.assertEqual(
+            list(notes),
+            [
+                "build_uploaded_context",
+                "same_path_write",
+                "read_only_mounts",
+                "root_isolation",
+                "network_dns",
+                "cgroup_limits",
+            ],
+        )
+        self.assertTrue(
+            all(command[:4] == self.engine.remote for command in self.commands)
+        )
+        self.assertEqual(
+            list(self.project.glob(".contained-podman-check-*")), []
+        )
+        readonly = [c for c in self.commands if "remount" in c[-1]]
+        self.assertEqual(len(readonly), 2)
+        self.assertIn("--privileged", readonly[1])
+        script = readonly[0][-1]
+        hooks = str(self.project / ".git/hooks")
+        self.assertIn(
+            "if mkdir '" + hooks + "/.contained-podman-check-", script
+        )
+        self.assertIn(
+            ": >> " + shlex.quote(str(self.project / ".git/config")), script
+        )
+        self.assertEqual((self.project / ".git/config").read_text(), "[core]\n")
+        subcommands = [c[4:6] for c in self.commands]
+        self.assertIn(["rmi", "--force"], subcommands)
+        self.assertIn(["network", "rm"], subcommands)
+        self.assertIn(
+            "/runtime-root" + str(self.engine.directory.parent),
+            next(c[-1] for c in self.commands if "/:/runtime-root:ro" in c),
+        )
+
+    def test_failure_is_reported_and_later_checks_still_run(self):
+        self.failing = "wget"
+        manager = mock.Mock(key="c" * 32, directory=self.engine.directory)
+        manager.engine.return_value = self.engine
+        with mock.patch("sys.stdout", io.StringIO()) as output:
+            self.assertEqual(RUNTIME.check_main(manager), 1)
+        lines = output.getvalue().splitlines()
+        self.assertIn("FAIL network_dns: injected", lines)
+        self.assertIn("PASS cgroup_limits", lines)
+        manager.attach.assert_called_once()
+        manager.detach.assert_called_once()
+        self.assertIn(["network", "rm"], [c[4:6] for c in self.commands])
+
+
 class HostService(unittest.TestCase):
     def test_private_engine_configuration_and_clean_stop(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -592,7 +648,6 @@ class HostService(unittest.TestCase):
                 [
                     sys.executable,
                     str(MODULE),
-                    "--session",
                     "--host-service",
                     "--podman",
                     str(fake),
@@ -636,46 +691,6 @@ class HostService(unittest.TestCase):
             self.assertIn('driver="overlay"', storage)
             self.assertIn(str(state / "storage"), storage)
             self.assertEqual(Path(env["CONTAINERS_CONF"]).parent, state)
-
-
-class CleanupScript(unittest.TestCase):
-    @unittest.skipUnless(shutil.which("unshare"), "needs unshare")
-    def test_unmounts_overlay_home_before_removal(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            netns = root / "run/netns"
-            netns.mkdir(parents=True)
-            home = root / "outer storage/overlay"
-            (home / "l").mkdir(parents=True)
-            script = root / "cleanup.py"
-            script.write_text(RUNTIME._CLEANUP_STORAGE)
-            # Mirror the overlay driver's private self-bind, plus a nested
-            # mount, in a throwaway user/mount namespace.
-            result = subprocess.run(
-                [
-                    "unshare",
-                    "-rm",
-                    "sh",
-                    "-ec",
-                    'mount --bind "$1" "$1"; mount --make-private "$1"; '
-                    'mount --bind "$1/l" "$1/l"; shift; exec "$@"',
-                    "sh",
-                    str(home),
-                    sys.executable,
-                    str(script),
-                    str(netns),
-                    str(root / "run"),
-                    str(root / "outer storage"),
-                ],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            if "Operation not permitted" in result.stderr:
-                self.skipTest("user namespaces unavailable")
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertFalse((root / "run").exists())
-            self.assertFalse((root / "outer storage").exists())
 
 
 if __name__ == "__main__":

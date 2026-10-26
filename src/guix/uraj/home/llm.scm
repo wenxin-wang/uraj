@@ -157,7 +157,7 @@ Homes and the headless Homes."
   ;; Shared by sessions, podman-stop and the host service.
   #~(list #$(file-append python "/bin/python3")
           #$(local-file (project-path "src/python/uraj/contained_podman.py"))
-          "--session" "--podman" #$(file-append podman "/bin/podman")))
+          "--podman" #$(file-append podman "/bin/podman")))
 
 (define contained-podman-service
   ;; The shared outer engine for persistent project Podman runtimes, which

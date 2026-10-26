@@ -7,7 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[5]
 NESTED_SECCOMP = runpy.run_path(
-    str(ROOT / "scripts/contained-agent/try-podman-runtime.py")
+    str(ROOT / "src/python/uraj/contained_podman.py")
 )["nested_seccomp"]
 
 

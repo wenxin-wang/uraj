@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Manage isolated project runtimes and run host-side Podman validation."""
+"""Manage isolated, persistent project Podman runtimes."""
 
 import argparse
 import contextlib
@@ -18,59 +18,6 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-
-# Run only inside the disposable engine's user/mount namespace. Podman's
-# rootless network setup can leave run/netns mounted after its last container
-# exits, and the overlay driver bind-mounts its graphroot/overlay home onto
-# itself. Removing either without unmounting it fails with EBUSY.
-_CLEANUP_STORAGE = """
-import ctypes
-import errno
-import os
-import re
-import shutil
-import sys
-
-roots = [os.path.realpath(path) for path in sys.argv[1:]]
-libc = ctypes.CDLL(None, use_errno=True)
-
-
-def mounted():
-    # ismount misses same-filesystem bind mounts; mountinfo lists them all.
-    with open("/proc/self/mountinfo") as table:
-        points = {
-            re.sub(r"\\\\([0-7]{3})", lambda m: chr(int(m[1], 8)),
-                   line.split()[4])
-            for line in table
-        }
-    return sorted(
-        (
-            point
-            for point in points
-            for root in roots
-            if point == root or point.startswith(root.rstrip("/") + "/")
-        ),
-        key=len,
-        reverse=True,
-    )
-
-
-# Deepest first; repeat for stacked mounts.
-for _ in range(32):
-    points = mounted()
-    if not points:
-        break
-    for point in points:
-        if libc.umount2(os.fsencode(point), 2):  # MNT_DETACH
-            error = ctypes.get_errno()
-            if error not in (errno.EINVAL, errno.ENOENT):
-                raise OSError(error, os.strerror(error), point)
-else:
-    raise RuntimeError("Too many stacked mounts under " + ", ".join(roots))
-for path in sys.argv[2:]:
-    if os.path.lexists(path):
-        shutil.rmtree(path)
-"""
 
 
 def nested_seccomp(profile):
@@ -101,133 +48,57 @@ def nested_seccomp(profile):
     return {**profile, "syscalls": rules}
 
 
-def host_cgroup_info():
-    """Read delegation prerequisites without creating or modifying cgroups."""
-    root = Path("/sys/fs/cgroup")
-    result = {
-        "uid": os.getuid(),
-        "user": pwd.getpwuid(os.getuid()).pw_name,
-        "gid": os.getgid(),
-        "groups": os.getgroups(),
-    }
-    membership = Path("/proc/self/cgroup").read_text()
-    result["membership"] = membership
-    result["mounts"] = [
-        line
-        for line in Path("/proc/self/mountinfo").read_text().splitlines()
-        if " - cgroup2 " in line
-    ]
-    directories = [root]
-    for line in membership.splitlines():
-        if line.startswith("0::"):
-            relative = line[3:].lstrip("/")
-            # A cgroup namespace may show a path outside its visible root.
-            # Report it above but never follow '..' for this diagnostic.
-            if ".." not in Path(relative).parts:
-                current = root / relative
-                if current != root:
-                    directories.append(current)
-    snapshots = {}
-    for directory in directories:
-        snapshot = {}
-        for name in (
-            ".",
-            "cgroup.controllers",
-            "cgroup.subtree_control",
-            "cgroup.type",
-            "cgroup.procs",
-            "memory.max",
-            "pids.max",
-            "cpu.max",
-        ):
-            path = directory / name
-            try:
-                stat = path.stat()
-                entry = {
-                    "uid": stat.st_uid,
-                    "gid": stat.st_gid,
-                    "mode": oct(stat.st_mode & 0o7777),
-                    "writable": os.access(path, os.W_OK),
-                }
-                if name == "cgroup.procs":
-                    entry["process_count"] = len(path.read_text().splitlines())
-                elif name != ".":
-                    entry["value"] = path.read_text().strip()
-                snapshot[name] = entry
-            except OSError as error:
-                snapshot[name] = {"error": str(error)}
-        snapshots[str(directory)] = snapshot
-    result["directories"] = snapshots
-    print(json.dumps(result, indent=2))
+class Engine:
+    """One project's outer runtime container and its inner Podman API.
 
+    The outer engine is the shared host service: rootless Podman needs the
+    host's ID helpers, unavailable inside the Paseo supervisor's single-ID
+    user namespace.
+    """
 
-class Experiment:
     def __init__(
         self,
         directory,
+        run_directory,
         podman,
+        outer_url,
+        name,
         runtime_image,
-        task_image,
-        seccomp,
-        extended=False,
-        delegate_cgroup=False,
-        mounts=None,
-        expected_image=None,
-        run_directory=None,
-        persistent=False,
+        expected_image,
+        mounts,
         storage_driver="overlay",
-        outer_url=None,
-        name="contained-agent-runtime-probe",
     ):
         self.directory = directory
-        # Persistent runtimes reach the outer engine through the host service:
-        # rootless Podman needs the host's ID helpers, unavailable inside the
-        # Paseo supervisor's single-ID user namespace.
-        self.outer_url = outer_url
+        self.run_directory = run_directory
         self.name = name
-        self.storage_driver = storage_driver
-        self.run_directory = run_directory or directory
-        self.persistent = persistent
-        self.socket_directory = self.run_directory / "api"
         self.runtime_image = runtime_image
-        self.task_image = task_image
-        self.seccomp = seccomp
-        self.extended = extended
-        self.delegate_cgroup = delegate_cgroup
-        self.cgroup = None
-        self.mounts = mounts
         self.expected_image = expected_image
+        self.mounts = mounts
+        self.storage_driver = storage_driver
+        self.socket_directory = run_directory / "api"
+        self.cgroup = None
+        self.started = False
+        # HOME and the runtime directory serve the Podman client.
         self.env = {
             "PATH": "/run/privileged/bin:" + os.environ["PATH"],
             "HOME": str(directory / "home"),
-            "XDG_RUNTIME_DIR": str(self.run_directory / "run"),
+            "XDG_RUNTIME_DIR": str(run_directory / "run"),
         }
-        if not outer_url:
-            self.env["CONTAINERS_CONF"] = str(directory / "containers.conf")
-            self.env["CONTAINERS_STORAGE_CONF"] = str(
-                directory / "storage.conf"
-            )
-        self.local = (
-            [podman, "--remote", "--url", outer_url]
-            if outer_url
-            else [podman, "--remote=false"]
-        )
+        self.local = [podman, "--remote", "--url", outer_url]
         self.remote = [
             podman,
             "--remote",
             "--url",
             "unix://" + str(self.socket_directory / "podman.sock"),
         ]
-        self.started = False
-        self.results = {}
-        self.log = (directory / "commands.log").open("a" if persistent else "w")
+        self.log = (directory / "commands.log").open("a")
 
-    def run(self, command, timeout=120, check=True, env=None):
+    def run(self, command, timeout=120, check=True):
         self.log.write("\n" + json.dumps(command) + "\n")
         self.log.flush()
         result = subprocess.run(
             command,
-            env=self.env if env is None else env,
+            env=self.env,
             capture_output=True,
             text=True,
             timeout=timeout,
@@ -247,63 +118,30 @@ class Experiment:
         return result
 
     def prepare(self):
-        # HOME and the runtime directory serve the Podman client as well.
-        for name in ("home", "run", "api", "inner", "inner-run"):
-            (self.directory / name).mkdir(mode=0o700, exist_ok=self.persistent)
+        for name in ("home", "inner"):
+            (self.directory / name).mkdir(mode=0o700, exist_ok=True)
         for name in ("api", "run", "inner-run"):
             (self.run_directory / name).mkdir(mode=0o700, exist_ok=True)
-        if self.mounts is None:
-            # Synthetic project for the isolation tests.
-            for name in ("shared", "protected"):
-                (self.directory / name).mkdir(mode=0o700)
-            (self.directory / "unshared-secret").write_text("not exposed\n")
-            (self.directory / "protected" / "sentinel").write_text("original\n")
-            (self.directory / "shared" / "escape").symlink_to(
-                self.directory / "unshared-secret"
-            )
-        outer_config = (
-            '[engine]\ncgroup_manager="cgroupfs"\nevents_logger="file"\n'
-            '[containers]\ncgroups="'
-            + ("enabled" if self.delegate_cgroup else "disabled")
-            + '"\n'
-        )
-        inner_config = (
+        (self.directory / "inner-containers.conf").write_text(
             '[engine]\ncgroup_manager="cgroupfs"\nevents_logger="file"\n'
             '[containers]\ncgroups="enabled"\ncgroup_parent="/tasks"\n'
-            if self.delegate_cgroup
-            else outer_config
         )
-        (self.directory / "inner-containers.conf").write_text(inner_config)
-        # Native rootless overlay in both engines; the inner graphroot is a
-        # host bind mount, not the outer engine's overlay rootfs. VFS remains
-        # selectable for comparison.
-        driver = 'driver="' + self.storage_driver + '"\n'
-        if not self.outer_url:
-            # The host service has its own configuration and storage.
-            (self.directory / "containers.conf").write_text(outer_config)
-            (self.directory / "storage.conf").write_text(
-                "[storage]\n"
-                + driver
-                + "graphroot="
-                + json.dumps(str(self.directory / "outer-storage"))
-                + "\nrunroot="
-                + json.dumps(str(self.run_directory / "outer-run"))
-                + "\n"
-            )
+        # Native rootless overlay: the inner graphroot is a host bind mount,
+        # not the outer container's overlay rootfs.
         (self.directory / "inner-storage.conf").write_text(
-            "[storage]\n"
-            + driver
+            '[storage]\ndriver="'
+            + self.storage_driver
+            + '"\n'
             + 'graphroot="/home/podman/.local/share/containers/storage"\n'
             'runroot="/run/user/1000/storage"\n'
         )
 
-    def check_driver(self, engine, info):
+    def check_driver(self, info):
         driver = info.get("store", {}).get("graphDriverName")
-        self.results[engine + "_storage_driver"] = driver
         if driver != self.storage_driver:
             raise RuntimeError(
-                f"{engine.capitalize()} Podman uses storage driver "
-                f"{driver!r}, not {self.storage_driver!r}"
+                f"Inner Podman uses storage driver {driver!r}, "
+                f"not {self.storage_driver!r}"
             )
 
     def start(self):
@@ -312,15 +150,12 @@ class Experiment:
         )
         if not info["host"]["security"]["rootless"]:
             raise RuntimeError("Outer Podman is not rootless")
-        if not self.outer_url:
-            self.check_driver("outer", info)
         print(
             "Pulling runtime image (first run may take several minutes)...",
             flush=True,
         )
         cached = (
-            self.expected_image
-            and self.run(
+            self.run(
                 self.local + ["image", "exists", self.expected_image],
                 check=False,
             ).returncode
@@ -330,120 +165,72 @@ class Experiment:
             self.runtime_image = self.expected_image
         else:
             self.run(self.local + ["pull", self.runtime_image], timeout=900)
-        if self.expected_image:
-            actual = (
-                self.run(
-                    self.local
-                    + [
-                        "image",
-                        "inspect",
-                        "--format={{.Id}}",
-                        self.runtime_image,
-                    ]
-                )
-                .stdout.strip()
-                .removeprefix("sha256:")
-            )
-            if actual != self.expected_image:
-                raise RuntimeError(
-                    "Runtime image changed; expected "
-                    + self.expected_image
-                    + ", got "
-                    + actual
-                )
-            self.runtime_image = actual
-        seccomp_option = []
-        if self.seccomp == "nested":
-            source = self.run(
+        actual = (
+            self.run(
                 self.local
-                + [
-                    "run",
-                    "--rm",
-                    "--cgroups=disabled",
-                    "--network=none",
-                    "--entrypoint=/bin/cat",
-                    self.runtime_image,
-                    "/usr/share/containers/seccomp.json",
-                ]
-            ).stdout
-            (self.directory / "seccomp-base.json").write_text(source)
-            profile = nested_seccomp(json.loads(source))
-            target = self.directory / "seccomp-nested.json"
-            target.write_text(json.dumps(profile, indent=2) + "\n")
-            seccomp_option = ["--security-opt=seccomp=" + str(target)]
-        elif self.seccomp == "unconfined":
-            seccomp_option = ["--security-opt=seccomp=unconfined"]
-        (self.directory / "configuration.json").write_text(
-            json.dumps(
-                {
-                    "outer_seccomp": self.seccomp,
-                    "runtime_image": self.runtime_image,
-                    "task_image": self.task_image,
-                    "delegate_cgroup": self.delegate_cgroup,
-                },
-                indent=2,
+                + ["image", "inspect", "--format={{.Id}}", self.runtime_image]
             )
-            + "\n"
+            .stdout.strip()
+            .removeprefix("sha256:")
+        )
+        if actual != self.expected_image:
+            raise RuntimeError(
+                "Runtime image changed; expected "
+                + self.expected_image
+                + ", got "
+                + actual
+            )
+        self.runtime_image = actual
+        source = self.run(
+            self.local
+            + [
+                "run",
+                "--rm",
+                "--cgroups=disabled",
+                "--network=none",
+                "--entrypoint=/bin/cat",
+                self.runtime_image,
+                "/usr/share/containers/seccomp.json",
+            ]
+        ).stdout
+        profile = self.directory / "seccomp-nested.json"
+        profile.write_text(
+            json.dumps(nested_seccomp(json.loads(source)), indent=2) + "\n"
+        )
+        root = Path("/sys/fs/cgroup")
+        enabled = set((root / "cgroup.subtree_control").read_text().split())
+        if not {"cpu", "memory", "pids"} <= enabled:
+            raise RuntimeError(
+                "Host root has not enabled cpu/memory/pids; no global changes made"
+            )
+        self.cgroup = root / ("contained-podman-" + self.directory.name)
+        self.cgroup.mkdir(mode=0o700)
+        (self.cgroup / "cgroup.subtree_control").write_text(
+            "+cpu +memory +pids"
         )
         command = self.local + [
             "run",
             "--detach",
             "--name=" + self.name,
-            "--cgroups=enabled"
-            if self.delegate_cgroup
-            else "--cgroups=disabled",
+            "--cgroups=enabled",
             "--userns=keep-id:uid=1000,gid=1000",
-            "--user=0:0" if self.delegate_cgroup else "--user=1000:1000",
+            "--user=0:0",
             "--security-opt=label=disable",
             "--security-opt=unmask=ALL",
-            *seccomp_option,
+            "--security-opt=seccomp=" + str(profile),
             "--device=/dev/fuse",
             "--env=HOME=/home/podman",
             "--env=XDG_RUNTIME_DIR=/run/user/1000",
             "--env=CONTAINERS_CONF=/etc/containers/probe.conf",
             "--env=CONTAINERS_STORAGE_CONF=/etc/containers/probe-storage.conf",
+            "--cgroup-parent=/" + self.cgroup.name,
+            "--cgroupns=private",
+            # Podman's systemd mode makes the private cgroup mount writable.
+            # It does not run systemd or expose the host hierarchy.
+            "--systemd=always",
+            "--stop-signal=SIGTERM",
         ]
-        bootstrap = 'test "$(id -u)" = 1000; '
-        if self.delegate_cgroup:
-            root = Path("/sys/fs/cgroup")
-            required = {"cpu", "memory", "pids"}
-            enabled = set((root / "cgroup.subtree_control").read_text().split())
-            if not required <= enabled:
-                raise RuntimeError(
-                    "Host root has not enabled cpu/memory/pids; no global changes made"
-                )
-            candidate = root / (
-                ("contained-podman-" if self.persistent else "")
-                + self.directory.name
-            )
-            candidate.mkdir(mode=0o700)
-            self.cgroup = candidate
-            (candidate / "cgroup.subtree_control").write_text(
-                "+cpu +memory +pids"
-            )
-            command.extend(
-                [
-                    "--cgroup-parent=/" + candidate.name,
-                    "--cgroupns=private",
-                    # Podman's systemd mode makes the private cgroup mount writable.
-                    # It does not run systemd or expose the host hierarchy.
-                    "--systemd=always",
-                    "--stop-signal=SIGTERM",
-                ]
-            )
-            bootstrap += (
-                "grep '^0::/$' /proc/self/cgroup; "
-                "if ! test -w /sys/fs/cgroup/cgroup.subtree_control; then "
-                "echo 'Private cgroup subtree is not writable' >&2; "
-                "id >&2; "
-                "ls -ld /sys/fs/cgroup /sys/fs/cgroup/cgroup.subtree_control >&2; "
-                "grep ' - cgroup2 ' /proc/self/mountinfo >&2; exit 1; fi; "
-                "mkdir /sys/fs/cgroup/service /sys/fs/cgroup/tasks; "
-                "echo $$ > /sys/fs/cgroup/service/cgroup.procs; "
-                "echo '+cpu +memory +pids' > /sys/fs/cgroup/cgroup.subtree_control; "
-                "echo '+cpu +memory +pids' > /sys/fs/cgroup/tasks/cgroup.subtree_control; "
-            )
-        if self.extended and Path("/dev/net/tun").exists():
+        if Path("/dev/net/tun").exists():
             command.append("--device=/dev/net/tun")
         mounts = [
             # keep-id maps this host-user-owned 0700 directory to UID 1000.
@@ -465,42 +252,37 @@ class Experiment:
                 "/etc/containers/probe-storage.conf",
                 "ro",
             ),
+            *self.mounts,
         ]
-        if self.mounts is None:
-            mounts += [
-                (
-                    self.directory / "shared",
-                    str(self.directory / "shared"),
-                    "rw",
-                ),
-                (
-                    self.directory / "protected",
-                    str(self.directory / "shared" / "readonly"),
-                    "ro",
-                ),
-            ]
-        else:
-            mounts.extend(self.mounts)
         for source, target, mode in mounts:
             command.extend(["--volume", f"{source}:{target}:{mode}"])
         service_command = (
-            bootstrap
-            + "exec podman system service --time=0 unix:///run/api/podman.sock"
+            'test "$(id -u)" = 1000; '
+            "grep '^0::/$' /proc/self/cgroup; "
+            "if ! test -w /sys/fs/cgroup/cgroup.subtree_control; then "
+            "echo 'Private cgroup subtree is not writable' >&2; "
+            "id >&2; "
+            "ls -ld /sys/fs/cgroup /sys/fs/cgroup/cgroup.subtree_control >&2; "
+            "grep ' - cgroup2 ' /proc/self/mountinfo >&2; exit 1; fi; "
+            "mkdir /sys/fs/cgroup/service /sys/fs/cgroup/tasks; "
+            "echo $$ > /sys/fs/cgroup/service/cgroup.procs; "
+            "echo '+cpu +memory +pids' > /sys/fs/cgroup/cgroup.subtree_control; "
+            "echo '+cpu +memory +pids' > /sys/fs/cgroup/tasks/cgroup.subtree_control; "
+            "exec podman system service --time=0 unix:///run/api/podman.sock"
         )
-        if self.delegate_cgroup:
-            # crun's private cgroup mount is owned by namespace UID 0, not
-            # the keep-id service UID. Delegate only its management files,
-            # then permanently leave that bootstrap identity before serving.
-            service_command = (
-                'test "$(id -u)" = 0; '
-                "grep '^0::/$' /proc/self/cgroup; "
-                "chown 1000:1000 /sys/fs/cgroup "
-                "/sys/fs/cgroup/cgroup.procs "
-                "/sys/fs/cgroup/cgroup.threads "
-                "/sys/fs/cgroup/cgroup.subtree_control; "
-                "exec setpriv --reuid=1000 --regid=1000 --clear-groups "
-                "/bin/sh -ec " + shlex.quote(service_command)
-            )
+        # crun's private cgroup mount is owned by namespace UID 0, not the
+        # keep-id service UID. Delegate only its management files, then
+        # permanently leave that bootstrap identity before serving.
+        service_command = (
+            'test "$(id -u)" = 0; '
+            "grep '^0::/$' /proc/self/cgroup; "
+            "chown 1000:1000 /sys/fs/cgroup "
+            "/sys/fs/cgroup/cgroup.procs "
+            "/sys/fs/cgroup/cgroup.threads "
+            "/sys/fs/cgroup/cgroup.subtree_control; "
+            "exec setpriv --reuid=1000 --regid=1000 --clear-groups "
+            "/bin/sh -ec " + shlex.quote(service_command)
+        )
         command.extend(
             [
                 "--entrypoint=/bin/sh",
@@ -519,320 +301,34 @@ class Experiment:
                 )
                 if probe.returncode == 0:
                     info = json.loads(probe.stdout)
-                    self.results["inner_rootless"] = info["host"]["security"][
-                        "rootless"
-                    ]
-                    (self.directory / "inner-info.json").write_text(
-                        probe.stdout
-                    )
-                    if not self.results["inner_rootless"]:
+                    if not info["host"]["security"]["rootless"]:
                         raise RuntimeError("Inner Podman is not rootless")
-                    self.check_driver("inner", info)
+                    self.check_driver(info)
                     status = self.run(
                         self.local
-                        + [
-                            "exec",
-                            self.name,
-                            "cat",
-                            "/proc/1/status",
-                        ]
-                    ).stdout
-                    (self.directory / "runtime-process-status.txt").write_text(
-                        status
-                    )
-                    self.results["runtime_service_uid_1000"] = any(
-                        line.split() == ["Uid:", "1000", "1000", "1000", "1000"]
-                        for line in status.splitlines()
-                    )
-                    if not self.results["runtime_service_uid_1000"]:
+                        + ["exec", self.name, "cat", "/proc/1/status"]
+                    ).stdout.splitlines()
+                    if ["Uid:", "1000", "1000", "1000", "1000"] not in (
+                        line.split() for line in status
+                    ):
                         raise RuntimeError(
                             "API service did not drop to UID 1000"
                         )
-                    if self.seccomp != "unconfined":
-                        self.results["outer_seccomp_filter_active"] = any(
-                            line.split() == ["Seccomp:", "2"]
-                            for line in status.splitlines()
-                        )
-                        if not self.results["outer_seccomp_filter_active"]:
-                            raise RuntimeError(
-                                "Outer seccomp filter is not active"
-                            )
+                    if ["Seccomp:", "2"] not in (
+                        line.split() for line in status
+                    ):
+                        raise RuntimeError("Outer seccomp filter is not active")
                     return
             state = self.run(
                 self.local
-                + [
-                    "inspect",
-                    "--format={{.State.Running}}",
-                    self.name,
-                ]
+                + ["inspect", "--format={{.State.Running}}", self.name]
             ).stdout.strip()
             if state != "true":
                 break
             time.sleep(0.5)
         raise RuntimeError("Runtime API did not become ready; see runtime.log")
 
-    def task(self, shell, extra=()):
-        return self.run(
-            self.remote
-            + [
-                "run",
-                "--rm",
-                "--cgroups=disabled",
-                "--network=none",
-                *extra,
-                self.task_image,
-                "sh",
-                "-ec",
-                shell,
-            ]
-        )
-
-    def test(self):
-        print(
-            "API connected; pulling task image and testing mounts...",
-            flush=True,
-        )
-        self.run(self.remote + ["pull", self.task_image], timeout=900)
-        shared = str(self.directory / "shared")
-        self.task(
-            'printf "from task\\n" > /work/output; '
-            "test ! -e /work/escape; "
-            'test "$(cat /work/readonly/sentinel)" = original; '
-            "if echo changed > /work/readonly/sentinel; then exit 31; fi",
-            ["--volume", shared + ":/work"],
-        )
-        self.results["same_path_write"] = (
-            self.directory / "shared" / "output"
-        ).read_text() == "from task\n"
-        self.results["symlink_and_readonly"] = True
-        # Binding '/' must expose only the runtime root. Test ordinary and
-        # privileged inner tasks; neither may see the unshared host sentinel.
-        hidden = str(self.directory / "unshared-secret")
-        for privileged in (False, True):
-            # Default privileged + network=none failed at sysfs creation on
-            # the host. Test a distinct variant using the runtime's read-only
-            # sysfs instead; this does not establish default-mode support.
-            flags = (
-                ["--privileged", "--volume", "/sys:/sys:ro"]
-                if privileged
-                else []
-            )
-            self.task(
-                'test ! -e "/runtime-root' + hidden + '"; '
-                'test "$(cat /work/readonly/sentinel)" = original; '
-                "if mount -o remount,bind,rw /work/readonly; then "
-                'echo "UNEXPECTED: writable remount" >&2; exit 32; fi; '
-                "if echo changed > /work/readonly/sentinel; then exit 33; fi",
-                flags
-                + [
-                    "--volume",
-                    "/:/runtime-root:ro",
-                    "--volume",
-                    shared + ":/work",
-                ],
-            )
-            mode = "privileged_with_readonly_sys" if privileged else "ordinary"
-            self.results[f"root_bind_and_readonly_{mode}"] = True
-        self.results["host_sentinel_unchanged"] = (
-            self.directory / "protected" / "sentinel"
-        ).read_text() == "original\n"
-        if not all(self.results.values()):
-            raise RuntimeError("One or more checks failed")
-
-    def test_build(self):
-        # Deliberately outside shared/: the server cannot read this path.
-        context = self.directory / "client-build-context"
-        context.mkdir()
-        (context / "payload").write_text("uploaded context\n")
-        (context / "Dockerfile").write_text(
-            "FROM " + self.task_image + "\n"
-            "COPY payload /payload\nRUN printf 'built\\n' > /built\n"
-        )
-        self.run(
-            self.remote
-            + [
-                "build",
-                "--network=none",
-                "--tag=localhost/runtime-probe:latest",
-                str(context),
-            ],
-            timeout=600,
-        )
-        self.run(
-            self.remote
-            + [
-                "run",
-                "--rm",
-                "--network=none",
-                "--cgroups=disabled",
-                "localhost/runtime-probe:latest",
-                "sh",
-                "-ec",
-                'test "$(cat /payload)" = "uploaded context"; '
-                'test "$(cat /built)" = built',
-            ]
-        )
-
-    def test_compose(self):
-        web_image = "docker.io/library/busybox:1.37"
-        self.run(self.remote + ["pull", web_image], timeout=900)
-        # Check the actual applet before involving Compose/networking.
-        self.run(
-            self.remote
-            + [
-                "run",
-                "--rm",
-                "--network=none",
-                "--cgroups=disabled",
-                web_image,
-                "sh",
-                "-ec",
-                "busybox --list | grep -x httpd",
-            ]
-        )
-        directory = self.directory / "shared" / "compose"
-        directory.mkdir()
-        (directory / "www").mkdir()
-        (directory / "out").mkdir()
-        (directory / "www" / "index.html").write_text("compose works\n")
-        compose_file = directory / "compose.json"
-        compose_file.write_text(
-            json.dumps(
-                {
-                    "services": {
-                        "web": {
-                            "image": web_image,
-                            "command": [
-                                "busybox",
-                                "httpd",
-                                "-f",
-                                "-p",
-                                "8080",
-                                "-h",
-                                "/srv",
-                            ],
-                            "volumes": ["./www:/srv:ro"],
-                        },
-                        "client": {
-                            "image": self.task_image,
-                            "volumes": ["./out:/out"],
-                            "command": [
-                                "sh",
-                                "-ec",
-                                "for i in 1 2 3 4 5; do "
-                                "if wget -T 5 -q -O /out/result http://web:8080; then "
-                                "exit 0; fi; sleep 1; done; exit 1",
-                            ],
-                        },
-                    }
-                },
-                indent=2,
-            )
-        )
-        env = {
-            **self.env,
-            "CONTAINER_HOST": "unix://"
-            + str(self.directory / "api" / "podman.sock"),
-            "DOCKER_HOST": "unix://"
-            + str(self.directory / "api" / "podman.sock"),
-        }
-        compose = [
-            shutil.which("podman-compose"),
-            "--podman-path",
-            self.local[0],
-            "--project-name",
-            "runtime-probe",
-            "--file",
-            str(compose_file),
-        ]
-        try:
-            self.run(compose + ["up", "--detach", "web"], env=env)
-            self.run(compose + ["run", "--rm", "client"], env=env)
-            if (directory / "out" / "result").read_text() != "compose works\n":
-                raise RuntimeError(
-                    "Compose output did not reach the shared path"
-                )
-        finally:
-            self.run(compose + ["down", "--volumes"], env=env)
-
-    def test_limits(self):
-        # Request actual enforcement, and check kernel files, not inspect's
-        # requested values. Failure exposes missing delegation; never retry
-        # without limits and report success.
-        self.run(
-            self.local
-            + [
-                "exec",
-                self.name,
-                "sh",
-                "-c",
-                "cat /proc/self/cgroup; ls -ld /sys/fs/cgroup; "
-                "cat /sys/fs/cgroup/cgroup.controllers; "
-                "cat /sys/fs/cgroup/cgroup.subtree_control",
-            ],
-            check=False,
-        )
-        result = self.run(
-            self.remote
-            + [
-                "run",
-                "--name=runtime-probe-limits",
-                "--network=none",
-                "--cgroups=enabled",
-                "--cgroupns=private",
-                "--memory=128m",
-                "--pids-limit=32",
-                "--cpus=0.5",
-                self.task_image,
-                "sh",
-                "-ec",
-                "cat /proc/self/cgroup; "
-                "grep ' - cgroup2 ' /proc/self/mountinfo; "
-                "for f in memory.max pids.max cpu.max; do "
-                'printf "%s=" "$f"; cat "/sys/fs/cgroup/$f"; done; '
-                'test "$(cat /sys/fs/cgroup/memory.max)" = 134217728; '
-                'test "$(cat /sys/fs/cgroup/pids.max)" = 32; '
-                "awk '{ if ($1 == \"max\" || $1 / $2 != 0.5) exit 1 }' "
-                "/sys/fs/cgroup/cpu.max",
-            ],
-            check=False,
-        )
-        inspection = self.run(
-            self.remote + ["inspect", "runtime-probe-limits"], check=False
-        )
-        (self.directory / "limits-inspect.json").write_text(inspection.stdout)
-        (self.directory / "limits-output.txt").write_text(
-            result.stdout + result.stderr
-        )
-        self.run(
-            self.remote + ["rm", "--force", "--ignore", "runtime-probe-limits"]
-        )
-        if result.returncode:
-            raise RuntimeError(
-                f"Cgroup enforcement check exited {result.returncode}:\n"
-                + result.stdout
-                + result.stderr
-            )
-
-    def extended_tests(self):
-        failures = []
-        for name, test in (
-            ("remote_build_context", self.test_build),
-            ("compose_network_and_relative_mounts", self.test_compose),
-            ("cgroup_limits_enforced", self.test_limits),
-        ):
-            print("Testing " + name + "...", flush=True)
-            try:
-                test()
-                self.results[name] = True
-            except (RuntimeError, OSError, subprocess.TimeoutExpired) as error:
-                self.results[name] = False
-                self.results[name + "_error"] = str(error)
-                failures.append(name)
-        if failures:
-            raise RuntimeError("Extended checks failed: " + ", ".join(failures))
-
-    def remove_through_runtime(self, paths):
+    def remove_run_state(self, paths):
         """Remove PATHS, deleting subordinate-ID files in a disposable task.
 
         `podman unshare` needs the host ID helpers, so files the inner engine
@@ -865,7 +361,7 @@ class Experiment:
         command.extend(
             [
                 "--entrypoint=/bin/sh",
-                self.expected_image or self.runtime_image,
+                self.expected_image,
                 "-ec",
                 'for d; do find "$d" -mindepth 1 -delete; done',
                 "sh",
@@ -877,7 +373,6 @@ class Experiment:
             for path in remaining:
                 shutil.rmtree(path)
         except OSError as error:
-            self.log.close()
             raise RuntimeError(
                 "Runtime state cleanup failed: "
                 + str(error)
@@ -885,182 +380,45 @@ class Experiment:
                 + result.stderr[-4000:]
             ) from error
 
-    def cleanup(self, preserve_storage=False):
+    def stop(self):
+        """Remove the runtime container, run state and cgroup.
+
+        Images, volumes and writable storage are always retained.
+        """
         if self.started:
-            logs = self.run(
-                self.local + ["logs", self.name],
-                check=False,
-            )
+            logs = self.run(self.local + ["logs", self.name], check=False)
             (self.directory / "runtime.log").write_text(
                 logs.stdout + logs.stderr
             )
             removed = self.run(
-                self.local
-                + [
-                    "rm",
-                    "--force",
-                    "--ignore",
-                    self.name,
-                ],
+                self.local + ["rm", "--force", "--ignore", self.name],
                 check=False,
             )
             if removed.returncode:
-                self.log.close()
                 raise RuntimeError(
                     "Runtime removal failed; preserving its storage\n"
                     + removed.stderr[-4000:]
                 )
-        # unshare supplies the same subordinate IDs used by the disposable
-        # engines. Never reset or prune the user's normal Podman database.
-        outer = () if self.outer_url else ("outer-run",)
-        paths = [
-            str(self.run_directory / name)
-            for name in ("inner-run", *outer, "run", "api")
-        ]
-        if not preserve_storage:
-            outer = () if self.outer_url else ("outer-storage",)
-            paths.extend(
-                str(self.directory / name) for name in ("inner", *outer, "home")
-            )
-        if self.outer_url:
-            self.remove_through_runtime(paths)
-            paths = []
-        removal = (
-            self.run(
-                self.local
-                + [
-                    "unshare",
-                    sys.executable,
-                    "-c",
-                    _CLEANUP_STORAGE,
-                    str(self.run_directory / "run" / "netns"),
-                    *paths,
-                ],
-                check=False,
-            )
-            if paths
-            else None
+        self.remove_run_state(
+            [
+                str(self.run_directory / name)
+                for name in ("inner-run", "run", "api")
+            ]
         )
-        if removal and removal.returncode:
-            self.log.close()
-            raise RuntimeError(
-                "Storage cleanup failed; retained under "
-                + str(self.directory)
-                + "\n"
-                + removal.stdout[-2000:]
-                + removal.stderr[-4000:]
-            )
         if self.cgroup is not None:
-            # Remove only our newly created subtree, after runtime termination.
-            # Never move or kill unrelated host processes to force cleanup.
+            # Remove only our subtree, after runtime termination. Never move
+            # or kill unrelated host processes to force cleanup.
             for attempt in range(10):
                 try:
                     for parent, _, _ in os.walk(self.cgroup, topdown=False):
                         Path(parent).rmdir()
                     break
+                except FileNotFoundError:
+                    break
                 except OSError:
                     if attempt == 9:
                         raise
                     time.sleep(0.2)
-        self.log.close()
-
-
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--runtime-image", default="quay.io/podman/stable:latest"
-    )
-    parser.add_argument("--task-image", default="docker.io/library/alpine:3.21")
-    parser.add_argument(
-        "--outer-seccomp",
-        choices=("nested", "default", "unconfined"),
-        default="nested",
-    )
-    parser.add_argument(
-        "--extended",
-        action="store_true",
-        help="Also test build, Compose and cgroup limits",
-    )
-    parser.add_argument(
-        "--host-cgroup-info",
-        action="store_true",
-        help="Print read-only host cgroup diagnostics; do not run containers",
-    )
-    parser.add_argument(
-        "--storage-driver", choices=("overlay", "vfs"), default="overlay"
-    )
-    parser.add_argument(
-        "--delegate-cgroup",
-        action="store_true",
-        help="Create and clean up a private host cgroup subtree for this runtime",
-    )
-    args = parser.parse_args()
-    if args.host_cgroup_info:
-        host_cgroup_info()
-        return 0
-    if os.getuid() == 0:
-        parser.error("Run as your normal user, without sudo")
-    podman = shutil.which("podman")
-    if not podman:
-        parser.error("podman is missing from PATH")
-    if args.extended and not shutil.which("podman-compose"):
-        parser.error("--extended requires podman-compose in PATH")
-    for path in (
-        "/sys/fs/cgroup/cgroup.controllers",
-        "/dev/fuse",
-        "/etc/subuid",
-        "/etc/subgid",
-    ):
-        if not Path(path).exists():
-            parser.error("Missing host prerequisite: " + path)
-    for helper in ("newuidmap", "newgidmap"):
-        if not shutil.which(
-            helper, path="/run/privileged/bin:" + os.environ["PATH"]
-        ):
-            parser.error("Missing mapping helper in PATH: " + helper)
-    os.umask(0o077)
-    directory = Path(tempfile.mkdtemp(prefix="agent-podman-", dir="/var/tmp"))
-    print("Logs and results: " + str(directory), flush=True)
-    experiment = Experiment(
-        directory,
-        podman,
-        args.runtime_image,
-        args.task_image,
-        args.outer_seccomp,
-        args.extended,
-        args.delegate_cgroup,
-        storage_driver=args.storage_driver,
-    )
-    status = 1
-    try:
-        experiment.prepare()
-        experiment.start()
-        experiment.test()
-        if args.extended:
-            experiment.extended_tests()
-        status = 0
-    except (
-        RuntimeError,
-        OSError,
-        subprocess.TimeoutExpired,
-        KeyboardInterrupt,
-    ) as error:
-        experiment.results["error"] = str(error)
-        print(str(error), file=sys.stderr)
-    finally:
-        try:
-            experiment.cleanup()
-        except (RuntimeError, OSError, subprocess.TimeoutExpired) as error:
-            experiment.results["cleanup_error"] = str(error)
-            print("Cleanup incomplete: " + str(error), file=sys.stderr)
-            status = 1
-        experiment.results["passed"] = status == 0
-        (directory / "results.json").write_text(
-            json.dumps(experiment.results, indent=2) + "\n"
-        )
-    print("PASS" if status == 0 else "FAIL", flush=True)
-    print("Results retained: " + str(directory), flush=True)
-    return status
 
 
 RUNTIME_ID = re.compile("[0-9a-f]{32}")
@@ -1199,21 +557,16 @@ class SharedRuntime:
             (Path(item["source"]), item["target"], item["mode"])
             for item in self.spec["mounts"]
         ]
-        return Experiment(
+        return Engine(
             self.directory,
+            self.run_directory,
             self.spec["podman"],
+            self.outer_url,
+            "contained-agent-runtime-" + self.key,
             self.image_reference,
-            "",
-            "nested",
-            extended=True,
-            delegate_cgroup=True,
-            mounts=mounts,
-            expected_image=self.spec["image"],
-            run_directory=self.run_directory,
-            persistent=True,
-            storage_driver=self.spec["storage_driver"],
-            outer_url=self.outer_url,
-            name="contained-agent-runtime-" + self.key,
+            self.spec["image"],
+            mounts,
+            self.spec["storage_driver"],
         )
 
     @contextlib.contextmanager
@@ -1260,7 +613,7 @@ class SharedRuntime:
         engine.cgroup = Path("/sys/fs/cgroup") / (
             "contained-podman-" + self.key
         )
-        engine.cleanup(preserve_storage=True)
+        engine.stop()
         (self.directory / "ready.json").unlink(missing_ok=True)
 
     def attach(self):
@@ -1382,6 +735,222 @@ class SharedRuntime:
                 self.stop_engine(engine)
             finally:
                 engine.log.close()
+
+
+CHECK_IMAGE = "docker.io/library/busybox:1.37"
+
+
+def runtime_checks(engine):
+    """Exercise the inner API as an agent would, yielding (name, check).
+
+    Each check cleans up after itself; read-only mounts are probed without
+    changing their contents even if the protection were missing.
+    """
+    remote, image = engine.remote, CHECK_IMAGE
+    suffix = str(os.getpid())
+    mounts = [(Path(m[0]), m[1], m[2]) for m in engine.mounts]
+
+    def task(shell, *options, network="none"):
+        return engine.run(
+            remote
+            + [
+                "run",
+                "--rm",
+                "--network=" + network,
+                "--cgroups=disabled",
+                *options,
+                image,
+                "sh",
+                "-ec",
+                shell,
+            ],
+            timeout=120,
+        )
+
+    def build():
+        tag = "localhost/contained-podman-check:" + suffix
+        with tempfile.TemporaryDirectory() as context:
+            # The server cannot read this host path; the client uploads it.
+            Path(context, "payload").write_text("uploaded context\n")
+            Path(context, "Dockerfile").write_text(
+                f"FROM {image}\nCOPY payload /payload\n"
+                "RUN printf 'built\\n' > /built\n"
+            )
+            try:
+                engine.run(
+                    remote
+                    + ["build", "--network=none", "--tag=" + tag, context],
+                    timeout=600,
+                )
+                engine.run(
+                    remote
+                    + [
+                        "run",
+                        "--rm",
+                        "--network=none",
+                        "--cgroups=disabled",
+                        tag,
+                        "sh",
+                        "-ec",
+                        'test "$(cat /payload)" = "uploaded context"; '
+                        'test "$(cat /built)" = built',
+                    ]
+                )
+            finally:
+                engine.run(
+                    remote + ["rmi", "--force", "--ignore", tag], check=False
+                )
+
+    def same_path_write():
+        writable = [m for m in mounts if m[2] == "rw" and m[0].is_dir()]
+        if not writable:
+            return "skipped: no writable directory mount"
+        source, target, _ = writable[0]
+        probe = Path(
+            tempfile.mkdtemp(prefix=".contained-podman-check-", dir=source)
+        )
+        path = target.rstrip("/") + "/" + probe.name
+        try:
+            task(
+                "printf 'from task\\n' > " + shlex.quote(path + "/output"),
+                "--volume",
+                f"{path}:{path}",
+            )
+            if (probe / "output").read_text() != "from task\n":
+                raise RuntimeError("Task output did not reach " + str(probe))
+        finally:
+            shutil.rmtree(probe)
+        return path
+
+    def read_only():
+        protected = [m for m in mounts if m[2] == "ro" and m[0].exists()]
+        if not protected:
+            return "skipped: no read-only mount"
+        script, options = [], []
+        for source, target, _ in protected:
+            quoted = shlex.quote(target)
+            if source.is_dir():
+                probe = shlex.quote(
+                    target + "/.contained-podman-check-" + suffix
+                )
+                script.append(
+                    f"if mkdir {probe} 2>/dev/null; then rmdir {probe}; "
+                    f"echo 'writable: '{quoted} >&2; exit 31; fi"
+                )
+            else:
+                # Opening for append changes nothing even if it succeeds.
+                script.append(
+                    f"if : >> {quoted} 2>/dev/null; then "
+                    f"echo 'writable: '{quoted} >&2; exit 31; fi"
+                )
+            script.append(
+                f"if mount -o remount,bind,rw {quoted} 2>/dev/null; then "
+                f"echo 'remounted: '{quoted} >&2; exit 32; fi"
+            )
+            options += ["--volume", f"{target}:{target}"]
+        # Default privileged tasks fail at sysfs creation; test the variant
+        # with the runtime's read-only sysfs as well as ordinary tasks.
+        for extra in ([], ["--privileged", "--volume", "/sys:/sys:ro"]):
+            task("; ".join(script), *extra, *options)
+        return f"{len(protected)} mount(s), ordinary and privileged"
+
+    def root_isolation():
+        # Binding / exposes the runtime's root, never the host's.
+        hidden = shlex.quote("/runtime-root" + str(engine.directory.parent))
+        task(f"test ! -e {hidden}", "--volume", "/:/runtime-root:ro")
+
+    def network():
+        name = "contained-podman-check-" + suffix
+        web = name + "-web"
+        engine.run(remote + ["network", "create", name])
+        try:
+            engine.run(
+                remote
+                + [
+                    "run",
+                    "--detach",
+                    "--name=" + web,
+                    "--network=" + name,
+                    "--cgroups=disabled",
+                    image,
+                    "sh",
+                    "-ec",
+                    "mkdir /srv; echo network works > /srv/index.html; "
+                    "exec httpd -f -p 8080 -h /srv",
+                ]
+            )
+            # Compose relies on this: service names resolve on its network.
+            result = task(
+                "for i in 1 2 3 4 5 6 7 8 9 10; do "
+                f"if wget -T 5 -q -O - http://{web}:8080/; then exit 0; fi; "
+                "sleep 1; done; exit 1",
+                network=name,
+            )
+            if result.stdout.strip() != "network works":
+                raise RuntimeError("Unexpected response: " + result.stdout)
+        finally:
+            engine.run(remote + ["rm", "--force", "--ignore", web], check=False)
+            engine.run(remote + ["network", "rm", "--force", name], check=False)
+
+    def limits():
+        # Check the kernel files, not the requested values.
+        engine.run(
+            remote
+            + [
+                "run",
+                "--rm",
+                "--network=none",
+                "--cgroups=enabled",
+                "--cgroupns=private",
+                "--memory=128m",
+                "--pids-limit=32",
+                "--cpus=0.5",
+                image,
+                "sh",
+                "-ec",
+                'test "$(cat /sys/fs/cgroup/memory.max)" = 134217728; '
+                'test "$(cat /sys/fs/cgroup/pids.max)" = 32; '
+                "awk '{ if ($1 == \"max\" || $1 / $2 != 0.5) exit 1 }' "
+                "/sys/fs/cgroup/cpu.max",
+            ]
+        )
+
+    engine.run(remote + ["pull", image], timeout=900)
+    yield from (
+        ("build_uploaded_context", build),
+        ("same_path_write", same_path_write),
+        ("read_only_mounts", read_only),
+        ("root_isolation", root_isolation),
+        ("network_dns", network),
+        ("cgroup_limits", limits),
+    )
+
+
+def check_main(manager):
+    """Attach to a runtime, starting it if needed, and report each check."""
+    with contextlib.redirect_stdout(sys.stderr):
+        manager.attach()
+    print("Runtime " + manager.key + ", log " + str(manager.directory))
+    engine = manager.engine()
+    failures = 0
+    try:
+        for name, check in runtime_checks(engine):
+            try:
+                note = check()
+            except (RuntimeError, OSError, subprocess.TimeoutExpired) as error:
+                failures += 1
+                print(f"FAIL {name}: {error}", flush=True)
+            else:
+                print(
+                    f"PASS {name}" + (f" ({note})" if note else ""), flush=True
+                )
+    except (RuntimeError, subprocess.TimeoutExpired) as error:
+        failures += 1
+        print("FAIL setup: " + str(error), flush=True)
+    finally:
+        engine.log.close()
+        manager.detach()
+    return 1 if failures else 0
 
 
 def default_runtime_root():
@@ -1549,6 +1118,11 @@ def session_main():
         help="Stop an idle runtime, retaining images and volumes",
     )
     parser.add_argument(
+        "--check",
+        metavar="RUNTIME_ID",
+        help="Start or attach a runtime and exercise its API as an agent would",
+    )
+    parser.add_argument(
         "--storage-driver", choices=("overlay", "vfs"), default="overlay"
     )
     parser.add_argument("--mount-option", action="append", default=[])
@@ -1570,15 +1144,14 @@ def session_main():
             + "); start it with `contained-agent podman-service`"
         )
     outer_url = "unix://" + str(socket)
-    if args.stop:
-        if len(args.stop) != 32 or any(
-            c not in "0123456789abcdef" for c in args.stop
-        ):
+    if args.stop or args.check:
+        runtime_id = args.stop or args.check
+        if not RUNTIME_ID.fullmatch(runtime_id):
             parser.error("Invalid runtime ID")
         spec = json.loads(
-            (args.state_root / args.stop / "spec.json").read_text()
+            (args.state_root / runtime_id / "spec.json").read_text()
         )
-        if runtime_key(spec) != args.stop:
+        if runtime_key(spec) != runtime_id:
             parser.error("Stored runtime policy does not match its ID")
         manager = SharedRuntime(
             args.state_root,
@@ -1587,6 +1160,8 @@ def session_main():
             args.runtime_image,
             outer_url,
         )
+        if args.check:
+            return check_main(manager)
         with contextlib.redirect_stdout(sys.stderr):
             manager.stop()
         return 0
@@ -1690,7 +1265,4 @@ def session_main():
 
 
 if __name__ == "__main__":
-    if sys.argv[1:2] == ["--session"]:
-        del sys.argv[1]
-        sys.exit(session_main())
-    sys.exit(main())
+    sys.exit(session_main())

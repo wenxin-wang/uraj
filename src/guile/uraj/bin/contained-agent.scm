@@ -1287,6 +1287,11 @@ GitHub token tiers, or #f if this host has none, and PROJECTS-SECRET, if not
           (die "Podman runtime launcher is not configured"))
         (apply execlp (car podman-launcher)
                (append podman-launcher (list "--stop" runtime-id))))
+       (("contained-agent" "podman-check" runtime-id)
+        (unless podman-launcher
+          (die "Podman runtime launcher is not configured"))
+        (apply execlp (car podman-launcher)
+               (append podman-launcher (list "--check" runtime-id))))
        (("contained-agent" "podman-service")
         ;; The shared outer engine; Home or system Shepherd normally runs it.
         (unless podman-launcher
@@ -1318,7 +1323,7 @@ GitHub token tiers, or #f if this host has none, and PROJECTS-SECRET, if not
        (("contained-agent" name args ...)
         (run-agent name args agents common packages git projects-file ssh-tools))
        (("contained-agent")
-        (die "usage: contained-agent AGENT [ARGS...] | allow|inherit|ssh-start|ssh-stop|ssh-socket [DIRECTORY] | podman-service | podman-stop RUNTIME_ID"))
+        (die "usage: contained-agent AGENT [ARGS...] | allow|inherit|ssh-start|ssh-stop|ssh-socket [DIRECTORY] | podman-service | podman-check|podman-stop RUNTIME_ID"))
        ((name args ...)
         (run-agent name args agents common packages git projects-file ssh-tools)))))))
    (lambda (_ message) (die "~a" message))))

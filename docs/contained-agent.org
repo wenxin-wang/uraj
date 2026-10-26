@@ -732,6 +732,30 @@ storage is shared only by clients of the same runtime, not by other runtimes
 or the user's ordinary host Podman.  No shared read-only image library is
 used.
 
+** Self-check
+
+#+begin_src sh
+contained-agent podman-check RUNTIME_ID
+#+end_src
+
+This attaches to the runtime like a session, starting it if needed, so idle
+collection cannot stop it meanwhile.  Through its inner API it then checks,
+printing PASS or FAIL for each:
+
+- a build whose context the client uploads;
+- a write through a same-path bind of the first writable directory mount,
+  in a temporary =.contained-podman-check-*= directory removed afterwards;
+- that every read-only mount refuses writes and a writable remount, in
+  ordinary and privileged (read-only /sys) tasks.  Files are probed by opening
+  them for append, so nothing changes even if the protection were missing;
+- that binding / exposes the runtime's root, not the host's runtime state;
+- service name resolution on a user network, which Compose relies on;
+- memory, PID and CPU limits as the kernel reports them.
+
+It pulls =docker.io/library/busybox:1.37= into the runtime's storage, and
+removes its image tag, containers and network.  It exits non-zero when any
+check fails; commands and output are in the runtime's =commands.log=.
+
 ** Harbor acceptance
 
 The worktree already includes jobs/, instances/ and the apt-cacher files.
@@ -740,12 +764,12 @@ the same files from the agent and runtime.  No extra /jobs mount is needed.
 Use project-local output paths and the configured TMPDIR for generated bind
 sources; synthetic HOME and private /tmp files are not runtime bind sources.
 
-The host experiment (2026-10-25, lappie, overlay storage) passed builds with
-uploaded contexts, Compose DNS/HTTP and relative binds, read-only/path
-isolation, and actual CPU/memory/PID limits with seccomp active.  The
-persistent runtime still needs deployed concurrency/reboot smoke tests and a
-real Harbor trial in traj-record.  Default privileged tasks are not promised:
-the tested privileged variant explicitly binds /sys read-only.  A Guix-built
+A disposable host experiment (2026-10-25, lappie, overlay storage) passed the
+same checks, plus Compose itself, before the host service replaced its local
+outer engine; =podman-check= now covers them on the deployed path.  The
+persistent runtime still needs concurrency/reboot smoke tests and a real
+Harbor trial in traj-record.  Default privileged tasks are not promised: the
+tested privileged variant explicitly binds /sys read-only.  A Guix-built
 runtime image remains follow-up work.
 
 * Optional Guix daemon access
