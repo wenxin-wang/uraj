@@ -34,8 +34,13 @@ function cli(args, config = CONFIG) {
     encoding: "utf8", timeout: 120_000, maxBuffer: 8 * 1024 * 1024,
   });
   // Do not echo native diagnostics: they can contain config values or credentials.
+  // Name only the step and how it ended.
   if (result.error || result.status !== 0) {
-    throw new Error("Native OpenClaw command failed; no successful commit confirmed");
+    const step = args[0] === "gateway" ? `gateway call ${args[2]}` : `${args[0]} ${args[1]}`;
+    const outcome = result.error?.code === "ETIMEDOUT" ? "timed out"
+      : result.error ? `could not run (${result.error.code ?? "error"})`
+        : `exited with status ${result.status}`;
+    throw new Error(`Native OpenClaw ${step} ${outcome}; no successful commit confirmed`);
   }
   return result.stdout;
 }
