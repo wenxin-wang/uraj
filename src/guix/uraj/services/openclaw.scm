@@ -248,7 +248,8 @@
        ((feishu .
          ((enabled . #t) (domain . "feishu") (connectionMode . "websocket")
           (defaultAccount . "main") (dmPolicy . "pairing")
-          (groupPolicy . "disabled") (requireMention . #t)
+          (groupPolicy . "open") (requireMention . #t)
+          (groupSessionScope . "group_topic") (replyInThread . "enabled")
           (configWrites . #t) (resolveSenderNames . #f)
           (typingIndicator . #t) (renderMode . "raw")
           (streaming . ((mode . "off")))

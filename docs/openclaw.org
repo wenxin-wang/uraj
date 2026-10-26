@@ -4,7 +4,11 @@
 
 一个飞书 bot、一个 Gateway 容器、一个默认 agent，通过 new-api 调用模型。
 飞书采用主动建立的 WebSocket 长连接，不需要公网地址或 webhook 入站。
-私聊需管理员批准配对，不需要事先查询 =open_id=；群聊关闭。
+私聊需管理员批准配对，不需要事先查询 =open_id=；测试阶段开放群聊，
+需要 @机器人，仍使用现有 agent，尚未启用动态用户隔离或人格切换命令。
+群聊使用 =groupSessionScope="group_topic"= 和 =replyInThread="enabled"=：
+同一 agent 的身份和长期记忆共用，各群、各话题的会话上下文分开；没有话题
+标识的消息回到群级会话。群成员（包括后来加入的人）使用同一个 agent。
 开放文件工具及 =exec=、=process=；它们在独立引擎容器创建的 Podman
 沙箱中以专用 UID 2010 执行，不逐条询问，也不回退到持有凭据的 Gateway。
 浏览器、主动发消息和飞书文档工具保持关闭。
@@ -79,7 +83,8 @@ Gateway 必须在线。批量变更可替换整个 =agents.entries= 或 =binding
 配置修改只能经过校验工具。各 agent 的 workspace 仍在同一 UID 下，
 尚不是多用户隐私隔离。
 =channels.feishu.configWrites=true= 允许可信插件写回；未自动开启动态
-注册或群聊。=OPENCLAW_CONFIG_READONLY= 不再设置。
+注册。群聊以 =groupPolicy="open", requireMention=true= 开放测试。
+=OPENCLAW_CONFIG_READONLY= 不再设置。
 
 部署验收需要用固定镜像检查：首次初始化、重启保留 agent/binding、
 校验工具合法修改模型成功、exec 中的原生命令被拒绝并提示工具、
@@ -678,7 +683,9 @@ python3 test/python/uraj/container/seccomp.py
 /data、/run 或 Docker。还需要在真实部署时验证：
 
 1. DNS、飞书长连接和 new-api 调用成功；确认其它 LAN/主机服务被拒绝。
-2. 未批准的私聊只触发配对流程；批准后可回复，未批准用户及群聊不能触发模型。
+2. 未批准的私聊只触发配对流程；批准后可回复；群聊 @机器人可触发模型。
+   在同群两个话题及另一群分别发测试消息，确认日志中的 session key 不同，
+   同一话题的后续消息复用原 session，回复留在对应话题。
 3. 重启 Gateway 后上下文仍在，停止期间没有意外启动的容器。
 4. 重启主机后网络规则与秘密先就绪，镜像和数据均被保留。
 5. 实测秘密轮换、备份恢复，以及临时版本切回声明版本。

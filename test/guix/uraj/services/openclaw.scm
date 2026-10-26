@@ -158,7 +158,13 @@
   (not (at app "channels" "feishu" "allowFrom")))
 (test-equal "DMs require administrator pairing approval" "pairing"
   (at app "channels" "feishu" "dmPolicy"))
-(test-equal "groups disabled" "disabled" (at app "channels" "feishu" "groupPolicy"))
+(test-equal "invited groups enabled" "open" (at app "channels" "feishu" "groupPolicy"))
+(test-equal "groups require a bot mention" #t
+  (at app "channels" "feishu" "requireMention"))
+(test-equal "each group topic has its own session" "group_topic"
+  (at app "channels" "feishu" "groupSessionScope"))
+(test-equal "bot replies stay in topic threads" "enabled"
+  (at app "channels" "feishu" "replyInThread"))
 (test-equal "file, process and config tools explicitly allowed"
   '#("read" "write" "edit" "apply_patch" "exec" "process" "openclaw_config_set")
   (at app "tools" "allow"))
