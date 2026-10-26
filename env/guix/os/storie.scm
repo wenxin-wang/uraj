@@ -343,13 +343,13 @@
 
 (define %openclaw-configuration
   (openclaw-configuration
-    (image "sha256:6ea31e154475c6240ee1c20d1b94952bdcbd84a3d4579ac9561b1a1b40cae28d")
+    (image "sha256:cf70e2d4fdaa425c5d4e82c1be46a706192ea6bac9ac3f0747bc4650af4e7092")
     (image-repository "localhost/openclaw-feishu")
-    ;; Placeholders until built on storie; see docs/openclaw.org.
+    ;; Built from env/docker/openclaw-{engine,sandbox}; see docs/openclaw.org.
     (engine-image
-     "sha256:0000000000000000000000000000000000000000000000000000000000000000")
+     "sha256:e4a6f63d8faab21dfe3d04cf55a8856192125dd17b52ab60ca644feeb7f801cc")
     (sandbox-image
-     "sha256:0000000000000000000000000000000000000000000000000000000000000000")
+     "sha256:4514ff40cfc53f7c3ae5a7502d5e36c3c95d6edf759a383986a230bae1b73711")
     (secrets-file
      (local-file (project-path "secrets/hosts/storie/openclaw.yaml")))
     (feishu-app-id "cli_aa5a187288381c05")
