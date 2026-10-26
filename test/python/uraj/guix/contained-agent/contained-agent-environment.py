@@ -730,19 +730,41 @@ class Direnv(Launcher):
             (self.name(envrc, envrc), f"{envrc}\n"),
         )
 
-    def test_worktree_requires_own_approval(self):
+    def test_worktree_inherits_identical_approval(self):
         envrc = self.worktree / ".envrc"
-        self.allow(self.project)
         self.assertIsNone(self.approval(self.worktree))
-        self.allow(self.worktree)
+        self.allow(self.project)
         self.assertEqual(
             self.approval(self.worktree),
             (self.name(envrc, envrc), f"{envrc}\n"),
         )
         # Contents the main work tree never approved.
         envrc.write_text("export A=2\n")
-        self.allow(self.project)
         self.assertIsNone(self.approval(self.worktree))
+        self.allow(self.worktree)
+        self.assertEqual(
+            self.approval(self.worktree),
+            (self.name(envrc, envrc), f"{envrc}\n"),
+        )
+
+    def test_inherit_command_approves_on_the_host(self):
+        inherit = self.command + ["inherit", str(self.worktree)]
+        result = subprocess.run(
+            inherit, env=self.env, text=True, capture_output=True, timeout=15
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("direnv allow", result.stderr)
+        self.allow(self.project)
+        result = subprocess.run(
+            inherit, env=self.env, text=True, capture_output=True, timeout=15
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(f"Inherited approvals of {self.project}", result.stdout)
+        envrc = self.worktree / ".envrc"
+        self.assertEqual(
+            (self.allowed / self.name(envrc, envrc)).read_text(),
+            f"{envrc}\n",
+        )
 
     def test_worktree_policy_inherits_unless_overridden(self):
         self.secret.write_text(SECRET)
@@ -796,11 +818,14 @@ class Direnv(Launcher):
         self.assertFalse(any("git-credential-" in arg for arg in argv))
         self.assertEqual(environment["GIT_CONFIG_COUNT"], "1")
 
-    def test_local_approval_does_not_cross_worktrees(self):
+    def test_local_and_direnv_approvals_are_inherited_together(self):
         for directory in (self.project, self.worktree):
             local = directory / ".guix"
             local.mkdir()
             (local / "contained-agent.scm").write_text('(preserve "LOCAL_OK")')
+        # Unapproved local files keep the approved .envrc out as well.
+        self.allow(self.project)
+        self.assertIsNone(self.approval(self.worktree))
         approved = (
             self.home
             / ".local/state/contained-agent/approved"
@@ -811,9 +836,16 @@ class Direnv(Launcher):
         result, argv, _ = self.launch(cwd=self.project)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("--preserve=^LOCAL_OK$", argv)
+        # The main work tree's .envrc is not approved, so neither is taken.
         result, argv, _ = self.launch(cwd=self.worktree)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertNotIn("--preserve=^LOCAL_OK$", argv)
+        self.assertIsNone(self.approval(self.worktree))
+        self.allow(self.project)
+        result, argv, _ = self.launch(cwd=self.worktree)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("--preserve=^LOCAL_OK$", argv)
+        self.assertIsNotNone(self.approval(self.worktree))
 
     def test_environment_loads_for_the_agent_and_each_command(self):
         # A direnv exporting the directory it runs in.

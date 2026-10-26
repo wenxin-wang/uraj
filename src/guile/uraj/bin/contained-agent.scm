@@ -57,7 +57,9 @@
 ;;;   the host, so they count only once `contained-agent allow' has shown them
 ;;;   to the user and copied them away; sessions load that copy, chosen by the
 ;;;   hash of the project's current files.  Changed or unreviewed files are
-;;;   left out with a warning.
+;;;   left out with a warning.  A worktree takes over the approvals of the
+;;;   checkouts its policy would inherit from (see `inherit-approvals') when
+;;;   they approved its current local files and .envrc, both at once.
 ;;; - Files under %denied are never mounted on request.
 ;;;
 ;;; Projects files are `read', never evaluated.
@@ -348,6 +350,18 @@ it; Paseo itself could already start them in that checkout."
          (_ #f)))
       (_ #f))))
 
+(define (source-checkouts project git)
+  "Return the checkouts PROJECT inherits from, in order: the one Paseo created
+it from, then the main work tree."
+  (match (command-lines git "-C" project "rev-parse"
+                        "--path-format=absolute" "--git-common-dir")
+    ((common)
+     (filter-map identity
+                 (list (paseo-source-root project common git)
+                       (and (string-suffix? "/.git" common)
+                            (resolve (dirname common))))))
+    (_ '())))
+
 (define (central-entries file project git)
   "Use PROJECT's central entries, or else those of the checkout Paseo created
 it from, or else the main work tree's.  An explicit empty entry suppresses
@@ -380,16 +394,9 @@ inheritance across all policy sources."
            (selected
             (if (pair? own)
                 own
-                (match (command-lines git "-C" project "rev-parse"
-                                      "--path-format=absolute" "--git-common-dir")
-                  ((common)
-                   (let ((source (paseo-source-root project common git)))
-                     (match (if source (entries-of source) '())
-                       (() (if (string-suffix? "/.git" common)
-                               (entries-of (dirname common))
-                               '()))
-                       (inherited inherited))))
-                  (_ '())))))
+                (or (find pair? (map entries-of
+                                     (source-checkouts project git)))
+                    '()))))
       (append-map
        (match-lambda
          ((root source clauses) (map (cut cons source <>) clauses)))
@@ -754,16 +761,71 @@ and those contents."
     ((line) (string-take line 64))
     (_ (die "cannot hash ~a" contents))))
 
+(define (direnv-allow-directory)
+  (string-append (match (getenv "XDG_DATA_HOME")
+                   ((or #f "") (expand-home "~/.local/share"))
+                   (data data))
+                 "/direnv/allow/"))
+
+(define (envrc? top)
+  (eq? 'regular (and=> (stat (string-append top "/.envrc") #f) stat:type)))
+
 (define (direnv-allowed top tools)
   "Return TOP's direnv approval only when the host approved this exact path."
-  (let ((envrc (string-append top "/.envrc"))
-        (allowed (string-append (match (getenv "XDG_DATA_HOME")
-                                  ((or #f "") (expand-home "~/.local/share"))
-                                  (data data))
-                                "/direnv/allow/")))
-    (and (eq? 'regular (and=> (stat envrc #f) stat:type))
+  (let ((envrc (string-append top "/.envrc")))
+    (and (envrc? top)
          (let ((name (direnv-allow-name tools envrc envrc)))
-           (and (file-exists? (string-append allowed name)) name)))))
+           (and (file-exists? (string-append (direnv-allow-directory) name))
+                name)))))
+
+;;; Approvals inherited by new worktrees.
+
+(define (inherit-approvals top manifest git tools)
+  "Approve work tree TOP's local files and .envrc, both or neither, when a
+checkout it inherits from (see `source-checkouts') approved the same contents
+at its own path.  Return #t if TOP needs nothing, else the source or #f."
+  (let* ((name (local-files top manifest))
+         (hash (and name (nar-hash (string-append top "/" name))))
+         (envrc (string-append top "/.envrc"))
+         (approved (lambda (root)
+                     (and hash (state-directory "approved" (project-key root)
+                                                hash))))
+         (allowed (lambda (root)
+                    (and (envrc? top)
+                         (string-append
+                          (direnv-allow-directory)
+                          (direnv-allow-name tools
+                                             (string-append root "/.envrc")
+                                             envrc)))))
+         (approved? (lambda (root)
+                      (every (lambda (file) (or (not file) (file-exists? file)))
+                             (list (approved root) (allowed root))))))
+    (or (approved? top)
+        (match (find (lambda (source)
+                       (and (not (string=? source top)) (approved? source)))
+                     (source-checkouts top git))
+          (#f #f)
+          (source
+           ;; A link is created atomically, and approved copies never change.
+           (when (and hash (not (file-exists? (approved top))))
+             (mkdir-p (dirname (approved top)))
+             (symlink (approved source) (approved top)))
+           (when (allowed top)
+             (mkdir-p (direnv-allow-directory))
+             (call-with-output-file (allowed top)
+               (cut format <> "~a~%" envrc)))
+           source)))))
+
+(define (inherit directory git projects-file tools)
+  (let*-values (((project top _)
+                 (project-mounts git (canonicalize-path directory))))
+    (match (inherit-approvals
+            top (project-manifest (central-entries projects-file project git))
+            git tools)
+      (#t (format #t "~a needs no approvals~%" top))
+      (#f (die "~a: no checkout it inherits from approved its local files and \
+.envrc as they are; run `contained-agent allow' and `direnv allow'" top))
+      (source (format #t "Inherited approvals of ~a~%" source)))))
 
 ;;; Agents.
 
@@ -936,7 +998,10 @@ NUL.  All ssh-add output goes to stderr, never into this private protocol."
                                          projects-file)))
        ((central) (if project (central-entries projects-file project git) '()))
        ((manifest) (project-manifest central))
-       ((local) (and top (approved-local top manifest)))
+       ((local) (and top
+                     (begin
+                       (inherit-approvals top manifest git ssh-tools)
+                       (approved-local top manifest))))
        ((direnv) (and top (direnv-allowed top ssh-tools)))
        ((local-file) (lambda (name)
                        (let ((file (and local (string-append local "/" name))))
@@ -1101,8 +1166,10 @@ exec \"$@\""
                                (github-secrets (%github-secrets))
                                projects-secret)
   "Run the agent named by COMMAND-LINE in a container, or approve a project's
-local files with `contained-agent allow [DIRECTORY]'.  AGENTS maps agent names
-to specs and COMMON is a spec for every agent (see the commentary); PACKAGES
+local files with `contained-agent allow [DIRECTORY]', or take those of the
+checkout it inherits from with `contained-agent inherit [DIRECTORY]'.
+AGENTS maps agent names to specs and COMMON is a spec for every agent (see
+the commentary); PACKAGES
 are the specifications installed in the container; GIT is the git executable
 used to inspect the project.  GITHUB-SECRETS is the directory of the
 GitHub token tiers, or #f if this host has none, and PROJECTS-SECRET, if not
@@ -1116,6 +1183,10 @@ GitHub token tiers, or #f if this host has none, and PROJECTS-SECRET, if not
      (match (cons (program-name program) args)
        (("contained-agent" "allow") (allow "." git projects-file))
        (("contained-agent" "allow" directory) (allow directory git projects-file))
+       (("contained-agent" "inherit")
+        (inherit "." git projects-file ssh-tools))
+       (("contained-agent" "inherit" directory)
+        (inherit directory git projects-file ssh-tools))
        (("contained-agent" "ssh-service")
         (serve-project-ssh git projects-file ssh-tools))
        (("contained-agent" (and action (or "ssh-start" "ssh-stop" "ssh-socket"))
@@ -1141,7 +1212,7 @@ GitHub token tiers, or #f if this host has none, and PROJECTS-SECRET, if not
        (("contained-agent" name args ...)
         (run-agent name args agents common packages git projects-file ssh-tools))
        (("contained-agent")
-        (die "usage: contained-agent AGENT [ARGS...] | allow|ssh-start|ssh-stop|ssh-socket [DIRECTORY]"))
+        (die "usage: contained-agent AGENT [ARGS...] | allow|inherit|ssh-start|ssh-stop|ssh-socket [DIRECTORY]"))
        ((name args ...)
         (run-agent name args agents common packages git projects-file ssh-tools)))))))
    (lambda (_ message) (die "~a" message))))
