@@ -549,6 +549,11 @@ sudo rm -rf /data/openclaw
 #+end_src
 
 启动程序按上文创建目录与属主；新 HOME 权限为 0700、属主为 2010:2010。
+首次加入 =sandboxed-agents= 后，正在运行的 =restricted-network= 不会因
+reconfigure 重新执行，网络与规则尚不存在；Compose 要求所有外部网络存在，
+因此连启动前的 reconcile 也会失败。部署后先执行
+=sudo herd restart restricted-network=（会短暂重启依赖它的服务），再启动
+OpenClaw。
 容器 stdout/stderr 遵循现有日志组规则；它们也可能带有聊天相关诊断信息。
 不要开启含凭据或完整消息的调试日志。应用自己的临时文件日志在容器
 =/tmp=，不作长期保存。HOME 下的 =.cache= 另挂载 128 MiB tmpfs，
