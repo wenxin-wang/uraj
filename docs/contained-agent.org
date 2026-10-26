@@ -36,7 +36,8 @@ list.  Home installs:
 
 The program dispatches on the name it was invoked as (minus a store hash
 prefix).  Under an agent's name it takes exactly that agent's arguments;
-as =contained-agent= the first argument names the agent, or is =allow=.
+as =contained-agent= the first argument names the agent, or is =allow= or
+=inherit=.
 
 * Use
 
@@ -55,6 +56,8 @@ as =contained-agent= the first argument names the agent, or is =allow=.
   server handles all workspaces, which no project container can hold.
   Restart the daemon after a change: it caches the provider version probe.
 - Approve a project's own files: =contained-agent allow [DIRECTORY]=.
+- Approve a new worktree as its source checkout (see [[Inherited approvals]]):
+  =contained-agent inherit [DIRECTORY]=.
 
 * The container
 
@@ -171,8 +174,9 @@ its namesake on =origin=, and =@{push}= resolves, without any upstream.
 =direnv= is among the container packages.  Its approvals live in the
 tmpfs home, so they start empty; the launcher carries over a single one,
 for the work tree's top-level =.envrc=, only when the host approved that
-exact path.  Linked worktrees do not inherit the main work tree's approval,
-even when their contents match; run =direnv allow= in each worktree.
+exact path.  Linked worktrees need an approval of their own path, which
+they may inherit, see [[Inherited approvals]]; otherwise run =direnv allow=
+in each worktree.
 
 The approval is written as direnv records it, under
 =~/.local/share/direnv/allow/=, and is dropped on exit; one the agent adds
@@ -407,10 +411,11 @@ its branch remains.  Remove its host policy too when retiring the path.
 
 Configure explicit entries for worktrees that need different permissions.
 Run =contained-agent allow=
-and =direnv allow= on the host in each worktree that needs those approvals;
-old global content-hash approvals are not reused.  Restart sessions to apply
-the new policy.  Shared Git metadata and the normal base sandbox remain;
-local approvals remain isolated by worktree.
+and =direnv allow= on the host in each worktree whose approvals it cannot
+inherit (see [[Inherited approvals]]); approvals of unrelated checkouts are
+not reused.  Restart sessions to apply the new policy.  Shared Git metadata
+and the normal base sandbox remain; local approvals remain recorded per
+worktree.
 
 *** Additional central configuration
 
@@ -538,6 +543,20 @@ The whole =.guix= directory is hashed, as a manifest may =load= its
 siblings.  Links inside it are refused: they could reach unreviewed files.
 A top-level =manifest.scm= is hashed alone, so anything it loads is not
 covered.
+
+<<Inherited approvals>>A new worktree takes over the approvals of a
+checkout it inherits policy from: the one Paseo created it from, else the
+main work tree, as for central entries.  Both registries are outside every
+container.  It does so only when that checkout has approved, at its own
+path, both the worktree's current project-local files (same nar hash) and
+its current =.envrc= (as direnv names the approval), each where present.
+Then the worktree's approval directory gets a link to the checkout's
+approved copy, and the host's =~/.local/share/direnv/allow/= an approval of
+the worktree's =.envrc=, so plain host shells load it too.  Nothing is taken
+over otherwise, not even one of the two.
+
+Sessions do this at startup; =contained-agent inherit [DIRECTORY]= does it
+for host shells before any session, and reports what it found.
 
 Requests never mount anything under these, nor any directory containing
 one (such as =$HOME= or =/=): =~/.paseo=, =~/.paseo-password=, =~/.ssh=,
