@@ -135,6 +135,13 @@ class Engine:
             + 'graphroot="/home/podman/.local/share/containers/storage"\n'
             'runroot="/run/user/1000/storage"\n'
         )
+        # Image references in Compose files and task definitions assume
+        # Docker's short names. With several search registries, enforcing
+        # mode needs a TTY to choose; one leaves nothing to choose. A drop-in
+        # keeps the image's short-name aliases.
+        (self.directory / "inner-registries.conf").write_text(
+            'unqualified-search-registries = ["docker.io"]\n'
+        )
 
     def check_driver(self, info):
         driver = info.get("store", {}).get("graphDriverName")
@@ -250,6 +257,11 @@ class Engine:
             (
                 self.directory / "inner-storage.conf",
                 "/etc/containers/probe-storage.conf",
+                "ro",
+            ),
+            (
+                self.directory / "inner-registries.conf",
+                "/etc/containers/registries.conf.d/999-contained-agent.conf",
                 "ro",
             ),
             *self.mounts,
@@ -892,6 +904,13 @@ def runtime_checks(engine):
             engine.run(remote + ["rm", "--force", "--ignore", web], check=False)
             engine.run(remote + ["network", "rm", "--force", name], check=False)
 
+    def short_names():
+        # Docker-style references in task definitions must not need a TTY.
+        info = json.loads(engine.run(remote + ["info", "--format=json"]).stdout)
+        search = info.get("registries", {}).get("search")
+        if search != ["docker.io"]:
+            raise RuntimeError("Short-name search registries: " + repr(search))
+
     def limits():
         # Check the kernel files, not the requested values.
         engine.run(
@@ -917,6 +936,7 @@ def runtime_checks(engine):
 
     engine.run(remote + ["pull", image], timeout=900)
     yield from (
+        ("short_name_search", short_names),
         ("build_uploaded_context", build),
         ("same_path_write", same_path_write),
         ("read_only_mounts", read_only),

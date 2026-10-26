@@ -246,6 +246,10 @@ class Session(unittest.TestCase):
                     f'driver="{driver}"\n',
                     (Path(tmp) / "inner-storage.conf").read_text(),
                 )
+                self.assertEqual(
+                    (Path(tmp) / "inner-registries.conf").read_text(),
+                    'unqualified-search-registries = ["docker.io"]\n',
+                )
                 # The host service owns the outer engine's configuration.
                 for name in ("containers.conf", "storage.conf"):
                     self.assertFalse((Path(tmp) / name).exists(), name)
@@ -572,7 +576,10 @@ class Checks(unittest.TestCase):
             # The task writes through its same-path bind.
             output = shlex.split(shell)[-1]
             Path(output).write_text("from task\n")
-        stdout = "network works\n" if "wget" in shell else ""
+        if command[4:5] == ["info"]:
+            stdout = json.dumps({"registries": {"search": ["docker.io"]}})
+        else:
+            stdout = "network works\n" if "wget" in shell else ""
         return subprocess.CompletedProcess(command, 0, stdout, "")
 
     def test_all_checks_run_against_inner_api_and_clean_up(self):
@@ -582,6 +589,7 @@ class Checks(unittest.TestCase):
         self.assertEqual(
             list(notes),
             [
+                "short_name_search",
                 "build_uploaded_context",
                 "same_path_write",
                 "read_only_mounts",

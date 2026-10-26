@@ -732,6 +732,14 @@ storage is shared only by clients of the same runtime, not by other runtimes
 or the user's ordinary host Podman.  No shared read-only image library is
 used.
 
+Agents' Podman is a remote client, so the inner engine resolves image names.
+Its only short-name search registry is docker.io, as with Docker: references
+such as =alexgshaw/fix-git:20251031= in task definitions resolve without the
+TTY that enforcing mode needs to choose among several registries.  The
+image's short-name aliases still apply.  The client's and the host's
+registries.conf have no effect here.  A running runtime picks this up when it
+is next started.
+
 ** Self-check
 
 #+begin_src sh
@@ -742,6 +750,7 @@ This attaches to the runtime like a session, starting it if needed, so idle
 collection cannot stop it meanwhile.  Through its inner API it then checks,
 printing PASS or FAIL for each:
 
+- that docker.io is the only short-name search registry;
 - a build whose context the client uploads;
 - a write through a same-path bind of the first writable directory mount,
   in a temporary =.contained-podman-check-*= directory removed afterwards;
