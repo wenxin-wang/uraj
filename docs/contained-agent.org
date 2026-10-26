@@ -582,10 +582,10 @@ one (such as =$HOME= or =/=): =~/.paseo=, =~/.paseo-password=, =~/.ssh=,
 
 * Local Podman runtime
 
-The central =(podman-remote)= clause now starts or reuses a project-owned rootless Podman
-runtime next to the existing Guix agent container.  It uses a filesystem Unix
-socket, not the legacy agent-podman SSH service.  Existing SSH clauses remain
-independent; this permission no longer provisions an SSH identity.
+The central =(podman-remote)= clause starts or reuses a project-owned rootless
+Podman runtime next to the Guix agent container, reached through a filesystem
+Unix socket.  It needs no SSH identity, extra account or ACLs, and is
+independent of SSH clauses.
 
 #+begin_src scheme
 (project "~/Projects/20260929-traj-generation/traj-record"
@@ -604,8 +604,9 @@ in place to pick up a different project's permissions.
 The runtime receives the Podman API's full execution authority, but its outer
 filesystem view limits available bind sources.  A request to bind / exposes
 that runtime's root, not the host root.  Shared files use the host user's mapped
-identity, so no agent-podman ACLs or users-group permission changes are needed.
-Paths overlapping runtime infrastructure and host runtime state are rejected.
+identity, so no ACLs or group permission changes are needed.  Paths
+overlapping runtime infrastructure and host runtime state are rejected, and
+agents can never mount runtime state or the host service's socket.
 Mapped share/expose clauses bind their source at the mapped target, so the
 runtime sees the paths the agent sees.  Both ends are checked; paths
 containing =, colon, comma or newline are rejected instead of guessing how the
@@ -730,10 +731,6 @@ All runtimes share the host service's copy of the pinned runtime image.  Inner
 storage is shared only by clients of the same runtime, not by other runtimes
 or the user's ordinary host Podman.  No shared read-only image library is
 used.
-
-This implementation does not install an agent-podman account or SSH service.
-Hosts that deployed the earlier experimental SSH service can remove that
-configuration after validating the local runtime.
 
 ** Harbor acceptance
 

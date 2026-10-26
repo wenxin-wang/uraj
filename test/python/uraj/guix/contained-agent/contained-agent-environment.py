@@ -410,6 +410,26 @@ class PodmanRemote(Launcher):
             )
         )
 
+    def test_runtime_state_is_never_mounted(self):
+        state = self.home / ".local/share/contained-agent/podman/host"
+        state.mkdir(parents=True)
+        for kind in ("share", "expose"):
+            with self.subTest(kind=kind):
+                self.policy(
+                    "(podman-remote)",
+                    f'({kind} "~/.local/share/contained-agent/podman")',
+                )
+                result, argv, _ = self.launch()
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn("never mounting", result.stderr)
+                self.assertFalse(
+                    any(
+                        arg.startswith(("--share=", "--expose="))
+                        and ".local/share/contained-agent" in arg
+                        for arg in argv
+                    )
+                )
+
     def test_tmpdir_cannot_create_under_denied_paths(self):
         private = self.home / ".ssh"
         private.mkdir()

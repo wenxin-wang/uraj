@@ -183,14 +183,16 @@ tree, and the mount options for WORKDIR."
   ;; Credentials, Paseo's keys (control of every session), our own
   ;; configuration and approvals, the build daemon (use the explicit
   ;; guix-daemon clause instead), decrypted SOPS secrets (use the explicit
-  ;; credential clauses instead), and the user's service managers.
+  ;; credential clauses instead), the user's service managers, and Podman
+  ;; runtime state: the host service's socket runs any container as the user.
   '("~/.paseo" "~/.paseo-password" "~/.ssh" "~/.gnupg" "~/.password-store"
     "~/.config/contained-agent" "~/.local/state/contained-agent"
+    "~/.local/share/contained-agent"
     "~/.local/state/paseo-broker"
     "~/.config/paseo" "~/.local/state/paseo-sandbox"
     "~/.cache/contained-agent"
-    "/var/lib/agent-podman-access"
-    "/var/guix/daemon-socket" "/run/secrets" "/run/user"))
+    "/var/guix/daemon-socket" "/run/secrets" "/run/user"
+    "/run/contained-podman"))
 
 (define (resolve file)
   (if (file-exists? file) (canonicalize-path file) file))
@@ -267,6 +269,22 @@ tree, and the mount options for WORKDIR."
     (('preserve (? string? names) ...)
      (map (cut string-append "--preserve=^" <> "$") names))
     (_ (die "~a: bad clause ~s" origin clause))))
+
+(define (podman-remote-policy clauses)
+  "Parse the central permission and optional host-visible temporary directory."
+  (match (filter (lambda (x)
+                   (and (pair? x) (eq? (car x) 'podman-remote))) clauses)
+    (() #f)
+    ((('podman-remote)) '())
+    ((('podman-remote ('tmpdir (? string? path))))
+     (let ((path (expand-home path)))
+       (unless (string-prefix? "/" path)
+         (die "podman-remote: TMPDIR must be absolute or start with ~/: ~a" path))
+       (when (any (lambda (part) (member part '("." "..")))
+                  (string-split path #\/))
+         (die "podman-remote: TMPDIR must not contain . or .. components"))
+       `((tmpdir . ,path))))
+    (_ (die "expected one central (podman-remote [(tmpdir PATH)]) clause"))))
 
 (define (podman-remote-mounts policy)
   (let ((tmpdir (and policy (assq-ref policy 'tmpdir))))

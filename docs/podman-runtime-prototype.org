@@ -1,5 +1,10 @@
 #+title: Per-project Podman runtime: first experiment
 
+Historical record of the disposable experiments that led to the runtime
+design.  The current design, deployment and limits are in
+[[file:contained-agent.org][contained-agent.org]] ("Local Podman runtime"); statements below about the
+launcher, SSH service or VFS describe the state at the time of each run.
+
 * Verified complete prototype run
 
 The host run /var/tmp/agent-podman-9haw3fd4 passed with =--outer-seccomp nested
