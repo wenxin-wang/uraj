@@ -158,62 +158,20 @@ starting the API.  It does not recursively chown the cgroup hierarchy or change
 host-global files.  Whether the kernel permits this delegation from the outer
 user namespace remains a host test; failure must stop before API startup.
 
-* Scope
+* Namespace probe, 2026-10-16
 
-The existing contained-agent remains a separate container.  A future trusted
-launcher would construct a per-project runtime with the approved workspace,
-cache and temporary directories mounted at their original absolute paths.
-The agent would receive only that runtime's Unix API socket, not the host
-engine socket.  This experiment does not change the existing SSH service or
-the launcher configuration.
+An earlier bubblewrap probe, since removed, checked the socket plumbing: two
+separate containers with private PID, user, mount and network namespaces, one
+serving a small Unix socket, the other connecting through a read-only bind of
+its directory.  All eight checks passed in the development contained-agent:
+same-UID access, same-path sharing, hidden unshared files, an escaping symlink,
+a read-only submount, and EPERM when a descendant namespace tried to remount
+that submount writable.
 
-* Reproduce the namespace experiment
-
-On a Guix environment with Python, bubblewrap and util-linux available:
-
-#+begin_src sh
-python3 scripts/contained-agent/probe-podman-runtime.py
-python3 scripts/contained-agent/probe-podman-runtime.py --podman /gnu/store/.../bin/podman
-#+end_src
-
-All writable files are created under a disposable temporary directory.  Two
-separate bubblewrap containers have private PID, user, mount and network
-namespaces.  One runs a small Python Unix socket server; the other connects
-through a read-only bind of the socket directory.  This server is deliberately
-not a substitute implementation of the Podman API.
-
-The script verifies same-UID access, same-path file sharing with both the
-client and launching environment, hidden unshared files, an escaping symlink,
-and a read-only submount.  It also creates a descendant user/mount namespace
-and verifies that remounting the inherited read-only directory writable fails
-with EPERM.  These are focused probes, not a complete sandbox security audit.
-
-With --podman, the server also attempts real =podman info= with disposable VFS
-storage.  Exit status 2 means the plumbing checks passed but Podman initialization
-failed; status 0 without --podman does not mean Podman was tested.  The probe
-does not provide cgroups, subordinate ID helpers, network connectivity or FUSE,
-and is not a runnable production Podman runtime even when launched on a host.
-
-* Results, 2026-10-16
-
-All eight namespace/path checks passed in the development contained-agent.
-The default command execution sandbox initially blocked bubblewrap's netlink
-socket; the local test passed with that execution restriction lifted.  This
-did not give access to the host filesystem or host cgroups.
-
-Guix store Podman 6.1.1 failed before API startup:
-
-#+begin_example
-Error determining cgroups mode
-#+end_example
-
-The surrounding development container has no /sys/fs/cgroup, /etc/subuid,
-/etc/subgid, /run/privileged/bin, /dev/fuse or /dev/net/tun.  Its UID map contains
-only UID 1000 and its GID map only GID 998.  Changing a child namespace cannot
-grant it host subordinate IDs absent from this parent mapping.
-
-Consequently, neither a real Podman API connection nor a Harbor task has been
-validated here.  No host service, account, ACL or project file was changed.
+Real Podman failed there with =Error determining cgroups mode=: that container
+has no cgroups, subordinate ID ranges, mapping helpers, /dev/fuse or
+/dev/net/tun, and maps only one UID and GID.  A child namespace cannot gain
+subordinate IDs its parent lacks, so the runtime experiments moved to the host.
 
 * Next experiment on the host
 

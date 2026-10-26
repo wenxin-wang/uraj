@@ -201,9 +201,12 @@ class Experiment:
             "PATH": "/run/privileged/bin:" + os.environ["PATH"],
             "HOME": str(directory / "home"),
             "XDG_RUNTIME_DIR": str(self.run_directory / "run"),
-            "CONTAINERS_CONF": str(directory / "containers.conf"),
-            "CONTAINERS_STORAGE_CONF": str(directory / "storage.conf"),
         }
+        if not outer_url:
+            self.env["CONTAINERS_CONF"] = str(directory / "containers.conf")
+            self.env["CONTAINERS_STORAGE_CONF"] = str(
+                directory / "storage.conf"
+            )
         self.local = (
             [podman, "--remote", "--url", outer_url]
             if outer_url
@@ -244,24 +247,21 @@ class Experiment:
         return result
 
     def prepare(self):
-        for name in (
-            "home",
-            "run",
-            "shared",
-            "protected",
-            "api",
-            "inner",
-            "inner-run",
-        ):
+        # HOME and the runtime directory serve the Podman client as well.
+        for name in ("home", "run", "api", "inner", "inner-run"):
             (self.directory / name).mkdir(mode=0o700, exist_ok=self.persistent)
         for name in ("api", "run", "inner-run"):
             (self.run_directory / name).mkdir(mode=0o700, exist_ok=True)
-        (self.directory / "unshared-secret").write_text("not exposed\n")
-        (self.directory / "protected" / "sentinel").write_text("original\n")
-        escape = self.directory / "shared" / "escape"
-        if not os.path.lexists(escape):
-            escape.symlink_to(self.directory / "unshared-secret")
-        (self.directory / "containers.conf").write_text(
+        if self.mounts is None:
+            # Synthetic project for the isolation tests.
+            for name in ("shared", "protected"):
+                (self.directory / name).mkdir(mode=0o700)
+            (self.directory / "unshared-secret").write_text("not exposed\n")
+            (self.directory / "protected" / "sentinel").write_text("original\n")
+            (self.directory / "shared" / "escape").symlink_to(
+                self.directory / "unshared-secret"
+            )
+        outer_config = (
             '[engine]\ncgroup_manager="cgroupfs"\nevents_logger="file"\n'
             '[containers]\ncgroups="'
             + ("enabled" if self.delegate_cgroup else "disabled")
@@ -271,22 +271,25 @@ class Experiment:
             '[engine]\ncgroup_manager="cgroupfs"\nevents_logger="file"\n'
             '[containers]\ncgroups="enabled"\ncgroup_parent="/tasks"\n'
             if self.delegate_cgroup
-            else (self.directory / "containers.conf").read_text()
+            else outer_config
         )
         (self.directory / "inner-containers.conf").write_text(inner_config)
         # Native rootless overlay in both engines; the inner graphroot is a
         # host bind mount, not the outer engine's overlay rootfs. VFS remains
         # selectable for comparison.
         driver = 'driver="' + self.storage_driver + '"\n'
-        (self.directory / "storage.conf").write_text(
-            "[storage]\n"
-            + driver
-            + "graphroot="
-            + json.dumps(str(self.directory / "outer-storage"))
-            + "\nrunroot="
-            + json.dumps(str(self.run_directory / "outer-run"))
-            + "\n"
-        )
+        if not self.outer_url:
+            # The host service has its own configuration and storage.
+            (self.directory / "containers.conf").write_text(outer_config)
+            (self.directory / "storage.conf").write_text(
+                "[storage]\n"
+                + driver
+                + "graphroot="
+                + json.dumps(str(self.directory / "outer-storage"))
+                + "\nrunroot="
+                + json.dumps(str(self.run_directory / "outer-run"))
+                + "\n"
+            )
         (self.directory / "inner-storage.conf").write_text(
             "[storage]\n"
             + driver
@@ -446,12 +449,6 @@ class Experiment:
             # keep-id maps this host-user-owned 0700 directory to UID 1000.
             # Podman 6.1.1 rejects uid/gid options on --tmpfs.
             (self.run_directory / "inner-run", "/run/user/1000", "rw"),
-            (self.directory / "shared", str(self.directory / "shared"), "rw"),
-            (
-                self.directory / "protected",
-                str(self.directory / "shared" / "readonly"),
-                "ro",
-            ),
             (self.socket_directory, "/run/api", "rw"),
             (
                 self.directory / "inner",
@@ -469,15 +466,20 @@ class Experiment:
                 "ro",
             ),
         ]
-        if self.mounts is not None:
-            # Replace only synthetic test-project mounts; retain isolated
-            # engine state/configuration and the private socket directory.
-            mounts = [
-                entry
-                for entry in mounts
-                if entry[0]
-                not in (self.directory / "shared", self.directory / "protected")
+        if self.mounts is None:
+            mounts += [
+                (
+                    self.directory / "shared",
+                    str(self.directory / "shared"),
+                    "rw",
+                ),
+                (
+                    self.directory / "protected",
+                    str(self.directory / "shared" / "readonly"),
+                    "ro",
+                ),
             ]
+        else:
             mounts.extend(self.mounts)
         for source, target, mode in mounts:
             command.extend(["--volume", f"{source}:{target}:{mode}"])
@@ -910,14 +912,15 @@ class Experiment:
                 )
         # unshare supplies the same subordinate IDs used by the disposable
         # engines. Never reset or prune the user's normal Podman database.
+        outer = () if self.outer_url else ("outer-run",)
         paths = [
             str(self.run_directory / name)
-            for name in ("inner-run", "outer-run", "run", "api")
+            for name in ("inner-run", *outer, "run", "api")
         ]
         if not preserve_storage:
+            outer = () if self.outer_url else ("outer-storage",)
             paths.extend(
-                str(self.directory / name)
-                for name in ("inner", "outer-storage", "home")
+                str(self.directory / name) for name in ("inner", *outer, "home")
             )
         if self.outer_url:
             self.remove_through_runtime(paths)

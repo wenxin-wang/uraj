@@ -256,6 +256,27 @@ class Session(unittest.TestCase):
                 engine.check_driver("inner", info)
                 self.assertEqual(engine.results["inner_storage_driver"], driver)
 
+    def test_remote_outer_engine_has_no_local_configuration(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            engine = RUNTIME.Experiment(
+                Path(tmp),
+                "/fixture/podman",
+                "image",
+                "",
+                "nested",
+                delegate_cgroup=True,
+                mounts=[],
+                persistent=True,
+                outer_url="unix:///fixture/host.sock",
+            )
+            self.addCleanup(engine.log.close)
+            engine.prepare()
+            for name in ("containers.conf", "storage.conf", "shared"):
+                self.assertFalse((Path(tmp) / name).exists(), name)
+            self.assertTrue((Path(tmp) / "inner-storage.conf").exists())
+            self.assertNotIn("CONTAINERS_CONF", engine.env)
+            self.assertNotIn("CONTAINERS_STORAGE_CONF", engine.env)
+
 
 class SharedRuntime(unittest.TestCase):
     def setUp(self):
