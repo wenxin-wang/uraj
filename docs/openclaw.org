@@ -125,8 +125,11 @@ Gateway、引擎内的 Podman 用户和沙箱共用 UID/GID 2010（宿主账号
 
 管理员通过 =log-readers= 组读取 workspace，例如收集报告：
 =/data/openclaw= 为 =root:log-readers 0750=，=workspaces= 与 =workspaces/main=
-为 =openclaw:log-readers 2751= 并带默认 ACL =g:log-readers:rX=，新文件继承
-该组的读取权限。其他人的执行位保留给 keep-id 下的 crun（见下）。
+为 =openclaw:openclaw 0750=，再加访问与默认 ACL =g:log-readers:rX=。新文件
+按默认 ACL 授予该组读取，但受创建模式的 mask 限制：0644 的文件可读，0600
+的不可读。workspace 不能属于 =log-readers= 或带 setgid：crun 在 keep-id 下以
+容器 root 于 workspace 内创建挂载点，只有属主和属组都已映射时它才有 DAC
+越权，否则报 =openat2 `workspace`: Permission denied=。
 home 与引擎存储仍为 0700，不对该组开放。
 
 ** 引擎参数的验证
@@ -166,9 +169,11 @@ SYS_ADMIN。调试中确认的约束：
   全部 capability 后该规则失效，需由 nested profile 无条件放行。
 - =newuidmap= 要求进程 GID 等于镜像 passwd 中该用户的主组。
 - keep-id 让 crun 在嵌套用户命名空间里访问 rootfs 与挂载源，那里的
-  DAC_OVERRIDE 只覆盖已映射的 ID。挂进引擎的存储、runroot 与工作区路径若属于
-  未映射的组（如 =log-readers=），每一级都须保留其他人可穿越（=o+x=），
-  否则启动报 =crun: readlink ``= （podman#27785）。
+  DAC_OVERRIDE 只覆盖属主和属组都已映射的 inode。挂载源路径若属于未映射的组，
+  只有其他人权限可用：仅穿越时 =o+x= 即可，否则报 =crun: readlink ``=
+  （podman#27785）；在其中创建挂载点（如 workspace 内的 skill 挂载）还需读写，
+  会报 =openat2 … Permission denied=。因此正式部署的 workspace 不用未映射的
+  组，读取者只经 ACL 授权。
 - 沙箱与 Gateway 同在 =static-agent= 网桥时能连到 Gateway 的 18789 端口；
   同网桥流量不经 restricted-network 的转发过滤。因此引擎必须接独立的
   =sandboxed-agents= 网络。

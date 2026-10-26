@@ -106,10 +106,11 @@
     (private-directory (string-append data "/engine") uid gid)
     (for-each
      (lambda (path)
-       ;; New files inherit the reader group.  Other-execute stays because
-       ;; crun traverses these paths in a keep-id user namespace where the
-       ;; reader group is unmapped (podman#27785).
-       (private-directory path uid reader-gid #o2751)
+       ;; Readers get access only through ACLs.  crun creates mount points
+       ;; here in a keep-id user namespace, where root's DAC override needs
+       ;; both owner and group mapped; the reader group is not
+       ;; (podman#27785), so it must not own these directories.
+       (private-directory path uid gid #o750)
        (let ((acl (format #f "g:~a:rX,d:g:~a:rX" reader-gid reader-gid)))
          (unless (zero? (system* setfacl "-m" acl path))
            (error "Could not set the workspace reader ACL" path))))

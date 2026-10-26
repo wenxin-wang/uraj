@@ -72,8 +72,8 @@
   (stat:perms (stat data)))
 (for-each
  (lambda (path)
-   ;; Group inheritance for reports; other-execute for crun under keep-id.
-   (test-equal "workspace is setgid, reader-listable, traversable" #o2751
+   ;; Readers use the ACL; no setgid or other access, see prepare-openclaw.
+   (test-equal "workspace private apart from the reader ACL" #o750
      (logand #o7777 (stat:perms (stat path)))))
  (list (string-append data "/workspaces") (string-append data "/workspaces/main")))
 (define (owner path)
@@ -82,7 +82,7 @@
 (test-equal "data owned by root and the reader group" '(0 973) (owner data))
 (test-equal "home owned by the dedicated user" '(2010 2011)
   (owner (string-append data "/home")))
-(test-equal "workspaces carry the reader group" '(2010 973)
+(test-equal "workspaces keep the mapped dedicated group" '(2010 2011)
   (owner (string-append data "/workspaces/main")))
 (test-equal "engine owns its socket directory" '(2010 2011) (owner engine-runtime))
 (test-assert "reader ACL applied to both workspace levels"
