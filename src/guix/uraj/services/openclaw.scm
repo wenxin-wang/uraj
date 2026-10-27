@@ -273,6 +273,9 @@
       (browser . ((enabled . #f)))
       (cron . ((enabled . #f)))
       (session . ((dmScope . "per-channel-peer")))
+      ;; Admit unmentioned group messages without requiring a visible reply.
+      ;; Direct chats, mentions and authorized commands still require one.
+      (surfaces . ((feishu . ((silentReply . ((group . "allow")))))))
       (channels .
        ((feishu .
          ((enabled . #t) (domain . "feishu") (connectionMode . "websocket")

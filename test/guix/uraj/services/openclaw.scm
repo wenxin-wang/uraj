@@ -205,6 +205,9 @@
 (test-equal "invited groups enabled" "open" (at app "channels" "feishu" "groupPolicy"))
 (test-equal "groups require a bot mention" #t
   (at app "channels" "feishu" "requireMention"))
+(test-equal "only Feishu groups opt into native silent replies"
+  '(("feishu" . (("silentReply" . (("group" . "allow"))))))
+  (at app "surfaces"))
 (test-equal "each group topic has its own session" "group_topic"
   (at app "channels" "feishu" "groupSessionScope"))
 (test-equal "bot replies stay in topic threads" "enabled"

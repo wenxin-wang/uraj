@@ -143,6 +143,11 @@ Gateway 必须在线。批量变更可替换整个 =agents.entries= 或 =binding
 另允许通过群命令修改 =channels.feishu.groups.<oc_ID>.requireMention=，
 只接受布尔值并在重启时保留；其余 channels 字段仍由 Guix 管理。
 模型配置工具不能修改该字段，避免绕过群主/命令管理员检查。
+另由 Guix 设置 =surfaces.feishu.silentReply.group="allow"=：关闭某群的
+@要求后，未 @机器人的普通消息可以由模型判断不回复，使用原生
+=NO_REPLY= 协议结束。私聊、明确 @和授权命令仍要求回应。
+这与消息准入是两个独立设置，不会替其他群关闭 @要求；只影响飞书群聊。
+判断是否回复仍需模型调用，但允许静默后不会仅因缺少可见回复强制补答。
 =OPENCLAW_CONFIG_READONLY= 不再设置。
 
 部署验收需要用固定镜像检查：首次初始化、重启保留 agent/binding、
