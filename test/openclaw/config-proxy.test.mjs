@@ -73,3 +73,44 @@ sys.exit(module.main())`;
     assert.equal((await request('["after-restart"]')).ok, true);
   } finally { await service.stop(); await fs.rm(directory, { recursive: true, force: true }); }
 });
+
+test("Python client carries a workspace capability to the identity handler", async () => {
+  const { AgentIdentityProxy, CAPABILITY_FILE } = await import(
+    "../../scripts/openclaw/config-plugin/agent-identity-proxy.mjs");
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "identity-cli-"));
+  const workspace = path.join(directory, "workspace");
+  await fs.mkdir(workspace);
+  const config = { agents: { entries: { main: { workspace, name: "current" },
+    other: { workspace: path.join(directory, "other"), name: "private other" } } } };
+  const calls = [];
+  const identities = new AgentIdentityProxy({ config: () => config,
+    setIdentity: async (...args) => { calls.push(args); return args[2]; } });
+  await identities.prepare("main");
+  const service = createConfigProxyService(createConfigCommand({}, () => config, identities), path.join(directory, "proxy"));
+  try {
+    await service.start();
+    const client = fileURLToPath(new URL(
+      "../../scripts/openclaw/config-plugin/config-client.py", import.meta.url));
+    const script = `import importlib.util, sys
+spec = importlib.util.spec_from_file_location("client", sys.argv[1])
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+module.SOCKET_PATH = sys.argv[2]
+module.CAPABILITY_PATH = sys.argv[3]
+sys.argv = ["openclaw"] + sys.argv[4:]
+sys.exit(module.main())`;
+    const run = (args, capability = path.join(workspace, CAPABILITY_FILE)) =>
+      promisify(execFile)("python3", ["-B", "-c", script, client,
+        path.join(directory, "proxy/config.sock"), capability, ...args]);
+    const list = await run(["agents", "list", "--json"]);
+    assert.deepEqual(JSON.parse(list.stdout).map((entry) => entry.id), ["main"]);
+    await run(["agents", "set-identity", "--agent", "main", "--workspace", "/workspace",
+      "--name", "Claw老师", "--theme", "靠谱、清楚", "--emoji", "🦀"]);
+    assert.deepEqual(calls, [["main", workspace, { name: "Claw老师", theme: "靠谱、清楚", emoji: "🦀" }]]);
+    await assert.rejects(run(["agents", "set-identity", "--agent", "other", "--name", "stolen"]),
+      (error) => error.code === 1 && /Only the current agent/.test(error.stderr));
+    await assert.rejects(run(["agents", "list"], path.join(directory, "missing")),
+      (error) => error.code === 1 && /identity unavailable/.test(error.stderr));
+    assert.equal(calls.length, 1);
+  } finally { await service.stop(); await fs.rm(directory, { recursive: true, force: true }); }
+});

@@ -79,3 +79,29 @@ test("the checker runs without blocking the Gateway event loop", async () => {
     "../../scripts/openclaw/config-plugin/index.mjs", import.meta.url), "utf8");
   assert.doesNotMatch(source, /spawnSync|execFileSync/);
 });
+
+test("exec capability uses trusted hook agentId, never command parameters", async () => {
+  const fs = await import("node:fs/promises");
+  const os = await import("node:os");
+  const path = await import("node:path");
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "cli-hook-"));
+  try {
+    const workspace = path.join(root, "main");
+    const other = path.join(root, "other");
+    await fs.mkdir(workspace);
+    await fs.mkdir(other);
+    let hook;
+    plugin.register({
+      runtime: { config: { current: () => ({ agents: { entries: {
+        main: { workspace }, other: { workspace: other },
+      } } }) } },
+      registerCommand() {}, registerService() {}, registerTool() {},
+      on(name, fn) { if (name === "before_tool_call") hook = fn; },
+    });
+    await hook({ toolName: "exec", params: { agentId: "other", command: "openclaw agents list" } }, { agentId: "main" });
+    assert.match(await fs.readFile(path.join(workspace, ".openclaw-cli-capability"), "utf8"), /^[a-f0-9]{64}$/);
+    await assert.rejects(fs.access(path.join(other, ".openclaw-cli-capability")));
+    await hook({ toolName: "exec", params: { agentId: "other" } }, {});
+    await assert.rejects(fs.access(path.join(other, ".openclaw-cli-capability")));
+  } finally { await fs.rm(root, { recursive: true, force: true }); }
+});

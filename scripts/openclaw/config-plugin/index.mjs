@@ -1,6 +1,7 @@
 // Exec runs in the sandbox, which cannot reach the Gateway's configuration.
 // Configuration edits therefore go through a Gateway-side tool that invokes
 // the checked command; a Unix socket exposes the same capability to the CLI.
+import { AgentIdentityProxy } from "./agent-identity-proxy.mjs";
 import { createConfigCommand, createConfigProxyService } from "./config-proxy.mjs";
 import { execFile } from "node:child_process";
 import { createMentionCommand } from "./mention.mjs";
@@ -72,7 +73,20 @@ export default {
     api.registerCommand(mention);
     const configTool = createConfigSetTool();
     api.registerTool(configTool);
+    const identities = new AgentIdentityProxy({
+      config: () => api.runtime.config.current(),
+      setIdentity: (id, workspace, identity) => personas.setIdentity(id, workspace, identity),
+    });
+    api.on("before_tool_call", async (event, ctx) => {
+      if (event.toolName !== "exec") return;
+      try { await identities.prepare(ctx.agentId); }
+      catch {
+        // Ordinary shell work remains usable; identity commands fail without
+        // a valid capability. Never log workspace contents or the token.
+        api.logger?.warn("Could not prepare scoped CLI identity capability");
+      }
+    }, { matcher: ["exec"], priority: 100 });
     api.registerService(createConfigProxyService(createConfigCommand(
-      configTool, () => api.runtime.config.current())));
+      configTool, () => api.runtime.config.current(), identities)));
   },
 };

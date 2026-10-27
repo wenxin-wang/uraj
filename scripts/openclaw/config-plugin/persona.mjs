@@ -30,11 +30,20 @@ export function validateDraft(value) {
 }
 
 export class Personas {
-  constructor({ store, config, register, bind, draft, feishu, now = Date.now }) {
-    Object.assign(this, { store, config, register, bind, draft, feishu, now });
+  constructor({ store, config, register, bind, draft, writeIdentity, feishu, now = Date.now }) {
+    Object.assign(this, { store, config, register, bind, draft, writeIdentity, feishu, now });
     this.runs = new Map();
     this.pendingNotices = new Set();
     this.controlReplies = new Map();
+  }
+  async setIdentity(id, workspace, identity) {
+    return this.store.transact(async (state) => {
+      const role = state.roles[id];
+      if (!role) throw new Error("Role is not registered");
+      const saved = await this.writeIdentity(id, workspace, identity);
+      if (saved.name) role.name = saved.name;
+      return saved;
+    });
   }
   allowControlReply(chat, text) {
     if (!chat) return;

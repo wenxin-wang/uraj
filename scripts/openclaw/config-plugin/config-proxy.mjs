@@ -1,20 +1,24 @@
-// The socket grants only the same model-setting capability as the tool.
+// The socket exposes model settings plus capability-scoped agent identity.
+import { IdentityCommandError } from "./agent-identity-proxy.mjs";
 import http from "node:http";
 import fs from "node:fs/promises";
 import path from "node:path";
 
 export const MODEL_PATH = "agents.defaults.model";
 const HELP = "Supported: openclaw config get agents.defaults.model [--json]\n" +
-  "openclaw config set agents.defaults.model <value> [--strict-json]\n";
+  "openclaw config set agents.defaults.model <value> [--strict-json]\n" +
+  "openclaw agents list [--json]\n" +
+  "openclaw agents set-identity [--agent <current-id>] [--workspace /workspace] [--from-identity] [--name <name>] [--theme <theme>] [--emoji <emoji>] [--avatar <relative-file>] [--json]\n";
 
-export function createConfigCommand(tool, readConfig) {
-  return async (args) => {
+export function createConfigCommand(tool, readConfig, identities) {
+  return async (args, context = {}) => {
     if (!Array.isArray(args) || args.some((arg) => typeof arg !== "string")) {
       throw new Error("Expected command arguments");
     }
-    if (args.join(" ") === "config --help" || args.join(" ") === "--help") {
+    if (args.join(" ") === "config --help" || args.join(" ") === "--help" || args.join(" ") === "agents --help") {
       return { ok: true, stdout: HELP };
     }
+    if (args[0] === "agents" && identities) return identities.handle(args, context.capability);
     const [command, action, key, ...rest] = args;
     if (command !== "config" || key !== MODEL_PATH) throw new Error(HELP);
     if (action === "get" && (rest.length === 0 ||
@@ -61,10 +65,14 @@ export function createConfigProxyService(handle, directory) {
             body += chunk;
             if (Buffer.byteLength(body) > 16384) throw new Error("Request too large");
           }
-          send(await handle(JSON.parse(body)));
-        } catch {
+          send(await handle(JSON.parse(body), { capability: req.headers["x-openclaw-agent-capability"] }));
+        } catch (error) {
+          if (error instanceof IdentityCommandError) {
+            send({ ok: false, stderr: error.message + "\n" });
+            return;
+          }
           // Never return exception text from config readers or native writers.
-          send({ ok: false, stderr: "Config request rejected. Use openclaw config --help; check Gateway logs if a supported request fails.\n" });
+          send({ ok: false, stderr: "Config request rejected. Use openclaw --help; check Gateway logs if a supported request fails.\n" });
         } finally { busy = false; }
       });
       server.requestTimeout = 10000;
