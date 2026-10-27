@@ -78,7 +78,7 @@
 ;; State subdirectories OpenClaw binds read-only into sandboxes: skill copies
 ;; for rw workspaces and subagent attachments.  Never credentials.
 (define %sandbox-state-mounts
-  '(".openclaw/sandbox/skills-workspaces" ".openclaw/attachments/subagents"))
+  '(".openclaw/config-proxy" ".openclaw/sandbox/skills-workspaces" ".openclaw/attachments/subagents"))
 
 (define (owner config)
   (format #f "~a:~a" (openclaw-uid config) (openclaw-gid config)))
@@ -236,6 +236,15 @@
                                  (docker
                                   . ((image . ,(string-drop
                                                 (openclaw-sandbox-image config) 7))
+                                     ;; The proxy lives outside individual workspaces.
+                                     ;; These binds remain Guix-managed and immutable.
+                                     (dangerouslyAllowExternalBindSources . #t)
+                                     (binds . #(,(string-append
+                                                  (data-path config "home/.openclaw/config-proxy")
+                                                  ":/run/openclaw-config:ro")
+                                                ,(string-append
+                                                  (data-path config "home/.openclaw/config-proxy/openclaw")
+                                                  ":/usr/local/bin/openclaw:ro")))
                                      (network . "pasta") (readOnlyRoot . #t)
                                      (capDrop . #("ALL"))
                                      (user . ,(owner config))))))))

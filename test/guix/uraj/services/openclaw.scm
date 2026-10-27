@@ -104,6 +104,8 @@
   '(("/data/openclaw/workspaces" . "/data/openclaw/workspaces")
     ("/data/openclaw/engine" . "/home/podman/.local/share/containers")
     ("/run/openclaw-engine" . "/run/openclaw-engine")
+    ("/data/openclaw/home/.openclaw/config-proxy"
+     . "/data/openclaw/home/.openclaw/config-proxy")
     ("/data/openclaw/home/.openclaw/sandbox/skills-workspaces"
      . "/data/openclaw/home/.openclaw/sandbox/skills-workspaces")
     ("/data/openclaw/home/.openclaw/attachments/subagents"
@@ -160,6 +162,12 @@
   (at app "tools" "exec" "host"))
 (test-equal "elevated escape is disabled" #f (at app "tools" "elevated" "enabled"))
 (define sandbox (at app "agents" "defaults" "sandbox"))
+(test-equal "managed proxy permits an external bind source" #t
+  (at sandbox "docker" "dangerouslyAllowExternalBindSources"))
+(test-equal "sandbox exposes only the config proxy endpoint and client"
+  '#("/data/openclaw/home/.openclaw/config-proxy:/run/openclaw-config:ro"
+     "/data/openclaw/home/.openclaw/config-proxy/openclaw:/usr/local/bin/openclaw:ro")
+  (at sandbox "docker" "binds"))
 (test-equal "every session is sandboxed" "all" (at sandbox "mode"))
 (test-equal "sandbox uses the Podman engine" "podman" (at sandbox "backend"))
 (test-equal "sandbox writes the host workspace" "rw" (at sandbox "workspaceAccess"))

@@ -43,12 +43,30 @@ Shepherd 启动时先停止旧 Gateway，再运行 reconcile：对齐基础字�
 Guix 只读挂载并启用 =uraj-config-policy= 插件。清单显式声明
 =activation.onStartup=true= 和 =onCapabilities=["hook"]=，保证 Gateway
 启动时导入插件；仅 =enabled=true= 或 plugins list 显示 enabled 不代表
-已在运行进程注册。exec 在沙箱中运行，那里没有 OpenClaw CLI、配置或
-管理凭据，因此插件注册 Gateway 侧工具 =openclaw_config_set=，参数为
-点分路径和 JSON 值，在 Gateway 进程内调用校验入口。该工具同时列入
-=tools.allow= 和 =tools.sandbox.tools.alsoAllow=。agent 在 exec 中尝试
-=openclaw config set= 时，=before_tool_call= hook 直接拒绝并提示改用该工具；
-这只是引导，不是安全边界，沙箱本身无法修改配置。
+已在运行进程注册。exec 在沙箱中运行，没有 Gateway 配置或管理凭据。
+插件注册 Gateway 侧工具 =openclaw_config_set=，参数为点分路径和 JSON 值，
+在 Gateway 进程内调用校验入口。该工具同时列入 =tools.allow= 和
+=tools.sandbox.tools.alsoAllow=。
+
+沙箱中的 =openclaw= 是受限的 Python CLI 代理，支持：
+
+#+begin_src sh
+openclaw config get agents.defaults.model --json
+openclaw config set agents.defaults.model new-api-gpt/gpt-6-luna
+openclaw config set agents.defaults.model '{"primary":"new-api-gpt/gpt-6-luna"}' --strict-json
+#+end_src
+
+代理通过只读挂载目录中的 Unix socket 调用同一配置工具；读操作只返回
+默认模型，写操作仍受工具白名单、Guix 不变量和原生配置校验限制。
+不支持其他配置路径、unset、身份同步或其他 CLI 命令，不透传任意参数。
+所有 agent 与原配置工具一样，都能修改这个全局默认模型。
+请求串行处理，忙时返回重试提示；不会给沙箱提供 Gateway token。
+
+部署后重启 Gateway，并重建已有工具沙箱以取得新增挂载；无需重建镜像，
+工作区和记忆无需清除。代理目录只包含客户端和 socket，engine 不挂载
+Gateway 的完整 state 目录。因代理位于各 agent 工作区之外，Guix 显式设置
+=dangerouslyAllowExternalBindSources=true=；挂载列表仍不可由 agent 修改，
+原生系统路径禁挂规则仍生效。CLI 的实际沙箱内调用仍需部署后验证。
 
 管理员也可以在 Gateway 容器内直接使用以下入口（值必须为 JSON）：
 
@@ -831,8 +849,8 @@ python3 test/python/uraj/container/seccomp.py
 8. agent 在 workspace 写的文件在宿主上属于 =openclaw:log-readers=，
    管理员不用 sudo 即可读取；=sandbox list= 显示引擎 socket，重启 Gateway
    后沙箱复用，重启引擎后自动重建。
-9. 用 =openclaw_config_set= 修改默认模型成功；exec 中的
-   =openclaw config set= 被拒绝并提示该工具。
+9. 用 =openclaw_config_set= 和沙箱中的 =openclaw config set= 修改默认模型成功；
+   CLI 读取仅返回默认模型，其他路径和命令被拒绝。
 
 仓库已包含用户提供的 image ID 和加密凭据。此处的自动测试不验证
 storie 上的镜像内容、凭据有效性或飞书授权，也未执行主机 reconfigure。
