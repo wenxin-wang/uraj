@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
-import plugin, { blockConfigSet, createConfigSetTool }
+import plugin, { createConfigSetTool }
   from "../../scripts/openclaw/config-plugin/index.mjs";
 
-const event = (command) => ({ toolName: "exec", params: { command, timeout: 30 } });
+
 
 test("shipped manifest activates at startup and declares the Gateway tool", () => {
   const root = new URL("../../scripts/openclaw/config-plugin/", import.meta.url);
@@ -20,7 +20,7 @@ test("shipped manifest activates at startup and declares the Gateway tool", () =
   assert.deepEqual(pkg.openclaw.extensions, ["./index.mjs"]);
 });
 
-test("registers the declared tool and an exec-only hook", () => {
+test("registers the declared tool and config proxy service", () => {
   const tools = [];
   const hooks = [];
   plugin.register({
@@ -28,14 +28,11 @@ test("registers the declared tool and an exec-only hook", () => {
       assert.ok(["mention", "persona"].includes(command.name));
       assert.equal(command.requireAuth, false);
     },
-    registerService(service) { assert.equal(service.id, "uraj-personas"); },
+    registerService(service) { assert.ok(["uraj-personas", "uraj-config-proxy"].includes(service.id)); },
     registerTool(tool) { tools.push(tool.name); },
     on(name, handler, options) {
       hooks.push(name);
-      if (name === "before_tool_call") {
-        assert.equal(handler, blockConfigSet);
-        assert.deepEqual(options.matcher, ["exec"]);
-      }
+
     },
   });
   assert.deepEqual(tools, ["openclaw_config_set"]);
@@ -83,25 +80,28 @@ test("the checker runs without blocking the Gateway event loop", async () => {
   assert.doesNotMatch(source, /spawnSync|execFileSync/);
 });
 
-test("native config set attempts are redirected without execution", () => {
-  for (const command of [
-    "openclaw config set agents.defaults.model local/one",
-    "node /app/openclaw.mjs config set bindings '[]' --strict-json",
-    "openclaw config set bindings '[]'; echo done",
-    "cd /tmp && openclaw  config   set x 1",
-  ]) {
-    const result = blockConfigSet(event(command));
-    assert.equal(result.block, true, command);
-    assert.match(result.blockReason, /openclaw_config_set/);
-  }
-});
-
-test("unrelated shell, reads and non-shell tools are untouched", () => {
-  for (const command of ["ls | head", "openclaw config get tools", "echo $HOME"]) {
-    assert.equal(blockConfigSet(event(command)), undefined);
-  }
-  assert.equal(blockConfigSet({ ...event("openclaw config set x 1"),
-    toolName: "read" }), undefined);
-  assert.equal(blockConfigSet({ ...event("openclaw config set x 1"),
-    toolKind: "code_mode_exec" }), undefined);
+test("exec capability uses trusted hook agentId, never command parameters", async () => {
+  const fs = await import("node:fs/promises");
+  const os = await import("node:os");
+  const path = await import("node:path");
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "cli-hook-"));
+  try {
+    const workspace = path.join(root, "main");
+    const other = path.join(root, "other");
+    await fs.mkdir(workspace);
+    await fs.mkdir(other);
+    let hook;
+    plugin.register({
+      runtime: { config: { current: () => ({ agents: { entries: {
+        main: { workspace }, other: { workspace: other },
+      } } }) } },
+      registerCommand() {}, registerService() {}, registerTool() {},
+      on(name, fn) { if (name === "before_tool_call") hook = fn; },
+    });
+    await hook({ toolName: "exec", params: { agentId: "other", command: "openclaw agents list" } }, { agentId: "main" });
+    assert.match(await fs.readFile(path.join(workspace, ".openclaw-cli-capability"), "utf8"), /^[a-f0-9]{64}$/);
+    await assert.rejects(fs.access(path.join(other, ".openclaw-cli-capability")));
+    await hook({ toolName: "exec", params: { agentId: "other" } }, {});
+    await assert.rejects(fs.access(path.join(other, ".openclaw-cli-capability")));
+  } finally { await fs.rm(root, { recursive: true, force: true }); }
 });

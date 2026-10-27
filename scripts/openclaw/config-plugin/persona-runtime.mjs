@@ -24,6 +24,20 @@ export function createRuntimePersonas(api, {
   }
   return new Personas({
     store: new PersonaStore(directory), config, feishu: createFeishuApi(),
+    async writeIdentity(id, workspace, identity) {
+      let saved;
+      await mutate((draft) => {
+        const entry = draft.agents.entries?.[id];
+        if (!entry || entry.workspace !== workspace) throw new Error("Agent workspace changed");
+        if (Object.keys(identity).some((key) => !["name", "theme", "emoji", "avatar"].includes(key))) {
+          throw new Error("Unsupported identity field");
+        }
+        saved = { ...entry.identity, ...identity };
+        entry.identity = saved;
+        if (identity.name) entry.name = identity.name;
+      });
+      return saved;
+    },
     async register(role) {
       const base = await loadBase();
       const workspace = path.join(path.dirname(base.agents.defaults.workspace), role.id);

@@ -1,6 +1,8 @@
 // Exec runs in the sandbox, which cannot reach the Gateway's configuration.
 // Configuration edits therefore go through a Gateway-side tool that invokes
-// the checked command; the hook only redirects native CLI attempts.
+// the checked command; a Unix socket exposes the same capability to the CLI.
+import { AgentIdentityProxy } from "./agent-identity-proxy.mjs";
+import { createConfigCommand, createConfigProxyService } from "./config-proxy.mjs";
 import { execFile } from "node:child_process";
 import { createMentionCommand } from "./mention.mjs";
 import { registerPersonas } from "./persona-runtime.mjs";
@@ -15,21 +17,6 @@ function runChecker(args) {
       { encoding: "utf8", timeout: 180_000, maxBuffer: 1024 * 1024 },
       (error, stdout, stderr) => resolve({ ok: !error, stdout, stderr }));
   });
-}
-
-const redirect = {
-  block: true,
-  blockReason: "openclaw config set cannot run in the sandbox. Use the " +
-    "openclaw_config_set tool with a dotted path and a JSON value.",
-};
-
-export function blockConfigSet(event) {
-  if (event.toolName !== "exec" || event.toolKind === "code_mode_exec" ||
-      event.toolInputKind === "javascript" || typeof event.params?.command !== "string") {
-    return;
-  }
-  // Convenience only: a sandboxed shell has no OpenClaw CLI or credentials.
-  if (/openclaw[\s\S]*\bconfig\s+set\b/.test(event.params.command)) return { ...redirect };
 }
 
 export function createConfigSetTool(run = runChecker) {
@@ -84,7 +71,22 @@ export default {
       return reply;
     };
     api.registerCommand(mention);
-    api.registerTool(createConfigSetTool());
-    api.on("before_tool_call", blockConfigSet, { matcher: ["exec"], priority: 100 });
+    const configTool = createConfigSetTool();
+    api.registerTool(configTool);
+    const identities = new AgentIdentityProxy({
+      config: () => api.runtime.config.current(),
+      setIdentity: (id, workspace, identity) => personas.setIdentity(id, workspace, identity),
+    });
+    api.on("before_tool_call", async (event, ctx) => {
+      if (event.toolName !== "exec") return;
+      try { await identities.prepare(ctx.agentId); }
+      catch {
+        // Ordinary shell work remains usable; identity commands fail without
+        // a valid capability. Never log workspace contents or the token.
+        api.logger?.warn("Could not prepare scoped CLI identity capability");
+      }
+    }, { matcher: ["exec"], priority: 100 });
+    api.registerService(createConfigProxyService(createConfigCommand(
+      configTool, () => api.runtime.config.current(), identities)));
   },
 };
