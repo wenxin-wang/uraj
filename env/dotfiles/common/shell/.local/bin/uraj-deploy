@@ -4,12 +4,13 @@ source "$(dirname -- "$0")/../lib/uraj/target-environment.bash" || exit
 
 target=${1-}
 if [[ -z $target ]]; then
-    printf 'Usage: %s TARGET\n' "$0" >&2
+    printf 'Usage: %s TARGET [GUIX_DEPLOY_OPTION ...]\n' "$0" >&2
     exit 1
 fi
+shift
 if [[ "$target" != */* && "$target" != *.scm ]]; then
     target=~/src/uraj/env/guix/os/deploy/$target.scm
 fi
 
 uraj_target_environment "$target" || exit
-maak -f "$uraj_root/env/guix/os/maak.scm" deploy "$uraj_target"
+maak -f "$uraj_root/env/guix/os/maak.scm" -- deploy -- "$uraj_target" "$@"

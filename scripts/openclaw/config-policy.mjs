@@ -6,6 +6,31 @@ const mutableRoot = new Set(["agents", "bindings", "meta", "wizard"]);
 const agentFields = new Set(["name", "identity", "model", "workspace", "agentDir"]);
 const own = (value, key) => Object.hasOwn(value, key);
 
+// Only concrete Feishu groups may override mention gating, never credentials,
+// admission rules, wildcard groups or account configuration.
+function mentionOverrides(config) {
+  return Object.entries(config?.channels?.feishu?.groups ?? {}).filter(
+    ([id, group]) => /^oc_[a-zA-Z0-9]+$/.test(id) &&
+      typeof group?.requireMention === "boolean",
+  );
+}
+
+function managedChannels(config, base) {
+  const channels = structuredClone(config.channels);
+  for (const [id] of mentionOverrides(config)) {
+    const group = channels.feishu.groups[id];
+    const expected = base.channels?.feishu?.groups?.[id];
+    delete group.requireMention;
+    if (expected && own(expected, "requireMention")) {
+      group.requireMention = expected.requireMention;
+    }
+    if (!expected && Object.keys(group).length === 0) delete channels.feishu.groups[id];
+  }
+  if (channels?.feishu?.groups && Object.keys(channels.feishu.groups).length === 0 &&
+      !own(base.channels?.feishu ?? {}, "groups")) delete channels.feishu.groups;
+  return channels;
+}
+
 function disabledSkillAdditions(actual, expected) {
   const entries = actual?.entries;
   if (!entries || typeof entries !== "object" || Array.isArray(entries)) return [];
@@ -84,6 +109,8 @@ export function validatePolicy(config, base) {
   object(config, "config");
   literalTree(config);
   for (const key of new Set([...Object.keys(base), ...Object.keys(config)])) {
+    if (key === "channels" &&
+        isDeepStrictEqual(managedChannels(config, base), base.channels)) continue;
     if (key === "skills" && matchesSkillsPolicy(config.skills, base.skills)) continue;
     if (!mutableRoot.has(key) && !isDeepStrictEqual(config[key], base[key])) {
       // Paths only: config values may contain credentials.
@@ -131,6 +158,13 @@ export function validatePolicy(config, base) {
 export function reconcile(config, base) {
   const next = structuredClone(base);
   if (config) {
+    for (const [id, group] of mentionOverrides(config)) {
+      if (!next.channels?.feishu) break;
+      next.channels.feishu.groups ??= {};
+      next.channels.feishu.groups[id] = {
+        ...next.channels.feishu.groups[id], requireMention: group.requireMention,
+      };
+    }
     for (const key of mutableRoot) {
       if (own(config, key)) next[key] = structuredClone(config[key]);
     }
@@ -147,6 +181,14 @@ export function reconcile(config, base) {
       model(config.agents?.defaults?.model, base);
       next.agents.defaults.model = structuredClone(config.agents.defaults.model);
     } catch { /* A removed model falls back to the declared default. */ }
+  }
+  // The shared fallback must exist even when upgrading an older runtime roster.
+  if (base.agents.entries?.["household-shared"]) {
+    next.agents.entries ??= {};
+    next.agents.entries["household-shared"] = structuredClone(base.agents.entries["household-shared"]);
+    next.bindings = (next.bindings ?? []).filter((binding) =>
+      !(binding.match?.channel === "feishu" && binding.match.accountId === "main" && !binding.match.peer));
+    next.bindings.push({ agentId: "household-shared", match: { channel: "feishu", accountId: "main" } });
   }
   validatePolicy(next, base);
   return next;

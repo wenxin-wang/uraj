@@ -80,7 +80,9 @@ class TargetEnvironment(unittest.TestCase):
                 [
                     "-f",
                     str(project / "env/guix/os/maak.scm"),
+                    "--",
                     command,
+                    "--",
                     *map(str, arguments),
                 ],
             ],
@@ -111,6 +113,19 @@ class TargetEnvironment(unittest.TestCase):
             with self.subTest(command=command):
                 self.assert_command(
                     self.run_command(command), self.default, command
+                )
+
+    def test_deploy_options(self):
+        target = self.other / "env/guix/os/deploy/host.scm"
+        options = ("--dry-run", "--substitute-urls=https://example.org")
+        for argument, project in ((target, self.other), ("host", self.default)):
+            with self.subTest(argument=argument):
+                self.assert_command(
+                    self.run_command("deploy", argument, *options),
+                    project,
+                    "deploy",
+                    project / "env/guix/os/deploy/host.scm",
+                    *options,
                 )
 
     def test_invalid_targets_and_unapproved_environment(self):

@@ -22,15 +22,24 @@ test("shipped manifest activates at startup and declares the Gateway tool", () =
 
 test("registers the declared tool and an exec-only hook", () => {
   const tools = [];
+  const hooks = [];
   plugin.register({
+    registerCommand(command) {
+      assert.ok(["mention", "persona"].includes(command.name));
+      assert.equal(command.requireAuth, false);
+    },
+    registerService(service) { assert.equal(service.id, "uraj-personas"); },
     registerTool(tool) { tools.push(tool.name); },
     on(name, handler, options) {
-      assert.equal(name, "before_tool_call");
-      assert.equal(handler, blockConfigSet);
-      assert.deepEqual(options.matcher, ["exec"]);
+      hooks.push(name);
+      if (name === "before_tool_call") {
+        assert.equal(handler, blockConfigSet);
+        assert.deepEqual(options.matcher, ["exec"]);
+      }
     },
   });
   assert.deepEqual(tools, ["openclaw_config_set"]);
+  assert.ok(hooks.includes("before_dispatch") && hooks.includes("reply_payload_sending") && hooks.includes("before_agent_run"));
 });
 
 test("tool passes exactly one path and JSON value to the checker", async () => {
@@ -39,9 +48,9 @@ test("tool passes exactly one path and JSON value to the checker", async () => {
     call = args;
     return { ok: true, stdout: "Configuration committed.\n", stderr: "" };
   });
-  const value = { name: "研究 助手", workspace: "/data/openclaw/workspaces/a" };
-  const result = await tool.execute("call", { path: "agents.entries.a", value });
-  assert.deepEqual(call, ["set", "agents.entries.a", JSON.stringify(value)]);
+  const value = "local/one";
+  const result = await tool.execute("call", { path: "agents.defaults.model", value });
+  assert.deepEqual(call, ["set", "agents.defaults.model", JSON.stringify(value)]);
   assert.equal(result.content[0].text, "Configuration committed.");
   assert.equal(result.details.ok, true);
 });
@@ -50,11 +59,15 @@ test("tool reports checker refusals and rejects incomplete calls", async () => {
   const tool = createConfigSetTool(async () => ({
     ok: false, stdout: "", stderr: "Only agent and binding edits are accepted\n",
   }));
-  const result = await tool.execute("call", { path: "tools.allow", value: ["*"] });
+  const result = await tool.execute("call", { path: "agents.defaults.model", value: "local/one" });
   assert.equal(result.details.ok, false);
   assert.match(result.content[0].text, /Only agent and binding edits/);
   await assert.rejects(tool.execute("call", { path: "bindings" }));
   await assert.rejects(tool.execute("call", { value: [] }));
+  await assert.rejects(tool.execute("call", { path: "bindings", value: [] }), /Use \/persona/);
+  await assert.rejects(tool.execute("call", {
+    path: "channels.feishu.groups.oc_test.requireMention", value: false,
+  }), /only the Feishu group owner/);
 });
 
 test("the checker runs without blocking the Gateway event loop", async () => {
@@ -63,7 +76,7 @@ test("the checker runs without blocking the Gateway event loop", async () => {
   const tool = createConfigSetTool(() => new Promise((resolve) => {
     setImmediate(() => { ticked = true; resolve({ ok: true, stdout: "ok", stderr: "" }); });
   }));
-  await tool.execute("call", { path: "bindings", value: [] });
+  await tool.execute("call", { path: "agents.defaults.model", value: "local/one" });
   assert.equal(ticked, true);
   const source = readFileSync(new URL(
     "../../scripts/openclaw/config-plugin/index.mjs", import.meta.url), "utf8");

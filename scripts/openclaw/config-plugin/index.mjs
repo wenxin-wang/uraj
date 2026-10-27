@@ -2,6 +2,8 @@
 // Configuration edits therefore go through a Gateway-side tool that invokes
 // the checked command; the hook only redirects native CLI attempts.
 import { execFile } from "node:child_process";
+import { createMentionCommand } from "./mention.mjs";
+import { registerPersonas } from "./persona-runtime.mjs";
 
 const CHECKER = "/etc/openclaw/config.mjs";
 
@@ -33,8 +35,8 @@ export function blockConfigSet(event) {
 export function createConfigSetTool(run = runChecker) {
   return {
     name: "openclaw_config_set",
-    description: "Change OpenClaw agent registrations, agent models or bindings " +
-      "after Guix policy checks. Other settings are managed by Guix.",
+    description: "Change the default OpenClaw model after Guix policy checks. " +
+      "Use /persona to create roles or change their routing and /mention for mention gating.",
     parameters: {
       type: "object",
       additionalProperties: false,
@@ -42,7 +44,7 @@ export function createConfigSetTool(run = runChecker) {
       properties: {
         path: {
           type: "string",
-          description: "Dotted path, e.g. agents.defaults.model or bindings[0].agentId",
+          description: "Dotted path: agents.defaults.model",
         },
         value: { description: "New JSON value" },
       },
@@ -50,6 +52,12 @@ export function createConfigSetTool(run = runChecker) {
     async execute(_id, params) {
       if (typeof params?.path !== "string" || !Object.hasOwn(params, "value")) {
         throw new Error("openclaw_config_set needs a path and a value");
+      }
+      if (params.path.startsWith("channels")) {
+        throw new Error("Use /mention in the group; only the Feishu group owner or command owner can change it");
+      }
+      if (params.path !== "agents.defaults.model") {
+        throw new Error("Use /persona for agent registrations and bindings; this tool only changes agents.defaults.model");
       }
       // The checker validates before and after native normalization, and
       // never echoes native diagnostics that may contain credentials.
@@ -66,6 +74,16 @@ export default {
   id: "uraj-config-policy",
   name: "Guix checked configuration",
   register(api) {
+    const personas = registerPersonas(api);
+    const mention = createMentionCommand(runChecker);
+    const mentionHandler = mention.handler;
+    mention.handler = async (ctx) => {
+      const reply = await mentionHandler(ctx);
+      const chat = /^chat:(oc_[a-zA-Z0-9]+)$/.exec(ctx.to ?? "")?.[1];
+      personas.allowControlReply(chat, reply.text);
+      return reply;
+    };
+    api.registerCommand(mention);
     api.registerTool(createConfigSetTool());
     api.on("before_tool_call", blockConfigSet, { matcher: ["exec"], priority: 100 });
   },

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { checkedSet } from "../../scripts/openclaw/config.mjs";
+import { checkedSet, withCommandOwners, withFeishuAppId } from "../../scripts/openclaw/config.mjs";
 import { reconcile, validatePolicy } from "../../scripts/openclaw/config-policy.mjs";
 
 const base = {
@@ -14,6 +14,73 @@ const base = {
   },
 };
 const alice = "/data/openclaw/workspaces/alice";
+
+test("SOPS App ID is injected without leaking into the store template or permitting edits", () => {
+  const template = structuredClone(base);
+  template.channels = { feishu: { accounts: { main: {} } } };
+  const managed = withFeishuAppId(template, "cli_test\n");
+  assert.equal(template.channels.feishu.accounts.main.appId, undefined);
+  assert.equal(managed.channels.feishu.accounts.main.appId, "cli_test");
+  const changed = structuredClone(managed);
+  changed.channels.feishu.accounts.main.appId = "cli_other";
+  assert.throws(() => validatePolicy(changed, managed));
+  assert.equal(reconcile(changed, managed).channels.feishu.accounts.main.appId, "cli_test");
+  for (const text of ["", "wrong", "cli_test\nextra", "cli_${SECRET}"]) {
+    assert.throws(() => withFeishuAppId(template, text));
+  }
+});
+
+test("SOPS owner list is injected at runtime and cannot be edited by agents", () => {
+  const managed = withCommandOwners(base, '["feishu:ou_test"]');
+  assert.equal(base.commands, undefined);
+  assert.deepEqual(managed.commands.ownerAllowFrom, ["feishu:ou_test"]);
+  const next = reconcile(base, managed);
+  assert.deepEqual(next.commands, managed.commands);
+  const invalid = structuredClone(next);
+  invalid.commands.ownerAllowFrom.push("feishu:ou_other");
+  assert.throws(() => validatePolicy(invalid, managed));
+  assert.deepEqual(reconcile(invalid, managed).commands, managed.commands);
+  for (const text of ['["*"]', '["feishu:*"]', '{}', 'null', 'invalid']) {
+    assert.throws(() => withCommandOwners(base, text));
+  }
+  assert.deepEqual(reconcile(next, withCommandOwners(base, "[]")).commands.ownerAllowFrom, []);
+});
+
+test("group mention overrides survive restart without preserving other channel edits", () => {
+  const managed = structuredClone(base);
+  managed.channels = { feishu: { requireMention: true, groupPolicy: "open" } };
+  const config = structuredClone(managed);
+  config.channels.feishu.groups = { oc_test: { requireMention: false } };
+  validatePolicy(config, managed);
+  assert.deepEqual(reconcile(config, managed), config);
+  for (const group of [{ requireMention: "false" }, { requireMention: false, enabled: true }]) {
+    const invalid = structuredClone(config);
+    invalid.channels.feishu.groups.oc_test = group;
+    assert.throws(() => validatePolicy(invalid, managed));
+  }
+  const wildcard = structuredClone(config);
+  wildcard.channels.feishu.groups["*"] = { requireMention: false };
+  assert.throws(() => validatePolicy(wildcard, managed));
+  config.channels.feishu.requireMention = false;
+  config.channels.feishu.accounts = { main: { appSecret: "unmanaged" } };
+  assert.throws(() => validatePolicy(config, managed));
+  const restored = reconcile(config, managed);
+  assert.equal(restored.channels.feishu.requireMention, true);
+  assert.equal(restored.channels.feishu.accounts, undefined);
+  assert.equal(restored.channels.feishu.groups.oc_test.requireMention, false);
+});
+
+test("mention policy preserves managed group fields and allows only boolean overrides", () => {
+  const managed = structuredClone(base);
+  managed.channels = { feishu: { groups: { oc_test: { enabled: true, requireMention: true } } } };
+  const config = structuredClone(managed);
+  config.channels.feishu.groups.oc_test.requireMention = false;
+  validatePolicy(config, managed);
+  assert.deepEqual(reconcile(config, managed), config);
+  config.channels.feishu.groups.oc_test.enabled = false;
+  assert.throws(() => validatePolicy(config, managed));
+  assert.equal(reconcile(config, managed).channels.feishu.groups.oc_test.enabled, true);
+});
 
 test("reconcile preserves registrations and approved model, restores managed values", () => {
   const existing = structuredClone(base);
@@ -146,4 +213,42 @@ test("skills exception cannot enable skills, add credentials or change declared 
   assert.throws(() => validatePolicy({ ...declared,
     skills: { entries: { github: { enabled: false } } } }, declared), /Guix manages skills/);
   assert.throws(() => validatePolicy(base, declared), /Guix manages skills/);
+});
+
+test("upgrade installs shared fallback while retaining explicit persona routes and identities", () => {
+  const managed = structuredClone(base);
+  managed.agents.entries["household-shared"] = {
+    workspace: "/data/openclaw/workspaces/household-shared",
+    agentDir: "/data/openclaw/home/.openclaw/agents/household-shared/agent",
+  };
+  const current = structuredClone(base);
+  const direct = { agentId: "main", match: { channel: "feishu", accountId: "main", peer: { kind: "direct", id: "ou_alice" } } };
+  current.bindings = [direct, { agentId: "main", match: { channel: "feishu", accountId: "main" } }];
+  const next = reconcile(current, managed);
+  assert.deepEqual(next.agents.entries.main, current.agents.entries.main);
+  assert.deepEqual(next.agents.entries["household-shared"], managed.agents.entries["household-shared"]);
+  assert.deepEqual(next.bindings, [direct, { agentId: "household-shared", match: { channel: "feishu", accountId: "main" } }]);
+  assert.deepEqual(reconcile(next, managed), next);
+});
+
+
+test("Doctor system-agent pin and model normalization permit later persona binding writes", async () => {
+  const managed = structuredClone(base);
+  managed.agents.defaults.systemAgent = { agentId: "main" };
+  const restarted = structuredClone(managed);
+  restarted.agents.defaults.model = "local/one";
+  validatePolicy(restarted, managed);
+  const binding = { agentId: "main", match: { channel: "feishu", accountId: "main",
+    peer: { kind: "direct", id: "ou_alice" } } };
+  let submitted;
+  await checkedSet(["bindings", JSON.stringify([binding])], {
+    base: managed, snapshot: async () => ({ config: restarted, hash: "revision" }),
+    mutate: async () => ({ ...restarted, bindings: [binding] }),
+    submit: async (candidate) => { submitted = candidate; },
+  });
+  assert.deepEqual(submitted.bindings, [binding]);
+  assert.deepEqual(reconcile(submitted, managed).agents.defaults.systemAgent, { agentId: "main" });
+  const changed = structuredClone(submitted);
+  changed.agents.defaults.systemAgent.agentId = "household-shared";
+  assert.throws(() => validatePolicy(changed, managed), /Guix manages agent defaults/);
 });

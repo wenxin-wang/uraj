@@ -245,11 +245,25 @@ guix time-machine -C env/guix/channels-lock.scm -- \
 #+end_src
 
 也可用 Home 安装的 =uraj-deploy storie=，它经 maak 直接部署，不预演。
+目标后的参数会传给 =guix deploy=，例如 =uraj-deploy storie --dry-run=。
 传入配置文件路径（例如 =uraj-deploy /path/to/worktree/env/guix/os/deploy/storie.scm=）
 时，从文件的真实路径向上查找最近的 =.envrc=，加载该目录的 direnv 环境，
 并使用其中的 =env/guix/os/maak.scm=。=uraj-system-reconfigure= 和
 =uraj-home-reconfigure= 也支持这种方式；未传入配置文件时仍使用
 =~/src/uraj=。环境须已通过 =direnv allow= 授权；找不到环境或加载失败时停止。
+
+部署尚未合并的工作树时，在该工作树根目录执行以下命令。直接使用仓库
+中的入口，无需先更新本机 Home；显式路径确保使用当前工作树的配置，
+而不是 =uraj-deploy storie= 默认选择的 =~/src/uraj=：
+
+#+begin_src sh
+direnv allow
+./env/dotfiles/common/shell/.local/bin/uraj-deploy env/guix/os/deploy/storie.scm --dry-run
+./env/dotfiles/common/shell/.local/bin/uraj-deploy env/guix/os/deploy/storie.scm
+#+end_src
+
+storie 的部署声明已经设置 =(build-locally? #t)=，系统在开发机构建，
+再传输到 storie 激活，不需要在 storie 执行 reconfigure。
 
 =uraj-home-reconfigure= 未传入配置文件时，若存在 =env/guix/os/$(hostname).scm=
 则部署该机器配置中嵌入的 Home（见 [[file:../../../docs/home-only-deployment.org][Home-only deployment]]），否则使用
