@@ -214,9 +214,15 @@ broker.  Boot deployments start it through the root Shepherd instead."
   ;; program.
   (computed-file name #~(symlink #$contained-agent #$output)))
 
-(define (contained-agent-home-files)
+(define* (contained-agent-home-files #:key (contained-opencode? #t))
+  "Return the agent launchers installed in ~/.local/bin.  Paseo runs one
+OpenCode server for every workspace, and an app-managed Paseo resolves its
+built-in provider through PATH; with no broker, leave the profile's real
+binary in place instead of this single-project wrapper."
   `((".local/bin/contained-agent" ,contained-agent)
-    (".local/bin/opencode" ,(contained-agent-link "opencode"))
+    ,@(if contained-opencode?
+          `((".local/bin/opencode" ,(contained-agent-link "opencode")))
+          '())
     (".local/bin/pi" ,(contained-agent-link "pi"))
     (".local/bin/codex" ,(contained-agent-link "codex"))
     (".local/bin/claude" ,(contained-agent-link "claude"))))
@@ -268,4 +274,5 @@ settings."
                       llm-desktop-packages)
       (simple-service 'contained-agent
                       home-files-service-type
-                      (contained-agent-home-files))))))
+                      (contained-agent-home-files
+                       #:contained-opencode? (if setup #t #f)))))))

@@ -33,6 +33,7 @@ list.  Home installs:
 - =~/.local/bin/codex=, =~/.local/bin/claude=, =~/.local/bin/opencode=
   and =~/.local/bin/pi=: store items that are
   themselves links to =contained-agent=, made with =computed-file=.
+  An app-managed Paseo (no broker) omits the =opencode= link: see below.
 
 The program dispatches on the name it was invoked as (minus a store hash
 prefix).  Under an agent's name it takes exactly that agent's arguments;
@@ -54,6 +55,11 @@ as =contained-agent= the first argument names the agent, or is =allow= or
   #+end_src
   Paseo's OpenCode runs on the host only (=opencode-host=): one shared
   server handles all workspaces, which no project container can hold.
+  Where Paseo is app-managed (=%paseo-setup= is =#f=), no broker provides
+  that host tier, so Home omits =~/.local/bin/opencode= and the app's
+  built-in provider starts =~/.guix-home/profile/bin/opencode= from =PATH=
+  instead.  Keeping the wrapper there would confine the shared server to
+  one project and make every other workspace unreachable.
   Restart the daemon after a change: it caches the provider version probe.
 - Approve a project's own files: =contained-agent allow [DIRECTORY]=.
 - Approve a new worktree as its source checkout (see [[Inherited approvals]]):

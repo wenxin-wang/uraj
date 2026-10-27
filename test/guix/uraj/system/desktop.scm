@@ -215,11 +215,21 @@
 (test-assert "unmanaged Home runs no Paseo daemon or broker"
   (and (not (lookup unmanaged-services 'paseo))
        (not (lookup unmanaged-services 'paseo-broker))))
+(define (home-files home)
+  (service-value
+   (fold-services (home-environment-services home)
+                  #:target-type home-files-service-type)))
 (test-assert "unmanaged Home installs no Paseo broker files"
-  (not (assoc ".local/bin/paseo-broker"
-              (service-value
-               (fold-services (home-environment-services unmanaged-home)
-                              #:target-type home-files-service-type)))))
+  (not (assoc ".local/bin/paseo-broker" (home-files unmanaged-home))))
+;; Paseo's shared OpenCode server serves every workspace, which one project
+;; container cannot hold; an app-managed Paseo must find the real binary.
+(test-assert "unmanaged Home leaves OpenCode to the host"
+  (not (assoc ".local/bin/opencode" (home-files unmanaged-home))))
+(test-assert "managed Home installs the contained OpenCode launcher"
+  (assoc ".local/bin/opencode"
+         (home-files
+          (parameterize ((%home-target (fake-foreign-target '() #t)))
+            (home-environment (services (niri-desktop-home-services)))))))
 ;; The provider settings are written by a home-activation service named
 ;; paseo-settings (see (uraj home paseo)); verify both directions.
 (define (paseo-settings-service? s)
