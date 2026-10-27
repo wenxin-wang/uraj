@@ -137,6 +137,7 @@
              (sops secrets)
              (sops services sops)
              (uraj packages hwmon)
+             (uraj packages llm)
              (uraj packages redroid)
              (uraj home llm)
              (uraj services immich)
@@ -349,7 +350,11 @@
     (engine-image
      "sha256:e4a6f63d8faab21dfe3d04cf55a8856192125dd17b52ab60ca644feeb7f801cc")
     (sandbox-image
-     "sha256:4514ff40cfc53f7c3ae5a7502d5e36c3c95d6edf759a383986a230bae1b73711")
+     "sha256:d817fa34058d7cab915f53719c9a4f22f17256624150670025c1babbeb494e04")
+    ;; The sandbox image carries the matching agent-browser CLI.
+    (skills
+     `(("agent-browser"
+        ,(file-append agent-browser "/share/agent-browser/skills/agent-browser"))))
     (secrets-file
      (local-file (project-path "secrets/hosts/storie/openclaw.yaml")))
     (identity-file
