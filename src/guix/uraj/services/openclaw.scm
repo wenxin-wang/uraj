@@ -215,6 +215,8 @@
         (catalogRefresh . ((enabled . #f)))
         (providers . ,(map provider-config (openclaw-providers config)))))
       (agents . ((defaults . ((workspace . ,(data-path config "workspaces/main"))
+                             ;; Doctor pins the system agent on multi-agent startup.
+                             (systemAgent . ((agentId . "main")))
                              (model . ((primary . ,(openclaw-model config))))
                              (models . ,(if (null? (openclaw-model-aliases config))
                                             '()

@@ -230,3 +230,25 @@ test("upgrade installs shared fallback while retaining explicit persona routes a
   assert.deepEqual(next.bindings, [direct, { agentId: "household-shared", match: { channel: "feishu", accountId: "main" } }]);
   assert.deepEqual(reconcile(next, managed), next);
 });
+
+
+test("Doctor system-agent pin and model normalization permit later persona binding writes", async () => {
+  const managed = structuredClone(base);
+  managed.agents.defaults.systemAgent = { agentId: "main" };
+  const restarted = structuredClone(managed);
+  restarted.agents.defaults.model = "local/one";
+  validatePolicy(restarted, managed);
+  const binding = { agentId: "main", match: { channel: "feishu", accountId: "main",
+    peer: { kind: "direct", id: "ou_alice" } } };
+  let submitted;
+  await checkedSet(["bindings", JSON.stringify([binding])], {
+    base: managed, snapshot: async () => ({ config: restarted, hash: "revision" }),
+    mutate: async () => ({ ...restarted, bindings: [binding] }),
+    submit: async (candidate) => { submitted = candidate; },
+  });
+  assert.deepEqual(submitted.bindings, [binding]);
+  assert.deepEqual(reconcile(submitted, managed).agents.defaults.systemAgent, { agentId: "main" });
+  const changed = structuredClone(submitted);
+  changed.agents.defaults.systemAgent.agentId = "household-shared";
+  assert.throws(() => validatePolicy(changed, managed), /Guix manages agent defaults/);
+});

@@ -149,6 +149,8 @@
   (at app "plugins" "entries" "uraj-config-policy" "hooks" "allowConversationAccess"))
 (test-equal "persona drafting may select the shared agent" #t
   (at app "plugins" "entries" "uraj-config-policy" "llm" "allowAgentIdOverride"))
+(test-equal "system agent is explicit before Doctor normalization"
+  "main" (at app "agents" "defaults" "systemAgent" "agentId"))
 (test-equal "shared persona has a separate workspace"
   "/data/openclaw/workspaces/household-shared"
   (at app "agents" "entries" "household-shared" "workspace"))
