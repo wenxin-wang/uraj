@@ -8,11 +8,8 @@ ARG UID=2010
 ARG GID=2010
 ARG AGENT_BROWSER_VERSION=0.38.2
 ARG AGENT_BROWSER_SHA256=993d462f4dcfc19860d93a6521a452eba4502bfc449fe0120303c2ccb998e675
-# Google's pool drops superseded builds: when the download fails, take the
-# current Version and SHA256 from dists/stable/main/binary-amd64/Packages.
-ARG CHROME_VERSION=156.0.8078.47-1
-ARG CHROME_SHA256=6c92cd22e90c6e3e255d782991543fa2091db8614e8536a971a7433a5c4d7ac8
 ENV DEBIAN_FRONTEND=noninteractive
+# Chrome is the current stable build, so builds are not reproducible.
 # xvfb serves headed Chrome; Mesa and cage are for the GPU rendering
 # experiment, which needs trixie's newer Mesa.
 RUN apt-get update \
@@ -21,8 +18,7 @@ RUN apt-get update \
       xvfb fonts-liberation fonts-noto-cjk fonts-noto-color-emoji \
       libegl1 libgl1-mesa-dri mesa-vulkan-drivers cage \
     && curl -fsSLo /tmp/chrome.deb \
-      "https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_${CHROME_VERSION}_amd64.deb" \
-    && echo "${CHROME_SHA256}  /tmp/chrome.deb" | sha256sum -c - \
+      https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
     && apt-get install -y --no-install-recommends /tmp/chrome.deb \
     && rm -f /tmp/chrome.deb /etc/apt/sources.list.d/google-chrome.list \
     && curl -fsSLo /usr/local/bin/agent-browser \

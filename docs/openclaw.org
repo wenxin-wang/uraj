@@ -334,7 +334,7 @@ SYS_ADMIN。调试中确认的约束：
 
 * 沙箱里的浏览器
 
-沙箱镜像 =env/docker/openclaw-sandbox= 带 agent-browser、固定版本的官方
+沙箱镜像 =env/docker/openclaw-sandbox= 带 agent-browser、当前稳定版官方
 Google Chrome、Xvfb 和中日韩及 emoji 字体。命令和浏览器在同一个沙箱
 容器里运行；不使用 OpenClaw 内置的 =browser= 工具，上游 Podman 后端也
 不支持内置浏览器沙箱。
@@ -471,9 +471,9 @@ sudo docker image inspect --format '{{.Id}}' localhost/openclaw-gateway:2026.10.
 =gid= 一致。引擎基于固定 digest 的 =quay.io/podman/stable:v5.8.9=；沙箱参照
 上游 sandbox Dockerfile，改用固定的 =debian:trixie-slim=，加少量常用工具和
 浏览器（见“沙箱里的浏览器”），=HOME= 为可写的 =/tmp=。Debian 包未锁版本，
-以 image ID 记录产物。Google 的软件源会删除旧版 Chrome；下载失败时，从
-=dists/stable/main/binary-amd64/Packages= 取当前的 Version 和 SHA256 更新
-=CHROME_VERSION=、=CHROME_SHA256=。
+Chrome 每次构建取 Google 当前稳定版，不固定版本也不校验 hash，构建结果
+不可复现；以 image ID 记录产物，冒烟测试打印的 UA 含 Chrome 版本。
+Docker 会缓存安装层，升级 Chrome 时用 =docker build --no-cache= 重新构建。
 
 #+begin_src sh
 sudo docker build --network=host -t localhost/openclaw-sandbox-engine:5.8.9-1 \
