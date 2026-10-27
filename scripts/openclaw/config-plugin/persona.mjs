@@ -61,6 +61,20 @@ export class Personas {
       }
     }
   }
+  async start() {
+    await this.store.transact(async (state) => {
+      await this.bootstrap(state);
+      for (const [sender, id] of Object.entries(state.users)) {
+        const role = state.roles[id];
+        if (!senderId(sender) || !role || role.visibility === "private" && role.owner !== sender) {
+          throw new Error("Invalid saved private route");
+        }
+        const binding = this.config().bindings?.find((b) => b.match?.channel === "feishu" &&
+          b.match.accountId === "main" && b.match.peer?.kind === "direct" && b.match.peer.id === sender);
+        if (binding?.agentId !== id) await this.bind(id, "direct", sender);
+      }
+    });
+  }
   async ensureUser(state, sender) {
     if (state.users[sender]) return state.roles[state.users[sender]];
     const id = `personal-${createHash("sha256").update(sender).digest("hex").slice(0, 20)}`;
@@ -256,7 +270,7 @@ export class Personas {
   async sending(event, ctx) {
     if ((event.channel ?? ctx.channelId) !== "feishu" || ctx.accountId !== "main") return;
     const chat = groupId(ctx.conversationId) ?? sessionGroup(event.sessionKey ?? ctx.sessionKey);
-    if (!chat) return;
+    if (!chat) return this.directWelcome(event, ctx);
     const state = await this.store.read();
     const group = state.groups[chat];
     if (!group) return;
@@ -283,10 +297,38 @@ export class Personas {
       return { payload: { ...event.payload, text: `${banner}\n\n${event.payload.text ?? ""}` } };
     });
   }
+  async directWelcome(event, ctx, delivered = false) {
+    const key = event.sessionKey ?? ctx.sessionKey;
+    const sender = senderId(ctx.senderId) ?? (typeof key === "string" ?
+      /:direct:(ou_[a-zA-Z0-9]+)$/.exec(key)?.[1] : undefined);
+    const id = event.usageState?.agentId ?? sessionAgent(key);
+    if (!sender || !id || !delivered && event.kind !== "final") return;
+    // Commands and bootstrap notices already identify themselves. Only decorate
+    // model replies, never turn a /new acknowledgement into a persona greeting.
+    if (!delivered && !event.usageState) return;
+    return this.store.transact((state) => {
+      const role = state.roles[id];
+      if (!role || state.users[sender] !== id || role.visibility === "private" && role.owner !== sender) return;
+      state.dmNotices ??= {};
+      const noticeKey = `${sender}:${id}`;
+      const notice = state.dmNotices[noticeKey] ??= {};
+      const banner = `我目前是「${label(role)}」。用 /persona 可以选择／创建角色。`;
+      if (delivered) {
+        if (!event.content?.startsWith(banner)) return;
+        notice.pending = 0;
+        if (event.success) notice.announced = true;
+        return;
+      }
+      if (notice.announced || notice.pending > this.now()) return;
+      notice.pending = this.now() + 30000;
+      return { payload: { ...event.payload, text: `${banner}\n\n${event.payload.text ?? ""}` } };
+    });
+  }
   async sent(event, ctx) {
     if (ctx.channelId !== "feishu" || ctx.accountId !== "main") return;
     const chat = groupId(ctx.conversationId ?? event.to) ?? sessionGroup(event.sessionKey ?? ctx.sessionKey);
-    if (!chat || !event.content?.includes("或用 /persona 选择／创建角色。")) return;
+    if (!chat) return this.directWelcome(event, ctx, true);
+    if (!event.content?.includes("或用 /persona 选择／创建角色。")) return;
     await this.store.transact((s) => {
       const group = s.groups[chat];
       const role = s.roles[group?.role];

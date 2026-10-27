@@ -123,7 +123,7 @@ export function registerPersonas(api, personas = createRuntimePersonas(api)) {
   let timer;
   let polling = false;
   api.registerService({ id: "uraj-personas", async start() {
-    await personas.store.transact((state) => personas.bootstrap(state));
+    await personas.start();
     timer = setInterval(async () => {
       if (polling) return;
       polling = true;

@@ -271,3 +271,36 @@ test("runtime uses native source transaction, preserves SecretRefs and existing 
   assert.deepEqual(source.channels.feishu.accounts.main.appSecret, secret);
   await assert.rejects(service.bind("unregistered", "group", "oc_group"));
 });
+
+test("startup prebinds known users and preserves selections without rewriting correct routes", async (t) => {
+  const { service, calls, config } = await setup(t);
+  await service.start();
+  assert.deepEqual(calls.bind, [["main", "direct", "ou_alice"]]);
+  config.bindings = [{ agentId: "main", match: { channel: "feishu", accountId: "main", peer: { kind: "direct", id: "ou_alice" } } }];
+  await service.start();
+  assert.equal(calls.bind.length, 1);
+  await service.command({ sender: "ou_alice", args: `use ${SHARED}` });
+  await service.start();
+  assert.deepEqual(calls.bind.at(-1), [SHARED, "direct", "ou_alice"]);
+  assert.equal(await service.inbound({ isGroup: false, senderId: "ou_alice", content: "hi" },
+    { channelId: "feishu", accountId: "main", sessionKey: `agent:${SHARED}:feishu:direct:ou_alice` }), undefined);
+});
+
+test("prebound private DM answers immediately and retains a delivery-confirmed persona greeting", async (t) => {
+  const { service, directory } = await setup(t);
+  await service.start();
+  const ctx = { channelId: "feishu", accountId: "main", sessionKey: "agent:main:feishu:direct:ou_alice" };
+  assert.equal(await service.inbound({ isGroup: false, senderId: "ou_alice", content: "hi" }, ctx), undefined);
+  const event = { channel: "feishu", sessionKey: ctx.sessionKey, kind: "final",
+    usageState: { agentId: "main" }, payload: { text: "这是你的回答" } };
+  assert.equal(await service.sending({ ...event, usageState: undefined }, ctx), undefined);
+  const greeting = await service.sending(event, ctx);
+  assert.match(greeting.payload.text, /日常助手 · 私人/);
+  assert.match(greeting.payload.text, /这是你的回答/);
+  assert.doesNotMatch(greeting.payload.text, /重发/);
+  await service.sent({ sessionKey: ctx.sessionKey, content: greeting.payload.text, success: false }, ctx);
+  assert.ok(await service.sending(event, ctx));
+  await service.sent({ sessionKey: ctx.sessionKey, content: greeting.payload.text, success: true }, ctx);
+  assert.equal(await service.sending(event, ctx), undefined);
+  assert.equal((await new PersonaStore(directory).read()).dmNotices["ou_alice:main"].announced, true);
+});
