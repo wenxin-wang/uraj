@@ -341,6 +341,11 @@ Chromium、Xvfb 和中日韩及 emoji 字体。命令和浏览器在同一个沙
 
 浏览器默认以 headed 模式运行：没有 =DISPLAY= 时，agent-browser 自动
 启动私有 Xvfb，避免无头 Chrome 的 =HeadlessChrome= UA 等特征。
+headed 模式下 agent-browser 不加以下两个参数，镜像经 =AGENT_BROWSER_ARGS=
+补上：=--disable-blink-features=AutomationControlled= 隐藏远程调试导致的
+=navigator.webdriver=true=；=--enable-unsafe-swiftshader= 让没有 GPU 时仍有
+WebGL，否则 WebGL 为 null。CLI 按二进制的 =../skills=、=../skill-data= 查找
+=skills get= 的正文，镜像从同版本源码包安装这两个目录到 =/opt/agent-browser=。
 登录状态按 agent 角色区分：每个 agent 有自己的沙箱和 workspace，profile
 在 workspace 的 =.agent-browser/profile=，私人角色和共享角色互不沿用登录。
 同一角色的各群、各话题共用这个 profile 和同一个浏览器守护进程；多个话题

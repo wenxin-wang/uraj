@@ -26,7 +26,8 @@ readlink -n -f /workspace; echo
 python3 -c "print(\"python3 ok\")"
 echo "== agent-browser"
 agent-browser --version
-agent-browser skills get core | head -n 3
+agent-browser skills get core > /tmp/core.md
+head -n 3 /tmp/core.md
 '
 
 run '
