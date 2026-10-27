@@ -34,12 +34,14 @@ RUN apt-get update \
     && useradd --uid "$UID" --gid "$GID" --create-home --shell /bin/bash sandbox
 USER $UID:$GID
 # The root filesystem is read-only; /tmp is the sandbox's writable tmpfs.
-# Without DISPLAY, headed Chrome gets a private Xvfb; the profile keeps logins
-# in the agent's workspace.
+# Without DISPLAY, headed Chrome gets a private Xvfb.  Each agent has its own
+# sandbox and workspace, hence its own profile and logins.  agent-browser's
+# default idle timeout never closes headed browsers, so set one explicitly.
 ENV HOME=/tmp \
     LANG=C.UTF-8 \
     AGENT_BROWSER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable \
     AGENT_BROWSER_HEADED=1 \
-    AGENT_BROWSER_PROFILE=/workspace/.agent-browser/profile
+    AGENT_BROWSER_PROFILE=/workspace/.agent-browser/profile \
+    AGENT_BROWSER_IDLE_TIMEOUT_MS=1800000
 WORKDIR /home/sandbox
 CMD ["sleep", "infinity"]

@@ -341,8 +341,13 @@ Google Chrome、Xvfb 和中日韩及 emoji 字体。命令和浏览器在同一�
 
 浏览器默认以 headed 模式运行：没有 =DISPLAY= 时，agent-browser 自动
 启动私有 Xvfb，避免无头 Chrome 的 =HeadlessChrome= UA 等特征。
-登录状态保存在 workspace 的 =.agent-browser/profile=。同一沙箱内并发会话
-共用一个 profile，Chrome 的 profile 锁会让第二个浏览器启动失败。
+登录状态按 agent 角色区分：每个 agent 有自己的沙箱和 workspace，profile
+在 workspace 的 =.agent-browser/profile=，私人角色和共享角色互不沿用登录。
+同一角色的各群、各话题共用这个 profile 和同一个浏览器守护进程；多个话题
+同时操作浏览器时会共用标签页状态，可能互相干扰。
+agent-browser 的默认空闲超时不关闭 headed 浏览器，镜像显式设为 30 分钟，
+空闲的守护进程和 Chrome 会退出，profile 保留。需要扫码登录时，先用
+agent-browser 截图交给用户，暂不加 VNC；回复能否附带截图尚未验证。
 没有 GPU 时 WebGL 走软件渲染。镜像已带 Mesa 和 cage，用于后续验证
 共用 Intel render node：Xvfb 无法使用硬件加速，需改用无头 Wayland
 合成器；trixie 的 Mesa 也比 bookworm 新。
