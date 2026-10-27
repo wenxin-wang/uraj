@@ -24,6 +24,31 @@
 (define engine (at manifest "services" "engine"))
 
 (test-begin "openclaw")
+(define owner-config
+  (openclaw-configuration (inherit config)
+    (feishu-app-id #f)
+    (identity-file (plain-file "identities.yaml" "encrypted fixture"))))
+(define owner-manifest
+  (json-string->scm (plain-file-content (openclaw-compose-file owner-config))))
+(test-equal "identities are separate SOPS inputs" 5
+  (length (openclaw-secrets owner-config)))
+(test-equal "owner list read only at runtime" "/run/secrets/command-owners"
+  (at owner-manifest "services" "gateway" "environment" "OPENCLAW_COMMAND_OWNERS_FILE"))
+(test-assert "store config has no command owner identities"
+  (not (at (json-string->scm (plain-file-content (openclaw-config-file owner-config)))
+           "commands")))
+(test-assert "store config has no App ID"
+  (not (at (json-string->scm (plain-file-content (openclaw-config-file owner-config)))
+           "channels" "feishu" "accounts" "main" "appId")))
+(test-equal "App ID read only at runtime" "/run/secrets/feishu-app-id"
+  (at owner-manifest "services" "gateway" "environment" "OPENCLAW_FEISHU_APP_ID_FILE"))
+(test-error "identity file and literal App ID cannot conflict" #t
+  (openclaw-config-file
+   (openclaw-configuration (inherit owner-config) (feishu-app-id "cli_test"))))
+(test-assert "owner secret is mounted read-only into Gateway"
+  (any (lambda (v) (and (equal? (at v "target") "/run/secrets/command-owners")
+                        (at v "read_only")))
+       (vector->list (at owner-manifest "services" "gateway" "volumes"))))
 (define alias-config
   (openclaw-configuration (inherit config)
     (model-aliases '(("new-api/test-model" . "test-6")))))
@@ -120,6 +145,15 @@
   '#("/etc/openclaw/config-plugin") (at app "plugins" "load" "paths"))
 (test-equal "checked config plugin is enabled" #t
   (at app "plugins" "entries" "uraj-config-policy" "enabled"))
+(test-equal "persona hooks may gate conversations" #t
+  (at app "plugins" "entries" "uraj-config-policy" "hooks" "allowConversationAccess"))
+(test-equal "persona drafting may select the shared agent" #t
+  (at app "plugins" "entries" "uraj-config-policy" "llm" "allowAgentIdOverride"))
+(test-equal "shared persona has a separate workspace"
+  "/data/openclaw/workspaces/household-shared"
+  (at app "agents" "entries" "household-shared" "workspace"))
+(test-equal "unbound Feishu conversations use the shared persona"
+  "household-shared" (at (vector-ref (at app "bindings") 0) "agentId"))
 (test-equal "exec never falls back to the Gateway" "sandbox"
   (at app "tools" "exec" "host"))
 (test-equal "elevated escape is disabled" #f (at app "tools" "elevated" "enabled"))

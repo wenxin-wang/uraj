@@ -2,13 +2,14 @@
 
 * 当前范围
 
-一个飞书 bot、一个 Gateway 容器、一个默认 agent，通过 new-api 调用模型。
+一个飞书 bot、一个 Gateway 容器、多个独立身份和记忆的 agent，通过 new-api 调用模型。
 飞书采用主动建立的 WebSocket 长连接，不需要公网地址或 webhook 入站。
-私聊需管理员批准配对，不需要事先查询 =open_id=；测试阶段开放群聊，
-需要 @机器人，仍使用现有 agent，尚未启用动态用户隔离或人格切换命令。
+私聊需管理员批准配对；插件为每个人分配默认私人角色。新群使用独立的
+共享角色 =household-shared=，默认需要 @机器人；群主或命令管理员可用
+=/mention= 调整，用 =/persona= 选择或创建角色，不需要为每个群修改 Guix。
 群聊使用 =groupSessionScope="group_topic"= 和 =replyInThread="enabled"=：
 同一 agent 的身份和长期记忆共用，各群、各话题的会话上下文分开；没有话题
-标识的消息回到群级会话。群成员（包括后来加入的人）使用同一个 agent。
+标识的消息回到群级会话。每个群绑定一个角色，群内各话题使用同一个角色。
 开放文件工具及 =exec=、=process=；它们在独立引擎容器创建的 Podman
 沙箱中以专用 UID 2010 执行，不逐条询问，也不回退到持有凭据的 Gateway。
 浏览器、主动发消息和飞书文档工具保持关闭。
@@ -17,8 +18,8 @@
 =mode="full"=，混用旧模板会导致不变量检查报差异。
 
 =env/guix/os/storie.scm= 已声明 OpenClaw，包含固定 image ID、飞书
-App ID 和 GPT/Claude 两组 provider，默认模型为
-=new-api-gpt/gpt-6-luna=。三个凭据已以 SOPS 密文保存。
+GPT/Claude 两组 provider，默认模型为 =new-api-gpt/gpt-6-luna=。
+飞书 App ID、命令管理员名单和三个凭据均以 SOPS 密文保存。
 DeepSeek 尚未配置。Live ISO 不声明 OpenClaw。
 
 这些是部署声明，不代表主机已运行该服务。首次部署仍需在 storie
@@ -56,7 +57,10 @@ sudo /etc/openclaw/compose exec gateway node /etc/openclaw/config.mjs set \
   agents.entries.research '{"name":"研究助手","workspace":"/data/openclaw/workspaces/research","agentDir":"/data/openclaw/home/.openclaw/agents/research/agent"}'
 #+end_src
 
-允许修改 =agents.entries=、默认模型和 =bindings=。agent 条目只允许
+模型可调用的配置工具只允许修改默认模型，不能直接注册角色或修改绑定。
+上述管理员 CLI 仍允许修改 =agents.entries=、默认模型和 =bindings=；
+手工注册的 agent 不会自动成为 =/persona= 角色，请通过角色菜单创建。
+agent 条目只允许
 =name=、=identity=、=model=、=workspace=、=agentDir=；禁止工具、沙箱、
 插件等覆盖。模型必须来自 Guix provider 列表。workspace 必须是 Guix
 声明的 main workspace 父目录（=/data/openclaw/workspaces/=）下规范化的
@@ -82,14 +86,94 @@ Gateway 必须在线。批量变更可替换整个 =agents.entries= 或 =binding
 沙箱只挂载 agent 自己的 workspace，看不到 Gateway 的配置、状态和凭据，
 配置修改只能经过校验工具。各 agent 的 workspace 仍在同一 UID 下，
 尚不是多用户隐私隔离。
-=channels.feishu.configWrites=true= 允许可信插件写回；未自动开启动态
-注册。群聊以 =groupPolicy="open", requireMention=true= 开放测试。
+=channels.feishu.configWrites=true= 允许可信插件写回；用户注册由本仓库
+角色插件处理，不启用飞书的 =dynamicAgentCreation=。群聊以 =groupPolicy="open", requireMention=true= 开放测试。
+另允许通过群命令修改 =channels.feishu.groups.<oc_ID>.requireMention=，
+只接受布尔值并在重启时保留；其余 channels 字段仍由 Guix 管理。
+模型配置工具不能修改该字段，避免绕过群主/命令管理员检查。
 =OPENCLAW_CONFIG_READONLY= 不再设置。
 
 部署验收需要用固定镜像检查：首次初始化、重启保留 agent/binding、
 校验工具合法修改模型成功、exec 中的原生命令被拒绝并提示工具、
 受管字段/agent 权限覆盖被拒绝、两个并发写入冲突，
 以及修改后的 Gateway 加载结果。仓库单元测试不代替真实镜像验收。
+
+* 群聊角色与私人身份
+
+=/persona= 是本仓库插件命令，不是 OpenClaw 内置命令。新群默认连接
+=household-shared=，工作区独立于原有 =main=；多个共享群可以复用它的
+身份和长期记忆，话题会话仍各自独立。仅配置一个飞书命令管理员时，插件
+把原有 =main= 登记为该管理员的默认私人角色，不迁移或清除已有记忆。
+其他已批准配对的用户首次发消息时创建独立私人角色、设置私聊绑定并提示
+重发问题；首次不把问题交给共享角色。多个管理员时不猜测 =main= 的所有者。
+
+在群或私聊单独发送命令（群仍要求 @时需同时 @机器人）：
+
+#+begin_example
+/persona
+/persona use 角色ID
+/persona default
+/persona new 帮我读论文，先解释术语，再讨论证据和局限
+#+end_example
+
+菜单显示共享角色，以及本人有权使用的私人角色。群主或命令管理员可切换
+整个群的角色；私聊由本人选择。=/persona default= 在群里恢复共享助手，
+在私聊恢复本人的默认私人助手。切换不复制其他角色的历史或记忆，也不
+删除原角色的会话。多个群可以绑定同一角色。
+
+创建是三个步骤：描述用途，审阅模型草稿，明确确认公开范围。
+=/persona new 用途= 只进行一次模型起草，返回名称、简介、人格说明和确认码；
+尚不创建 agent。可以继续编辑：
+
+#+begin_example
+/persona edit name 论文搭子
+/persona edit description 阅读和讨论论文
+/persona edit soul 先准确解释论文，再区分证据与推测。
+/persona confirm 返回的确认码 private
+/persona cancel
+#+end_example
+
+确认时 =private= 表示私人，=shared= 表示共享，必须本人显式选择。
+草稿有效期 15 分钟；模型不能决定范围、所有者、路径或绑定。创建成功后
+按回复里的 =/persona use …= 切换。私人角色可以有多个，均记录所有者；
+共享角色可供其他群选择。若在多人群描述用途，草稿也会在该群公开，私人
+用途应在私聊中起草。菜单、切换、编辑、确认不调用模型，起草会产生模型费用。
+
+** 首次提示和成员变化
+
+首次群聊模型回复由 =reply_payload_sending= hook 在正文前固定加入当前
+角色名称、共享/私人标识及 =/persona= 入口，不依靠提示词。成功发送后
+才持久化“已提示”；发送失败允许重试。切换命令自身也明确回复新身份。
+这不是机器人刚入群就主动发卡片：首次有消息触发回复时才提示，仍受 @要求
+和飞书消息权限约束，不订阅机器人入群事件。保持非流式回复，以便发送前
+检查和身份提示覆盖完整回复。
+
+私人角色仅允许本人在私聊，或只有本人和一个机器人的群里选择。全局命令
+管理员也不能选择别人的私人角色。群主/成员查询需要飞书应用身份权限
+=im:chat:read= 和 =im:chat.members:read=；在后台权限管理申请后发布应用版本。
+查询权限不足或接口异常时拒绝启用私人角色，不把未知成员状态当作单人群。
+
+插件每 30 秒检查已启用私人角色的群，并在运行前、发送回复前再次检查。
+发现新增成员或无法确认成员时，持久化暂停状态并主动发送固定提醒；发送
+失败会重试。已生成但尚未发送的旧私人回复会被取消。不存在与飞书成员
+变更原子同步的保证：检查与发送之间仍可能发生变更，这属于家庭使用的
+尽力保护。以前的群历史不撤回，新成员能否看历史由飞书设置决定。
+不处理退群事件，不因人数恢复而自动解锁；本人通过 =/persona= 手动选择。
+
+** 状态与验证
+
+角色登记、所有者、群绑定状态及草稿保存在
+=/data/openclaw/home/.openclaw/personas/personas.json=，目录权限 0700、
+文件权限 0600；应和运行配置、workspaces 一起备份。agent 和消息绑定通过
+OpenClaw 原生配置写入锁提交，读取 source 配置以保留 SecretRef。重启对齐
+保留注册和显式绑定，同时确保共享兜底存在。配置和登记文件不是一个跨文件
+事务：中断或磁盘错误后可能需要重试命令，角色不匹配时拒绝运行。
+
+本地测试覆盖权限、默认角色、草稿确认、成员变化、并发首次提示、失败重试
+和重启保留。已在固定镜像中用临时配置验证 schema，并用真实加载器验证
+hook、命令和服务注册；没有修改线上配置。实际模型起草、飞书权限、成员
+变化提醒和话题内切换仍需部署后联调。建议依次测试共享群首次回复、私人
+私聊、单人群选私人角色、加人暂停、手动恢复，以及重启后的绑定和记忆。
 
 * 执行沙箱
 
@@ -381,7 +465,51 @@ sudo herd start openclaw
 在飞书开放平台创建应用，启用机器人能力，取得 App ID 和 App Secret。
 按选定版本的官方飞书说明配置长连接、=im.message.receive_v1= 消息事件、
 私聊消息接收和机器人发送消息权限，并发布应用供自己的账号使用。
+群聊测试还需启用接收群内 @机器人消息的权限。话题/引用消息读取需要
+应用身份权限 =im:message:readonly=（或已有的 =im:message=），开通后发布
+应用版本使其生效。缺少该权限时，日志会出现 =99991672 Access denied=；
+若消息仅有 @、又无法读取引用内容，则会被 =skipping empty message=
+跳过。首次测试应发送 =@机器人 请回复测试成功=，不要只发送一个 @。
 初始配置采用非流式文本回复，不要求文档、云盘或 Card Kit 能力。
+
+*** 按群切换 @要求
+
+飞书后台「权限管理」搜索并开通应用身份权限 =im:message.group_msg=
+（获取群组中所有消息），再创建并发布应用版本，按后台要求完成审批。
+仅有 =im:message:readonly= 不会让未 @机器人的消息自动送达。
+群主授权查询还需要获取群信息权限 =im:chat:read=。
+
+部署插件后，在群或群话题里发送（当前要求 @时需同时 @机器人）：
+
+#+begin_example
+/mention off
+/mention on
+/mention status
+#+end_example
+
+=off= 关闭当前整个群的 @要求，=on= 恢复，=status= 查看。
+在 =commands.ownerAllowFrom= 明确登记的飞书命令管理员可直接修改，
+无需查询群主。其他发送者每次修改都会向飞书查询当前群主并与发送者
+open_id 比对；群主变更后以查询结果为准，查询失败不修改。
+仅通过私聊配对不等于命令管理员。管理员仍只能修改命令所在群。
+storie 的身份信息由 =secrets/hosts/storie/openclaw-identities.yaml= 管理。
+其中 =openclaw.feishu-app-id= 保存飞书 App ID，
+=openclaw.command-owners= 保存管理员名单：值是 JSON 数组字符串，元素为
+=feishu:ou_…=。使用 =sops secrets/hosts/storie/openclaw-identities.yaml=
+编辑密文文件，重新部署并重启后生效。新增或撤销管理员都应更新该文件。
+Guix 的 =identity-file= 仅引用密文，Gateway 启动对齐配置时从
+=/run/secrets/command-owners= 注入 =commands.ownerAllowFrom=，从
+=/run/secrets/feishu-app-id= 注入飞书 App ID；不把这些 ID 明文写入源码
+或 store。运行配置及其备份会含明文 ID，由现有目录权限保护。
+群 ID 随群内命令保存在运行配置中，无需每新增一个群就修改密文并部署。
+缺失或格式错误的已配置名单会导致启动失败，不会默认为所有人。
+命令不调用模型；关闭 @要求后，该群普通消息可能触发模型并增加费用。
+所有话题共用该群设置，session 仍按话题分开。其他群的设置不变。
+Gateway 按其配置加载策略应用成功保存的修改；并发冲突时重试命令。
+此入口针对当前部署的飞书 =main= 账号；不支持被账号级 groups 覆盖的配置。
+
+*** 私聊配对
+
 不用查询自己的 =open_id=。Gateway 启动后，在飞书私聊 bot，它会向
 未批准的用户返回配对码。在 storie 查看请求并批准你自己的配对码：
 
@@ -393,7 +521,7 @@ sudo /etc/openclaw/compose exec gateway node openclaw.mjs pairing approve feishu
 将 =<CODE>= 替换成 bot 发给你的实际配对码。批准后再发消息即可正常
 聊天，批准记录保存在持久化 state 中，普通容器重建无需重新配对。
 未获批准的用户不能触发模型。不要批准不认识的请求；批准多个人会让
-他们使用同一个 Gateway 和 agent。飞书用户配对与管理 UI 的设备配对
+他们共用 Gateway，但默认私人角色、工作区和记忆各自独立。飞书用户配对与管理 UI 的设备配对
 是两套独立机制。
 
 在 new-api 中创建 OpenClaw 专用 token，限制模型及额度。所有 provider

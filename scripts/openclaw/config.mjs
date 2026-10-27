@@ -13,6 +13,29 @@ const CONFIG = process.env.OPENCLAW_CONFIG_PATH;
 const BASE = "/etc/openclaw/base.json";
 const CLI = "/app/openclaw.mjs";
 
+export function withFeishuAppId(base, text) {
+  const appId = text.trim();
+  if (!/^cli_[a-zA-Z0-9]+$/.test(appId)) {
+    throw new Error("Invalid Feishu App ID secret");
+  }
+  const next = structuredClone(base);
+  next.channels.feishu.accounts.main.appId = appId;
+  return next;
+}
+
+export function withCommandOwners(base, text) {
+  let owners;
+  try { owners = JSON.parse(text); } catch {
+    throw new Error("Command owners secret must be a JSON array");
+  }
+  if (!Array.isArray(owners) || owners.some((id) =>
+    typeof id !== "string" || !/^feishu:ou_[a-zA-Z0-9]+$/.test(id))) {
+    throw new Error("Command owners must be explicit Feishu open IDs");
+  }
+  return { ...base, commands: { ...base.commands,
+    ownerAllowFrom: [...new Set(owners)] } };
+}
+
 function parse(text) {
   try { return JSON.parse(text); } catch {
     // Native config writes use JSON5. Resolve the image's pinned dependency.
@@ -83,11 +106,30 @@ export async function checkedSet(args, { base, snapshot, mutate, submit }) {
   await submit(candidate, current.hash);
 }
 
+export async function loadManagedBase() {
+  let base = await read(BASE);
+  if (process.env.OPENCLAW_FEISHU_APP_ID_FILE) {
+    if (process.env.OPENCLAW_FEISHU_APP_ID_FILE !== "/run/secrets/feishu-app-id") {
+      throw new Error("Unexpected Feishu App ID secret path");
+    }
+    base = withFeishuAppId(base,
+      await fs.readFile(process.env.OPENCLAW_FEISHU_APP_ID_FILE, "utf8"));
+  }
+  if (process.env.OPENCLAW_COMMAND_OWNERS_FILE) {
+    if (process.env.OPENCLAW_COMMAND_OWNERS_FILE !== "/run/secrets/command-owners") {
+      throw new Error("Unexpected command owners secret path");
+    }
+    base = withCommandOwners(base,
+      await fs.readFile(process.env.OPENCLAW_COMMAND_OWNERS_FILE, "utf8"));
+  }
+  return base;
+}
+
 async function main(args) {
   if (!CONFIG || !path.isAbsolute(CONFIG)) {
     throw new Error("OPENCLAW_CONFIG_PATH must be an absolute path");
   }
-  const base = await read(BASE);
+  const base = await loadManagedBase();
   if (args.length === 1 && args[0] === "reconcile") {
     // Only run during service start, after the previous Gateway has stopped.
     await fs.mkdir(path.dirname(CONFIG), { recursive: true, mode: 0o700 });
@@ -131,8 +173,9 @@ async function main(args) {
     mutate: async (config, key, value) => {
       // Reject forbidden edits before invoking native validation/SecretRef logic.
       // Only agent metadata/model/path and routing edits are accepted by this CLI.
-      if (!/^(agents\.(entries|defaults\.model)(\.|\[|$)|bindings(\.|\[|$))/.test(key)) {
-        throw new Error("Only agent and binding edits are accepted");
+      if (!/^(agents\.(entries|defaults\.model)(\.|\[|$)|bindings(\.|\[|$))/.test(key) &&
+          !/^channels\.feishu\.groups\.oc_[a-zA-Z0-9]+\.requireMention$/.test(key)) {
+        throw new Error("Only agent, binding and per-group mention edits are accepted");
       }
       const dir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-config-"));
       try {

@@ -352,7 +352,8 @@
      "sha256:4514ff40cfc53f7c3ae5a7502d5e36c3c95d6edf759a383986a230bae1b73711")
     (secrets-file
      (local-file (project-path "secrets/hosts/storie/openclaw.yaml")))
-    (feishu-app-id "cli_aa5a187288381c05")
+    (identity-file
+     (local-file (project-path "secrets/hosts/storie/openclaw-identities.yaml")))
     (model "new-api-gpt/gpt-6-luna")
     (model-aliases
      '(("new-api-gpt/gpt-6-astra" . "astra-6")

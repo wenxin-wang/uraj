@@ -1,7 +1,7 @@
 {
   "id": "uraj-config-policy",
   "name": "Guix checked configuration",
-  "description": "Gateway-side tool for Guix-checked agent and binding edits.",
+  "description": "Guix-checked model configuration and household persona management.",
   "activation": {
     "onStartup": true,
     "onCapabilities": ["hook"]

@@ -48,7 +48,9 @@
   ;; Used for restart TAG when IMAGE is a locally built sha256 image ID.
   (image-repository openclaw-image-repository (default "localhost/openclaw-gateway"))
   (secrets-file openclaw-secrets-file)
-  (feishu-app-id openclaw-feishu-app-id)
+  ;; SOPS: openclaw.feishu-app-id and a JSON array in openclaw.command-owners.
+  (identity-file openclaw-identity-file (default #f))
+  (feishu-app-id openclaw-feishu-app-id (default #f))
   ;; Full provider/model reference, explicitly present in PROVIDERS.
   (model openclaw-model)
   ;; Each provider selects its own API; all use the same new-api token.
@@ -99,8 +101,11 @@
   (unless (and (every (lambda (id) (and (exact-integer? id) (< 0 id 65536)))
                       (list (openclaw-uid config) (openclaw-gid config))))
     (error "OpenClaw needs a nonzero dedicated UID and GID"))
-  (unless (string-match "^cli_[A-Za-z0-9]+$" (openclaw-feishu-app-id config))
-    (error "OpenClaw requires a Feishu App ID"))
+  (unless (if (openclaw-identity-file config)
+              (not (openclaw-feishu-app-id config))
+              (and (string? (openclaw-feishu-app-id config))
+                   (string-match "^cli_[A-Za-z0-9]+$" (openclaw-feishu-app-id config))))
+    (error "OpenClaw requires either an identity file or a literal Feishu App ID"))
   (let ((providers (openclaw-providers config)))
     (unless (and (list? providers) (pair? providers)
                  (every openclaw-provider? providers))
@@ -159,13 +164,19 @@
                (not (member ".." (string-split (openclaw-data-directory config) #\/))))
     (error "OpenClaw data must be below /data")))
 
+(define (secret-names config)
+  (append %secret-names
+          (if (openclaw-identity-file config) '("command-owners" "feishu-app-id") '())))
+
 (define (openclaw-secrets config)
   (map (lambda (name)
          (sops-secret
            (key (list "openclaw" name))
-           (file (openclaw-secrets-file config))
+           (file (if (member name '("command-owners" "feishu-app-id"))
+                     (openclaw-identity-file config)
+                     (openclaw-secrets-file config)))
            (user "root") (group "root") (permissions #o400)))
-       %secret-names))
+       (secret-names config)))
 
 (define (secret-ref name)
   `((source . "file") (provider . ,name) (id . "value")))
@@ -230,7 +241,14 @@
                  (entries . ((main . ((workspace . ,(data-path config "workspaces/main"))
                                       (agentDir
                                        . ,(data-path config
-                                                     "home/.openclaw/agents/main/agent"))))))))
+                                                     "home/.openclaw/agents/main/agent"))))
+                             (household-shared
+                              . ((name . "家庭助手")
+                                 (workspace . ,(data-path config "workspaces/household-shared"))
+                                 (agentDir . ,(data-path config
+                                                          "home/.openclaw/agents/household-shared/agent"))))))))
+      (bindings . #(((agentId . "household-shared")
+                     (match . ((channel . "feishu") (accountId . "main"))))))
       (tools . ((allow . #("read" "write" "edit" "apply_patch" "exec" "process"
                            "openclaw_config_set"))
                 (fs . ((workspaceOnly . #t)))
@@ -255,11 +273,15 @@
           (streaming . ((mode . "off")))
           (tools . ((doc . #f) (chat . #f) (wiki . #f) (drive . #f)
                     (perm . #f) (scopes . #f) (bitable . #f)))
-          (accounts . ((main . ((appId . ,(openclaw-feishu-app-id config))
+          (accounts . ((main . (,@(if (openclaw-feishu-app-id config)
+                                     `((appId . ,(openclaw-feishu-app-id config))) '())
                                 (appSecret . ,(secret-ref "feishu-app-secret"))))))))))
       (plugins . ((load . ((paths . #("/etc/openclaw/config-plugin"))))
                   (entries . ((feishu . ((enabled . #t)))
-                              (uraj-config-policy . ((enabled . #t)))))))
+                              (uraj-config-policy
+                               . ((enabled . #t)
+                                  (hooks . ((allowConversationAccess . #t)))
+                                  (llm . ((allowAgentIdOverride . #t)))))))))
       (update . ((checkOnStart . #f) (auto . ((enabled . #f)))))))))
 
 (define* (bind source target #:optional (read-only? #f))
@@ -293,6 +315,11 @@
                             (OPENCLAW_STATE_DIR . ,(string-append home "/.openclaw"))
                             (OPENCLAW_CONFIG_PATH
                              . ,(string-append home "/.openclaw/openclaw.json"))
+                            ,@(if (openclaw-identity-file config)
+                                  '((OPENCLAW_COMMAND_OWNERS_FILE
+                                     . "/run/secrets/command-owners")
+                                    (OPENCLAW_FEISHU_APP_ID_FILE
+                                     . "/run/secrets/feishu-app-id")) '())
                             (OPENCLAW_DISABLE_BONJOUR . "1")
                             (CONTAINER_HOST . ,%engine-socket)))
             (command . #("node" "openclaw.mjs" "gateway"))
@@ -309,7 +336,7 @@
                       (bind "/etc/openclaw/config-plugin" "/etc/openclaw/config-plugin" #t))
                 (map (lambda (name) (bind (string-append "/run/openclaw/" name)
                                           (string-append "/run/secrets/" name) #t))
-                     %secret-names))))
+                     (secret-names config)))))
             ;; The startup program adds explicit DNS from the firewall snapshot.
             (networks . #("restricted"))
             (healthcheck .
@@ -366,7 +393,7 @@
             #$(openclaw-data-directory config)
             (list #$@(map (lambda (name secret)
                             #~(cons #$name #$(sops-secret->secret-file secret)))
-                          %secret-names (openclaw-secrets config)))
+                          (secret-names config) (openclaw-secrets config)))
             #:uid #$(openclaw-uid config) #:gid #$(openclaw-gid config)
             #:engine-runtime #$%engine-runtime
             #:sandbox-state '#$%sandbox-state-mounts

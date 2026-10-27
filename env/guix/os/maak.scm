@@ -72,5 +72,6 @@
     (lambda ()
       ($guix `("home" "reconfigure" ,config-path ,@args)))))
 
-(define* (deploy #:optional (config-path (guix-env-path "os/lappie.scm")))
-  ($guix `("deploy" ,config-path)))
+(define* (deploy #:optional (config-path (guix-env-path "os/lappie.scm"))
+                 #:rest args)
+  ($guix `("deploy" ,config-path ,@args)))
