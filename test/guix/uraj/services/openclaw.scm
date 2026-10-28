@@ -174,6 +174,26 @@
 (test-equal "every session is sandboxed" "all" (at sandbox "mode"))
 (test-equal "sandbox uses the Podman engine" "podman" (at sandbox "backend"))
 (test-equal "sandbox writes the host workspace" "rw" (at sandbox "workspaceAccess"))
+(let* ((auto (openclaw-configuration (inherit config) (sandbox-image #f)))
+       (gateway (at (json-string->scm (plain-file-content (openclaw-compose-file auto)))
+                    "services" "gateway")))
+  (test-assert "Podman build context is mounted read-only"
+    (let ((engine (at (json-string->scm (plain-file-content (openclaw-compose-file auto)))
+                      "services" "engine")))
+      (any (lambda (mount)
+             (and (equal? (at mount "target") "/etc/openclaw/sandbox-build")
+                  (at mount "read_only")
+                  (not (at mount "bind" "create_host_path"))))
+           (vector->list (at engine "volumes")))))
+  (test-equal "automatic build exposes the image ID file to managed configuration"
+    "/run/openclaw/sandbox-image"
+    (at gateway "environment" "OPENCLAW_SANDBOX_IMAGE_FILE"))
+  (test-assert "built image ID is mounted read-only without creating missing files"
+    (any (lambda (mount)
+           (and (equal? (at mount "target") "/run/openclaw/sandbox-image")
+                (at mount "read_only")
+                (not (at mount "bind" "create_host_path"))))
+         (vector->list (at gateway "volumes")))))
 (test-equal "sandbox image is the declared local ID" (make-string 64 #\d)
   (at sandbox "docker" "image"))
 (test-equal "sandbox user matches the engine's keep-id mapping" "2010:2010"
@@ -410,11 +430,16 @@
 
 ;; Execute the generated start closure without Docker or real credentials.
 (define* (start tag #:key (missing? #f) (fail-up? #f) (fail-validation? #f)
-                (fail-reconcile? #f) (fail-image? #f))
+                (fail-reconcile? #f) (fail-image? #f)
+                (absent-sandbox? #f) (fail-import? #f) (engine-error? #f) (auto-build? #f) (fail-build? #f))
   (let ((m (make-fresh-user-module)) (calls '()) (stopped? #f))
     (for-each (lambda (interface) (module-use! m (resolve-interface interface)))
               (remove (lambda (interface) (member interface %default-modules))
                       (shepherd-service-modules service)))
+    (module-define! m 'file-exists? (lambda (_) #f))
+    (module-define! m 'call-with-input-file
+      (lambda (file proc)
+        (proc (open-input-string (string-append "sha256:" (make-string 64 #\e))))))
     (module-define! m '*approximate* (lambda () 'program))
     (module-define! m 'open-pipe*
       (lambda args (open-input-string "sha256:resolved-local-image\n")))
@@ -422,14 +447,32 @@
     (module-define! m 'invoke
       (lambda args
         (set! calls (cons args calls))
+        (when (and fail-build? (member "build" args))
+          (error "simulated build failure"))
         (when (and fail-reconcile? (member "reconcile" args))
           (error "simulated policy failure"))
         (when (and fail-validation? (member "validate" args))
           (error "simulated schema failure"))
+        (when (and fail-import? (member "openclaw-import-sandbox" args))
+          (error "simulated import failure"))
         (when (and fail-image? (member "exists" args)) (error "simulated missing image"))
         (when (and fail-up? (member "up" args)) (error "simulated failed startup"))))
-    (module-define! m 'system* (lambda _ (set! stopped? #t) 0))
-    (let* ((proc (eval (gexp->approximate-sexp (shepherd-service-start service)) m))
+    (module-define! m 'system*
+      (lambda args
+        (if (member "exists" args)
+            (begin
+              (set! calls (cons args calls))
+              (cond (engine-error? (* 125 256))
+                    (absent-sandbox? 256)
+                    (else 0)))
+            (begin (set! stopped? #t) 0))))
+    (let* ((proc (eval (gexp->approximate-sexp
+                         (shepherd-service-start
+                          (if auto-build?
+                              (car ((@@ (uraj services openclaw) openclaw-shepherd-services)
+                                    (openclaw-configuration (inherit config)
+                                      (sandbox-image #f))))
+                              service))) m))
            (result (catch #t (lambda () (proc tag)) (lambda _ #f))))
       (list result (reverse calls) stopped?))))
 (let* ((result (start "trial")) (up (last (cadr result))))
@@ -458,7 +501,7 @@
     (and (not (car result))
          (not (any (lambda (call) (member "up" call)) (cadr result))))))
 (test-equal "stop and reconcile precede validation, engine and Gateway startup"
-  '("stop" "reconcile" "validate" "up" "exists" "up")
+  '("stop" "reconcile" "validate" "up" "exists" "exists" "up")
   (filter-map (lambda (call)
                 (find (lambda (word) (member word call))
                       '("stop" "reconcile" "validate" "up" "exists")))
@@ -467,6 +510,56 @@
   (let ((result (start #f #:fail-image? #t)))
     (and (not (car result)) (caddr result)
          (= 1 (count (lambda (call) (member "up" call)) (cadr result))))))
+(test-assert "existing sandbox image skips import"
+  (not (any (lambda (call) (member "openclaw-import-sandbox" call))
+            (cadr (start #f)))))
+(let* ((result (start #f #:absent-sandbox? #t))
+       (calls (cadr result))
+       (import (find (lambda (call) (member "openclaw-import-sandbox" call)) calls)))
+  (test-assert "absent sandbox is streamed from Docker using the pinned ID"
+    (and (car result) import (member "pipefail" import)
+         (equal? (last import) (string-append "sha256:" (make-string 64 #\d)))))
+  (test-equal "import precedes verification and Gateway startup"
+    '("openclaw-import-sandbox" "exists" "up")
+    (filter-map (lambda (call)
+                  (find (lambda (word) (member word call))
+                        '("openclaw-import-sandbox" "exists" "up")))
+                (member import calls))))
+(for-each
+ (lambda (result)
+   (test-assert "failed import or engine check stops stack before Gateway"
+     (and (not (car result)) (caddr result)
+          (= 1 (count (lambda (call) (member "up" call)) (cadr result))))))
+ (list (start #f #:absent-sandbox? #t #:fail-import? #t)
+       (start #f #:absent-sandbox? #t #:fail-image? #t)
+       (start #f #:engine-error? #t)))
+(let* ((result (start #f #:auto-build? #t))
+       (calls (cadr result)))
+  (test-assert "automatic Podman build verifies its resulting ID without importing"
+    (and (car result)
+         (any (lambda (call)
+                (and (member "exists" call)
+                     (equal? (last call) (make-string 64 #\e))))
+              calls)
+         (not (any (lambda (call) (member "openclaw-import-sandbox" call)) calls))))
+  (test-assert "build runs inside engine with persistent layers and configured IDs"
+    (let ((build (find (lambda (call) (member "build" call)) calls)))
+      (and build
+           (every (lambda (word) (member word build))
+                  '("exec" "-T" "engine" "podman" "--layers" "--network=host"
+                    "UID=2010" "GID=2010"))
+           (equal? (last build) "/etc/openclaw/sandbox-build"))))
+  (test-equal "engine startup and build precede reconcile and Gateway startup"
+    '("stop" "up" "build" "reconcile" "validate" "exists" "up")
+    (filter-map (lambda (call)
+                  (find (lambda (word) (member word call))
+                        '("stop" "build" "reconcile" "validate" "up" "exists"
+                          "openclaw-import-sandbox"))) calls)))
+(let ((result (start #f #:auto-build? #t #:fail-build? #t)))
+  (test-assert "failed build stops engine without reconciliation or Gateway"
+    (and (not (car result)) (caddr result)
+         (= 1 (count (lambda (call) (member "up" call)) (cadr result)))
+         (not (any (lambda (call) (member "reconcile" call)) (cadr result))))))
 (test-equal "invalid tag has no effects" '(#f () #f) (start "../bad"))
 (test-assert "no skills: no skill mount or load path"
   (and (not (at app "skills"))

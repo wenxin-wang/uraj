@@ -13,6 +13,16 @@ const CONFIG = process.env.OPENCLAW_CONFIG_PATH;
 const BASE = "/etc/openclaw/base.json";
 const CLI = "/app/openclaw.mjs";
 
+export function withSandboxImage(base, text) {
+  const image = text.trim();
+  if (!/^sha256:[0-9a-f]{64}$/.test(image)) {
+    throw new Error("Invalid built sandbox image ID");
+  }
+  const next = structuredClone(base);
+  next.agents.defaults.sandbox.docker.image = image.slice(7);
+  return next;
+}
+
 export function withFeishuAppId(base, text) {
   const appId = text.trim();
   if (!/^cli_[a-zA-Z0-9]+$/.test(appId)) {
@@ -130,6 +140,13 @@ export async function checkedSet(args, { base, snapshot, mutate, submit }) {
 
 export async function loadManagedBase() {
   let base = await read(BASE);
+  if (process.env.OPENCLAW_SANDBOX_IMAGE_FILE) {
+    if (process.env.OPENCLAW_SANDBOX_IMAGE_FILE !== "/run/openclaw/sandbox-image") {
+      throw new Error("Invalid sandbox image file path");
+    }
+    base = withSandboxImage(base,
+      await fs.readFile(process.env.OPENCLAW_SANDBOX_IMAGE_FILE, "utf8"));
+  }
   if (process.env.OPENCLAW_FEISHU_APP_ID_FILE) {
     if (process.env.OPENCLAW_FEISHU_APP_ID_FILE !== "/run/secrets/feishu-app-id") {
       throw new Error("Unexpected Feishu App ID secret path");

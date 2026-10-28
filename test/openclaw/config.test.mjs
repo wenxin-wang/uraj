@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { checkedSet, withCommandOwners, withFeishuAppId } from "../../scripts/openclaw/config.mjs";
+import { checkedSet, withCommandOwners, withFeishuAppId, withSandboxImage } from "../../scripts/openclaw/config.mjs";
 import { reconcile, validatePolicy } from "../../scripts/openclaw/config-policy.mjs";
 
 const base = {
@@ -264,4 +264,19 @@ test("command owners also authorize built-in commands in Feishu groups", () => {
   edited.channels.feishu.allowFrom.push("feishu:ou_other");
   assert.throws(() => validatePolicy(edited, next));
   assert.deepEqual(reconcile(edited, next).channels.feishu.allowFrom, ["feishu:ou_test"]);
+});
+
+test("built sandbox ID is reconciled and remains managed policy", () => {
+  const template = structuredClone(base);
+  template.agents.defaults.sandbox = { docker: { image: "built-at-startup" } };
+  const managed = withSandboxImage(template, `sha256:${"e".repeat(64)}\n`);
+  assert.equal(template.agents.defaults.sandbox.docker.image, "built-at-startup");
+  const config = reconcile(template, managed);
+  assert.equal(config.agents.defaults.sandbox.docker.image, "e".repeat(64));
+  validatePolicy(config, managed);
+  config.agents.defaults.sandbox.docker.image = "old-image";
+  assert.throws(() => validatePolicy(config, managed));
+  for (const value of ["", "sha256:abc", "localhost/sandbox:latest"]) {
+    assert.throws(() => withSandboxImage(template, value));
+  }
 });
