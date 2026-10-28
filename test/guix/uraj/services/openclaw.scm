@@ -161,6 +161,9 @@
 (test-equal "exec never falls back to the Gateway" "sandbox"
   (at app "tools" "exec" "host"))
 (test-equal "elevated escape is disabled" #f (at app "tools" "elevated" "enabled"))
+(test-equal "heartbeat notifications stay internal"
+  "none" (at app "agents" "defaults" "heartbeat" "target"))
+
 (define sandbox (at app "agents" "defaults" "sandbox"))
 (test-equal "managed proxy permits an external bind source" #t
   (at sandbox "docker" "dangerouslyAllowExternalBindSources"))
