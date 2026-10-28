@@ -3,7 +3,7 @@
 # UID/GID must match the Guix openclaw-configuration.  The Gateway mounts the
 # skill; keep AGENT_BROWSER_VERSION equal to the Guix agent-browser package so
 # the CLI serves the matching skill content.
-FROM debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad
+FROM docker.io/library/debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad
 ARG UID=2010
 ARG GID=2010
 ARG AGENT_BROWSER_VERSION=0.38.2
