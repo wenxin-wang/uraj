@@ -347,13 +347,19 @@ headed 模式下 agent-browser 不加以下两个参数，镜像经 =AGENT_BROWS
 =navigator.webdriver=true=；=--enable-unsafe-swiftshader= 让没有 GPU 时仍有
 WebGL，否则 WebGL 为 null。CLI 按二进制的 =../skills=、=../skill-data= 查找
 =skills get= 的正文，镜像从同版本源码包安装这两个目录到 =/opt/agent-browser=。
-登录状态按 agent 角色区分：每个 agent 有自己的沙箱和 workspace，profile
-在 workspace 的 =.agent-browser/profile=，私人角色和共享角色互不沿用登录。
-同一角色的各群、各话题共用这个 profile 和同一个浏览器守护进程；多个话题
-同时操作浏览器时会共用标签页状态，可能互相干扰。
-agent-browser 的默认空闲超时不关闭 headed 浏览器，镜像显式设为 30 分钟，
-空闲的守护进程和 Chromium 会退出，profile 保留。需要扫码登录时，先用
-agent-browser 截图交给用户，暂不加 VNC；回复能否附带截图尚未验证。
+登录状态按角色保存；新镜像的 =browser-profile= 将主登录目录与任务副本分开。
+=login URL= 打开主登录浏览器，=identity screenshot /workspace/login.png=
+可截图扫码。确认登录成功后 =publish= 正常关闭浏览器、检查进程退出并发布快照。
+首次使用会把已关闭的旧 =.agent-browser/profile= 迁移到 =identity=，不丢弃登录。
+
+普通任务运行 =browser-profile create=，保存 JSON 返回的 task ID，然后用
+=browser-profile run ID open URL=、=run ID screenshot PATH= 等命令操作。
+每个任务独立 session 和 profile；=finish ID= 关闭并删除任务副本。
+空闲 30 分钟会关闭浏览器，但不删除副本。任务的登录变化不写回主目录。
+发布新快照不影响旧任务；网站仍可能撤销或轮换 token，复制不保证登录有效。
+旧快照暂不自动清理。所有目录位于同一角色的 workspace，不构成角色内隐私隔离。
+扫码优先通过截图完成，暂不部署 VNC。
+
 没有 GPU 时 WebGL 走软件渲染。镜像已带 Mesa 和 cage，用于后续验证
 共用 Intel render node：Xvfb 无法使用硬件加速，需改用无头 Wayland
 合成器；trixie 的 Mesa 也比 bookworm 新。
@@ -362,9 +368,9 @@ Skill 由 Gateway 加载，再由 OpenClaw 复制进沙箱（state 下的
 =.openclaw/sandbox/skills-workspaces=），所以不放在镜像里，也不经过 Home
 的 agent skill 服务。服务字段 =skills= 接受 =(NAME DIRECTORY)= 列表，
 Guix 把它们解开符号链接复制成 =/etc/openclaw/skills=，以只读方式挂进
-Gateway，并写入 =skills.load.extraDirs=。storie 直接取 Guix =agent-browser=
-包内的 skill；测试检查 Dockerfile 的 =AGENT_BROWSER_VERSION= 与包版本
-一致。该 skill 只是入口，正文由镜像里的 CLI 通过
+Gateway，并写入 =skills.load.extraDirs=。上线前 storie 暂沿用 Guix 包内 skill；
+新镜像验收后切换为 =scripts/openclaw/skills/agent-browser= 的专用说明。
+通用命令参考由镜像里的 CLI 通过
 =agent-browser skills get core= 提供。=requires.bins= 在 Gateway 侧检查，
 agent-browser 的 skill 未声明此项，Gateway 镜像无需安装它。
 
@@ -1013,3 +1019,21 @@ storie 上的实际热更新仍需重新部署确认。
 - [[https://github.com/openclaw/openclaw/tree/v2026.10.3][选定版本源码]]
 - [[file:restricted-network.org][Restricted workload networks]]
 - [[file:../secrets/README.org][仓库 SOPS 约定]]
+
+** Profile 快照方案上线
+
+新增脚本和专用 skill 后，先构建新 tag 并运行 =try-sandbox-image=，验证两个
+任务浏览器可同时启动。将镜像导入引擎，取得 image ID 后，再同时更新 storie 的
+=sandbox-image= 和 =skills= 声明（当前声明暂保留旧 skill，避免旧镜像缺少命令）：
+
+#+begin_src scheme
+(skills
+ `(("agent-browser"
+    ,(local-file (project-path "scripts/openclaw/skills/agent-browser")
+                 #:recursive? #t))))
+#+end_src
+
+部署并重建沙箱后，首次执行 =browser-profile login about:blank= 会迁移旧 profile；
+执行 =browser-profile publish= 即可把现有登录发布为初始快照。迁移前需正常关闭
+所有旧 agent-browser session；不要删除锁文件强行复制。Gateway 加载上述专用 skill，
+通用命令参考仍从镜像中 =agent-browser skills get core= 读取，不改变桌面 skill。

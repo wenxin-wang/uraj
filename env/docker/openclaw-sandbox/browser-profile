@@ -1,0 +1,197 @@
+#!/usr/bin/python3
+"""Manage role login snapshots and independent browser task profiles."""
+
+import argparse
+import fcntl
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import time
+import uuid
+from pathlib import Path
+
+ROOT = Path("/workspace/.agent-browser")
+VOLATILE = {
+    "SingletonLock",
+    "SingletonSocket",
+    "SingletonCookie",
+    "DevToolsActivePort",
+}
+
+
+def ensure_stopped(profile):
+    """Refuse to copy or delete a profile while a local browser uses it."""
+    target = str(profile.resolve())
+    for proc in Path("/proc").glob("[0-9]*/cmdline"):
+        try:
+            args = proc.read_bytes().decode(errors="replace").split("\0")
+        except FileNotFoundError:
+            continue
+        except PermissionError:
+            raise RuntimeError(
+                "Cannot inspect browser processes safely"
+            ) from None
+        for index, arg in enumerate(args):
+            value = None
+            if arg.startswith("--user-data-dir="):
+                value = arg.split("=", 1)[1]
+            elif arg == "--user-data-dir" and index + 1 < len(args):
+                value = args[index + 1]
+            if value and str(Path(value).resolve()) == target:
+                raise RuntimeError(
+                    f"Browser still uses {profile}; close it first"
+                )
+
+
+def browser(profile, session, args):
+    forbidden = (
+        "--session",
+        "--profile",
+        "--cdp",
+        "--auto-connect",
+        "--args",
+        "--config",
+    )
+    if any(arg.split("=", 1)[0] in forbidden for arg in args):
+        raise RuntimeError(
+            "Do not override the managed browser connection/profile"
+        )
+    env = os.environ.copy()
+    for key in (
+        "AGENT_BROWSER_PROFILE",
+        "AGENT_BROWSER_SESSION",
+        "AGENT_BROWSER_CDP",
+    ):
+        env.pop(key, None)
+    subprocess.run(
+        [
+            "agent-browser",
+            "--session",
+            session,
+            "--profile",
+            str(profile),
+            *args,
+        ],
+        env=env,
+        check=True,
+    )
+
+
+def copy_profile(source, destination):
+    shutil.copytree(
+        source,
+        destination,
+        symlinks=True,
+        ignore=lambda _directory, names: set(names) & VOLATILE,
+    )
+
+
+def identity():
+    path = ROOT / "identity"
+    legacy = ROOT / "profile"
+    if not path.exists() and legacy.exists():
+        ensure_stopped(legacy)
+        legacy.rename(path)
+    path.mkdir(mode=0o700, exist_ok=True)
+    return path
+
+
+def task_path(name):
+    if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}", name):
+        raise RuntimeError(
+            "Task ID must be 1-64 letters, digits, underscores or hyphens"
+        )
+    path = ROOT / "tasks" / name
+    if path.is_symlink():
+        raise RuntimeError("Task directory must not be a symlink")
+    return path
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    sub = parser.add_subparsers(dest="action", required=True)
+    login = sub.add_parser("login")
+    login.add_argument("url")
+    run_login = sub.add_parser("identity")
+    run_login.add_argument("command", nargs=argparse.REMAINDER)
+    sub.add_parser("publish")
+    sub.add_parser("create")
+    for action in ("run", "finish"):
+        task = sub.add_parser(action)
+        task.add_argument("task")
+        if action == "run":
+            task.add_argument("command", nargs=argparse.REMAINDER)
+    args = parser.parse_args()
+    os.umask(0o077)
+    ROOT.mkdir(parents=True, exist_ok=True)
+    # Serialize managed lifecycle operations; browser daemons outlive this lock.
+    with (ROOT / "profile-manager.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        if args.action in ("login", "identity"):
+            command = (
+                ["open", args.url] if args.action == "login" else args.command
+            )
+            if not command:
+                parser.error("a browser command is required")
+            browser(identity(), "role-identity", command)
+        elif args.action == "publish":
+            source = identity()
+            browser(source, "role-identity", ["close"])
+            for attempt in range(50):
+                try:
+                    ensure_stopped(source)
+                    break
+                except RuntimeError:
+                    if attempt == 49:
+                        raise
+                    time.sleep(0.1)
+            snapshots = ROOT / "snapshots"
+            snapshots.mkdir(exist_ok=True)
+            version = uuid.uuid4().hex
+            destination = snapshots / version
+            try:
+                copy_profile(source, destination)
+                pending = ROOT / "current.new"
+                pending.unlink(missing_ok=True)
+                pending.symlink_to(Path("snapshots") / version)
+                pending.replace(ROOT / "current")
+            except Exception:
+                shutil.rmtree(destination, ignore_errors=True)
+                raise
+            print(json.dumps({"snapshot": version}))
+        elif args.action == "create":
+            source = ROOT / "current"
+            if not source.is_dir():
+                raise RuntimeError("No snapshot: use login, then publish first")
+            name = uuid.uuid4().hex
+            destination = task_path(name)
+            destination.parent.mkdir(exist_ok=True)
+            try:
+                copy_profile(source, destination / "profile")
+            except Exception:
+                shutil.rmtree(destination, ignore_errors=True)
+                raise
+            print(json.dumps({"task": name}))
+        else:
+            path = task_path(args.task)
+            profile = path / "profile"
+            if not profile.is_dir():
+                raise RuntimeError("Unknown task")
+            if args.action == "run":
+                if not args.command:
+                    parser.error("a browser command is required")
+                browser(profile, "task-" + args.task, args.command)
+            else:
+                browser(profile, "task-" + args.task, ["close"])
+                ensure_stopped(profile)
+                shutil.rmtree(path)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (RuntimeError, OSError, subprocess.CalledProcessError) as error:
+        sys.exit(str(error))

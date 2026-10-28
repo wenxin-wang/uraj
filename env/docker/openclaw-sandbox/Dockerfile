@@ -35,10 +35,13 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid "$GID" sandbox \
     && useradd --uid "$UID" --gid "$GID" --create-home --shell /bin/bash sandbox
+COPY browser-profile /usr/local/bin/browser-profile
+RUN chmod 0755 /usr/local/bin/browser-profile
 USER $UID:$GID
 # The root filesystem is read-only; /tmp is the sandbox's writable tmpfs.
 # Without DISPLAY, headed Chromium gets a private Xvfb.  Each agent has its own
-# sandbox and workspace, hence its own profile and logins.  agent-browser's
+# sandbox and workspace. browser-profile manages login snapshots and task
+# copies there. agent-browser's
 # default idle timeout never closes headed browsers, so set one explicitly.
 # It adds neither flag below in headed mode: hide navigator.webdriver, which
 # remote debugging sets, and allow SwiftShader WebGL without a GPU.
@@ -46,7 +49,6 @@ ENV HOME=/tmp \
     LANG=C.UTF-8 \
     AGENT_BROWSER_EXECUTABLE_PATH=/usr/bin/chromium \
     AGENT_BROWSER_HEADED=1 \
-    AGENT_BROWSER_PROFILE=/workspace/.agent-browser/profile \
     AGENT_BROWSER_IDLE_TIMEOUT_MS=1800000 \
     AGENT_BROWSER_ARGS=--disable-blink-features=AutomationControlled,--enable-unsafe-swiftshader
 WORKDIR /home/sandbox
