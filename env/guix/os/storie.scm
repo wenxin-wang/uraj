@@ -349,6 +349,7 @@
     ;; Engine built manually; sandbox builds at service start. See docs/openclaw.org.
     (engine-image
      "sha256:e4a6f63d8faab21dfe3d04cf55a8856192125dd17b52ab60ca644feeb7f801cc")
+    (render-device "/dev/dri/renderD128")
     ;; Role login snapshots and independent task profiles in the sandbox.
     (skills
      `(("agent-browser"

@@ -1,6 +1,6 @@
 #!/bin/sh
 # Run on storie as the administrator.  Start the sandbox image with the
-# hardening OpenClaw's sandbox applies, then drive headed Chrome once.
+# hardening OpenClaw's sandbox applies, then check headless Vulkan browsers.
 # Usage: try-sandbox-image IMAGE [NETWORK] [DNS]
 set -eu
 
@@ -12,6 +12,7 @@ echo "workspace: $workspace"
 
 run() {
   docker run --rm --network "$network" ${dns:+--dns "$dns"} \
+    --device /dev/dri/renderD128 \
     --read-only --tmpfs /tmp --tmpfs /var/tmp --tmpfs /run \
     --cap-drop ALL --security-opt no-new-privileges \
     --user "$(id -u):$(id -g)" --shm-size 64m \
@@ -46,7 +47,15 @@ ab eval "navigator.userAgent"
 ab eval "navigator.webdriver"
 ab eval "(() => { const gl = document.createElement(\"canvas\").getContext(\"webgl\");
   const ext = gl && gl.getExtension(\"WEBGL_debug_renderer_info\");
-  return ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : String(gl); })()"
+  return ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : String(gl); })()" > /tmp/renderer
+cat /tmp/renderer
+grep -Eiq "Intel|AMD|NVIDIA" /tmp/renderer
+if grep -Eiq "SwiftShader|llvmpipe|lavapipe" /tmp/renderer; then
+  echo "software renderer rejected" >&2
+  exit 1
+fi
+ab screenshot /workspace/gpu-smoke.png
+test -s /workspace/gpu-smoke.png
 browser-profile finish "$first"
 browser-profile finish "$second"
 test -d /workspace/.agent-browser/current && echo "snapshot persisted"

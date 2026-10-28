@@ -336,17 +336,17 @@ SYS_ADMIN。调试中确认的约束：
 * 沙箱里的浏览器
 
 沙箱镜像 =env/docker/openclaw-sandbox= 带 agent-browser、Debian 的
-Chromium、Xvfb 和中日韩及 emoji 字体。命令和浏览器在同一个沙箱
+Chromium、Mesa Vulkan 和中日韩及 emoji 字体。命令和浏览器在同一个沙箱
 容器里运行；不使用 OpenClaw 内置的 =browser= 工具，上游 Podman 后端也
 不支持内置浏览器沙箱。
 
-浏览器默认以 headed 模式运行：没有 =DISPLAY= 时，agent-browser 自动
-启动私有 Xvfb，避免无头 Chrome 的 =HeadlessChrome= UA 等特征。
-headed 模式下 agent-browser 不加以下两个参数，镜像经 =AGENT_BROWSER_ARGS=
-补上：=--disable-blink-features=AutomationControlled= 隐藏远程调试导致的
-=navigator.webdriver=true=；=--enable-unsafe-swiftshader= 让没有 GPU 时仍有
-WebGL，否则 WebGL 为 null。CLI 按二进制的 =../skills=、=../skill-data= 查找
-=skills get= 的正文，镜像从同版本源码包安装这两个目录到 =/opt/agent-browser=。
+浏览器默认以 headless + ANGLE Vulkan 模式运行，可截图和扫码登录，无需
+Xvfb 或 Wayland。=AGENT_BROWSER_ARGS= 指定 =--enable-gpu=、=--use-gl=angle=
+及 =--use-angle=vulkan=，并保留 =--disable-blink-features=AutomationControlled=。
+启动包装器在可写的 =/tmp= 创建私有 =XDG_RUNTIME_DIR=，过滤 CLI 自动加入的
+=--enable-unsafe-swiftshader=，避免许可软件回退。headless 模式会改变浏览器
+特征，网站登录兼容性需实际验证。
+CLI 的 =skills get= 正文来自镜像中同版本源码包的 =skills=、=skill-data=。
 登录状态按角色保存；新镜像的 =browser-profile= 将主登录目录与任务副本分开。
 =login URL= 打开主登录浏览器，=identity screenshot /workspace/login.png=
 可截图扫码。确认登录成功后 =publish= 正常关闭浏览器、检查进程退出并发布快照。
@@ -360,9 +360,19 @@ WebGL，否则 WebGL 为 null。CLI 按二进制的 =../skills=、=../skill-data
 旧快照暂不自动清理。所有目录位于同一角色的 workspace，不构成角色内隐私隔离。
 扫码优先通过截图完成，暂不部署 VNC。
 
-没有 GPU 时 WebGL 走软件渲染。镜像已带 Mesa 和 cage，用于后续验证
-共用 Intel render node：Xvfb 无法使用硬件加速，需改用无头 Wayland
-合成器；trixie 的 Mesa 也比 bookworm 新。
+storie 配置 =(render-device "/dev/dri/renderD128")=。Docker 把该设备传给
+engine，Guix 生成的 =CONTAINERS_CONF_OVERRIDE= 再让 rootless Podman 将它
+传给每个角色沙箱；Gateway 不获得 GPU。未配置该字段的主机不透传 GPU。
+设备必须允许 engine 的 UID 访问；storie 当前 render node 权限为 0666。
+不传入 =card0=，不启用 privileged。各任务可共用 render node。
+硬件 WebGL 不代表视频硬件解码或整个合成流水线均已加速。
+
+构建新镜像后先运行 =scripts/openclaw/try-sandbox-image IMAGE=；检查并行任务、
+快照、硬件 renderer 和截图。取得 image ID 后更新 storie 的 =sandbox-image=
+并 reconfigure，再运行 =sudo scripts/openclaw/try-browser-gpu IMAGE_ID=，
+验证真正的 Docker engine → rootless Podman → agent-browser 链路。
+后者使用临时容器和 /tmp profile，不读取角色登录状态。两个测试都拒绝
+SwiftShader/llvmpipe/lavapipe 软件 renderer。新镜像未经 storie 验证前不更新 ID。
 
 Skill 由 Gateway 加载，再由 OpenClaw 复制进沙箱（state 下的
 =.openclaw/sandbox/skills-workspaces=），所以不放在镜像里，也不经过 Home
