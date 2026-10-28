@@ -61,6 +61,8 @@
   ;; Engine is a local ID. With no sandbox ID, build on each service start.
   (engine-image openclaw-engine-image)
   (sandbox-image openclaw-sandbox-image (default #f))
+  ;; Optional render node shared by all role sandboxes.
+  (render-device openclaw-render-device (default #f))
   ;; Shared by the Gateway, the engine's Podman user and sandboxes; the
   ;; engine image must be built with the same IDs.
   (uid openclaw-uid (default 2010))
@@ -90,6 +92,10 @@
 (define %secret-names '("feishu-app-secret" "new-api-token" "gateway-token"))
 
 (define (validate-config config)
+  (when (openclaw-render-device config)
+    (unless (string-match "^/dev/dri/renderD[0-9]+$"
+                          (openclaw-render-device config))
+      (error "Invalid OpenClaw render device")))
   (unless (string-match "^([A-Za-z0-9][A-Za-z0-9._:/-]*@)?sha256:[0-9a-f]{64}$"
                         (openclaw-image config))
     (error "OpenClaw declared image must be pinned by sha256 digest"))
@@ -407,7 +413,14 @@
             (cap_drop . #("ALL")) (cap_add . #("SETUID" "SETGID"))
             (security_opt . #("seccomp=/etc/openclaw/engine-seccomp.json"
                               "systempaths=unconfined"))
-            (devices . #("/dev/fuse" "/dev/net/tun"))
+            (devices . ,(list->vector
+                         (append '("/dev/fuse" "/dev/net/tun")
+                                 (if (openclaw-render-device config)
+                                     (list (openclaw-render-device config)) '()))))
+            ,@(if (openclaw-render-device config)
+                  '((environment . ((CONTAINERS_CONF_OVERRIDE
+                                     . "/etc/containers/openclaw-gpu.conf"))))
+                  '())
             ;; Shared by all sandboxes; Docker mounts cgroups read-only.
             (pids_limit . 4096) (mem_limit . "8g")
             (tmpfs . #(,(format #f "/run/user/~a:rw,nosuid,nodev,size=256m,uid=~a,gid=~a,mode=0700"
@@ -416,6 +429,9 @@
             (volumes .
              ,(list->vector
                (append
+                (if (openclaw-render-device config)
+                    (list (bind "/etc/openclaw/engine-gpu.conf"
+                                "/etc/containers/openclaw-gpu.conf" #t)) '())
                 (if (openclaw-sandbox-image config) '()
                     (list (bind "/etc/openclaw/sandbox-build"
                                 "/etc/openclaw/sandbox-build" #t)))
@@ -605,6 +621,11 @@
                        `(("openclaw/sandbox-build"
                           ,(local-file "../../../../env/docker/openclaw-sandbox"
                                        #:recursive? #t))))
+                 ,@(if (openclaw-render-device config)
+                       `(("openclaw/engine-gpu.conf"
+                          ,(plain-file "openclaw-engine-gpu.conf"
+                             (format #f "[containers]~%devices = [~s]~%"
+                                     (openclaw-render-device config))))) '())
                  ,@(if (null? (openclaw-skills config)) '()
                        `(("openclaw/skills" ,(openclaw-skills-directory config))))
                  ("openclaw/config-plugin"

@@ -1,0 +1,20 @@
+#!/bin/sh
+# The sandbox root is read-only; Chromium and Mesa need a private runtime dir.
+set -eu
+XDG_RUNTIME_DIR=/tmp/openclaw-browser-runtime-$(id -u)
+export XDG_RUNTIME_DIR
+test ! -L "$XDG_RUNTIME_DIR"
+if [ ! -d "$XDG_RUNTIME_DIR" ]; then
+  (umask 077; mkdir -p "$XDG_RUNTIME_DIR")
+fi
+test "$(stat -c %u "$XDG_RUNTIME_DIR")" = "$(id -u)"
+chmod 700 "$XDG_RUNTIME_DIR"
+# agent-browser adds this fallback automatically in headless mode.
+for arg do
+  shift
+  case "$arg" in
+    --enable-unsafe-swiftshader) ;;
+    *) set -- "$@" "$arg" ;;
+  esac
+done
+exec /usr/bin/chromium "$@"
