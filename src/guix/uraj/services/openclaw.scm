@@ -250,7 +250,7 @@
                                                    (cons (car entry)
                                                          `((alias . ,(cdr entry)))))
                                                  (openclaw-model-aliases config))))
-                             (heartbeat . ((every . "0m")))
+                             (heartbeat . ((every . "0m") (target . "none")))
                              ;; Every session runs tools in the engine; the
                              ;; Podman backend needs host paths, see
                              ;; docs/openclaw.org.
