@@ -102,6 +102,17 @@
             (sandbox-policy-secrets user "lappie")
             (agent-configuration-secrets user "lappie"))))
 
+;; Guix leaves / private, unlike systemd.  Rootless Podman copies the mount
+;; table once into a namespace it keeps while any container runs, so storie's
+;; autofs NFS mounts made later never reach agent runtimes.  Share / before
+;; Shepherd starts anything; those namespaces then receive them as slaves.
+(define %shared-root-mount-service
+  (simple-service 'shared-root-mount activation-service-type
+    (with-imported-modules '((guix build syscalls))
+      #~(begin
+          (use-modules (guix build syscalls))
+          (mount #f "/" #f (logior MS_REC MS_SHARED))))))
+
 (define lappie-os
   (operating-system
   (inherit %desktop-os)
@@ -148,7 +159,8 @@
                         (append (map cdr %vpn-connections)
                                 %agent-secrets))
                        (strongswan-services %vpn-connections)))
-           (list ; %asus-adolbook-air14-panel-replay-service
+           (list %shared-root-mount-service
+                 ; %asus-adolbook-air14-panel-replay-service
                  )))))
 
 ;; `maak build-iso' sets TO_ISO for its Guix subprocess.  Keeping the switch
