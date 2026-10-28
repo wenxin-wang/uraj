@@ -368,8 +368,7 @@ Skill 由 Gateway 加载，再由 OpenClaw 复制进沙箱（state 下的
 =.openclaw/sandbox/skills-workspaces=），所以不放在镜像里，也不经过 Home
 的 agent skill 服务。服务字段 =skills= 接受 =(NAME DIRECTORY)= 列表，
 Guix 把它们解开符号链接复制成 =/etc/openclaw/skills=，以只读方式挂进
-Gateway，并写入 =skills.load.extraDirs=。上线前 storie 暂沿用 Guix 包内 skill；
-新镜像验收后切换为 =scripts/openclaw/skills/agent-browser= 的专用说明。
+Gateway，并写入 =skills.load.extraDirs=。storie 使用 =scripts/openclaw/skills/agent-browser= 的专用说明。
 通用命令参考由镜像里的 CLI 通过
 =agent-browser skills get core= 提供。=requires.bins= 在 Gateway 侧检查，
 agent-browser 的 skill 未声明此项，Gateway 镜像无需安装它。
@@ -1022,9 +1021,10 @@ storie 上的实际热更新仍需重新部署确认。
 
 ** Profile 快照方案上线
 
-新增脚本和专用 skill 后，先构建新 tag 并运行 =try-sandbox-image=，验证两个
-任务浏览器可同时启动。将镜像导入引擎，取得 image ID 后，再同时更新 storie 的
-=sandbox-image= 和 =skills= 声明（当前声明暂保留旧 skill，避免旧镜像缺少命令）：
+镜像 =sha256:bf69eb314709f5de2106b2dcc72a2f8ef53adb4e66c1ac6160c91f06fa7ed2f7=
+已通过 storie 冒烟测试：两个任务浏览器同时运行，快照存储数据成功复制。
+storie 的 =sandbox-image= 和 =skills= 已同步更新；部署前需将镜像导入引擎。
+专用 skill 声明如下：
 
 #+begin_src scheme
 (skills
