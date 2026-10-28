@@ -590,6 +590,11 @@ sudo herd start openclaw
 若消息仅有 @、又无法读取引用内容，则会被 =skipping empty message=
 跳过。首次测试应发送 =@机器人 请回复测试成功=，不要只发送一个 @。
 初始配置采用非流式文本回复，不要求文档、云盘或 Card Kit 能力。
+回复附带图片（例如 agent-browser 截图）时，Gateway 先调用
+=/open-apis/im/v1/images= 上传，需要应用身份权限 =im:resource:upload=
+（或 =im:resource=），开通后发布应用版本。缺少时日志出现
+=99991672 Access denied ... im:resource:upload=，整条回复不会送达，用户
+只收到无可见回复的兜底提示。
 
 *** 按群切换 @要求
 
