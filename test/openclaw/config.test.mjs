@@ -258,6 +258,7 @@ test("command owners also authorize built-in commands in Feishu groups", () => {
   managed.channels = { feishu: { groupPolicy: "open" } };
   const next = withCommandOwners(managed, '["feishu:ou_test","feishu:ou_test"]');
   assert.deepEqual(next.channels.feishu.allowFrom, ["feishu:ou_test"]);
+  assert.deepEqual(next.channels.feishu.groupAllowFrom, ["feishu:ou_test"]);
   assert.equal(managed.channels.feishu.allowFrom, undefined);
   const edited = structuredClone(next);
   edited.channels.feishu.allowFrom.push("feishu:ou_other");

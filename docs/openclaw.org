@@ -530,6 +530,9 @@ sudo herd start openclaw
 文字交给模型。启动对齐配置时，命令管理员名单同时写入
 =channels.feishu.allowFrom=：管理员在群里可直接用上述命令。该字段在频道级
 不限制谁能在群里与机器人对话，私聊中只是在已批准配对之外追加。
+v2026.10.3 的 Doctor 在启动时把 =allowFrom= 复制到 =groupAllowFrom=；Guix 也声明
+这份副本，否则运行配置与受管值不一致，所有经检查的写入（含 =/persona use=）
+都会失败。=groupPolicy="open"= 不使用 =groupAllowFrom=。
 
 群主是按群动态查询的，不能写入 =allowFrom=，因此另有插件命令（群要求 @时
 同时 @机器人）：

@@ -37,9 +37,11 @@ export function withCommandOwners(base, text) {
   // Feishu authorizes group commands only from allowFrom, never from the
   // pairing store or ownerAllowFrom.  At channel level it does not restrict
   // who may talk in groups, and in direct chats it adds to approved pairings.
+  // Doctor copies allowFrom into groupAllowFrom at startup, so declare that
+  // copy too; groupPolicy "open" ignores it.
   if (next.channels?.feishu) {
     next.channels = { ...next.channels,
-      feishu: { ...next.channels.feishu, allowFrom: unique } };
+      feishu: { ...next.channels.feishu, allowFrom: unique, groupAllowFrom: unique } };
   }
   return next;
 }
