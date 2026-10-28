@@ -350,11 +350,12 @@
     (engine-image
      "sha256:e4a6f63d8faab21dfe3d04cf55a8856192125dd17b52ab60ca644feeb7f801cc")
     (sandbox-image
-     "sha256:d817fa34058d7cab915f53719c9a4f22f17256624150670025c1babbeb494e04")
-    ;; The sandbox image carries the matching agent-browser CLI.
+     "sha256:bf69eb314709f5de2106b2dcc72a2f8ef53adb4e66c1ac6160c91f06fa7ed2f7")
+    ;; Role login snapshots and independent task profiles in the sandbox.
     (skills
      `(("agent-browser"
-        ,(file-append agent-browser "/share/agent-browser/skills/agent-browser"))))
+        ,(local-file (project-path "scripts/openclaw/skills/agent-browser")
+                     #:recursive? #t))))
     (secrets-file
      (local-file (project-path "secrets/hosts/storie/openclaw.yaml")))
     (identity-file

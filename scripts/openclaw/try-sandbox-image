@@ -31,15 +31,24 @@ head -n 3 /tmp/core.md
 '
 
 run '
-ab() { agent-browser "$@"; }
+browser-profile login https://example.com
+browser-profile identity eval "localStorage.setItem(\"profile-smoke\", \"persisted\")"
+browser-profile publish
+first=$(browser-profile create | jq -r .task)
+second=$(browser-profile create | jq -r .task)
+ab() { browser-profile run "$first" "$@"; }
+browser-profile run "$second" open about:blank
 ab open https://example.com
 ab get title
+ab eval "localStorage.getItem(\"profile-smoke\")" > /tmp/profile-value
+grep -q persisted /tmp/profile-value
 ab eval "navigator.userAgent"
 ab eval "navigator.webdriver"
 ab eval "(() => { const gl = document.createElement(\"canvas\").getContext(\"webgl\");
   const ext = gl && gl.getExtension(\"WEBGL_debug_renderer_info\");
   return ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : String(gl); })()"
-ab close
-test -d /workspace/.agent-browser/profile && echo "profile persisted"
+browser-profile finish "$first"
+browser-profile finish "$second"
+test -d /workspace/.agent-browser/current && echo "snapshot persisted"
 '
 echo "done; remove $workspace when finished"
