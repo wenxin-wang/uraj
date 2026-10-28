@@ -78,6 +78,19 @@
     (sha256
      (base32 "0j66nq1bxvbxf5n8q2py14sjbkn57my0mjwq7k1qm9ddghca7177"))))
 
+;;; rootless-podman-service-type only runs `mount --make-shared /' after
+;;; user-processes, leaving file systems and autofs maps mounted earlier
+;;; private.  autofs refuses to trigger from a foreign private mount, and
+;;; namespaces copied from one never see later mounts, so sandboxes and
+;;; rootless Podman miss shares mounted on demand.  Share every mount before
+;;; Shepherd starts anything, as systemd does; later mounts inherit it.
+(define %shared-mounts-service
+  (simple-service 'shared-mounts activation-service-type
+    (with-imported-modules '((guix build syscalls))
+      #~(begin
+          (use-modules (guix build syscalls))
+          (mount #f "/" #f (logior MS_REC MS_SHARED))))))
+
 (define %tmp-file-system
   (file-system
     (mount-point "/tmp")
@@ -166,6 +179,7 @@ MAIN-USER and the deployment account log in with SSH-KEY."
                    (podman #f)
                    (subuids (list (subid-range (name user-name))))
                    (subgids (list (subid-range (name user-name))))))
+         %shared-mounts-service
 
          (simple-service
           'guix-crate-mirrors etc-service-type

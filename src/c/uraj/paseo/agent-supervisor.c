@@ -82,8 +82,10 @@ static void exit_with_workload_status(int status) {
 }
 static void run_namespace_init(char** command, int result) {
   if (unshare(CLONE_NEWNS)) exit_with_error("unshare mounts");
-  if (mount(NULL, "/", NULL, MS_REC | MS_PRIVATE, NULL))
-    exit_with_error("private mounts");
+  /* Slave, not private: autofs refuses to trigger from a foreign private
+   * mount, so agents could not reach NFS shares mounted on demand. */
+  if (mount(NULL, "/", NULL, MS_REC | MS_SLAVE, NULL))
+    exit_with_error("slave mounts");
   if (mount("proc", "/proc", "proc", MS_NOSUID | MS_NODEV | MS_NOEXEC, NULL))
     exit_with_error("mount proc");
   install_signal_handlers();
