@@ -23,6 +23,9 @@ RUN curl -fsSLo /tmp/podman-remote.tar.gz \
     && install -m 0755 /tmp/bin/podman-remote-static-linux_amd64 /usr/local/bin/podman \
     && rm -rf /tmp/podman-remote.tar.gz /tmp/bin
 
+COPY feishu-topic-chat.mjs /tmp/feishu-topic-chat.mjs
+RUN node /tmp/feishu-topic-chat.mjs /app/dist && rm /tmp/feishu-topic-chat.mjs
+
 USER 1000:1000
 WORKDIR /app/dist
 RUN node --input-type=module -e 'await import("@larksuiteoapi/node-sdk")' \
