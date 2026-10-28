@@ -332,6 +332,41 @@ SYS_ADMIN。调试中确认的约束：
   同网桥流量不经 restricted-network 的转发过滤。因此引擎必须接独立的
   =sandboxed-agents= 网络。
 
+* 沙箱里的浏览器
+
+沙箱镜像 =env/docker/openclaw-sandbox= 带 agent-browser、Debian 的
+Chromium、Xvfb 和中日韩及 emoji 字体。命令和浏览器在同一个沙箱
+容器里运行；不使用 OpenClaw 内置的 =browser= 工具，上游 Podman 后端也
+不支持内置浏览器沙箱。
+
+浏览器默认以 headed 模式运行：没有 =DISPLAY= 时，agent-browser 自动
+启动私有 Xvfb，避免无头 Chrome 的 =HeadlessChrome= UA 等特征。
+headed 模式下 agent-browser 不加以下两个参数，镜像经 =AGENT_BROWSER_ARGS=
+补上：=--disable-blink-features=AutomationControlled= 隐藏远程调试导致的
+=navigator.webdriver=true=；=--enable-unsafe-swiftshader= 让没有 GPU 时仍有
+WebGL，否则 WebGL 为 null。CLI 按二进制的 =../skills=、=../skill-data= 查找
+=skills get= 的正文，镜像从同版本源码包安装这两个目录到 =/opt/agent-browser=。
+登录状态按 agent 角色区分：每个 agent 有自己的沙箱和 workspace，profile
+在 workspace 的 =.agent-browser/profile=，私人角色和共享角色互不沿用登录。
+同一角色的各群、各话题共用这个 profile 和同一个浏览器守护进程；多个话题
+同时操作浏览器时会共用标签页状态，可能互相干扰。
+agent-browser 的默认空闲超时不关闭 headed 浏览器，镜像显式设为 30 分钟，
+空闲的守护进程和 Chromium 会退出，profile 保留。需要扫码登录时，先用
+agent-browser 截图交给用户，暂不加 VNC；回复能否附带截图尚未验证。
+没有 GPU 时 WebGL 走软件渲染。镜像已带 Mesa 和 cage，用于后续验证
+共用 Intel render node：Xvfb 无法使用硬件加速，需改用无头 Wayland
+合成器；trixie 的 Mesa 也比 bookworm 新。
+
+Skill 由 Gateway 加载，再由 OpenClaw 复制进沙箱（state 下的
+=.openclaw/sandbox/skills-workspaces=），所以不放在镜像里，也不经过 Home
+的 agent skill 服务。服务字段 =skills= 接受 =(NAME DIRECTORY)= 列表，
+Guix 把它们解开符号链接复制成 =/etc/openclaw/skills=，以只读方式挂进
+Gateway，并写入 =skills.load.extraDirs=。storie 直接取 Guix =agent-browser=
+包内的 skill；测试检查 Dockerfile 的 =AGENT_BROWSER_VERSION= 与包版本
+一致。该 skill 只是入口，正文由镜像里的 CLI 通过
+=agent-browser skills get core= 提供。=requires.bins= 在 Gateway 侧检查，
+agent-browser 的 skill 未声明此项，Gateway 镜像无需安装它。
+
 * 图片生成接入
 
 聊天模型与图片模型是两项配置。单独把 Luna 切换成 Sol 或 Astra，
@@ -438,17 +473,22 @@ sudo docker image inspect --format '{{.Id}}' localhost/openclaw-gateway:2026.10.
 ** 沙箱引擎与沙箱镜像
 
 两个镜像都以 UID/GID 2010 构建，须与 =openclaw-configuration= 的 =uid=、
-=gid= 一致。引擎基于固定 digest 的 =quay.io/podman/stable:v5.8.9=；沙箱基于
-上游 sandbox Dockerfile 的固定 =debian:bookworm-slim=，加少量常用工具，
-=HOME= 为可写的 =/tmp=。
+=gid= 一致。引擎基于固定 digest 的 =quay.io/podman/stable:v5.8.9=；沙箱参照
+上游 sandbox Dockerfile，改用固定的 =debian:trixie-slim=，加少量常用工具和
+浏览器（见“沙箱里的浏览器”），=HOME= 为可写的 =/tmp=。Debian 包未锁版本，
+浏览器用 Debian 的 =chromium=：storie 连不上 Google 的下载站，Debian 软件源
+可用，trixie 也持续跟进 Chromium 安全更新。与官方 Chrome 相比，UA 相同，但
+Client Hints 报告的品牌是 Chromium；少数风控严格的网站可能区别对待。构建
+结果不可复现，以 image ID 记录产物，冒烟测试打印的 UA 含浏览器版本。Docker
+会缓存安装层，升级时用 =docker build --no-cache= 重新构建。
 
 #+begin_src sh
 sudo docker build --network=host -t localhost/openclaw-sandbox-engine:5.8.9-1 \
   env/docker/openclaw-sandbox-engine
-sudo docker build --network=host -t localhost/openclaw-sandbox:bookworm-1 \
+sudo docker build --network=host -t localhost/openclaw-sandbox:trixie-1 \
   env/docker/openclaw-sandbox
 sudo docker image inspect --format '{{.Id}}' localhost/openclaw-sandbox-engine:5.8.9-1
-sudo docker image inspect --format '{{.Id}}' localhost/openclaw-sandbox:bookworm-1
+sudo docker image inspect --format '{{.Id}}' localhost/openclaw-sandbox:trixie-1
 #+end_src
 
 引擎的 seccomp profile 由镜像自带的 =/usr/share/containers/seccomp.json=
@@ -468,10 +508,19 @@ git diff env/docker/openclaw-sandbox-engine/seccomp.json
 
 #+begin_src sh
 sudo /etc/openclaw/compose up -d --wait engine
-sudo docker save localhost/openclaw-sandbox:bookworm-1 \
+sudo docker save localhost/openclaw-sandbox:trixie-1 \
   | sudo /etc/openclaw/compose exec -T engine podman load
 sudo /etc/openclaw/compose exec -T engine podman image ls
 sudo herd start openclaw
+#+end_src
+
+导入引擎前可先冒烟测试沙箱镜像。脚本以去掉全部 capability、只读根和
+tmpfs 运行它，接入 =sandboxed-agents=，检查文件桥接工具、CLI 版本和内置
+skill，再用 headed Chrome 打开 =https://example.com=，打印 UA、
+=navigator.webdriver= 和 WebGL renderer：
+
+#+begin_src sh
+scripts/openclaw/try-sandbox-image localhost/openclaw-sandbox:trixie-1
 #+end_src
 
 更换沙箱镜像或挂载后，需要重建旧沙箱。若在线 CLI 提示需要独占离线
@@ -541,6 +590,11 @@ sudo herd start openclaw
 若消息仅有 @、又无法读取引用内容，则会被 =skipping empty message=
 跳过。首次测试应发送 =@机器人 请回复测试成功=，不要只发送一个 @。
 初始配置采用非流式文本回复，不要求文档、云盘或 Card Kit 能力。
+回复附带图片（例如 agent-browser 截图）时，Gateway 先调用
+=/open-apis/im/v1/images= 上传，需要应用身份权限 =im:resource:upload=
+（或 =im:resource=），开通后发布应用版本。缺少时日志出现
+=99991672 Access denied ... im:resource:upload=，整条回复不会送达，用户
+只收到无可见回复的兜底提示。
 
 *** 按群切换 @要求
 
