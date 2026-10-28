@@ -234,7 +234,9 @@ export class Personas {
   }
   async inbound(event, ctx) {
     if (ctx.channelId !== "feishu" || ctx.accountId !== "main") return;
-    if (/^\/persona(?:\s|$)/i.test(event.content?.trim() ?? "")) return;
+    // Group management commands authorize themselves and never reach a model,
+    // so they keep working while a private role is paused.
+    if (/^\/(?:persona|mention|groupmodel)(?:\s|$)/i.test(event.content?.trim() ?? "")) return;
     const sender = senderId(event.senderId ?? ctx.senderId);
     const chat = event.isGroup ? groupId(ctx.parentConversationId ?? event.parentConversationId) ??
       groupId(ctx.conversationId ?? event.conversationId) ?? sessionGroup(ctx.sessionKey) : undefined;

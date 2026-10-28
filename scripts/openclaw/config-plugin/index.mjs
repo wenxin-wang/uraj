@@ -72,7 +72,16 @@ export default {
       return reply;
     };
     api.registerCommand(mention);
-    api.registerCommand(createGroupModelCommand(runChecker));
+    // Like /mention, its replies must pass the paused-group reply filter.
+    const groupModel = createGroupModelCommand(runChecker);
+    const groupModelHandler = groupModel.handler;
+    groupModel.handler = async (ctx) => {
+      const reply = await groupModelHandler(ctx);
+      const chat = /^chat:(oc_[a-zA-Z0-9]+)$/.exec(ctx.to ?? "")?.[1];
+      personas.allowControlReply(chat, reply.text);
+      return reply;
+    };
+    api.registerCommand(groupModel);
     const configTool = createConfigSetTool();
     api.registerTool(configTool);
     const identities = new AgentIdentityProxy({

@@ -543,6 +543,13 @@ sudo herd start openclaw
 查询失败不修改。它经 =config.mjs session-model= 调用 Gateway 的
 =sessions.patch=，与 =/model … -s= 校验相同、写入相同的会话覆盖，只作用于
 当前话题会话（无话题时为群级会话），不改默认模型或其他话题。
+私人角色因成员检查暂停时，=/persona=、=/mention=、=/groupmodel= 仍可用，
+其他消息都只回复暂停提示。
+
+v2026.10.3 把飞书富文本（post）消息转成 Markdown 时会转义 =-=：话题群里
+新开话题的首条消息若是 =/astra-6=，Gateway 收到 =/astra\-6=，不被识别为
+命令，交给模型处理。请在话题内以回复的形式发送别名命令，或使用
+=/model astra-6=。
 
 已核对 v2026.10.3 的 Slack 插件：它为带 choices 的原生命令提供通用
 交互参数菜单，但 =/model= 注册的是自由文本参数，没有 choices 或

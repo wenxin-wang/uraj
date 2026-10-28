@@ -304,3 +304,13 @@ test("prebound private DM answers immediately and retains a delivery-confirmed p
   assert.equal(await service.sending(event, ctx), undefined);
   assert.equal((await new PersonaStore(directory).read()).dmNotices["ou_alice:main"].announced, true);
 });
+
+test("group management commands bypass a paused private role", async (t) => {
+  const { service, state } = await setup(t);
+  await service.store.transact(async (s) => { s.groups.oc_group = { role: "main", paused: true, revision: 1, announced: true }; });
+  state.alone = false;
+  assert.equal((await service.inbound({ ...groupEvent, content: "hi" }, groupCtx("main"))).handled, true);
+  for (const content of ["/groupmodel astra-6", "/mention status", "/persona"]) {
+    assert.equal(await service.inbound({ ...groupEvent, content }, groupCtx("main")), undefined);
+  }
+});
