@@ -17,7 +17,9 @@ export function createGroupModelCommand(run, ownerOf = readGroupOwner) {
           typeof ctx.agentId !== "string") {
         return { text: "请在飞书 main 机器人的群聊中使用此命令。" };
       }
-      const model = ctx.args?.trim() ?? "";
+      // Feishu post messages, such as a new topic's first message, arrive as
+      // Markdown with "-" escaped; the checker validates the result.
+      const model = ctx.args?.trim().replace(/\\([-._/])/g, "$1") ?? "";
       if (!model || /\s/.test(model)) {
         return { text: "用法：/groupmodel 别名（如 astra-6）或 provider/model；/groupmodel default 恢复默认。" };
       }

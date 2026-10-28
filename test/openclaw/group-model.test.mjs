@@ -17,13 +17,15 @@ test("group owner and command owners switch only the current session", async () 
     async () => { lookups++; return "ou_owner"; });
   assert.equal(command.requireAuth, false);
   assert.match((await command.handler(context)).text, /astra-6/);
+  await command.handler({ ...context, args: "astra\\-6" });
   await command.handler({ ...context, from: "feishu:ou_admin", args: "default",
     config: { commands: { ownerAllowFrom: ["feishu:ou_admin"] } } });
   assert.deepEqual(calls, [
     ["session-model", key, "household-shared", "astra-6"],
+    ["session-model", key, "household-shared", "astra-6"],
     ["session-model", key, "household-shared", "default"],
   ]);
-  assert.equal(lookups, 1);
+  assert.equal(lookups, 2);
 });
 
 test("others, lookup failures and bad context cannot switch", async () => {
