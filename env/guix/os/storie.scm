@@ -374,7 +374,7 @@
     (providers
      (list
       (openclaw-provider
-        (name "new-api-gpt") (api "openai-responses")
+        (name "new-api-gpt") (api "openai-responses") (prompt-cache-key? #t)
         (reasoning-models '("gpt-6-astra"
                             "gpt-6.1-sol"
                             "gpt-6-sol"
