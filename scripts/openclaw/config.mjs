@@ -32,8 +32,28 @@ export function withCommandOwners(base, text) {
     typeof id !== "string" || !/^feishu:ou_[a-zA-Z0-9]+$/.test(id))) {
     throw new Error("Command owners must be explicit Feishu open IDs");
   }
-  return { ...base, commands: { ...base.commands,
-    ownerAllowFrom: [...new Set(owners)] } };
+  const unique = [...new Set(owners)];
+  const next = { ...base, commands: { ...base.commands, ownerAllowFrom: unique } };
+  // Feishu authorizes group commands only from allowFrom, never from the
+  // pairing store or ownerAllowFrom.  At channel level it does not restrict
+  // who may talk in groups, and in direct chats it adds to approved pairings.
+  if (next.channels?.feishu) {
+    next.channels = { ...next.channels,
+      feishu: { ...next.channels.feishu, allowFrom: unique } };
+  }
+  return next;
+}
+
+// Same validation and storage as `/model X -s`, for one Feishu group session.
+export function sessionModelParams(key, agentId, model) {
+  if (!/^agent:[a-z0-9][a-z0-9_-]*:feishu:group:oc_[A-Za-z0-9]+(:topic:[A-Za-z0-9_]+)?$/.test(key) ||
+      key.split(":")[1] !== agentId) {
+    throw new Error("Only the current Feishu group session can be changed");
+  }
+  if (model !== "default" && !/^[A-Za-z0-9][A-Za-z0-9._-]*(\/[A-Za-z0-9][A-Za-z0-9._-]*)?$/.test(model)) {
+    throw new Error("Invalid model alias or reference");
+  }
+  return { key, agentId, model: model === "default" ? null : model };
 }
 
 function parse(text) {
@@ -158,7 +178,13 @@ async function main(args) {
     console.log("Configuration satisfies Guix policy.");
     return;
   }
-  if (args.shift() !== "set") throw new Error("Use check, reconcile, or set");
+  if (args.length === 4 && args[0] === "session-model") {
+    const result = rpc("sessions.patch", sessionModelParams(args[1], args[2], args[3]));
+    if (result?.ok === false) throw new Error("Gateway did not confirm the change");
+    console.log("Session model changed.");
+    return;
+  }
+  if (args.shift() !== "set") throw new Error("Use check, reconcile, set or session-model");
   await checkedSet(args, {
     base,
     snapshot: async () => {

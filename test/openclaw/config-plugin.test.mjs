@@ -25,7 +25,7 @@ test("registers the declared tool and config proxy service", () => {
   const hooks = [];
   plugin.register({
     registerCommand(command) {
-      assert.ok(["mention", "persona"].includes(command.name));
+      assert.ok(["mention", "persona", "groupmodel"].includes(command.name));
       assert.equal(command.requireAuth, false);
     },
     registerService(service) { assert.ok(["uraj-personas", "uraj-config-proxy"].includes(service.id)); },

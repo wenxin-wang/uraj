@@ -4,6 +4,7 @@
 import { AgentIdentityProxy } from "./agent-identity-proxy.mjs";
 import { createConfigCommand, createConfigProxyService } from "./config-proxy.mjs";
 import { execFile } from "node:child_process";
+import { createGroupModelCommand } from "./group-model.mjs";
 import { createMentionCommand } from "./mention.mjs";
 import { registerPersonas } from "./persona-runtime.mjs";
 
@@ -71,6 +72,7 @@ export default {
       return reply;
     };
     api.registerCommand(mention);
+    api.registerCommand(createGroupModelCommand(runChecker));
     const configTool = createConfigSetTool();
     api.registerTool(configTool);
     const identities = new AgentIdentityProxy({

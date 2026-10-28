@@ -252,3 +252,15 @@ test("Doctor system-agent pin and model normalization permit later persona bindi
   changed.agents.defaults.systemAgent.agentId = "household-shared";
   assert.throws(() => validatePolicy(changed, managed), /Guix manages agent defaults/);
 });
+
+test("command owners also authorize built-in commands in Feishu groups", () => {
+  const managed = structuredClone(base);
+  managed.channels = { feishu: { groupPolicy: "open" } };
+  const next = withCommandOwners(managed, '["feishu:ou_test","feishu:ou_test"]');
+  assert.deepEqual(next.channels.feishu.allowFrom, ["feishu:ou_test"]);
+  assert.equal(managed.channels.feishu.allowFrom, undefined);
+  const edited = structuredClone(next);
+  edited.channels.feishu.allowFrom.push("feishu:ou_other");
+  assert.throws(() => validatePolicy(edited, next));
+  assert.deepEqual(reconcile(edited, next).channels.feishu.allowFrom, ["feishu:ou_test"]);
+});

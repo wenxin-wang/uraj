@@ -524,6 +524,26 @@ sudo herd start openclaw
 
 =gpt-reserve= 没有版本号，暂不配置版本别名，仍可使用完整引用切换。
 
+群聊中，飞书插件只按 =channels.feishu.allowFrom= 授权内置命令，不看配对
+记录或 =commands.ownerAllowFrom=；未授权时 =/model=、=/astra-6= 被当作普通
+文字交给模型。启动对齐配置时，命令管理员名单同时写入
+=channels.feishu.allowFrom=：管理员在群里可直接用上述命令。该字段在频道级
+不限制谁能在群里与机器人对话，私聊中只是在已批准配对之外追加。
+
+群主是按群动态查询的，不能写入 =allowFrom=，因此另有插件命令（群要求 @时
+同时 @机器人）：
+
+#+begin_example
+/groupmodel astra-6
+/groupmodel new-api-claude/claude-opus-5-5
+/groupmodel default
+#+end_example
+
+命令管理员直接执行；其他发送者按 =/mention= 的方式查询当前群主并比对，
+查询失败不修改。它经 =config.mjs session-model= 调用 Gateway 的
+=sessions.patch=，与 =/model … -s= 校验相同、写入相同的会话覆盖，只作用于
+当前话题会话（无话题时为群级会话），不改默认模型或其他话题。
+
 已核对 v2026.10.3 的 Slack 插件：它为带 choices 的原生命令提供通用
 交互参数菜单，但 =/model= 注册的是自由文本参数，没有 choices 或
 专用模型菜单。Discord、Telegram 的专用选择器不能据此推定 Slack
