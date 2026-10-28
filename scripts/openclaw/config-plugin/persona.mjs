@@ -227,8 +227,10 @@ export class Personas {
     if (group?.paused || (group?.role ?? SHARED) !== role.id) return false;
     if (role.visibility !== "private") return true;
     if (sender && sender !== role.owner) return false;
-    let alone = false;
-    try { alone = await this.feishu.alone(chat, role.owner); } catch { /* Fail closed. */ }
+    let alone;
+    // A failed lookup refuses this message or reply but does not pause: only
+    // confirmed membership changes need the owner to resume by hand.
+    try { alone = await this.feishu.alone(chat, role.owner); } catch { return false; }
     if (!alone) { await this.pause(chat).catch(() => {}); return false; }
     return true;
   }

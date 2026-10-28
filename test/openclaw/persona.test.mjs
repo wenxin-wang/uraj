@@ -21,7 +21,10 @@ async function setup(t) {
     feishu: {
       owner: async () => state.owner,
       alone: async () => { if (state.fail) throw new Error("offline"); return state.alone; },
-      notify: async (...args) => { if (state.fail) throw new Error("offline"); calls.notify.push(args); },
+      notify: async (...args) => {
+        if (state.fail || state.notifyFail) throw new Error("offline");
+        calls.notify.push(args);
+      },
     },
   });
   await service.store.transact((s) => service.bootstrap(s));
@@ -121,13 +124,26 @@ test("private group switch checks owner and membership; join suspends and leave 
   assert.equal((await service.store.read()).groups.oc_group.paused, false);
 });
 
-test("failed membership lookup pauses and pending notice is retried", async (t) => {
+test("failed membership lookup refuses without pausing", async (t) => {
   const { service, state, calls } = await setup(t);
   await service.command({ sender: "ou_alice", chat: "oc_group", args: "use main" });
   state.fail = true;
   await service.poll();
-  assert.equal((await service.store.read()).groups.oc_group.noticePending, true);
+  assert.equal((await service.store.read()).groups.oc_group.paused, false);
+  assert.equal((await service.inbound(groupEvent, groupCtx("main"))).handled, true);
   state.fail = false;
+  assert.equal(await service.inbound(groupEvent, groupCtx("main")), undefined);
+  assert.equal(calls.notify.length, 0);
+});
+
+test("confirmed membership change pauses and pending notice is retried", async (t) => {
+  const { service, state, calls } = await setup(t);
+  await service.command({ sender: "ou_alice", chat: "oc_group", args: "use main" });
+  state.alone = false;
+  state.notifyFail = true;
+  await service.poll();
+  assert.equal((await service.store.read()).groups.oc_group.noticePending, true);
+  state.notifyFail = false;
   await service.poll();
   assert.equal(calls.notify.length, 1);
   assert.equal((await service.store.read()).groups.oc_group.paused, true);

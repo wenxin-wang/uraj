@@ -5,7 +5,7 @@ export function createFeishuApi({ read = readFile, request = fetch } = {}) {
   let cached;
   async function http(resource, options = {}) {
     const response = await request(`https://open.feishu.cn/open-apis/${resource}`, {
-      ...options, redirect: "error", signal: AbortSignal.timeout(5000),
+      ...options, redirect: "error", signal: AbortSignal.timeout(10000),
     });
     if (!response.ok) throw new Error("Feishu HTTP request failed");
     const body = await response.json();
