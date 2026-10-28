@@ -18,7 +18,7 @@
 =mode="full"=，混用旧模板会导致不变量检查报差异。
 
 =env/guix/os/storie.scm= 已声明 OpenClaw，包含固定 image ID、飞书
-GPT/Claude 两组 provider，默认模型为 =new-api-gpt/gpt-6-luna=。
+GPT/Claude 两组 provider，默认模型为 =new-api-gpt/gpt-6-astra=（=/astra-6=）。
 飞书 App ID、命令管理员名单和三个凭据均以 SOPS 密文保存。
 DeepSeek 尚未配置。Live ISO 不声明 OpenClaw。
 
