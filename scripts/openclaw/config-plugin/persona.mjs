@@ -227,14 +227,18 @@ export class Personas {
     if (group?.paused || (group?.role ?? SHARED) !== role.id) return false;
     if (role.visibility !== "private") return true;
     if (sender && sender !== role.owner) return false;
-    let alone = false;
-    try { alone = await this.feishu.alone(chat, role.owner); } catch { /* Fail closed. */ }
+    let alone;
+    // A failed lookup refuses this message or reply but does not pause: only
+    // confirmed membership changes need the owner to resume by hand.
+    try { alone = await this.feishu.alone(chat, role.owner); } catch { return false; }
     if (!alone) { await this.pause(chat).catch(() => {}); return false; }
     return true;
   }
   async inbound(event, ctx) {
     if (ctx.channelId !== "feishu" || ctx.accountId !== "main") return;
-    if (/^\/persona(?:\s|$)/i.test(event.content?.trim() ?? "")) return;
+    // Group management commands authorize themselves and never reach a model,
+    // so they keep working while a private role is paused.
+    if (/^\/(?:persona|mention|groupmodel)(?:\s|$)/i.test(event.content?.trim() ?? "")) return;
     const sender = senderId(event.senderId ?? ctx.senderId);
     const chat = event.isGroup ? groupId(ctx.parentConversationId ?? event.parentConversationId) ??
       groupId(ctx.conversationId ?? event.conversationId) ?? sessionGroup(ctx.sessionKey) : undefined;
