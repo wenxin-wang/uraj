@@ -32,6 +32,18 @@ export async function readGroupOwner(id, { read = readFile, request = fetch } = 
   return owner;
 }
 
+function isCommandOwner(config, sender) {
+  const owners = config.commands?.ownerAllowFrom;
+  return Array.isArray(owners) && owners.some((entry) =>
+    typeof entry === "string" && [sender, `feishu:${sender}`].includes(entry.trim()));
+}
+
+// Explicit command owners act without a lookup; anyone else must be the
+// group's current owner.  Lookup failures throw, so callers fail closed.
+export async function mayManageGroup(config, chat, sender, ownerOf = readGroupOwner) {
+  return isCommandOwner(config, sender) || await ownerOf(chat) === sender;
+}
+
 export function createMentionCommand(run, ownerOf = readGroupOwner) {
   return {
     name: "mention",
@@ -62,17 +74,12 @@ export function createMentionCommand(run, ownerOf = readGroupOwner) {
       }
       const sender = /^feishu:(ou_[a-zA-Z0-9]+)$/.exec(ctx.from ?? "")?.[1];
       if (!sender) return { text: "无法确认发送者身份，未修改。" };
-      const owners = ctx.config.commands?.ownerAllowFrom;
-      const admin = Array.isArray(owners) && owners.some((entry) =>
-        typeof entry === "string" && [sender, `feishu:${sender}`].includes(entry.trim()));
-      if (!admin) {
-        try {
-          if (await ownerOf(id) !== sender) {
-            return { text: "只有当前飞书群主或 OpenClaw 命令管理员可以修改本群设置。" };
-          }
-        } catch {
-          return { text: "无法查询群主，未修改。请检查飞书获取群信息权限（im:chat:read）及网络后重试，或请 OpenClaw 命令管理员操作。" };
+      try {
+        if (!await mayManageGroup(ctx.config, id, sender, ownerOf)) {
+          return { text: "只有当前飞书群主或 OpenClaw 命令管理员可以修改本群设置。" };
         }
+      } catch {
+        return { text: "无法查询群主，未修改。请检查飞书获取群信息权限（im:chat:read）及网络后重试，或请 OpenClaw 命令管理员操作。" };
       }
       // Account-local settings would shadow the channel-level override.
       const account = ctx.config.channels?.feishu?.accounts?.main;
