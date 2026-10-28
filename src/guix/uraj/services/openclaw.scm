@@ -34,7 +34,10 @@
   (models openclaw-provider-models)
   ;; Explicit capabilities for custom models absent from the built-in catalog.
   ;; Responses uses developer instructions for reasoning models.
-  (reasoning-models openclaw-provider-reasoning-models (default '())))
+  (reasoning-models openclaw-provider-reasoning-models (default '()))
+  ;; OpenAI-compatible routes omit prompt_cache_key unless declared; without
+  ;; it the Codex upstream behind new-api rarely reuses the prompt cache.
+  (prompt-cache-key? openclaw-provider-prompt-cache-key? (default #f)))
 
 (define (provider-url provider)
   (or (openclaw-provider-base-url provider)
@@ -212,7 +215,9 @@
                              (append `((id . ,model) (name . ,model))
                                      (if (member model
                                                  (openclaw-provider-reasoning-models provider))
-                                         '((reasoning . #t)) '())))
+                                         '((reasoning . #t)) '())
+                                     (if (openclaw-provider-prompt-cache-key? provider)
+                                         '((compat . ((supportsPromptCacheKey . #t)))) '())))
                            (delete-duplicates (openclaw-provider-models provider))))))))
 
 ;;; The Gateway container has no store: copy the skills, following links.
@@ -297,6 +302,7 @@
       (bindings . #(((agentId . "household-shared")
                      (match . ((channel . "feishu") (accountId . "main"))))))
       (tools . ((allow . #("read" "write" "edit" "apply_patch" "exec" "process"
+                           "view_image" "web_fetch" "memory_search" "memory_get"
                            "openclaw_config_set"))
                 (fs . ((workspaceOnly . #t)))
                 ;; No fallback to the Gateway, which holds the credentials.
@@ -304,8 +310,10 @@
                          (applyPatch . ((enabled . #t)
                                        (workspaceOnly . #t)))))
                 (elevated . ((enabled . #f)))
-                ;; The checked configuration tool runs in the Gateway.
-                (sandbox . ((tools . ((alsoAllow . #("openclaw_config_set"))))))))
+                ;; These run in the Gateway and are absent from the default
+                ;; sandbox allow list; web_fetch keeps its private-address guard.
+                (sandbox . ((tools . ((alsoAllow . #("openclaw_config_set" "web_fetch"
+                                                     "memory_search" "memory_get"))))))))
       ,@(if (null? (openclaw-skills config)) '()
             '((skills . ((load . ((extraDirs . #("/etc/openclaw/skills"))))))))
       (browser . ((enabled . #f)))
