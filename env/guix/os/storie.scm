@@ -359,7 +359,7 @@
      (local-file (project-path "secrets/hosts/storie/openclaw.yaml")))
     (identity-file
      (local-file (project-path "secrets/hosts/storie/openclaw-identities.yaml")))
-    (model "new-api-gpt/gpt-6-luna")
+    (model "new-api-gpt/gpt-6-astra")
     (model-aliases
      '(("new-api-gpt/gpt-6-astra" . "astra-6")
        ("new-api-gpt/gpt-6.1-sol" . "sol-6-1")
