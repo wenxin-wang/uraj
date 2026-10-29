@@ -168,6 +168,25 @@ test("wrong DM identity, unknown roles and missing private run identity block be
   assert.equal((await service.beforeRun({}, { agentId: "unknown" })).outcome, "block");
 });
 
+test("private runs without a sender act for the session's own peer only", async (t) => {
+  const { service, state } = await setup(t);
+  const dm = (peer) => ({ agentId: "main", runId: "wake",
+    sessionKey: `agent:main:feishu:direct:${peer}` });
+  assert.equal(await service.beforeRun({}, dm("ou_alice")), undefined);
+  assert.equal((await service.beforeRun({}, dm("ou_bob"))).outcome, "block");
+  assert.equal((await service.beforeRun({}, { agentId: "main", runId: "wake" })).outcome, "block");
+  assert.equal((await service.beforeRun({}, { ...dm("ou_alice"), runId: undefined })).outcome,
+    "block");
+  await service.command({ sender: "ou_alice", chat: "oc_group", args: "use main" });
+  const ctx = { ...groupCtx("main"), senderId: undefined, runId: "wake" };
+  assert.equal(await service.beforeRun({}, ctx), undefined);
+  const event = { channel: "feishu", kind: "final", runId: "wake", payload: { text: "后台结果" },
+    sessionKey: ctx.sessionKey, usageState: { agentId: "main" } };
+  assert.equal(await service.sending(event, ctx), undefined);
+  state.alone = false;
+  assert.equal((await service.beforeRun({}, { ...ctx, runId: "later" })).outcome, "block");
+});
+
 test("registry serializes concurrent edits, persists restart state and never resets corrupt data", async (t) => {
   const { service, directory } = await setup(t);
   await Promise.all(Array.from({ length: 8 }, (_, i) => service.store.transact(async (s) => {
