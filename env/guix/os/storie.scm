@@ -344,7 +344,7 @@
 
 (define %openclaw-configuration
   (openclaw-configuration
-    (image "sha256:cf70e2d4fdaa425c5d4e82c1be46a706192ea6bac9ac3f0747bc4650af4e7092")
+    (image "sha256:fe0c4446515424f7c8e51c544fafe5892281bb5bbbdbdc4a28dbe2f361e2933b")
     (image-repository "localhost/openclaw-gateway")
     ;; Engine built manually; sandbox builds at service start. See docs/openclaw.org.
     (engine-image
