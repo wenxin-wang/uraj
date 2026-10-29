@@ -346,11 +346,9 @@
   (openclaw-configuration
     (image "sha256:cf70e2d4fdaa425c5d4e82c1be46a706192ea6bac9ac3f0747bc4650af4e7092")
     (image-repository "localhost/openclaw-gateway")
-    ;; Built from env/docker/openclaw-{engine,sandbox}; see docs/openclaw.org.
+    ;; Engine built manually; sandbox builds at service start. See docs/openclaw.org.
     (engine-image
      "sha256:e4a6f63d8faab21dfe3d04cf55a8856192125dd17b52ab60ca644feeb7f801cc")
-    (sandbox-image
-     "sha256:bf69eb314709f5de2106b2dcc72a2f8ef53adb4e66c1ac6160c91f06fa7ed2f7")
     ;; Role login snapshots and independent task profiles in the sandbox.
     (skills
      `(("agent-browser"

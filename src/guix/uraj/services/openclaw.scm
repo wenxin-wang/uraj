@@ -5,6 +5,7 @@
   #:use-module (gnu packages acl)
   #:use-module (gnu packages admin)
   #:use-module (gnu packages base)
+  #:use-module (gnu packages bash)
   #:use-module (gnu packages guile)
   #:use-module (gnu services)
   #:use-module (gnu services shepherd)
@@ -57,9 +58,9 @@
   (providers openclaw-providers)
   ;; Alist of declared provider/model references to slash-command aliases.
   (model-aliases openclaw-model-aliases (default '()))
-  ;; Engine and sandbox images are local image IDs; see docs/openclaw.org.
+  ;; Engine is a local ID. With no sandbox ID, build on each service start.
   (engine-image openclaw-engine-image)
-  (sandbox-image openclaw-sandbox-image)
+  (sandbox-image openclaw-sandbox-image (default #f))
   ;; Shared by the Gateway, the engine's Podman user and sandboxes; the
   ;; engine image must be built with the same IDs.
   (uid openclaw-uid (default 2010))
@@ -99,7 +100,9 @@
               (unless (string-match "^sha256:[0-9a-f]{64}$" image)
                 (error "OpenClaw engine and sandbox images must be local image IDs"
                        image)))
-            (list (openclaw-engine-image config) (openclaw-sandbox-image config)))
+            (cons (openclaw-engine-image config)
+                  (if (openclaw-sandbox-image config)
+                      (list (openclaw-sandbox-image config)) '())))
   ;; Podman rejects UID or GID 0 for rootless keep-id sandboxes.
   (unless (and (every (lambda (id) (and (exact-integer? id) (< 0 id 65536)))
                       (list (openclaw-uid config) (openclaw-gid config))))
@@ -260,8 +263,9 @@
                                  (workspaceRoot
                                   . ,(data-path config "workspaces/.sandboxes"))
                                  (docker
-                                  . ((image . ,(string-drop
-                                                (openclaw-sandbox-image config) 7))
+                                  . ((image . ,(if (openclaw-sandbox-image config)
+                                                (string-drop (openclaw-sandbox-image config) 7)
+                                                "built-at-startup"))
                                      ;; The proxy lives outside individual workspaces.
                                      ;; These binds remain Guix-managed and immutable.
                                      (dangerouslyAllowExternalBindSources . #t)
@@ -362,6 +366,9 @@
                                      . "/run/secrets/command-owners")
                                     (OPENCLAW_FEISHU_APP_ID_FILE
                                      . "/run/secrets/feishu-app-id")) '())
+                            ,@(if (openclaw-sandbox-image config) '()
+                                  '((OPENCLAW_SANDBOX_IMAGE_FILE
+                                     . "/run/openclaw/sandbox-image")))
                             (OPENCLAW_DISABLE_BONJOUR . "1")
                             (CONTAINER_HOST . ,%engine-socket)))
             (command . #("node" "openclaw.mjs" "gateway"))
@@ -376,6 +383,9 @@
                       (bind "/etc/openclaw/config.mjs" "/etc/openclaw/config.mjs" #t)
                       (bind "/etc/openclaw/config-policy.mjs" "/etc/openclaw/config-policy.mjs" #t)
                       (bind "/etc/openclaw/config-plugin" "/etc/openclaw/config-plugin" #t))
+                (if (openclaw-sandbox-image config) '()
+                    (list (bind "/run/openclaw/sandbox-image"
+                                "/run/openclaw/sandbox-image" #t)))
                 (if (null? (openclaw-skills config)) '()
                     (list (bind "/etc/openclaw/skills" "/etc/openclaw/skills" #t)))
                 (map (lambda (name) (bind (string-append "/run/openclaw/" name)
@@ -406,6 +416,9 @@
             (volumes .
              ,(list->vector
                (append
+                (if (openclaw-sandbox-image config) '()
+                    (list (bind "/etc/openclaw/sandbox-build"
+                                "/etc/openclaw/sandbox-build" #t)))
                 (list (bind workspaces workspaces)
                       (bind (data-path config "engine")
                             "/home/podman/.local/share/containers")
@@ -468,6 +481,7 @@
        (start
         #~(lambda* (#:optional tag)
             (define pinned #$(openclaw-image config))
+            (define sandbox #$(openclaw-sandbox-image config))
             (define base (car (string-split pinned #\@)))
             (define colon (string-rindex base #\:))
             (define slash (or (string-rindex base #\/) -1))
@@ -496,6 +510,27 @@
                 (lambda ()
                   ;; Reconcile while the Gateway is stopped, preserving dynamic state.
                   (invoke #$command "stop" "--timeout" "30")
+                  (unless sandbox
+                    ;; Build directly in the persistent Podman store.
+                    (invoke #$command "up" "-d" "--pull" "never" "--no-build"
+                            "--force-recreate" "--wait" "--wait-timeout" "120"
+                            "engine")
+                    (when (file-exists? "/run/openclaw-engine/sandbox-image")
+                      (delete-file "/run/openclaw-engine/sandbox-image"))
+                    (invoke #$command "exec" "-T" "engine" "podman"
+                            "build" "--layers" "--network=host"
+                            "--build-arg" #$(format #f "UID=~a" (openclaw-uid config))
+                            "--build-arg" #$(format #f "GID=~a" (openclaw-gid config))
+                            "--iidfile" "/run/openclaw-engine/sandbox-image"
+                            "/etc/openclaw/sandbox-build")
+                    (set! sandbox
+                          (call-with-input-file "/run/openclaw-engine/sandbox-image" read-line))
+                    (unless (and (string? sandbox)
+                                 (string-match "^sha256:[0-9a-f]{64}$" sandbox))
+                      (error "Invalid built OpenClaw sandbox image ID"))
+                    (invoke #$(file-append coreutils "/bin/install") "-m" "644"
+                            "/run/openclaw-engine/sandbox-image"
+                            "/run/openclaw/sandbox-image"))
                   (invoke #$(file-append coreutils "/bin/env")
                           (string-append "OPENCLAW_IMAGE=" id)
                           #$command "run" "--rm" "--no-deps" "--pull" "never"
@@ -507,13 +542,32 @@
                           (string-append "OPENCLAW_IMAGE=" id)
                           #$command "run" "--rm" "--no-deps" "--pull" "never"
                           "gateway" "node" "openclaw.mjs" "config" "validate")
-                  ;; Sandboxes never pull; their image must already be in
-                  ;; the engine's persistent store.
-                  (invoke #$command "up" "-d" "--pull" "never" "--no-build"
-                          "--force-recreate" "--wait" "--wait-timeout" "120"
-                          "engine")
+                  ;; Explicit prebuilt IDs retain the Docker import path.
+                  (when #$(openclaw-sandbox-image config)
+                    (invoke #$command "up" "-d" "--pull" "never" "--no-build"
+                            "--force-recreate" "--wait" "--wait-timeout" "120"
+                            "engine")
+                    (let ((status
+                           (system* #$command "exec" "-T" "engine" "podman"
+                                    "image" "exists"
+                                    (substring sandbox 7))))
+                      (unless (zero? status)
+                        ;; Podman returns 1 for absence, 125 for an engine error.
+                        (unless (equal? (status:exit-val status) 1)
+                          (error "Cannot check OpenClaw sandbox image" status))
+                        ;; Stream without a temporary archive. pipefail prevents
+                        ;; an unsuccessful export from being hidden by load.
+                        (invoke #$(file-append bash-minimal "/bin/bash")
+                                "-o" "pipefail" "-c"
+                                (string-append
+                                 "\"$1\" --host unix:///var/run/docker.sock image save \"$3\""
+                                 " | \"$2\" exec -T engine podman load")
+                                "openclaw-import-sandbox"
+                                #$(file-append docker-full "/bin/docker")
+                                #$command sandbox))))
+                  ;; Verify the built or imported ID before starting Gateway.
                   (invoke #$command "exec" "-T" "engine" "podman" "image" "exists"
-                          #$(string-drop (openclaw-sandbox-image config) 7))
+                          (substring sandbox 7))
                   (invoke #$(file-append coreutils "/bin/env")
                           (string-append "OPENCLAW_IMAGE=" id)
                           #$command "up" "-d" "--pull" "never" "--no-build"
@@ -547,6 +601,10 @@
            (service-extension etc-service-type
              (lambda (config)
                `(("openclaw/base.json" ,(openclaw-config-file config))
+                 ,@(if (openclaw-sandbox-image config) '()
+                       `(("openclaw/sandbox-build"
+                          ,(local-file "../../../../env/docker/openclaw-sandbox"
+                                       #:recursive? #t))))
                  ,@(if (null? (openclaw-skills config)) '()
                        `(("openclaw/skills" ,(openclaw-skills-directory config))))
                  ("openclaw/config-plugin"

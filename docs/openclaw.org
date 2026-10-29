@@ -485,16 +485,13 @@ sudo docker image inspect --format '{{.Id}}' localhost/openclaw-gateway:2026.10.
 浏览器用 Debian 的 =chromium=：storie 连不上 Google 的下载站，Debian 软件源
 可用，trixie 也持续跟进 Chromium 安全更新。与官方 Chrome 相比，UA 相同，但
 Client Hints 报告的品牌是 Chromium；少数风控严格的网站可能区别对待。构建
-结果不可复现，以 image ID 记录产物，冒烟测试打印的 UA 含浏览器版本。Docker
-会缓存安装层，升级时用 =docker build --no-cache= 重新构建。
+结果不可复现，以 image ID 记录产物，冒烟测试打印的 UA 含浏览器版本。Podman
+会缓存安装层；普通重启不会强制刷新 Debian 包。
 
 #+begin_src sh
 sudo docker build --network=host -t localhost/openclaw-sandbox-engine:5.8.9-1 \
   env/docker/openclaw-sandbox-engine
-sudo docker build --network=host -t localhost/openclaw-sandbox:trixie-1 \
-  env/docker/openclaw-sandbox
 sudo docker image inspect --format '{{.Id}}' localhost/openclaw-sandbox-engine:5.8.9-1
-sudo docker image inspect --format '{{.Id}}' localhost/openclaw-sandbox:trixie-1
 #+end_src
 
 引擎的 seccomp profile 由镜像自带的 =/usr/share/containers/seccomp.json=
@@ -507,17 +504,30 @@ sudo guix shell python docker-cli -- python3 scripts/openclaw/engine-seccomp.py 
 git diff env/docker/openclaw-sandbox-engine/seccomp.json
 #+end_src
 
-把两个 ID 写入 =engine-image= 与 =sandbox-image=。沙箱从不拉取镜像；
-沙箱镜像须导入引擎的持久存储 =/data/openclaw/engine=。Shepherd 启动时先
-单独启动引擎并检查该 ID，缺失则不启动 Gateway。首次部署或更换沙箱镜像时，
-在 =herd start openclaw= 失败后导入，再重新启动：
+把引擎 ID 写入 =engine-image=。storie 不再配置 =sandbox-image=：
+每次 Shepherd 启动时，先停止旧服务、启动引擎并等待健康，再在引擎中
+执行 =podman build --layers --network=host=，传入配置中的 UID/GID。
+构建上下文随 Guix 部署到 store，只读挂载到引擎的
+=/etc/openclaw/sandbox-build=，服务器无需仓库工作目录；修改
+=env/docker/openclaw-sandbox/= 后重新部署即可。构建网络使用引擎所在的
+=sandboxed-agents=，这里的 =host= 指引擎容器的网络命名空间。
+首次构建或缓存失效时需要联网，启动耗时也会更长。Podman 使用持久缓存，
+普通重启不强制更新软件包。
+
+镜像直接生成在引擎持久存储 =/data/openclaw/engine= 中，不再经过宿主机
+Docker 构建和导入。构建结果 ID 从 =/run/openclaw-engine/sandbox-image=
+复制到 =/run/openclaw/sandbox-image=，只读挂载给 Gateway，由配置协调程序
+写入实际沙箱配置；无需手动填写 ID。校验实际 ID 存在后才启动 Gateway。
+构建阶段可以拉取基础镜像，沙箱运行时仍从不拉取镜像。构建或校验失败会
+停止启动，不自动回退到旧镜像；修复后用 =herd start openclaw= 重试。
+
+如需使用手工构建的镜像，可显式配置 =sandbox-image= 为本地 =sha256:= ID，
+此时跳过构建，若引擎缺少该 ID，则从宿主机 Docker 自动导入。
+手工冒烟测试可用 Docker 构建：
 
 #+begin_src sh
-sudo /etc/openclaw/compose up -d --wait engine
-sudo docker save localhost/openclaw-sandbox:trixie-1 \
-  | sudo /etc/openclaw/compose exec -T engine podman load
-sudo /etc/openclaw/compose exec -T engine podman image ls
-sudo herd start openclaw
+sudo docker build --network=host --no-cache -t localhost/openclaw-sandbox:trixie-1 \
+  env/docker/openclaw-sandbox
 #+end_src
 
 导入引擎前可先冒烟测试沙箱镜像。脚本以去掉全部 capability、只读根和
@@ -801,7 +811,7 @@ sudo herd restart openclaw
 在 storie 的仓库开发环境中，先确认声明的镜像确实存在（此命令不拉取）：
 
 #+begin_src sh
-for image in <image> <engine-image> <sandbox-image>; do
+for image in <image> <engine-image>; do
   sudo docker image inspect --format '{{.Id}} {{.Architecture}}' "$image"
 done
 #+end_src
@@ -885,8 +895,8 @@ Gateway 仅连接 =static-agent=，引擎仅连接 =sandboxed-agents=。启动�
 刷新 DNS 时先停 OpenClaw，再重启 restricted-network，最后启动 OpenClaw。
 
 Compose 采用 =on-failure=，不会随 Docker daemon 启动而绕过 Shepherd。
-镜像本地检查、运行时准备之后，先用所选镜像执行 =config validate=，
-再启动引擎并等待其 Podman API 健康、确认沙箱镜像已导入，最后启动
+镜像本地检查、运行时准备之后，启动引擎并等待其 Podman API 健康，
+在引擎内构建沙箱镜像、协调配置，再执行 =config validate= 并验证镜像 ID，最后启动
 Gateway，等待 =/startupz=。这个检查不代表飞书和模型都连通；
 需要下面的端到端验收。容器健康状态变成 unhealthy 不会由 Docker 的
 on-failure 自动重启；该策略只处理进程退出。
@@ -1023,7 +1033,7 @@ storie 上的实际热更新仍需重新部署确认。
 
 镜像 =sha256:bf69eb314709f5de2106b2dcc72a2f8ef53adb4e66c1ac6160c91f06fa7ed2f7=
 已通过 storie 冒烟测试：两个任务浏览器同时运行，快照存储数据成功复制。
-storie 的 =sandbox-image= 和 =skills= 已同步更新；部署前需将镜像导入引擎。
+storie 的沙箱构建上下文和 =skills= 随部署更新；启动时在引擎中自动构建镜像。
 专用 skill 声明如下：
 
 #+begin_src scheme
