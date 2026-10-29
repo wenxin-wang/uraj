@@ -271,6 +271,19 @@
   (every (lambda (entry) (eq? #f (cdr entry))) (at app "channels" "feishu" "tools")))
 (test-equal "provider uses file SecretRef" "new-api-token"
   (at app "models" "providers" "new-api" "apiKey" "provider"))
+(test-assert "models are text-only by default"
+  (not (assoc "input" (vector-ref (at app "models" "providers" "new-api" "models") 0))))
+(test-equal "image input declared per model" #("text" "image")
+  (at (vector-ref
+       (at (json-string->scm
+            (plain-file-content
+             (openclaw-config-file
+              (openclaw-configuration (inherit config)
+                (providers (list (openclaw-provider (inherit provider)
+                                   (image-input? #t))))))))
+           "models" "providers" "new-api" "models")
+       0)
+      "input"))
 (test-assert "prompt cache key is opt-in"
   (not (assoc "compat" (vector-ref (at app "models" "providers" "new-api" "models") 0))))
 (test-equal "prompt cache key declared per model" #t
