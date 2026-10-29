@@ -6,6 +6,11 @@
 // TODO: before enabling cron, anchor agent-initiated sends in topic chats;
 // a session without an inbound message posts top-level, i.e. a new topic.
 // The upstream fix PR #160332 covers this.
+//
+// The plugin also runs one agent turn at a time per chat, so in a topic chat
+// a long turn in one topic holds every other topic's messages.  Queue by
+// thread instead; a thread is a single session, so its turns stay ordered.
+// Upstream: https://github.com/openclaw/openclaw/issues/54409 (same queue).
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -24,6 +29,12 @@ async function urajIsTopicModeChat(account, chatId) {
 	}
 	return urajTopicModeChats.get(key);
 }
+`;
+
+const queueKey = "\tconst baseKey = `feishu:${accountId}:${event.message.chat_id?.trim() || \"unknown\"}`;\n";
+// Abort and /btw lanes derive from baseKey and become per-thread as well.
+const threadQueueKey = `\tconst urajThreadId = event.message.thread_id?.trim();
+\tconst baseKey = \`feishu:\${accountId}:\${event.message.chat_id?.trim() || "unknown"}\${urajThreadId ? \`:thread:\${urajThreadId}\` : ""}\`;
 `;
 
 const promote = `\tif (isGroup && ctx.chatType === "group" && ctx.threadId && isFeishuTopicSessionScope(groupSessionScope ?? "group")) try {
@@ -49,12 +60,12 @@ let patched = 0;
 for (const path of files(root)) {
   const text = readFileSync(path, "utf8");
   if (!text.includes(handler)) continue;
-  if (count(text, handler) !== 1 || count(text, session) !== 1 ||
+  if (count(text, handler) !== 1 || count(text, session) !== 1 || count(text, queueKey) !== 1 ||
       !/\bcreateFeishuClient\b/.test(text) || text.includes("urajIsTopicModeChat")) {
     throw new Error(`Unexpected Feishu handler layout in ${path}`);
   }
   writeFileSync(path, text.replace(handler, helper + handler)
-    .replace(session, promote + session));
+    .replace(session, promote + session).replace(queueKey, threadQueueKey));
   patched += 1;
 }
 if (patched === 0) throw new Error("Feishu message handler not found");
