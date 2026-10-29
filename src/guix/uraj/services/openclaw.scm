@@ -37,7 +37,9 @@
   (reasoning-models openclaw-provider-reasoning-models (default '()))
   ;; OpenAI-compatible routes omit prompt_cache_key unless declared; without
   ;; it the Codex upstream behind new-api rarely reuses the prompt cache.
-  (prompt-cache-key? openclaw-provider-prompt-cache-key? (default #f)))
+  (prompt-cache-key? openclaw-provider-prompt-cache-key? (default #f))
+  ;; Custom models are text-only unless declared; screenshots are then dropped.
+  (image-input? openclaw-provider-image-input? (default #f)))
 
 (define (provider-url provider)
   (or (openclaw-provider-base-url provider)
@@ -216,6 +218,8 @@
                                      (if (member model
                                                  (openclaw-provider-reasoning-models provider))
                                          '((reasoning . #t)) '())
+                                     (if (openclaw-provider-image-input? provider)
+                                         '((input . #("text" "image"))) '())
                                      (if (openclaw-provider-prompt-cache-key? provider)
                                          '((compat . ((supportsPromptCacheKey . #t)))) '())))
                            (delete-duplicates (openclaw-provider-models provider))))))))
