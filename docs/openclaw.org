@@ -12,6 +12,12 @@
 标识的消息回到群级会话。每个群绑定一个角色，群内各话题使用同一个角色。
 开放文件工具及 =exec=、=process=；它们在独立引擎容器创建的 Podman
 沙箱中以专用 UID 2010 执行，不逐条询问，也不回退到持有凭据的 Gateway。
+=web_fetch=、=view_image=、=memory_search=、=memory_get= 也已开放；
+前者及记忆工具在 Gateway 执行，需同时列入 =tools.sandbox.tools.alsoAllow=。
+自定义模型默认按纯文本处理，读取截图时图片会被丢弃；两个 provider 都设置
+=image-input? #t=，生成 =input: ["text", "image"]=。已直接经 new-api 用
+图片请求验证 GPT-6 Astra、GPT-6 Luna 和三个 Claude 模型能识别图片内容；
+其余 GPT 模型同走 Codex 渠道，未逐个验证。
 浏览器、主动发消息和飞书文档工具保持关闭。
 执行策略使用 =tools.exec.mode="full"=；不要同时声明旧的 =security/ask=。
 2026.10.3 启动时的 Doctor 会将 =security="full", ask="off"= 迁移成
@@ -36,6 +42,10 @@ Shepherd 启动时先停止旧 Gateway，再运行 reconcile：对齐基础字�
 保留 agent、bindings、meta、wizard 和仍在批准列表中的默认模型；在镜像 schema
 校验通过后替换主文件，旧配置保存在 =openclaw.json.before-guix=。
 这是服务启动阶段的对齐，不是在运行中的 Guix activation 直接覆盖文件。
+默认模型只在用户改过时保留：每次对齐后把本次 Guix 默认写入
+=openclaw.json.guix-model=，下次启动时若运行配置仍等于这个旧默认，就跟随
+新的 Guix 声明。没有该记录（首次部署此逻辑）时同样采用 Guix 默认，因为
+无法区分旧默认和用户选择；此前用户自选的默认模型需要重新设置一次。
 基础配置显式声明 =agents.defaults.systemAgent.agentId="main"=，与多 agent
 启动时 Doctor 的规范化保持一致；否则重启后新增的该字段会被不变量校验
 视为漂移，导致私人角色绑定等配置写入失败。
@@ -259,7 +269,10 @@ bind 源，因此 Gateway 和引擎都把它们挂在宿主机相同的绝对路
 =.openclaw/attachments/subagents=。引擎只读挂载这两个目录，准备程序预先创建；
 其余 state（配置、认证、会话）仍不进入引擎。沙箱只覆盖
 exec、process 和文件工具；web_fetch、web_search、原生插件和 MCP 仍在
-Gateway 执行，本部署未开放前两者。
+Gateway 执行。本部署开放 web_fetch，它沿用 Gateway 的 =static-agent=
+出网规则，并保留上游默认的内网地址拦截。web_search 未开放：2026.10.3
+镜像没有打包 DuckDuckGo、SearXNG 等免 key provider，内置的 Brave、Gemini
+等需要 API key；经 new-api 的自定义 Responses 地址也不触发 OpenAI 原生搜索。
 
 =sandboxed-agents= 与 Gateway 的 =static-agent= 是不同网桥，沿用同一份
 网络策略：继承宿主 DNS，公网 TCP 80/443，其他内网、宿主和已登记网段都被
@@ -583,6 +596,16 @@ sudo herd start openclaw
 =im:message.reactions:write_only=。修改 Guix 配置后重新部署即可。
 原有 SDK 修复镜像继续使用；已构建的 GET 补丁镜像在移除其环境开关后
 也不会添加 GET，但后续不再需要维护该补丁。
+
+** 提示缓存
+
+自定义 OpenAI 兼容地址默认不发送 =prompt_cache_key=。new-api 后面的
+Codex 上游缺少该键时几乎不复用缓存：同一 7.8k token 请求重复 6 次，
+=cached_tokens= 全为 0；带上该键后约一半命中。Codex CLI 经同一渠道
+还会发送会话头，命中率约 93%。因此 =new-api-gpt= 设置
+=prompt-cache-key? #t=，为每个模型生成 =compat.supportsPromptCacheKey=；
+它同时启用 OpenClaw 按缓存 TTL 修剪旧工具结果。Claude provider 使用
+Anthropic 的缓存标记，不需要此项。
 
 ** 快速切换模型
 

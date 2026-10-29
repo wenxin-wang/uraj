@@ -176,7 +176,14 @@ async function main(args) {
     try { previous = await read(CONFIG); } catch (error) {
       if (error.code !== "ENOENT") throw error;
     }
-    const next = reconcile(previous, base);
+    // The default applied last time distinguishes a user's choice from an
+    // older Guix default.
+    const record = `${CONFIG}.guix-model`;
+    let declared;
+    try { declared = JSON.parse(await fs.readFile(record, "utf8")); } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+    const next = reconcile(previous, base, declared);
     const dir = await fs.mkdtemp(path.join(path.dirname(CONFIG), ".reconcile-"));
     try {
       const candidate = path.join(dir, "openclaw.json");
@@ -188,6 +195,9 @@ async function main(args) {
         await fs.rename(path.join(dir, "previous.json"), `${CONFIG}.before-guix`);
       }
       await fs.rename(candidate, CONFIG);
+      const model = path.join(dir, "guix-model.json");
+      await fs.writeFile(model, JSON.stringify(base.agents.defaults.model), { mode: 0o600 });
+      await fs.rename(model, record);
     } finally { await fs.rm(dir, { recursive: true, force: true }); }
     console.log("Configuration reconciled with Guix.");
     return;

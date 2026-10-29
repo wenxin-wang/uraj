@@ -224,8 +224,9 @@
        (equal? '#("ALL") (at sandbox "docker" "capDrop"))))
 (test-equal "agent paths are host paths" "/data/openclaw/workspaces/main"
   (at app "agents" "entries" "main" "workspace"))
-(test-equal "checked config tool is allowed in sandboxed sessions"
-  '#("openclaw_config_set") (at app "tools" "sandbox" "tools" "alsoAllow"))
+(test-equal "Gateway-run tools are allowed in sandboxed sessions"
+  '#("openclaw_config_set" "web_fetch" "memory_search" "memory_get")
+  (at app "tools" "sandbox" "tools" "alsoAllow"))
 (test-error "engine image must be a local ID" #t
   (openclaw-compose-file (openclaw-configuration (inherit config)
                            (engine-image "quay.io/podman/stable"))))
@@ -254,8 +255,9 @@
   (at app "channels" "feishu" "groupSessionScope"))
 (test-equal "bot replies stay in topic threads" "enabled"
   (at app "channels" "feishu" "replyInThread"))
-(test-equal "file, process and config tools explicitly allowed"
-  '#("read" "write" "edit" "apply_patch" "exec" "process" "openclaw_config_set")
+(test-equal "file, process, web, memory and config tools explicitly allowed"
+  '#("read" "write" "edit" "apply_patch" "exec" "process"
+     "view_image" "web_fetch" "memory_search" "memory_get" "openclaw_config_set")
   (at app "tools" "allow"))
 (test-assert "file tools are not blocked by the old deny-all policy"
   (not (at app "tools" "deny")))
@@ -269,6 +271,32 @@
   (every (lambda (entry) (eq? #f (cdr entry))) (at app "channels" "feishu" "tools")))
 (test-equal "provider uses file SecretRef" "new-api-token"
   (at app "models" "providers" "new-api" "apiKey" "provider"))
+(test-assert "models are text-only by default"
+  (not (assoc "input" (vector-ref (at app "models" "providers" "new-api" "models") 0))))
+(test-equal "image input declared per model" #("text" "image")
+  (at (vector-ref
+       (at (json-string->scm
+            (plain-file-content
+             (openclaw-config-file
+              (openclaw-configuration (inherit config)
+                (providers (list (openclaw-provider (inherit provider)
+                                   (image-input? #t))))))))
+           "models" "providers" "new-api" "models")
+       0)
+      "input"))
+(test-assert "prompt cache key is opt-in"
+  (not (assoc "compat" (vector-ref (at app "models" "providers" "new-api" "models") 0))))
+(test-equal "prompt cache key declared per model" #t
+  (at (vector-ref
+       (at (json-string->scm
+            (plain-file-content
+             (openclaw-config-file
+              (openclaw-configuration (inherit config)
+                (providers (list (openclaw-provider (inherit provider)
+                                   (prompt-cache-key? #t))))))))
+           "models" "providers" "new-api" "models")
+       0)
+      "compat" "supportsPromptCacheKey"))
 (define multi-model-app
   (json-string->scm
    (plain-file-content

@@ -375,6 +375,7 @@
      (list
       (openclaw-provider
         (name "new-api-gpt") (api "openai-responses")
+        (prompt-cache-key? #t) (image-input? #t)
         (reasoning-models '("gpt-6-astra"
                             "gpt-6.1-sol"
                             "gpt-6-sol"
@@ -392,7 +393,7 @@
                   "gpt-5.6-terra"
                   "gpt-5.6-luna")))
       (openclaw-provider
-        (name "new-api-claude") (api "anthropic-messages")
+        (name "new-api-claude") (api "anthropic-messages") (image-input? #t)
         (reasoning-models '("claude-opus-5-5"
                             "claude-sonnet-5-5"
                             "claude-haiku-4-5"))
