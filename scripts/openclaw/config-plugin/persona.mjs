@@ -12,6 +12,21 @@ export function sessionAgent(key) {
 export function sessionGroup(key) {
   return typeof key === "string" ? /:group:(oc_[a-zA-Z0-9]+)(?::|$)/.exec(key)?.[1] : undefined;
 }
+// Feishu message-tool targets: optional provider and kind prefixes around an
+// open chat or user ID.  Anything else is rejected rather than guessed.
+export function feishuTarget(s) {
+  if (typeof s !== "string") return null;
+  const id = s.trim().replace(/^(?:feishu|lark):/i, "")
+    .replace(/^(?:chat|group|channel|user|dm|open_id):/i, "").trim();
+  return /^o[cu]_[a-zA-Z0-9]+$/.test(id) ? id : null;
+}
+const PRIVATE_GROUP_CONTEXT = "This Feishu group is verified to contain only the role owner and you. " +
+  "Treat it as a private chat with the owner: for the owner's own login or pairing requests, " +
+  "QR codes, short-lived codes and verification links may be posted here.";
+const SHARED_GROUP_CONTEXT = "This is a shared Feishu group. When a login or pairing code must go " +
+  "privately to the requester, send it with the message tool (action \"send\", target " +
+  "\"user:<requester open_id>\") and acknowledge in the group without the code. The message " +
+  "tool can reach only this conversation and the requester's private chat.";
 export function sessionPeer(key) {
   return typeof key === "string" ? /:direct:(ou_[a-zA-Z0-9]+)$/.exec(key)?.[1] : undefined;
 }
@@ -287,6 +302,41 @@ export class Personas {
         created: this.now() });
       for (const [id, run] of this.runs) if (this.now() - run.created > 86400000) this.runs.delete(id);
     }
+  }
+  // The message tool can name any Feishu target, and private-chat deliveries
+  // bypass the group checks in sending(). Confine it to this conversation and
+  // the private chat of the person the run acts for; group sends still pass
+  // sending() with this run's authority.
+  async messageTool(event, ctx) {
+    if (event.toolName !== "message") return;
+    const deny = (reason) => ({ block: true, blockReason: reason });
+    const params = event.params ?? {};
+    if (params.action !== "send") return deny("The message tool may only send.");
+    if (params.targets !== undefined) return deny("Send to one target at a time.");
+    if (![undefined, "feishu"].includes(params.channel) || ![undefined, "main"].includes(params.accountId)) {
+      return deny("The message tool may only use the current Feishu account.");
+    }
+    const role = (await this.store.read()).roles[ctx.agentId];
+    if (!role) return deny("Unknown persona.");
+    const requester = ctx.requester?.channel === undefined || ctx.requester.channel === "feishu"
+      ? senderId(ctx.requester?.senderId) : undefined;
+    const allowed = [sessionGroup(ctx.sessionKey), sessionPeer(ctx.sessionKey),
+      role.visibility === "private" ? role.owner : requester].filter(Boolean);
+    for (const raw of [params.target, params.to]) {
+      if (raw === undefined) continue;
+      if (!allowed.includes(feishuTarget(raw))) {
+        return deny("Only this conversation or the requester's private chat can be messaged.");
+      }
+    }
+  }
+  async promptContext(_event, ctx) {
+    const chat = sessionGroup(ctx.sessionKey);
+    if (!chat) return;
+    const state = await this.store.read();
+    const role = state.roles[ctx.agentId];
+    if (!role || (state.groups[chat]?.role ?? SHARED) !== role.id) return;
+    if (role.visibility === "shared") return { appendSystemContext: SHARED_GROUP_CONTEXT };
+    if (await this.verifyGroup(chat, role)) return { appendSystemContext: PRIVATE_GROUP_CONTEXT };
   }
   async sending(event, ctx) {
     if ((event.channel ?? ctx.channelId) !== "feishu" || ctx.accountId !== "main") return;

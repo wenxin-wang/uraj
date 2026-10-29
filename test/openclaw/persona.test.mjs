@@ -187,6 +187,44 @@ test("private runs without a sender act for the session's own peer only", async 
   assert.equal((await service.beforeRun({}, { ...ctx, runId: "later" })).outcome, "block");
 });
 
+test("message tool reaches only this conversation and the requester's private chat", async (t) => {
+  const { service } = await setup(t);
+  const send = (params) => ({ toolName: "message", params: { action: "send", message: "码", ...params } });
+  const shared = { ...groupCtx(), requester: { channel: "feishu", senderId: "ou_bob" } };
+  assert.equal(await service.messageTool(send({}), shared), undefined);
+  assert.equal(await service.messageTool(send({ target: "chat:oc_group" }), shared), undefined);
+  assert.equal(await service.messageTool(send({ target: "feishu:user:ou_bob" }), shared), undefined);
+  for (const params of [{ target: "user:ou_alice" }, { target: "chat:oc_other" }, { to: "ou_carol" },
+    { targets: ["chat:oc_group"] }, { channel: "telegram" }, { accountId: "other" },
+    { target: "user:bob" }, { action: "read" }]) {
+    assert.equal((await service.messageTool(send(params), shared)).block, true, JSON.stringify(params));
+  }
+  // A shared run without a requester, e.g. a wake-up, has no private chat to reach.
+  const wake = { ...groupCtx(), requester: undefined };
+  assert.equal((await service.messageTool(send({ target: "user:ou_bob" }), wake)).block, true);
+  await service.command({ sender: "ou_alice", chat: "oc_group", args: "use main" });
+  const mine = { ...groupCtx("main"), requester: undefined };
+  assert.equal(await service.messageTool(send({ target: "user:ou_alice" }), mine), undefined);
+  assert.equal((await service.messageTool(send({ target: "user:ou_bob" }), mine)).block, true);
+  const dm = { agentId: "main", sessionKey: "agent:main:feishu:direct:ou_alice" };
+  assert.equal(await service.messageTool(send({ target: "user:ou_alice" }), dm), undefined);
+  assert.equal(await service.messageTool({ toolName: "exec", params: {} }, dm), undefined);
+  assert.equal((await service.messageTool(send({}), { agentId: "unknown" })).block, true);
+});
+
+test("prompt context marks owner-only groups private and shows shared groups the private route",
+  async (t) => {
+    const { service, state } = await setup(t);
+    assert.match((await service.promptContext({}, groupCtx())).appendSystemContext, /shared Feishu group/);
+    assert.equal(await service.promptContext({}, { agentId: "main",
+      sessionKey: "agent:main:feishu:direct:ou_alice" }), undefined);
+    await service.command({ sender: "ou_alice", chat: "oc_group", args: "use main" });
+    assert.match((await service.promptContext({}, groupCtx("main"))).appendSystemContext,
+      /only the role owner and you/);
+    state.alone = false;
+    assert.equal(await service.promptContext({}, groupCtx("main")), undefined);
+  });
+
 test("registry serializes concurrent edits, persists restart state and never resets corrupt data", async (t) => {
   const { service, directory } = await setup(t);
   await Promise.all(Array.from({ length: 8 }, (_, i) => service.store.transact(async (s) => {
@@ -213,6 +251,10 @@ test("hook adapters fail closed and command uses transport identity instead of a
   assert.equal((await hooks.get("before_agent_run")({}, {})).outcome, "block");
   service.sending = async () => { throw new Error("bad state"); };
   assert.equal((await hooks.get("reply_payload_sending")({}, {})).cancel, true);
+  service.messageTool = async () => { throw new Error("bad state"); };
+  assert.equal((await hooks.get("before_tool_call")({}, {})).block, true);
+  service.promptContext = async () => { throw new Error("bad state"); };
+  assert.equal(await hooks.get("before_prompt_build")({}, {}), undefined);
 });
 
 test("DM default survives selecting another role, without a model call", async (t) => {

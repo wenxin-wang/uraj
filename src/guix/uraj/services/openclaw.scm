@@ -307,8 +307,11 @@
                      (match . ((channel . "feishu") (accountId . "main"))))))
       (tools . ((allow . #("read" "write" "edit" "apply_patch" "exec" "process"
                            "view_image" "web_fetch" "memory_search" "memory_get"
-                           "openclaw_config_set"))
+                           "message" "openclaw_config_set"))
                 (fs . ((workspaceOnly . #t)))
+                ;; The persona plugin further confines sends to the current
+                ;; conversation and the requester's private chat.
+                (message . ((crossContext . ((allowAcrossProviders . #f)))))
                 ;; No fallback to the Gateway, which holds the credentials.
                 (exec . ((host . "sandbox") (mode . "full")
                          (applyPatch . ((enabled . #t)
@@ -317,7 +320,8 @@
                 ;; These run in the Gateway and are absent from the default
                 ;; sandbox allow list; web_fetch keeps its private-address guard.
                 (sandbox . ((tools . ((alsoAllow . #("openclaw_config_set" "web_fetch"
-                                                     "memory_search" "memory_get"))))))))
+                                                     "memory_search" "memory_get"
+                                                     "message"))))))))
       ,@(if (null? (openclaw-skills config)) '()
             '((skills . ((load . ((extraDirs . #("/etc/openclaw/skills"))))))))
       (browser . ((enabled . #f)))
