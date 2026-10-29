@@ -599,13 +599,26 @@ sudo herd start openclaw
 
 ** 提示缓存
 
-自定义 OpenAI 兼容地址默认不发送 =prompt_cache_key=。new-api 后面的
-Codex 上游缺少该键时几乎不复用缓存：同一 7.8k token 请求重复 6 次，
-=cached_tokens= 全为 0；带上该键后约一半命中。Codex CLI 经同一渠道
-还会发送会话头，命中率约 93%。因此 =new-api-gpt= 设置
-=prompt-cache-key? #t=，为每个模型生成 =compat.supportsPromptCacheKey=；
-它同时启用 OpenClaw 按缓存 TTL 修剪旧工具结果。Claude provider 使用
-Anthropic 的缓存标记，不需要此项。
+自定义 OpenAI 兼容地址默认不发送 =prompt_cache_key=。因此 =new-api-gpt=
+设置 =prompt-cache-key? #t=，为每个模型生成
+=compat.supportsPromptCacheKey=；它同时启用 OpenClaw 按缓存 TTL 修剪旧
+工具结果。Claude provider 使用 Anthropic 的缓存标记，不需要此项；
+OpenClaw 的 Claude 请求从第二轮起即命中缓存。
+
+仅有该键仍不够：new-api 后面的 Codex 上游按 =Session-Id= 头路由缓存，
+OpenClaw 不发会话头，部署后 36 次 Astra 请求只命中 4 次。同一 23k token
+提示词追加 6 轮，只带键时几乎不命中，补上 =Session-Id= 后从第二轮起
+每轮命中。OpenClaw 不能按会话设置请求头，所以在 new-api 的 =CodexMT=
+渠道（id 3）设置参数覆盖，缺少会话头时用 =prompt_cache_key= 补齐：
+
+#+begin_src json
+{"operations": [
+  {"mode": "sync_fields", "from": "json:prompt_cache_key", "to": "header:Session-Id"},
+  {"mode": "sync_fields", "from": "json:prompt_cache_key", "to": "header:Thread-Id"}]}
+#+end_src
+
+=sync_fields= 只补缺失的一侧，Codex CLI 自带的会话头不受影响。该设置
+保存在 new-api 数据库，不由 Guix 管理；重建 new-api 或渠道时需重新填写。
 
 ** 快速切换模型
 
