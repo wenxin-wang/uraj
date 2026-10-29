@@ -13,7 +13,8 @@ own persistent identity; ordinary tasks receive independent copies.
 
 ## Login and refresh identity
 
-Only when the user asks to log in or refresh credentials:
+When the user asks to log in or refresh credentials, or a task needs a login
+this identity lacks:
 
 ```
 browser-profile login https://www.xiaohongshu.com
@@ -21,7 +22,8 @@ browser-profile identity snapshot -i
 browser-profile identity screenshot /workspace/login.png
 ```
 
-Send the screenshot to the user for QR login. Continue using
+Send the screenshot to the user for QR login, following this conversation's
+rules for where login codes may go. Continue using
 `browser-profile identity <command> ...` to check completion. Once login is
 confirmed, run `browser-profile publish`. This closes the identity browser and
 publishes a consistent snapshot. Do not publish halfway through user login.
@@ -42,9 +44,13 @@ browser-profile finish <task-id>
 Each concurrent task must create its own task ID. `finish` closes the browser
 and deletes that task's profile: send screenshots/save outputs outside the task
 directory first. Login changes in a task are NOT merged back. If no snapshot
-exists, initialize one with `login about:blank` then `publish`, or ask the user
-to log in if required. Browser processes exit after 30 minutes idle, but task
-files remain until `finish`. Reuse the task ID to resume after idle shutdown.
+exists, initialize one with `login about:blank` then `publish`. Browser
+processes exit after 30 minutes idle, but task files remain until `finish`.
+Reuse the task ID to resume after idle shutdown.
+
+If a site the task needs shows a login wall, the task is blocked: finish the
+task, ask the user to log in through the flow above, and resume with a new task
+after publishing. Do not first answer from other sources unless the user agrees.
 
 Publishing a new snapshot only affects subsequently created tasks. Websites may
 expire or rotate credentials; if a task loses its login, refresh the identity
