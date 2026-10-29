@@ -21,6 +21,7 @@ for session in gpu-one gpu-two; do
     const pixel = new Uint8Array(4);
     gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
     if (pixel[1] !== 255) throw new Error(\"WebGL readback failed\");
+    if (/Headless/.test(navigator.userAgent)) throw new Error(\"headless browser\");
     return gl.getParameter(ext.UNMASKED_RENDERER_WEBGL);
   })()" > /tmp/renderer
   cat /tmp/renderer
@@ -32,5 +33,5 @@ fi
   agent-browser --session "$session" screenshot "/tmp/$session.png"
   test -s "/tmp/$session.png"
 done
-echo "nested hardware WebGL, parallel sessions and screenshot capture passed"
+echo "nested headed hardware WebGL, parallel sessions and screenshot capture passed"
 '
