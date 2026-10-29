@@ -11,11 +11,12 @@ ARG AGENT_BROWSER_SHA256=993d462f4dcfc19860d93a6521a452eba4502bfc449fe0120303c2c
 # Source archive for skill-data, which serves `agent-browser skills get`.
 ARG AGENT_BROWSER_SOURCE_SHA256=a3a347ed468fcc2e593e3ae95a6a08df1efeb94d57b33fbc48627b889ea0ec48
 ENV DEBIAN_FRONTEND=noninteractive
-# Debian Chromium with Mesa Vulkan for headless hardware WebGL.
+# Debian Chromium with Mesa Vulkan; cage gives headed Chromium a private
+# headless Wayland display, so WebGL still uses the shared render node.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
       bash ca-certificates curl git jq python3 ripgrep procps less file unzip \
-      chromium fonts-liberation fonts-noto-cjk fonts-noto-color-emoji \
+      cage chromium fonts-liberation fonts-noto-cjk fonts-noto-color-emoji \
       libegl1 libgl1-mesa-dri mesa-vulkan-drivers \
     && mkdir -p /opt/agent-browser/bin \
     && curl -fsSLo /opt/agent-browser/bin/agent-browser \
@@ -41,7 +42,7 @@ USER $UID:$GID
 ENV HOME=/tmp \
     LANG=C.UTF-8 \
     AGENT_BROWSER_EXECUTABLE_PATH=/usr/local/bin/sandbox-chromium \
-    AGENT_BROWSER_HEADED=0 \
+    AGENT_BROWSER_HEADED=1 \
     AGENT_BROWSER_IDLE_TIMEOUT_MS=1800000 \
     AGENT_BROWSER_ARGS=--disable-blink-features=AutomationControlled,--enable-gpu,--use-gl=angle,--use-angle=vulkan
 WORKDIR /home/sandbox

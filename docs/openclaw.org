@@ -375,12 +375,18 @@ Chromium、Mesa Vulkan 和中日韩及 emoji 字体。命令和浏览器在同�
 容器里运行；不使用 OpenClaw 内置的 =browser= 工具，上游 Podman 后端也
 不支持内置浏览器沙箱。
 
-浏览器默认以 headless + ANGLE Vulkan 模式运行，可截图和扫码登录，无需
-Xvfb 或 Wayland。=AGENT_BROWSER_ARGS= 指定 =--enable-gpu=、=--use-gl=angle=
-及 =--use-angle=vulkan=，并保留 =--disable-blink-features=AutomationControlled=。
-启动包装器在可写的 =/tmp= 创建私有 =XDG_RUNTIME_DIR=，过滤 CLI 自动加入的
-=--enable-unsafe-swiftshader=，避免许可软件回退。headless 模式会改变浏览器
-特征，网站登录兼容性需实际验证。
+浏览器以有头（headed）模式运行：headless 会改变浏览器特征，部署后
+小红书、京东和百度同时出现风控页，此前 Xvfb 有头模式下小红书可以正常
+搜索和扫码登录。Xvfb 无法使用硬件加速，因此启动包装器 =sandbox-chromium=
+为每个 Chromium 启动私有的 cage（wlroots 无头后端），Chromium 以
+=--ozone-platform=wayland= 连接；cage 随 Chromium 退出，同一沙箱的多个
+浏览器各用一个 Wayland socket。cage 用 render node 的 Vulkan 渲染器合成；
+没有 render node 时改用 pixman。WebGL 由 Chromium 的 GPU 进程直接使用
+render node，与合成器渲染器无关。=AGENT_BROWSER_ARGS= 指定 =--enable-gpu=、
+=--use-gl=angle= 及 =--use-angle=vulkan=，并保留
+=--disable-blink-features=AutomationControlled=。agent-browser 在容器中
+自动加入 =--no-sandbox=。包装器在可写的 =/tmp= 创建私有 =XDG_RUNTIME_DIR=，
+并继续过滤 =--enable-unsafe-swiftshader=，避免许可软件回退。
 CLI 的 =skills get= 正文来自镜像中同版本源码包的 =skills=、=skill-data=。
 登录状态按角色保存；新镜像的 =browser-profile= 将主登录目录与任务副本分开。
 =login URL= 打开主登录浏览器，=identity screenshot /workspace/login.png=
@@ -586,8 +592,9 @@ sudo docker build --network=host --no-cache -t localhost/openclaw-sandbox:trixie
 
 导入引擎前可先冒烟测试沙箱镜像。脚本以去掉全部 capability、只读根和
 tmpfs 运行它，接入 =sandboxed-agents=，检查文件桥接工具、CLI 版本和内置
-skill，再用 headed Chrome 打开 =https://example.com=，打印 UA、
-=navigator.webdriver= 和 WebGL renderer：
+skill，再用有头 Chromium 打开 =https://example.com=，打印 UA、
+=navigator.webdriver= 和 WebGL renderer；UA 含 =Headless= 或使用软件渲染
+时失败：
 
 #+begin_src sh
 scripts/openclaw/try-sandbox-image localhost/openclaw-sandbox:trixie-1

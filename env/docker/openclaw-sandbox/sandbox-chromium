@@ -1,6 +1,9 @@
 #!/bin/sh
-# The sandbox root is read-only; Chromium and Mesa need a private runtime dir.
+# Run headed Chromium in a private headless Wayland compositor, so sites see
+# a normal browser while WebGL uses the shared render node.  cage exits with
+# Chromium; each browser gets its own display socket.
 set -eu
+# The sandbox root is read-only; cage, Chromium and Mesa need a runtime dir.
 XDG_RUNTIME_DIR=/tmp/openclaw-browser-runtime-$(id -u)
 export XDG_RUNTIME_DIR
 test ! -L "$XDG_RUNTIME_DIR"
@@ -9,7 +12,18 @@ if [ ! -d "$XDG_RUNTIME_DIR" ]; then
 fi
 test "$(stat -c %u "$XDG_RUNTIME_DIR")" = "$(id -u)"
 chmod 700 "$XDG_RUNTIME_DIR"
-# agent-browser adds this fallback automatically in headless mode.
+WLR_BACKENDS=headless
+WLR_LIBINPUT_NO_DEVICES=1
+export WLR_BACKENDS WLR_LIBINPUT_NO_DEVICES
+render=$(ls /dev/dri/renderD* 2>/dev/null | head -n 1 || true)
+if [ -n "$render" ]; then
+  WLR_RENDERER=vulkan WLR_RENDER_DRM_DEVICE=$render
+  export WLR_RENDERER WLR_RENDER_DRM_DEVICE
+else
+  WLR_RENDERER=pixman
+  export WLR_RENDERER
+fi
+# agent-browser adds this fallback in headless mode; keep refusing it.
 for arg do
   shift
   case "$arg" in
@@ -17,4 +31,4 @@ for arg do
     *) set -- "$@" "$arg" ;;
   esac
 done
-exec /usr/bin/chromium "$@"
+exec cage -- /usr/bin/chromium --ozone-platform=wayland "$@"

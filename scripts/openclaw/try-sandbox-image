@@ -1,6 +1,6 @@
 #!/bin/sh
 # Run on storie as the administrator.  Start the sandbox image with the
-# hardening OpenClaw's sandbox applies, then check headless Vulkan browsers.
+# hardening OpenClaw's sandbox applies, then check headed Vulkan browsers.
 # Usage: try-sandbox-image IMAGE [NETWORK] [DNS]
 set -eu
 
@@ -43,7 +43,9 @@ ab open https://example.com
 ab get title
 ab eval "localStorage.getItem(\"profile-smoke\")" > /tmp/profile-value
 grep -q persisted /tmp/profile-value
-ab eval "navigator.userAgent"
+ab eval "navigator.userAgent" > /tmp/ua
+cat /tmp/ua
+if grep -q Headless /tmp/ua; then echo "headless browser rejected" >&2; exit 1; fi
 ab eval "navigator.webdriver"
 ab eval "(() => { const gl = document.createElement(\"canvas\").getContext(\"webgl\");
   const ext = gl && gl.getExtension(\"WEBGL_debug_renderer_info\");
