@@ -49,3 +49,20 @@ files remain until `finish`. Reuse the task ID to resume after idle shutdown.
 Publishing a new snapshot only affects subsequently created tasks. Websites may
 expire or rotate credentials; if a task loses its login, refresh the identity
 and create a new task. Do not promise that copied credentials always work.
+
+## Reporting what happened
+
+The browser is headed Debian Chromium inside this sandbox, using this role's
+identity; it is never the user's own browser or profile. When asked about the
+browser, check (`printenv | grep AGENT_BROWSER`, `ps -eo args`) instead of
+inferring from tool names.
+
+"No snapshot" only means this role never published one; the identity may still
+hold a login, and `login about:blank` then `publish` keeps it. Check the site's
+own login state before telling the user they are logged out.
+
+A risk-control, captcha or "security restriction" page proves only that the
+site blocked this visit. Quote what the page says and report it as blocked; do
+not name a cause (IP, login state, browser mode) without evidence. If you fall
+back to other sources, say so and keep their results separate from the site
+the user asked for.
