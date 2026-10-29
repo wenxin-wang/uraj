@@ -541,7 +541,13 @@ sudo docker image inspect --format '{{.Id}}' localhost/openclaw-gateway:2026.10.
 两个镜像都以 UID/GID 2010 构建，须与 =openclaw-configuration= 的 =uid=、
 =gid= 一致。引擎基于固定 digest 的 =quay.io/podman/stable:v5.8.9=；沙箱参照
 上游 sandbox Dockerfile，改用固定的 =debian:trixie-slim=，加少量常用工具和
-浏览器（见“沙箱里的浏览器”），=HOME= 为可写的 =/tmp=。Debian 包未锁版本，
+浏览器（见“沙箱里的浏览器”），=HOME= 为可写的 =/tmp=。OpenClaw 提示词要求
+文件工具的临时文件放在工作区 =.openclaw/tmp/=，但 crun 为挂载 skill 创建
+=.openclaw= 时属主是沙箱 root 映射的子 UID，沙箱用户写不进去。服务启动时在
+引擎的 =podman unshare= 中为每个工作区补建属主 2010、权限 0700 的
+=.openclaw/tmp=（跳过符号链接；该命名空间只拥有 2010 与沙箱子 UID，碰不到
+宿主其他文件）；运行中新建的角色在登记时直接创建。各角色只在自己的工作区
+内，不互相共享。Debian 包未锁版本，
 浏览器用 Debian 的 =chromium=：storie 连不上 Google 的下载站，Debian 软件源
 可用，trixie 也持续跟进 Chromium 安全更新。与官方 Chrome 相比，UA 相同，但
 Client Hints 报告的品牌是 Chromium；少数风控严格的网站可能区别对待。构建
