@@ -155,7 +155,10 @@ export function validatePolicy(config, base) {
   }
 }
 
-export function reconcile(config, base) {
+const primary = (value) => typeof value === "string" ? value : value?.primary;
+
+// DECLARED is the default Guix applied at the previous start, if recorded.
+export function reconcile(config, base, declared) {
   const next = structuredClone(base);
   if (config) {
     for (const [id, group] of mentionOverrides(config)) {
@@ -177,9 +180,12 @@ export function reconcile(config, base) {
     }
     next.agents.defaults = structuredClone(base.agents.defaults);
     // Keep a user's selected model only while it remains in the approved catalog.
-    try {
-      model(config.agents?.defaults?.model, base);
-      next.agents.defaults.model = structuredClone(config.agents.defaults.model);
+    // An unchanged previous Guix default is not a selection: follow the new
+    // declaration.  Without a record the selection cannot be told apart.
+    const selected = config.agents?.defaults?.model;
+    if (declared !== undefined && primary(selected) !== primary(declared)) try {
+      model(selected, base);
+      next.agents.defaults.model = structuredClone(selected);
     } catch { /* A removed model falls back to the declared default. */ }
   }
   // The shared fallback must exist even when upgrading an older runtime roster.

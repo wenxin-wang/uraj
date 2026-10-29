@@ -88,12 +88,28 @@ test("reconcile preserves registrations and approved model, restores managed val
   existing.bindings = [{ agentId: "alice", match: { channel: "feishu" } }];
   existing.agents.defaults.model = "local/two";
   existing.tools.allow.push("browser");
-  const next = reconcile(existing, base);
+  const next = reconcile(existing, base, base.agents.defaults.model);
   assert.deepEqual(next.tools, base.tools);
   assert.deepEqual(next.bindings, existing.bindings);
   assert.deepEqual(next.agents.entries, existing.agents.entries);
   assert.equal(next.agents.defaults.model, "local/two");
-  assert.deepEqual(reconcile(next, base), next);
+  assert.deepEqual(reconcile(next, base, base.agents.defaults.model), next);
+});
+
+test("reconcile follows a changed Guix default unless the user picked another", () => {
+  const updated = structuredClone(base);
+  updated.agents.defaults.model = { primary: "local/two" };
+  const stale = structuredClone(base);
+  stale.agents.defaults.model = "local/one";
+  assert.deepEqual(reconcile(stale, updated, { primary: "local/one" }).agents.defaults.model,
+    { primary: "local/two" });
+  assert.deepEqual(reconcile(stale, updated).agents.defaults.model, { primary: "local/two" });
+  const three = structuredClone(updated);
+  three.models.providers.local.models.push({ id: "three" });
+  const picked = structuredClone(base);
+  picked.agents.defaults.model = "local/three";
+  assert.equal(reconcile(picked, three, { primary: "local/one" }).agents.defaults.model,
+    "local/three");
 });
 
 test("policy rejects override, include, environment, traversal and unapproved model", () => {
