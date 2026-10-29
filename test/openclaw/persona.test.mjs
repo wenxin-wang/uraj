@@ -199,9 +199,19 @@ test("message tool reaches only this conversation and the requester's private ch
     { target: "user:bob" }, { action: "read" }]) {
     assert.equal((await service.messageTool(send(params), shared)).block, true, JSON.stringify(params));
   }
-  // A shared run without a requester, e.g. a wake-up, has no private chat to reach.
+  // A wake-up without a requester reaches the session's latest sender for an hour.
   const wake = { ...groupCtx(), requester: undefined };
   assert.equal((await service.messageTool(send({ target: "user:ou_bob" }), wake)).block, true);
+  let now = 1000;
+  service.now = () => now;
+  await service.beforeRun({ senderId: "ou_bob" }, { ...groupCtx(), senderId: "ou_bob", runId: "ask" });
+  assert.equal(await service.messageTool(send({ target: "user:ou_bob" }), wake), undefined);
+  assert.equal((await service.messageTool(send({ target: "user:ou_alice" }), wake)).block, true);
+  const other = { ...wake, sessionKey: `${wake.sessionKey}x` };
+  assert.equal((await service.messageTool(send({ target: "user:ou_bob" }), other)).block, true);
+  now += 3600001;
+  assert.equal((await service.messageTool(send({ target: "user:ou_bob" }), wake)).block, true);
+  service.now = Date.now;
   await service.command({ sender: "ou_alice", chat: "oc_group", args: "use main" });
   const mine = { ...groupCtx("main"), requester: undefined };
   assert.equal(await service.messageTool(send({ target: "user:ou_alice" }), mine), undefined);

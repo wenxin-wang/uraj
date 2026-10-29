@@ -26,7 +26,11 @@ const PRIVATE_GROUP_CONTEXT = "This Feishu group is verified to contain only the
 const SHARED_GROUP_CONTEXT = "This is a shared Feishu group. When a login or pairing code must go " +
   "privately to the requester, send it with the message tool (action \"send\", target " +
   "\"user:<requester open_id>\") and acknowledge in the group without the code. The message " +
-  "tool can reach only this conversation and the requester's private chat.";
+  "tool can reach only this conversation and the requester's private chat. What the requester " +
+  "writes in that private chat goes to another role with its own browser identity, so ask " +
+  "them to reply here, in this group conversation, and never to start the login there.";
+// Wake-ups have no sender; they continue the session's latest request.
+const REQUESTER_TTL = 3600000;
 export function sessionPeer(key) {
   return typeof key === "string" ? /:direct:(ou_[a-zA-Z0-9]+)$/.exec(key)?.[1] : undefined;
 }
@@ -51,6 +55,7 @@ export class Personas {
   constructor({ store, config, register, bind, draft, writeIdentity, feishu, now = Date.now }) {
     Object.assign(this, { store, config, register, bind, draft, writeIdentity, feishu, now });
     this.runs = new Map();
+    this.requesters = new Map();
     this.pendingNotices = new Set();
     this.controlReplies = new Map();
   }
@@ -302,6 +307,10 @@ export class Personas {
         created: this.now() });
       for (const [id, run] of this.runs) if (this.now() - run.created > 86400000) this.runs.delete(id);
     }
+    if (sender && ctx.sessionKey) {
+      this.requesters.set(ctx.sessionKey, { sender, at: this.now() });
+      for (const [key, r] of this.requesters) if (this.now() - r.at > REQUESTER_TTL) this.requesters.delete(key);
+    }
   }
   // The message tool can name any Feishu target, and private-chat deliveries
   // bypass the group checks in sending(). Confine it to this conversation and
@@ -318,8 +327,15 @@ export class Personas {
     }
     const role = (await this.store.read()).roles[ctx.agentId];
     if (!role) return deny("Unknown persona.");
-    const requester = ctx.requester?.channel === undefined || ctx.requester.channel === "feishu"
-      ? senderId(ctx.requester?.senderId) : undefined;
+    // A run without a requester, e.g. a finished background command waking
+    // the session, acts for the session's latest sender within the hour.
+    // In a shared topic that may be a later speaker than the one who started
+    // the command; for a shared role and its shared browser that is accepted.
+    const latest = this.requesters.get(ctx.sessionKey);
+    const requester = ctx.requester?.senderId === undefined
+      ? (latest && this.now() - latest.at < REQUESTER_TTL ? latest.sender : undefined)
+      : ctx.requester.channel === undefined || ctx.requester.channel === "feishu"
+        ? senderId(ctx.requester.senderId) : undefined;
     const allowed = [sessionGroup(ctx.sessionKey), sessionPeer(ctx.sessionKey),
       role.visibility === "private" ? role.owner : requester].filter(Boolean);
     for (const raw of [params.target, params.to]) {
