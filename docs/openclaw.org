@@ -50,6 +50,10 @@ Shepherd 启动时先停止旧 Gateway，再运行 reconcile：对齐基础字�
 保留 agent、bindings、meta、wizard 和仍在批准列表中的默认模型；在镜像 schema
 校验通过后替换主文件，旧配置保存在 =openclaw.json.before-guix=。
 这是服务启动阶段的对齐，不是在运行中的 Guix activation 直接覆盖文件。
+默认模型只在用户改过时保留：每次对齐后把本次 Guix 默认写入
+=openclaw.json.guix-model=，下次启动时若运行配置仍等于这个旧默认，就跟随
+新的 Guix 声明。没有该记录（首次部署此逻辑）时同样采用 Guix 默认，因为
+无法区分旧默认和用户选择；此前用户自选的默认模型需要重新设置一次。
 基础配置显式声明 =agents.defaults.systemAgent.agentId="main"=，与多 agent
 启动时 Doctor 的规范化保持一致；否则重启后新增的该字段会被不变量校验
 视为漂移，导致私人角色绑定等配置写入失败。
