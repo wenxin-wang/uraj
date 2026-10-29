@@ -1,0 +1,36 @@
+#!/bin/sh
+# Run as root on storie after reconfigure; IMAGE must be loaded in the engine.
+set -eu
+image=${1:?usage: try-browser-gpu IMAGE_ID}
+/etc/openclaw/compose exec -T engine podman run --rm --pull=never \
+  --network none --read-only --tmpfs /tmp --shm-size 256m \
+  --cap-drop ALL --security-opt no-new-privileges --userns keep-id \
+  "$image" sh -euc '
+export HOME=/tmp
+trap "agent-browser close --all >/dev/null 2>&1 || true" EXIT
+agent-browser --session gpu-one --profile /tmp/profile-one open about:blank
+agent-browser --session gpu-two --profile /tmp/profile-two open about:blank
+for session in gpu-one gpu-two; do
+  agent-browser --session "$session" eval "(() => {
+    const canvas = document.createElement(\"canvas\");
+    document.body.appendChild(canvas);
+    const gl = canvas.getContext(\"webgl\");
+    const ext = gl && gl.getExtension(\"WEBGL_debug_renderer_info\");
+    if (!ext) throw new Error(\"WebGL unavailable\");
+    gl.clearColor(0, 1, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+    const pixel = new Uint8Array(4);
+    gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+    if (pixel[1] !== 255) throw new Error(\"WebGL readback failed\");
+    return gl.getParameter(ext.UNMASKED_RENDERER_WEBGL);
+  })()" > /tmp/renderer
+  cat /tmp/renderer
+  grep -Eiq "Intel|AMD|NVIDIA" /tmp/renderer
+  if grep -Eiq "SwiftShader|llvmpipe|lavapipe" /tmp/renderer; then
+  echo "software renderer rejected" >&2
+  exit 1
+fi
+  agent-browser --session "$session" screenshot "/tmp/$session.png"
+  test -s "/tmp/$session.png"
+done
+echo "nested hardware WebGL, parallel sessions and screenshot capture passed"
+'

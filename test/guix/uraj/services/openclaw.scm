@@ -99,6 +99,25 @@
   '#("seccomp=/etc/openclaw/engine-seccomp.json" "systempaths=unconfined")
   (at engine "security_opt"))
 (test-assert "engine is never privileged" (not (at engine "privileged")))
+(define gpu-config
+  (openclaw-configuration (inherit config)
+    (render-device "/dev/dri/renderD128")))
+(define gpu-manifest
+  (json-string->scm (plain-file-content (openclaw-compose-file gpu-config))))
+(test-equal "GPU device reaches engine" '#("/dev/fuse" "/dev/net/tun" "/dev/dri/renderD128")
+  (at gpu-manifest "services" "engine" "devices"))
+(test-assert "Gateway never receives GPU devices"
+  (not (at gpu-manifest "services" "gateway" "devices")))
+(test-equal "Podman loads GPU override" "/etc/containers/openclaw-gpu.conf"
+  (at gpu-manifest "services" "engine" "environment" "CONTAINERS_CONF_OVERRIDE"))
+(test-assert "Podman GPU override is mounted read-only"
+  (any (lambda (v)
+         (and (equal? (at v "target") "/etc/containers/openclaw-gpu.conf")
+              (at v "read_only")))
+       (vector->list (at gpu-manifest "services" "engine" "volumes"))))
+(test-error "only render devices may be configured" #t
+  (openclaw-compose-file
+   (openclaw-configuration (inherit config) (render-device "/dev/dri/card0"))))
 (define engine-volumes (vector->list (at engine "volumes")))
 (test-equal "engine sees workspaces, its store, its socket and sandbox state"
   '(("/data/openclaw/workspaces" . "/data/openclaw/workspaces")
