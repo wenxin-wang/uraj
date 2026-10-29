@@ -869,10 +869,16 @@ at its own path.  Return #t if TOP needs nothing, else the source or #f."
                      (source-checkouts top git))
           (#f #f)
           (source
-           ;; A link is created atomically, and approved copies never change.
+           ;; Approved copies never change.  Rename a fresh link into place:
+           ;; concurrent launches may link the same copy, and a link left
+           ;; dangling by a removed source copy must be replaced.
            (when (and hash (not (file-exists? (approved top))))
-             (mkdir-p (dirname (approved top)))
-             (symlink (approved source) (approved top)))
+             (let ((link (string-append (approved top) ".link-"
+                                        (number->string (getpid)))))
+               (mkdir-p (dirname (approved top)))
+               (false-if-exception (delete-file link))
+               (symlink (approved source) link)
+               (rename-file link (approved top))))
            (when (allowed top)
              (mkdir-p (direnv-allow-directory))
              (call-with-output-file (allowed top)
