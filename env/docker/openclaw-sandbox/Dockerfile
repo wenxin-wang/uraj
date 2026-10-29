@@ -15,6 +15,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # headless Wayland display, so WebGL still uses the shared render node.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
+      nodejs python-is-python3 \
       bash ca-certificates curl git jq python3 ripgrep procps less file unzip \
       cage chromium fonts-liberation fonts-noto-cjk fonts-noto-color-emoji \
       libegl1 libgl1-mesa-dri mesa-vulkan-drivers \

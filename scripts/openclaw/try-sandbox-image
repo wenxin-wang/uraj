@@ -25,6 +25,8 @@ echo "== file bridge tools"
 stat -c "%F|%s|%y" /workspace
 readlink -n -f /workspace; echo
 python3 -c "print(\"python3 ok\")"
+python -c "print(\"python ok\")"
+node -e "console.log(\"node ok\")"
 echo "== agent-browser"
 agent-browser --version
 agent-browser skills get core > /tmp/core.md
