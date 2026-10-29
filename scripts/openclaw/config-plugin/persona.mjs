@@ -12,6 +12,9 @@ export function sessionAgent(key) {
 export function sessionGroup(key) {
   return typeof key === "string" ? /:group:(oc_[a-zA-Z0-9]+)(?::|$)/.exec(key)?.[1] : undefined;
 }
+export function sessionPeer(key) {
+  return typeof key === "string" ? /:direct:(ou_[a-zA-Z0-9]+)$/.exec(key)?.[1] : undefined;
+}
 function admin(config, sender) {
   return config.commands?.ownerAllowFrom?.some((value) =>
     value === `feishu:${sender}` || value === sender) === true;
@@ -270,8 +273,13 @@ export class Personas {
     if (!role) return { outcome: "block", reason: "Unknown persona", message: "角色尚未登记，请先 /persona。" };
     const chat = sessionGroup(ctx.sessionKey);
     const sender = senderId(event.senderId ?? ctx.senderId ?? ctx.senderExternalId);
+    // Inbound messages without a sender are refused earlier, so a run without
+    // one was started by the session itself, e.g. a finished background command
+    // waking it.  It acts for the session's peer; groups are checked for
+    // membership here and again before sending.
+    const actor = sender ?? (chat ? role.owner : sessionPeer(ctx.sessionKey));
     if (chat && !await this.verifyGroup(chat, role, sender) ||
-        role.visibility === "private" && (sender !== role.owner || !ctx.runId)) {
+        role.visibility === "private" && (actor !== role.owner || !ctx.runId)) {
       return { outcome: "block", reason: "Private persona access denied", message: "私人角色权限或群成员状态不匹配，请 /persona。" };
     }
     if (ctx.runId) {
@@ -312,8 +320,7 @@ export class Personas {
   }
   async directWelcome(event, ctx, delivered = false) {
     const key = event.sessionKey ?? ctx.sessionKey;
-    const sender = senderId(ctx.senderId) ?? (typeof key === "string" ?
-      /:direct:(ou_[a-zA-Z0-9]+)$/.exec(key)?.[1] : undefined);
+    const sender = senderId(ctx.senderId) ?? sessionPeer(key);
     const id = event.usageState?.agentId ?? sessionAgent(key);
     if (!sender || !id || !delivered && event.kind !== "final") return;
     // Commands and bootstrap notices already identify themselves. Only decorate
