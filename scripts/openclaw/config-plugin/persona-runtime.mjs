@@ -51,6 +51,10 @@ export function createRuntimePersonas(api, {
         await fs.mkdir(dir, { recursive: true, mode: 0o700 });
         if (!(await fs.lstat(dir)).isDirectory()) throw new Error("Agent directory is not a directory");
       }
+      // File-tool scratch; created before any sandbox claims .openclaw.
+      // Service start repairs workspaces where a sandbox got there first.
+      await fs.mkdir(path.join(workspace, ".openclaw", "tmp"), { recursive: true, mode: 0o700 })
+        .catch(() => {});
       for (const [name, text] of Object.entries({
         "IDENTITY.md": `# Identity\n\nName: ${role.name}\n\n${role.description}\n`,
         "SOUL.md": `# Persona\n\n${role.soul}\n`,

@@ -593,6 +593,19 @@
                                 "openclaw-import-sandbox"
                                 #$(file-append docker-full "/bin/docker")
                                 #$command sandbox))))
+                  ;; OpenClaw's prompt puts file-tool scratch in .openclaw/tmp,
+                  ;; but crun creates .openclaw as the sandboxes' mapped root
+                  ;; for the skills mount, so the sandbox user cannot write it.
+                  ;; The engine's user namespace owns both IDs and nothing else
+                  ;; on the host; skip symlinks the agent may have planted.
+                  (invoke #$command "exec" "-T" "engine" "podman" "unshare"
+                          "sh" "-euc"
+                          (string-append
+                           "for w in \"$1\"/*/; do w=${w%/}; "
+                           "if [ -L \"$w\" ] || [ -L \"$w/.openclaw\" ] || "
+                           "[ -L \"$w/.openclaw/tmp\" ]; then continue; fi; "
+                           "mkdir -p \"$w/.openclaw/tmp\"; chmod 0700 \"$w/.openclaw/tmp\"; done")
+                          "openclaw-scratch" #$(data-path config "workspaces"))
                   ;; Verify the built or imported ID before starting Gateway.
                   (invoke #$command "exec" "-T" "engine" "podman" "image" "exists"
                           (substring sandbox 7))
