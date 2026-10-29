@@ -268,7 +268,11 @@
                                                    (cons (car entry)
                                                          `((alias . ,(cdr entry)))))
                                                  (openclaw-model-aliases config))))
-                             (heartbeat . ((every . "0m") (target . "none")))
+                             ;; No recurring heartbeat.  Event wakes such as
+                             ;; background exec completions reply to their origin;
+                             ;; "none" suppressed those too.  An explicit owner
+                             ;; skips the first-alert explanation.
+                             (heartbeat . ((every . "0m") (target . "owner")))
                              ;; Every session runs tools in the engine; the
                              ;; Podman backend needs host paths, see
                              ;; docs/openclaw.org.
