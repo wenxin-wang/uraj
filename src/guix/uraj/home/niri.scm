@@ -76,9 +76,8 @@ plain noctalia and D-Bus activation regardless of the builder."
                     home-environment-variables-service-type
                     `(("NIRI_SESSION_LOG_FILE" . ,log-file)))
     ;; noctalia's launcher reads desktop entries from XDG_DATA_DIRS only,
-    ;; not XDG_DATA_HOME, so without ~/.local/share the Feishu wrapper
-    ;; entry there is invisible; ours comes first since both entries
-    ;; share the bytedance-feishu.desktop id (first in order wins).
+    ;; not XDG_DATA_HOME, so without ~/.local/share the Corplink entry
+    ;; there is invisible.
     (simple-service 'xdg-data-dirs-local
                     home-environment-variables-service-type
                     '(("XDG_DATA_DIRS"

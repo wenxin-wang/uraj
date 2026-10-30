@@ -22,6 +22,7 @@
   #:use-module (small-guix packages scrcpy)
   #:use-module (uraj packages android)
   #:use-module (uraj packages basic-packages)
+  #:use-module (uraj packages feishu)
   #:use-module (uraj packages input-methods)
   #:use-module (uraj packages rime)
   #:use-module (uraj packages ssh)
@@ -33,6 +34,7 @@
   (cons* glibc-common-locales
          ghostty                        ;terminal emulator
          firefox                        ;Mozilla Firefox from the Nonguix channel
+         feishu                         ;Feishu/Lark, repackaged upstream deb
          kdeconnect                     ;kdeconnect-app/-cli and plugins
          ksshaskpass-with-qtkeychain      ;GNOME Keyring on niri, no SSH agent
          scrcpy                         ;remote-maa screen/login
