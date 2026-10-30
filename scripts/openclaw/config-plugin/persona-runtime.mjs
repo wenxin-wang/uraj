@@ -127,6 +127,14 @@ export function registerPersonas(api, personas = createRuntimePersonas(api)) {
     try { return await personas.beforeRun(event, ctx); }
     catch { logFailure(); return { outcome: "block", reason: "Persona verification failed", message: "角色权限未确认，请稍后重试。" }; }
   }, { priority: 100, timeoutMs: 20000 });
+  api.on("before_tool_call", async (event, ctx) => {
+    try { return await personas.messageTool(event, ctx); }
+    catch { logFailure(); return { block: true, blockReason: "Persona verification failed" }; }
+  }, { matcher: ["message"], priority: 100, timeoutMs: 20000 });
+  // Context only: a failure leaves the built-in prompt unchanged.
+  api.on("before_prompt_build", async (event, ctx) => {
+    try { return await personas.promptContext(event, ctx); } catch { logFailure(); }
+  }, { priority: 100, timeoutMs: 15000 });
   api.on("reply_payload_sending", async (event, ctx) => {
     try { return await personas.sending(event, ctx); }
     catch { logFailure(); return { cancel: true, reason: "Persona verification failed" }; }

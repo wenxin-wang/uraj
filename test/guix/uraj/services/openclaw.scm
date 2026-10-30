@@ -180,8 +180,9 @@
 (test-equal "exec never falls back to the Gateway" "sandbox"
   (at app "tools" "exec" "host"))
 (test-equal "elevated escape is disabled" #f (at app "tools" "elevated" "enabled"))
-(test-equal "heartbeat notifications stay internal"
-  "none" (at app "agents" "defaults" "heartbeat" "target"))
+(test-equal "background completions reply to their origin, not suppressed"
+  "owner" (at app "agents" "defaults" "heartbeat" "target"))
+(test-equal "no recurring heartbeat" "0m" (at app "agents" "defaults" "heartbeat" "every"))
 
 (define sandbox (at app "agents" "defaults" "sandbox"))
 (test-equal "managed proxy permits an external bind source" #t
@@ -225,8 +226,10 @@
 (test-equal "agent paths are host paths" "/data/openclaw/workspaces/main"
   (at app "agents" "entries" "main" "workspace"))
 (test-equal "Gateway-run tools are allowed in sandboxed sessions"
-  '#("openclaw_config_set" "web_fetch" "memory_search" "memory_get")
+  '#("openclaw_config_set" "web_fetch" "memory_search" "memory_get" "message")
   (at app "tools" "sandbox" "tools" "alsoAllow"))
+(test-equal "message tool never crosses to another provider" #f
+  (at app "tools" "message" "crossContext" "allowAcrossProviders"))
 (test-error "engine image must be a local ID" #t
   (openclaw-compose-file (openclaw-configuration (inherit config)
                            (engine-image "quay.io/podman/stable"))))
@@ -255,9 +258,10 @@
   (at app "channels" "feishu" "groupSessionScope"))
 (test-equal "bot replies stay in topic threads" "enabled"
   (at app "channels" "feishu" "replyInThread"))
-(test-equal "file, process, web, memory and config tools explicitly allowed"
+(test-equal "file, process, web, memory, message and config tools explicitly allowed"
   '#("read" "write" "edit" "apply_patch" "exec" "process"
-     "view_image" "web_fetch" "memory_search" "memory_get" "openclaw_config_set")
+     "view_image" "web_fetch" "memory_search" "memory_get" "message"
+     "openclaw_config_set")
   (at app "tools" "allow"))
 (test-assert "file tools are not blocked by the old deny-all policy"
   (not (at app "tools" "deny")))
