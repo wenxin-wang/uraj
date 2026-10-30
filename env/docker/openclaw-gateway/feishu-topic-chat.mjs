@@ -3,6 +3,9 @@
 // on thread_id and quote replies on root_id, splitting one topic in two.
 // Look up chat_mode once per chat and mark topic chats as topic_group.
 // Upstream: https://github.com/openclaw/openclaw/issues/160330
+// Persist a reply anchor even for topic starters, which have no root_id.
+// Ingress access, conversation.threadId and reply.messageThreadId use it
+// so background completions and message tools stay in the originating topic.
 // TODO: before enabling cron, anchor agent-initiated sends in topic chats;
 // a session without an inbound message posts top-level, i.e. a new topic.
 // The upstream fix PR #160332 covers this.
@@ -17,6 +20,9 @@ import { join } from "node:path";
 const root = process.argv[2] ?? "/app/dist";
 const handler = "async function handleFeishuMessage(params) {";
 const session = "\tlet effectiveThreadId = ctx.threadId;\n";
+
+const threadAnchor = "ctx.rootId && isTopicSession ? ctx.rootId : void 0";
+const anchoredThread = "isTopicSession ? ctx.rootId ?? ctx.messageId : void 0";
 
 const helper = `// uraj: topic chats arrive as chat_type "group" (openclaw#160330).
 const urajTopicModeChats = new Map();
@@ -61,11 +67,12 @@ for (const path of files(root)) {
   const text = readFileSync(path, "utf8");
   if (!text.includes(handler)) continue;
   if (count(text, handler) !== 1 || count(text, session) !== 1 || count(text, queueKey) !== 1 ||
+      count(text, threadAnchor) !== 3 ||
       !/\bcreateFeishuClient\b/.test(text) || text.includes("urajIsTopicModeChat")) {
     throw new Error(`Unexpected Feishu handler layout in ${path}`);
   }
   writeFileSync(path, text.replace(handler, helper + handler)
-    .replace(session, promote + session).replace(queueKey, threadQueueKey));
+    .replace(session, promote + session).replace(queueKey, threadQueueKey).replaceAll(threadAnchor, anchoredThread));
   patched += 1;
 }
 if (patched === 0) throw new Error("Feishu message handler not found");
