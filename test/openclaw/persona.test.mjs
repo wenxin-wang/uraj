@@ -346,6 +346,7 @@ test("runtime uses native source transaction, preserves SecretRefs and existing 
   await fs.writeFile(path.join(root, "workspaces/reader/SOUL.md"), "user customized");
   await service.register(role);
   assert.equal(await fs.readFile(path.join(root, "workspaces/reader/SOUL.md"), "utf8"), "user customized");
+  assert.equal((await fs.stat(path.join(root, "workspaces/reader/.openclaw/tmp"))).mode & 0o777, 0o700);
   source.bindings = [
     { agentId: "main", match: { channel: "feishu", accountId: "main", peer: { kind: "group", id: "oc_group:topic:om_old" } } },
     { agentId: "main", match: { channel: "feishu", accountId: "main", peer: { kind: "direct", id: "ou_alice" } } },
