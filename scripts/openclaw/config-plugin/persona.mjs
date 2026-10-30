@@ -20,15 +20,13 @@ export function feishuTarget(s) {
     .replace(/^(?:chat|group|channel|user|dm|open_id):/i, "").trim();
   return /^o[cu]_[a-zA-Z0-9]+$/.test(id) ? id : null;
 }
-const PRIVATE_GROUP_CONTEXT = "This Feishu group is verified to contain only the role owner and you. " +
-  "Treat it as a private chat with the owner: for the owner's own login or pairing requests, " +
-  "QR codes, short-lived codes and verification links may be posted here.";
-const SHARED_GROUP_CONTEXT = "This is a shared Feishu group. When a login or pairing code must go " +
-  "privately to the requester, send it with the message tool (action \"send\", target " +
-  "\"user:<requester open_id>\") and acknowledge in the group without the code. The message " +
-  "tool can reach only this conversation and the requester's private chat. What the requester " +
-  "writes in that private chat goes to another role with its own browser identity, so ask " +
-  "them to reply here, in this group conversation, and never to start the login there.";
+const PRIVATE_GROUP_CONTEXT = "This Feishu group contains only the role owner and you, verified by membership checks. " +
+  "For the owner's login or pairing, treat it as private: codes and verification links may be sent here.";
+const SHARED_GROUP_CONTEXT = "In this shared Feishu group, send login/pairing codes privately with message " +
+  "(action: send, target: user:<requester open_id>); acknowledge here without the code. " +
+  "Keep the browser and follow-up in this group session. Tell the requester to reply here: " +
+  "their private-chat replies go to another role and browser identity. " +
+  "The message tool permits only this conversation or the requester's private chat.";
 // Wake-ups have no sender; they continue the session's latest request.
 const REQUESTER_TTL = 3600000;
 export function sessionPeer(key) {

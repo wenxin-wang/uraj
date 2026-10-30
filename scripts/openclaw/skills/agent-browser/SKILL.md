@@ -1,74 +1,53 @@
 ---
 name: agent-browser
-description: Browse websites, log in, take screenshots, and interact with web pages using isolated browser task profiles in the OpenClaw sandbox.
+description: Browse websites and manage this role's browser login through browser-profile.
 ---
 
-# OpenClaw browser tasks
+# Browser tasks
 
-Read `agent-browser skills get core` for browser commands. The lifecycle rules
-below override its generic session/profile examples for this environment.
-Never invoke raw `agent-browser open`, choose your own session/profile, or use
-`--restore`. Use `browser-profile` for all browser operations. Each role has its
-own persistent identity; ordinary tasks receive independent copies.
+Use only `browser-profile`; do not choose raw sessions/profiles or use
+`--restore`. Consult `agent-browser --help` or `agent-browser skills get core`
+for unfamiliar commands; this lifecycle overrides their generic examples.
 
-## Login and refresh identity
+Follow-ups and background completions continue the user's task. Inspect
+relevant evidence when questioned, then act; explanation alone is not progress.
 
-When the user asks to log in or refresh credentials, or a task needs a login
-this identity lacks:
+## Choose the right state
 
-```
-browser-profile login https://www.xiaohongshu.com
-browser-profile identity snapshot -i
-browser-profile identity screenshot /workspace/login.png
-```
+Each role's **identity** holds its persistent login. `publish` closes it and
+saves a snapshot; `create` copies that snapshot. Copies never update identity
+or each other. An old snapshot cannot verify a new login.
 
-Send the screenshot to the user for QR login, following this conversation's
-rules for where login codes may go. Continue using
-`browser-profile identity <command> ...` to check completion. Once login is
-confirmed, run `browser-profile publish`. This closes the identity browser and
-publishes a consistent snapshot. Do not publish halfway through user login.
-Never delete Chromium locks or copy a running profile. If migration reports a
-running legacy browser, close its original session first.
+- Login and verification: `browser-profile login <url>`, then
+  `browser-profile identity <command> ...`.
+- Browsing: `browser-profile create`, then
+  `browser-profile run <task-id> <command> ...`. Keep one ID per task,
+  including after idle shutdown. `browser-profile finish <task-id>` deletes it;
+  save deliverables outside its profile, e.g. `/workspace/.openclaw/tmp/`.
+- Missing snapshot: inspect existing identity before assuming no login.
+  `login about:blank` then `publish` initializes a snapshot without erasing it.
+  Never copy running profiles or delete locks; close a legacy browser through
+  its original session if migration requests it.
 
-## Ordinary browsing
+## Finish the login flow
 
-```
-browser-profile create
-# Save the returned task ID; use it for every operation of this task.
-browser-profile run <task-id> open https://example.com
-browser-profile run <task-id> snapshot -i
-browser-profile run <task-id> screenshot /workspace/result.png
-browser-profile finish <task-id>
-```
+If login is requested or blocks browsing, use identity throughout verification.
+Inspect the page and screenshot, then send a fresh code through the permitted
+conversation route.
 
-Each concurrent task must create its own task ID. `finish` closes the browser
-and deletes that task's profile: send screenshots/save outputs outside the task
-directory first. Login changes in a task are NOT merged back. If no snapshot
-exists, initialize one with `login about:blank` then `publish`. Browser
-processes exit after 30 minutes idle, but task files remain until `finish`.
-Reuse the task ID to resume after idle shutdown.
+For QR login, actually start a bounded wait: check the site's login state every
+10–15 seconds for up to three minutes or until code expiry. A background wait
+must resume and report on completion. Stop on success, expiry, site error or
+cancellation; do not silently renew codes. "I'll wait" alone starts nothing.
 
-If a site the task needs shows a login wall, the task is blocked: finish the
-task, ask the user to log in through the flow above, and resume with a new task
-after publishing. Do not first answer from other sources unless the user agrees.
+On confirmed success, `browser-profile publish`, report success and resume
+remaining work in a fresh task. Otherwise report the observed blocker and
+needed user action. Do not replace requested logged-in work with generic
+advice or other sources without agreement.
 
-Publishing a new snapshot only affects subsequently created tasks. Websites may
-expire or rotate credentials; if a task loses its login, refresh the identity
-and create a new task. Do not promise that copied credentials always work.
+## Evidence
 
-## Reporting what happened
-
-The browser is headed Debian Chromium inside this sandbox, using this role's
-identity; it is never the user's own browser or profile. When asked about the
-browser, check (`printenv | grep AGENT_BROWSER`, `ps -eo args`) instead of
-inferring from tool names.
-
-"No snapshot" only means this role never published one; the identity may still
-hold a login, and `login about:blank` then `publish` keeps it. Check the site's
-own login state before telling the user they are logged out.
-
-A risk-control, captcha or "security restriction" page proves only that the
-site blocked this visit. Quote what the page says and report it as blocked; do
-not name a cause (IP, login state, browser mode) without evidence. If you fall
-back to other sources, say so and keep their results separate from the site
-the user asked for.
+Configured browser: headed Debian Chromium in this role's sandbox, not the
+user's browser. For diagnosis, verify the process and `AGENT_BROWSER`
+environment. Check current evidence before asserting login state. A risk page
+proves a blocked visit, not an IP, account or browser-mode cause.
