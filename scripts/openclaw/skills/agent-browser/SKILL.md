@@ -39,6 +39,9 @@ For QR login, actually start a bounded wait: check the site's login state every
 10–15 seconds for up to three minutes or until code expiry. A background wait
 must resume and report on completion. Stop on success, expiry, site error or
 cancellation; do not silently renew codes. "I'll wait" alone starts nothing.
+After starting the wait, tell the user that checks and the result report are
+automatic, with no confirmation reply needed. In a group task, ask them to
+return to the original topic only if they need to report a problem.
 
 On confirmed success, `browser-profile publish`, report success and resume
 remaining work in a fresh task. Otherwise report the observed blocker and
