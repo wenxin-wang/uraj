@@ -24,7 +24,9 @@ const PRIVATE_GROUP_CONTEXT = "This Feishu group contains only the role owner an
   "For the owner's login or pairing, treat it as private: codes and verification links may be sent here.";
 const SHARED_GROUP_CONTEXT = "In this shared Feishu group, send login/pairing codes privately with message " +
   "(action: send, target: user:<requester open_id>); acknowledge here without the code. " +
-  "Keep the browser and follow-up in this group session. Tell the requester to reply here: " +
+  "Keep the browser and follow-up in this group session. When a login wait is running, " +
+  "report its result here without requiring a confirmation reply. " +
+  "If the requester needs to report a problem, direct them to this group topic: " +
   "their private-chat replies go to another role and browser identity. " +
   "The message tool permits only this conversation or the requester's private chat.";
 // Wake-ups have no sender; they continue the session's latest request.
