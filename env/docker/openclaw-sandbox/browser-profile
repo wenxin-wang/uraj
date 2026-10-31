@@ -13,7 +13,12 @@ import time
 import uuid
 from pathlib import Path
 
-ROOT = Path("/workspace/.agent-browser")
+ROOT = Path(os.environ.get("BROWSER_PROFILE_ROOT", "/workspace/.agent-browser"))
+# Where `publish' writes snapshots and `create' reads them; defaults to ROOT.
+# A sandbox that only forks tasks sees another identity's published snapshots
+# here, read-only, and sets BROWSER_PROFILE_IDENTITY_HINT to refuse login.
+PUBLISHED = os.environ.get("BROWSER_PROFILE_PUBLISHED")
+IDENTITY_HINT = os.environ.get("BROWSER_PROFILE_IDENTITY_HINT")
 VOLATILE = {
     "SingletonLock",
     "SingletonSocket",
@@ -89,6 +94,10 @@ def copy_profile(source, destination):
     )
 
 
+def published():
+    return Path(PUBLISHED) if PUBLISHED else ROOT
+
+
 def identity():
     path = ROOT / "identity"
     legacy = ROOT / "profile"
@@ -130,6 +139,8 @@ def main():
     # Serialize managed lifecycle operations; browser daemons outlive this lock.
     with (ROOT / "profile-manager.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
+        if IDENTITY_HINT and args.action in ("login", "identity", "publish"):
+            raise RuntimeError(IDENTITY_HINT)
         if args.action in ("login", "identity"):
             command = (
                 ["open", args.url] if args.action == "login" else args.command
@@ -148,24 +159,28 @@ def main():
                     if attempt == 49:
                         raise
                     time.sleep(0.1)
-            snapshots = ROOT / "snapshots"
-            snapshots.mkdir(exist_ok=True)
+            snapshots = published() / "snapshots"
+            snapshots.mkdir(parents=True, exist_ok=True)
             version = uuid.uuid4().hex
             destination = snapshots / version
             try:
                 copy_profile(source, destination)
-                pending = ROOT / "current.new"
+                pending = published() / "current.new"
                 pending.unlink(missing_ok=True)
                 pending.symlink_to(Path("snapshots") / version)
-                pending.replace(ROOT / "current")
+                pending.replace(published() / "current")
             except Exception:
                 shutil.rmtree(destination, ignore_errors=True)
                 raise
             print(json.dumps({"snapshot": version}))
         elif args.action == "create":
-            source = ROOT / "current"
+            # Pin one version: a host may publish without holding our lock.
+            source = (published() / "current").resolve()
             if not source.is_dir():
-                raise RuntimeError("No snapshot: use login, then publish first")
+                raise RuntimeError(
+                    IDENTITY_HINT
+                    or "No snapshot: use login, then publish first"
+                )
             name = uuid.uuid4().hex
             destination = task_path(name)
             destination.parent.mkdir(exist_ok=True)
