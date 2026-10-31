@@ -183,12 +183,13 @@ tree, and the mount options for WORKDIR."
   ;; Credentials, Paseo's keys (control of every session), our own
   ;; configuration and approvals, the build daemon (use the explicit
   ;; guix-daemon clause instead), decrypted SOPS secrets (use the explicit
-  ;; credential clauses instead), the user's service managers, and Podman
-  ;; runtime state: the host service's socket runs any container as the user.
+  ;; credential clauses instead), the user's service managers, browser
+  ;; logins (sessions see published snapshots only), and Podman runtime
+  ;; state: the host service's socket runs any container as the user.
   '("~/.paseo" "~/.paseo-password" "~/.ssh" "~/.gnupg" "~/.password-store"
     "~/.config/contained-agent" "~/.local/state/contained-agent"
     "~/.local/share/contained-agent"
-    "~/.local/state/paseo-broker"
+    "~/.local/state/paseo-broker" "~/.local/state/agent-browser"
     "~/.config/paseo" "~/.local/state/paseo-sandbox"
     "~/.cache/contained-agent"
     "/var/guix/daemon-socket" "/run/secrets" "/run/user"
@@ -329,6 +330,54 @@ EOF
 chmod 700 \"$d/podman\"
 export PATH=$d:$PATH
 exec \"$@\"")
+
+;;; Browser tasks fork login snapshots published on the host (see
+;;; browser-profile): the directory holding them is exposed read-only, the
+;;; identity they come from never.  Forks live in the container's tmpfs
+;;; home and end with the session.  Each render node of the host comes with
+;;; what Mesa reads to find it: /sys is absent, as `--network' keeps the
+;;; host's network namespace.
+(define %browser-snapshots (make-parameter #f))
+(define %render-nodes (make-parameter #f))
+
+(define (render-node-options dir)
+  (define (char-device name)
+    (let* ((node (string-append dir "/" name))
+           (st (stat node #f)))
+      (and st (eq? 'char-special (stat:type st))
+           (let* ((dev (stat:rdev st))
+                  (major (logior (logand (ash dev -8) #xfff)
+                                 (logand (ash dev -32) (lognot #xfff))))
+                  (minor (logior (logand dev #xff)
+                                 (logand (ash dev -12) (lognot #xff))))
+                  (link (format #f "/sys/dev/char/~a:~a/device" major minor)))
+             (and (file-exists? link)
+                  (list node (canonicalize-path link)))))))
+  (match (and dir (directory? dir)
+              (filter-map (lambda (name)
+                            (and (string-prefix? "renderD" name)
+                                 (char-device name)))
+                          (or (scandir dir) '())))
+    ((or #f ()) '())
+    (nodes (append (expose "/sys/dev/char")
+                   (append-map (match-lambda
+                                 ((node device)
+                                  (append (expose node) (expose device))))
+                               nodes)))))
+
+(define (browser-options)
+  (append
+   (match (%browser-snapshots)
+     (#f '())
+     (dir (let ((dir (expand-home dir)))
+            ;; Exists from the start, so a first publish reaches sessions
+            ;; that are already running.  Logins are private to the user.
+            (let ((mask (umask #o077)))
+              (mkdir-p dir)
+              (umask mask))
+            (list (string-append "--expose=" dir
+                                 "=/run/contained-agent/browser")))))
+   (render-node-options (%render-nodes))))
 
 (define (read-all file)
   (call-with-input-file file
@@ -1158,7 +1207,8 @@ NUL.  All ssh-add output goes to stderr, never into this private protocol."
             podman-tmp
             (if podman?
                 '("--expose=@CONTAINED_PODMAN_SOCKET@=/run/contained-agent/podman")
-                '())
+                ;; Host paths: a Podman runtime would need them mounted first.
+                (browser-options))
             ;; Only this central-policy exception may expose SSH resources.
             ;; Mount the socket itself, never the runtime directory or keys.
             (if ssh-dir
@@ -1261,6 +1311,8 @@ exec \"$@\""
                                #:key agents common packages git
                                (ssh-tools '())
                                (podman-launcher #f)
+                               (browser-snapshots #f)
+                               (render-nodes #f)
                                (projects-file
                                 "~/.config/contained-agent/projects.scm")
                                (github-secrets (%github-secrets))
@@ -1273,10 +1325,14 @@ the commentary); PACKAGES
 are the specifications installed in the container; GIT is the git executable
 used to inspect the project.  GITHUB-SECRETS is the directory of the
 GitHub token tiers, or #f if this host has none, and PROJECTS-SECRET, if not
-#f, is a host-private projects file; SOPS decrypts both."
+#f, is a host-private projects file; SOPS decrypts both.  BROWSER-SNAPSHOTS,
+if not #f, is the host directory of published browser logins, and
+RENDER-NODES that of the GPU render nodes to share, such as /dev/dri."
   (catch 'contained-ssh-error
    (lambda ()
     (parameterize ((%podman-launcher podman-launcher)
+                   (%browser-snapshots browser-snapshots)
+                   (%render-nodes render-nodes)
                    (%github-secrets github-secrets)
                    (%projects-secret projects-secret))
     (match command-line

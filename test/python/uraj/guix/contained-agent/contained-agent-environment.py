@@ -61,7 +61,9 @@ class Launcher(unittest.TestCase):
             f"  #:common '() #:packages '() #:git {git}\n"
             '  #:github-secrets (and (not (getenv "TEST_NO_GITHUB"))\n'
             "                       (%github-secrets))\n"
-            '  #:projects-secret (getenv "TEST_PROJECTS_SECRET")))\n'
+            '  #:projects-secret (getenv "TEST_PROJECTS_SECRET")\n'
+            '  #:browser-snapshots (getenv "TEST_BROWSER_SNAPSHOTS")\n'
+            '  #:render-nodes (getenv "TEST_RENDER_NODES")))\n'
         )
         self.env = dict(
             os.environ,
@@ -179,6 +181,28 @@ class WorktreeMounts(Launcher):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIsNone(argv)
                 self.assertNotIn("Backtrace", result.stderr)
+
+    def test_browser_snapshots_without_identity(self):
+        state = self.home / ".local/state/agent-browser"
+        nodes = self.root / "dri"
+        nodes.mkdir()
+        (nodes / "renderD128").write_text("not a device")
+        self.policy('(expose "~/.local/state/agent-browser")')
+        result, argv, _ = self.launch(
+            TEST_BROWSER_SNAPSHOTS="~/.local/state/agent-browser/published",
+            TEST_RENDER_NODES=str(nodes),
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("never mounting", result.stderr)
+        published = state / "published"
+        self.assertEqual(published.stat().st_mode & 0o777, 0o700)
+        self.assertEqual(state.stat().st_mode & 0o777, 0o700)
+        mounts = [arg for arg in argv if "agent-browser" in arg]
+        self.assertEqual(
+            mounts, [f"--expose={published}=/run/contained-agent/browser"]
+        )
+        self.assertFalse(any(str(nodes) in arg for arg in argv))
+        self.assertNotIn("--expose=/sys/dev/char", argv)
 
     def test_main_worktree_is_exposed_before_writable_mounts(self):
         self.project = self.root / "main repo"

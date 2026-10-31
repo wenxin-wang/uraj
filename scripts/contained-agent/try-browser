@@ -1,0 +1,101 @@
+#!/bin/sh
+# Run on a desktop host as the user, outside any contained agent, after
+# `guix pull' has the channels this checkout builds with.  Publish a
+# disposable login with this checkout's host browser-profile (a window opens
+# briefly), then fork it in a container that this checkout's contained-agent
+# code sets up as for any agent.  Checks that the fork sees the login, cannot
+# log in or write back, runs headed, renders WebGL on the GPU, and screenshots
+# CJK text.
+# Usage: try-browser [URL]
+set -eu
+
+url=${1:-https://example.com}
+repo=$(cd "$(dirname "$0")/../.." && pwd)
+tmp=$(mktemp -d /tmp/contained-browser.XXXXXX)
+echo "output: $tmp"
+build() { guix build -L "$repo/src/guix" -e "(@ (uraj packages llm) $1)"; }
+host=$(build browser-profile)
+
+echo "== publish on the host"
+export BROWSER_PROFILE_ROOT="$tmp/state"
+p() { "$host/bin/browser-profile" "$@"; }
+p login "$url"
+p identity eval 'document.cookie = "smoke=forked-login; max-age=3600"'
+p publish
+before=$(cd "$tmp/state/published" && find . -type f -exec sha256sum {} + | sort)
+
+echo "== fork in a contained agent"
+project=$tmp/project
+git init -q "$project"
+: > "$tmp/projects.scm"
+cat > "$tmp/manifest.scm" <<'EOF'
+(use-modules (guix profiles) (uraj packages llm))
+(packages->manifest (list agent-browser contained-browser-profile))
+EOF
+cat > "$project/check.sh" <<EOF
+set -eu
+url=$url
+identity=$tmp/state/identity
+EOF
+cat >> "$project/check.sh" <<'EOF'
+test ! -e "$identity"
+if touch /run/contained-agent/browser/x 2>/dev/null; then
+  echo "published snapshots are writable" >&2; exit 1
+fi
+if browser-profile login about:blank 2>login.err; then
+  echo "login was not refused" >&2; exit 1
+fi
+cat login.err
+task=$(browser-profile create | jq -r .task)
+ab() { browser-profile run "$task" "$@"; }
+ab open "$url"
+ab eval document.cookie > cookie
+cat cookie
+grep -q smoke=forked-login cookie
+ab eval 'document.cookie = "smoke=changed-in-fork; max-age=3600"'
+ab eval "(() => {
+  const gl = document.createElement(\"canvas\").getContext(\"webgl\");
+  const ext = gl && gl.getExtension(\"WEBGL_debug_renderer_info\");
+  if (!ext) return \"WebGL unavailable\";
+  gl.clearColor(0, 1, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+  const pixel = new Uint8Array(4);
+  gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+  return gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) +
+    (pixel[1] === 255 ? \"\" : \" (readback failed)\");
+})()" > renderer
+cat renderer
+grep -Eiq "Intel|AMD|NVIDIA" renderer
+if grep -Eiq "SwiftShader|llvmpipe|lavapipe|unavailable|failed" renderer; then
+  echo "no hardware WebGL" >&2; exit 1
+fi
+ab eval navigator.userAgent > ua
+cat ua
+if grep -q Headless ua; then echo "headless browser rejected" >&2; exit 1; fi
+ab eval navigator.webdriver
+ab open 'data:text/html;charset=utf-8,<h1>浏览器测试 Ελληνικά 🙂</h1>'
+ab screenshot "$PWD/fonts.png"
+browser-profile finish "$task"
+test ! -e "$HOME/.browser-profile/tasks/$task"
+echo "fork checks passed"
+EOF
+cat > "$tmp/driver.scm" <<EOF
+(use-modules (uraj bin contained-agent))
+(contained-agent-main (cons "contained-agent" (cdr (command-line)))
+  #:agents '(("smoke" (program . "bash")))
+  #:common '()
+  #:packages '("--load-path=$repo/src/guix" "--manifest=$tmp/manifest.scm"
+               "bash" "coreutils" "git" "grep" "jq" "nss-certs" "sed")
+  #:git "$(command -v git)"
+  #:projects-file "$tmp/projects.scm"
+  #:github-secrets #f
+  #:browser-snapshots "$tmp/state/published"
+  #:render-nodes "/dev/dri")
+EOF
+(cd "$project" && guix shell guile guile-json -- \
+  guile --no-auto-compile -L "$repo/src/guile" "$tmp/driver.scm" \
+  smoke check.sh)
+
+after=$(cd "$tmp/state/published" && find . -type f -exec sha256sum {} + | sort)
+test "$before" = "$after"
+echo "published snapshot unchanged"
+echo "screenshot: $project/fonts.png; remove $tmp when finished"
