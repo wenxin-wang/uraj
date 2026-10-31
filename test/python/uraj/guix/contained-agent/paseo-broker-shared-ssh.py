@@ -258,6 +258,83 @@ if 'hold' in sys.argv:
         self.assertEqual(self.result(self.client()), sock)
         self.assertEqual(len(self.prompts.read_text().splitlines()), 2)
 
+    def refresh(self, project=None):
+        process = subprocess.Popen(
+            self.prefix + ["ssh-refresh", str(project or self.project)],
+            env=self.env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        self.clients.append(process)
+        return process
+
+    def test_refresh_preserves_live_socket_and_updates_snapshot(self):
+        held = self.client("hold")
+        ready, _, _ = select.select([held.stdout], [], [], 15)
+        self.assertTrue(ready)
+        sock = pathlib.Path(held.stdout.readline().decode().strip())
+        snapshot = sock.parent / "known_hosts"
+        inodes = sock.stat().st_ino, snapshot.stat().st_ino
+        self.known.write_text(self.known.read_text() + "# refreshed\n")
+        self.assertIn("refreshed", self.result(self.refresh()))
+        self.assertIsNone(held.poll())
+        self.assertEqual(inodes, (sock.stat().st_ino, snapshot.stat().st_ino))
+        self.assertEqual(snapshot.read_text(), self.known.read_text())
+        self.assertEqual(len(self.prompts.read_text().splitlines()), 2)
+        # Explicit refresh also reloads keys when policy and files are unchanged.
+        self.result(self.refresh())
+        self.assertEqual(len(self.prompts.read_text().splitlines()), 3)
+        self.assertEqual(self.result(self.client()), str(sock))
+
+    def test_refresh_waits_for_unlock_without_blocking_status(self):
+        self.result(self.client())
+        askpass = self.root / "askpass"
+        original = askpass.read_text()
+        release = self.root / "release-unlock"
+        entered = self.root / "entered-unlock"
+        askpass.write_text(
+            f"#!{sys.executable}\nimport pathlib, time\n"
+            f"pathlib.Path({str(entered)!r}).touch()\n"
+            f"while not pathlib.Path({str(release)!r}).exists(): time.sleep(.02)\n"
+            "print('test-password')\n"
+        )
+        refresh = self.refresh()
+        wait_until(entered.exists)
+        queued = self.client()
+        with socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET) as peer:
+            peer.settimeout(2)
+            peer.connect(str(self.broker_directory / "connection/socket"))
+            peer.send(b'{"version":1,"type":"status"}')
+            self.assertEqual(
+                json.loads(peer.recv(65536))["ssh_preparation"], "unlocking"
+            )
+        self.assertIsNone(refresh.poll())
+        self.assertIsNone(queued.poll())
+        release.touch()
+        self.result(refresh)
+        self.result(queued)
+        askpass.write_text(original)
+
+    def test_refresh_rejects_outside_root(self):
+        process = self.refresh(self.root)
+        _, error = process.communicate(timeout=10)
+        self.assertEqual(process.returncode, 125)
+        self.assertIn(b"outside authorized roots", error)
+        self.assertFalse(self.prompts.exists())
+
+    def test_refresh_failed_unlock_reports_error_and_can_retry(self):
+        self.result(self.client())
+        askpass = self.root / "askpass"
+        original = askpass.read_text()
+        askpass.write_text(f"#!{sys.executable}\nraise SystemExit(1)\n")
+        process = self.refresh()
+        _, error = process.communicate(timeout=20)
+        self.assertEqual(process.returncode, 125)
+        self.assertIn(b"ssh-add failed", error)
+        askpass.write_text(original)
+        self.result(self.refresh())
+        self.result(self.client())
+
     def test_worktree_and_other_project_have_separate_keys(self):
         subprocess.run(
             [

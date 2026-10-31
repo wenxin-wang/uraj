@@ -198,6 +198,26 @@ as well as its sessions; the next broker lifetime requires unlocking again.
 The shared runtime tree is private and separate from direct terminal use, so
 host =contained-agent ssh-start= does not preload this broker's cache.
 
+To explicitly reload a project's shared keys and host-key snapshot, run on
+the host (the project defaults to the current directory):
+
+#+begin_src sh
+paseo-broker ssh-refresh ~/src/uraj
+#+end_src
+
+The broker uses its host askpass dialog and serializes refreshes with session
+SSH preparation. This forces a reload even when policy and known_hosts have
+not changed. A successful refresh preserves the socket and snapshot file
+inodes, so existing sessions see the update without being restarted. New SSH
+authentication may briefly fail while keys are being replaced; established
+SSH connections remain alive. If unlocking fails, the command reports failure
+and the project agent is stopped. Retry the command, then reopen affected
+sessions because the replacement agent has a new socket inode.
+
+Deploy the updated broker and contained-agent launcher together. An already
+running older broker does not support this command; installing it requires a
+broker restart when its sessions can be interrupted.
+
 Status reports =ssh_preparation= as =not-started=, =unlocking=, or =ready=.
 The broker remains responsive while askpass waits.  Canceling a waiting session
 prevents that session from launching; an already-open shared unlock prompt may

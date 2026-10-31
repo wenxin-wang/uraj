@@ -1017,7 +1017,7 @@ applied inside the container."
 
 (define (serve-project-ssh git projects-file ssh-tools)
   "Prepare project SSH in one broker-owned namespace shared across sessions.
-Requests are NUL-terminated working directories; replies are STATUS NUL TEXT
+Requests are NUL-terminated action/directory pairs; replies are STATUS NUL TEXT
 NUL.  All ssh-add output goes to stderr, never into this private protocol."
   (define (reply status text)
     (display status) (write-char #\nul)
@@ -1026,8 +1026,9 @@ NUL.  All ssh-add output goes to stderr, never into this private protocol."
   (unless (getenv "CONTAINED_AGENT_SSH_RUNTIME_DIRECTORY")
     (die "ssh-service requires a broker-owned runtime directory"))
   (let loop ()
-    (let ((directory (read-delimited (string #\nul))))
-      (unless (eof-object? directory)
+    (let* ((action (read-delimited (string #\nul)))
+           (directory (read-delimited (string #\nul))))
+      (unless (or (eof-object? action) (eof-object? directory))
         (catch 'contained-ssh-error
           (lambda ()
             (let*-values
@@ -1035,7 +1036,12 @@ NUL.  All ssh-add output goes to stderr, never into this private protocol."
                  ((policy) (ssh-policy
                             (map cdr (central-entries
                                       (expand-home projects-file) project git)))))
-              (when policy (ssh-ensure project policy ssh-tools))
+              (cond
+               ((string=? action "refresh")
+                (ssh-start project policy ssh-tools #t))
+               ((string=? action "ensure")
+                (when policy (ssh-ensure project policy ssh-tools)))
+               (else (throw 'contained-ssh-error "invalid SSH service action")))
               (reply "ok" "")))
           (lambda (_ message) (reply "error" message)))
         (loop)))))

@@ -406,7 +406,13 @@ class SharedSSHPreparation:
         """Submit one validated working directory when the service is idle."""
         if self.pending is not None:
             return
-        self.process.stdin.write(os.fsencode(job["request"][2]) + b"\0")
+        directory = job.get("ssh_refresh")
+        action = b"refresh" if directory is not None else b"ensure"
+        if directory is None:
+            directory = job["request"][2]
+        self.process.stdin.write(
+            action + b"\0" + os.fsencode(directory) + b"\0"
+        )
         self.process.stdin.flush()
         self.pending = job
 
@@ -665,6 +671,19 @@ class BrokerServer:
                 if self.ssh_preparation is not None:
                     self.ssh_preparation.poll()
                 for connection, job in list(self.clients.items()):
+                    if "ssh_refresh" in job:
+                        if job.get("ssh_ready") or job.get("ssh_error"):
+                            send_control_reply(
+                                connection,
+                                {"type": "error", "message": job["ssh_error"]}
+                                if job.get("ssh_error")
+                                else {"type": "ssh-refreshed"},
+                            )
+                            self.close_client_and_release_resources(connection)
+                            continue
+                        elif not self.stopping:
+                            self.ssh_preparation.prepare(job)
+                            continue
                     process = job.get("process")
                     if process and process.poll() is not None:
                         if not namespace_has_exited(job["temporary"]):
@@ -801,7 +820,7 @@ class BrokerServer:
                             connection
                         )
                         try:
-                            if "request" in job:
+                            if "request" in job or "ssh_refresh" in job:
                                 if fds or message != {"type": "terminate"}:
                                     raise ValueError("expected terminate")
                                 if job.get("process"):
@@ -856,6 +875,49 @@ class BrokerServer:
                                     self.close_client_and_release_resources(
                                         connection
                                     )
+                                    continue
+                                if message.get("type") == "ssh-refresh":
+                                    if (
+                                        set(message)
+                                        != {"version", "type", "cwd"}
+                                        or message.get("version") != 1
+                                        or fds
+                                    ):
+                                        raise ValueError(
+                                            "invalid SSH refresh request"
+                                        )
+                                    if not self.args.shared_ssh:
+                                        raise ValueError(
+                                            "shared SSH is disabled"
+                                        )
+                                    cwd = message["cwd"]
+                                    if (
+                                        not isinstance(cwd, str)
+                                        or "\0" in cwd
+                                        or not os.path.isabs(cwd)
+                                    ):
+                                        raise ValueError(
+                                            "absolute cwd required"
+                                        )
+                                    cwd = pathlib.Path(cwd).resolve(strict=True)
+                                    if not cwd.is_dir() or not any(
+                                        cwd == root or root in cwd.parents
+                                        for root in self.roots
+                                    ):
+                                        raise ValueError(
+                                            "cwd outside authorized roots"
+                                        )
+                                    if self.ssh_preparation is None:
+                                        self.ssh_preparation = (
+                                            SharedSSHPreparation(
+                                                self.args,
+                                                self.home,
+                                                self.owner,
+                                                self.policy_path,
+                                            )
+                                        )
+                                    job["ssh_refresh"] = cwd
+                                    job["ssh_waiting"] = True
                                     continue
                                 if len(fds) != 3:
                                     raise ValueError(
@@ -1047,6 +1109,38 @@ def print_broker_status(args):
     return 0
 
 
+def refresh_broker_ssh(args):
+    """Reload one project's shared keys without launching a provider."""
+    with socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET) as connection:
+        connection.settimeout(5)
+        connection.connect(
+            str(pathlib.Path(args.directory) / "connection/socket")
+        )
+        connection.send(
+            encode_control_message(
+                {
+                    "version": 1,
+                    "type": "ssh-refresh",
+                    "cwd": str(
+                        pathlib.Path(args.project).expanduser().resolve()
+                    ),
+                }
+            )
+        )
+        # Unlocking uses the broker's host askpass and can take arbitrarily long.
+        connection.settimeout(None)
+        data = connection.recv(MAX_MESSAGE)
+        if not data:
+            raise ValueError("broker disconnected before SSH refresh completed")
+        result = json.loads(data)
+        if result.get("type") == "error":
+            raise ValueError(result["message"])
+        if result.get("type") != "ssh-refreshed":
+            raise ValueError("unexpected SSH refresh response")
+        print("Shared project SSH keys and known_hosts refreshed.")
+    return 0
+
+
 def main():
     """Dispatch the broker, provider client, and configuration commands."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -1092,6 +1186,10 @@ def main():
         "--restore", help="restore only provider commands from a backup"
     )
     sub.add_parser("status")
+    refresh = sub.add_parser(
+        "ssh-refresh", help="reload shared project SSH keys"
+    )
+    refresh.add_argument("project", nargs="?", default=".")
     args = parser.parse_args()
     try:
         if args.action == "serve":
@@ -1105,6 +1203,8 @@ def main():
             return 0
         if args.action == "configure":
             return configure_paseo_provider_commands(args)
+        if args.action == "ssh-refresh":
+            return refresh_broker_ssh(args)
         if args.action == "status":
             return print_broker_status(args)
         return run_provider_client(args)
