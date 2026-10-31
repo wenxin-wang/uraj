@@ -602,6 +602,12 @@ fork tasks from those and can neither log in persistently nor write back.
   and the device's own =/sys/devices/...= directory, which Mesa reads to
   find it; =--network= keeps the host's network namespace, so Guix mounts
   no =/sys=.
+  Every session gets this, in every project, with no opt-out: any agent,
+  including a prompt-injected one, can issue ioctls to the kernel's GPU
+  driver and submit GPU work.  That widens the kernel attack surface, and
+  a runaway or hung job can disturb the desktop.  This is accepted on
+  single-user hosts.  Sessions get no =/dev/dri/card*=, debugfs or writable
+  sysfs.
 - Display: as in the OpenClaw sandbox, Chromium runs headed in a private
   cage on wlroots' headless backend, one per browser, which exits with it:
   headless mode changes what sites see, and Xvfb cannot use the GPU.  The
