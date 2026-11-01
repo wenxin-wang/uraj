@@ -594,7 +594,8 @@ fork tasks from those and can neither log in persistently nor write back.
   with a hint for the user, and copies tasks into =~/.browser-profile= in the
   session's tmpfs home: they end with the session and changes, logins
   included, never reach the host.  The agent-browser skill in Home
-  describes this flow.  An agent can still read the forked cookies, and
+  describes this flow.  With nothing published, =create= starts an empty
+  profile, as public sites need no login.  An agent can still read the forked cookies, and
   could copy them into the work tree; publish only logins agents may use.
 - Both sides run agent-browser's Chromium with =--password-store=basic=:
   cookies encrypted with the host's keyring would be unreadable inside.
@@ -1128,6 +1129,11 @@ Each of these was hit or tested while building this.
 - Codex's own =workspace-write= sandbox (Paseo's =auto= mode) makes =.git=
   entirely read-only.  Failures there do not say whether our layer would
   have stopped them; test with =full-access= to see our layer alone.
+- Codex's =read-only= and =workspace-write= sandboxes also build their own
+  =/dev=, without the render node, and block the network unless
+  =sandbox_workspace_write.network_access= is set.  Without it agent-browser
+  fails to start; with it browser tasks run on SwiftShader.  =full-access=
+  has both the network and the render node.
 - =node_repl= processes from the =codex-desktop= store item are MCP servers
   that =config.toml= points at, started by contained Codex sessions; they
   do not mean the desktop app is running.

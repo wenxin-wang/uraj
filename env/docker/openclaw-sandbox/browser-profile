@@ -176,20 +176,23 @@ def main():
         elif args.action == "create":
             # Pin one version: a host may publish without holding our lock.
             source = (published() / "current").resolve()
-            if not source.is_dir():
-                raise RuntimeError(
-                    IDENTITY_HINT
-                    or "No snapshot: use login, then publish first"
-                )
+            # Public sites need no login, and this sandbox cannot publish one.
+            if not source.is_dir() and not IDENTITY_HINT:
+                raise RuntimeError("No snapshot: use login, then publish first")
             name = uuid.uuid4().hex
             destination = task_path(name)
             destination.parent.mkdir(exist_ok=True)
+            result = {"task": name}
             try:
-                copy_profile(source, destination / "profile")
+                if source.is_dir():
+                    copy_profile(source, destination / "profile")
+                else:
+                    (destination / "profile").mkdir(parents=True)
+                    result["logins"] = False
             except Exception:
                 shutil.rmtree(destination, ignore_errors=True)
                 raise
-            print(json.dumps({"task": name}))
+            print(json.dumps(result))
         else:
             path = task_path(args.task)
             profile = path / "profile"

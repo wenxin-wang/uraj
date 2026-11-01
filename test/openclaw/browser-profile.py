@@ -105,6 +105,24 @@ class ProfileTest(unittest.TestCase):
             self.assertFalse(profile.exists())
         self.assertEqual((snapshot / "Cookies").read_text(), "login-v1")
 
+    def test_fork_only_without_snapshot_starts_empty(self):
+        sandbox = self.root / "sandbox"
+        (self.root / "empty").mkdir()
+        with (
+            mock.patch.object(PROFILE, "ROOT", sandbox),
+            mock.patch.object(PROFILE, "PUBLISHED", str(self.root / "empty")),
+            mock.patch.object(PROFILE, "IDENTITY_HINT", "Log in on the host"),
+            mock.patch.object(PROFILE, "browser"),
+        ):
+            created = self.invoke("create")
+            self.assertIs(created["logins"], False)
+            profile = sandbox / "tasks" / created["task"] / "profile"
+            self.assertEqual(list(profile.iterdir()), [])
+
+    def test_managed_identity_without_snapshot_refuses(self):
+        with self.assertRaisesRegex(RuntimeError, "No snapshot"):
+            self.invoke("create")
+
     def test_invalid_task_and_profile_override(self):
         with self.assertRaises(RuntimeError):
             PROFILE.task_path("../identity")
