@@ -19,7 +19,7 @@
 (define maa-assistant-arknights
   (package
     (name "maa-assistant-arknights")
-    (version "6.19.0")
+    (version "6.21.1")
     (source (origin
               (method url-fetch)
               (uri (string-append
@@ -28,7 +28,7 @@
                     "/MAA-v" version "-linux-x86_64.tar.gz"))
               (sha256
                (base32
-                "0md0919gbv8nmpmbafjz217snhlb4f5q6xfkr009jjwjhzakcl4v"))))
+                "0zhwm0c4b4999zxas6243kcqk3al3r23qm9y7hkfjd5rpf6y0nm1"))))
     (build-system trivial-build-system)
     (arguments
      (list
