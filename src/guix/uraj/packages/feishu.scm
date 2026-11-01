@@ -2,6 +2,7 @@
 (define-module (uraj packages feishu)
   #:use-module (gnu packages gnupg)
   #:use-module (gnu packages gtk)
+  #:use-module (gnu packages linux)
   #:use-module (gnu packages tls)
   #:use-module (gnu packages xdisorg)
   #:use-module (guix download)
@@ -148,7 +149,10 @@
                                              "/bytedance-feishu.png"))))
                  '("16" "24" "32" "48" "64" "128" "256"))))))))
     (inputs
-     (list gdk-pixbuf gnutls libgcrypt pixman))
+     ;; libbv-screen-capture.so dlopens libpipewire-0.3.so.0 for Wayland
+     ;; capture.  Include it in the RUNPATH generated above even though
+     ;; it is absent from the ELF NEEDED entries.
+     (list gdk-pixbuf gnutls libgcrypt pipewire pixman))
     (supported-systems '("x86_64-linux"))
     (home-page "https://www.feishu.cn/")
     (synopsis "Feishu (Lark) collaboration suite")
