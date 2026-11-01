@@ -31,9 +31,12 @@ sessions. Do not copy profiles or cookies out of `~/.browser-profile`.
 
 ## Logins
 
-You cannot log in persistently or refresh credentials yourself. When
-`browser-profile create` reports no snapshot, or a site needs a login the fork
-lacks, ask the user to run on the host:
+Public sites need nothing from the user: browse them right away. `create`
+returns `"logins": false` when the user has published no logins, and the task
+starts with an empty profile.
+
+You cannot log in persistently or refresh credentials yourself. Only when a site
+actually requires a login the fork lacks, ask the user to run on the host:
 
 ```
 browser-profile login https://example.com
@@ -50,3 +53,10 @@ Configured browser: headed Chromium on a private display in this container, not
 the user's browser. Check current evidence before asserting login state. A
 missing snapshot says nothing about the user's login, and a risk page proves a
 blocked visit, not an IP, account or browser-mode cause.
+
+To tell whether the GPU is used, read the page's `WEBGL_debug_renderer_info`,
+not `/dev/dri`. A command sandbox of your agent, such as Codex's `read-only` and
+`workspace-write`, builds its own `/dev` without the GPU. Without network access
+the browser does not even start ("Daemon process exited during startup"); with
+it, the browser runs on SwiftShader. Neither says anything about the host. Ask
+to rerun outside that sandbox.
