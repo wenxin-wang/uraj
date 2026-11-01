@@ -1,6 +1,6 @@
 # Daily round for the Official client on hypie's redroid-maa, run at
 # 02:00, 05:00, 11:00, 14:00 and 21:00 Asia/Shanghai. Parameters follow
-# MaaCore 6.19's integration docs (docs/zh-cn/protocol/integration.md);
+# MaaCore 6.21's integration docs (docs/zh-cn/protocol/integration.md);
 # maa-cli does not validate them.
 
 [[tasks]]
