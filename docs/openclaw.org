@@ -411,7 +411,9 @@ render node，与合成器渲染器无关。=AGENT_BROWSER_ARGS= 指定 =--enabl
 =--use-gl=angle= 及 =--use-angle=vulkan=，并保留
 =--disable-blink-features=AutomationControlled=。agent-browser 在容器中
 自动加入 =--no-sandbox=。包装器在可写的 =/tmp= 创建私有 =XDG_RUNTIME_DIR=，
-并继续过滤 =--enable-unsafe-swiftshader=，避免许可软件回退。
+并继续过滤 =--enable-unsafe-swiftshader=，避免许可软件回退。cage 和 Chromium
+的 stderr 写入该目录的 =browser-PID.log=（一天后清理），不交给 agent-browser：
+它在浏览器启动完成后才读取，启动日志超过管道容量时 cage 会永久阻塞。
 CLI 的 =skills get= 正文来自镜像中同版本源码包的 =skills=、=skill-data=。
 登录状态按角色保存；新镜像的 =browser-profile= 将主登录目录与任务副本分开。
 =login URL= 打开主登录浏览器，=identity screenshot /workspace/login.png=

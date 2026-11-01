@@ -568,7 +568,64 @@ Requests never mount anything under these, nor any directory containing
 one (such as =$HOME= or =/=): =~/.paseo=, =~/.paseo-password=, =~/.ssh=,
 =~/.gnupg=, =~/.password-store=, =~/.config/contained-agent=,
 =~/.local/state/contained-agent=, =~/.local/state/paseo-broker=,
-=/var/guix/daemon-socket=, =/run/secrets=, =/run/user=.
+=~/.local/state/agent-browser=, =/var/guix/daemon-socket=, =/run/secrets=,
+=/run/user=.
+
+* Browser tasks
+
+Agents browse with the OpenClaw sandbox's =browser-profile= design: the user
+keeps one login identity on the host and publishes snapshots of it; agents
+fork tasks from those and can neither log in persistently nor write back.
+
+- Host: Home installs =browser-profile= with its state in
+  =~/.local/state/agent-browser= (denied to project requests).  Log in in a
+  window of the desktop, then publish:
+  #+begin_src sh
+  browser-profile login https://www.xiaohongshu.com
+  browser-profile publish
+  #+end_src
+  =publish= closes the identity browser and atomically points
+  =published/current= at a new copy.  Tasks created afterwards, in running
+  sessions too, fork the new one.  Old snapshots are kept; remove those no
+  task is copying by hand.
+- Container: the launcher creates =published/= (mode 0700) and exposes it
+  read-only at =/run/contained-agent/browser=, never =identity/=.  The
+  container's =browser-profile= refuses =login=, =identity= and =publish=
+  with a hint for the user, and copies tasks into =~/.browser-profile= in the
+  session's tmpfs home: they end with the session and changes, logins
+  included, never reach the host.  The agent-browser skill in Home
+  describes this flow.  An agent can still read the forked cookies, and
+  could copy them into the work tree; publish only logins agents may use.
+- Both sides run agent-browser's Chromium with =--password-store=basic=:
+  cookies encrypted with the host's keyring would be unreadable inside.
+- GPU: the launcher exposes each =/dev/dri/renderD*= with =/sys/dev/char=
+  and the device's own =/sys/devices/...= directory, which Mesa reads to
+  find it; =--network= keeps the host's network namespace, so Guix mounts
+  no =/sys=.
+  Every session gets this, in every project, with no opt-out: any agent,
+  including a prompt-injected one, can issue ioctls to the kernel's GPU
+  driver and submit GPU work.  That widens the kernel attack surface, and
+  a runaway or hung job can disturb the desktop.  This is accepted on
+  single-user hosts.  Sessions get no =/dev/dri/card*=, debugfs or writable
+  sysfs.
+- Display: as in the OpenClaw sandbox, Chromium runs headed in a private
+  cage on wlroots' headless backend, one per browser, which exits with it:
+  headless mode changes what sites see, and Xvfb cannot use the GPU.  The
+  =contained-chromium= wrapper composites with Vulkan on the render node,
+  and WebGL uses ANGLE on Mesa's hardware drivers with software rendering
+  refused, so a broken GPU path shows as missing WebGL.  Without a render
+  node it uses pixman and SwiftShader.  Their stderr goes to
+  =~/.browser-profile/runtime/browser-PID.log=, not to agent-browser, which
+  reads it only after startup: cage's Vulkan logging would fill the pipe
+  and block before Chromium starts.  Fonts are Noto (including CJK and
+  emoji) and Liberation.  Podman runtime sessions get neither the snapshots
+  nor the GPU yet.
+
+=scripts/contained-agent/try-browser= checks all of this on a desktop host
+with this checkout's code: it publishes a disposable login (a window opens
+briefly), forks it through the real launcher and checks the cookie,
+refused login, unchanged snapshot, a non-headless user agent, hardware WebGL
+and a CJK screenshot.
 
 * What agents cannot do
 

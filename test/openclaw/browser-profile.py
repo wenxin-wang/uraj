@@ -80,6 +80,31 @@ class ProfileTest(unittest.TestCase):
             process.terminate()
             process.wait()
 
+    def test_fork_only_reads_published_snapshots(self):
+        host = self.root / "host"
+        snapshot = host / "snapshots/v1"
+        snapshot.mkdir(parents=True)
+        (snapshot / "Cookies").write_text("login-v1")
+        (host / "current").symlink_to("snapshots/v1")
+        sandbox = self.root / "sandbox"
+        hint = "Log in on the host"
+        with (
+            mock.patch.object(PROFILE, "ROOT", sandbox),
+            mock.patch.object(PROFILE, "PUBLISHED", str(host)),
+            mock.patch.object(PROFILE, "IDENTITY_HINT", hint),
+            mock.patch.object(PROFILE, "browser"),
+        ):
+            task = self.invoke("create")["task"]
+            profile = sandbox / "tasks" / task / "profile"
+            self.assertEqual((profile / "Cookies").read_text(), "login-v1")
+            for action in (["login", "about:blank"], ["publish"]):
+                with self.assertRaisesRegex(RuntimeError, hint):
+                    self.invoke(*action)
+            self.assertFalse((sandbox / "identity").exists())
+            self.invoke("finish", task)
+            self.assertFalse(profile.exists())
+        self.assertEqual((snapshot / "Cookies").read_text(), "login-v1")
+
     def test_invalid_task_and_profile_override(self):
         with self.assertRaises(RuntimeError):
             PROFILE.task_path("../identity")

@@ -67,9 +67,11 @@ search paths.")))
 
 (define %agent-tools-profile
   ;; gh-git-credential replaces github-cli in the container only: it would
-  ;; take the host's own gh login out of use.
+  ;; take the host's own gh login out of use.  So does the browser-profile
+  ;; that forks the host's published logins.
   (profile (content (packages->manifest
-                     (cons gh-git-credential %agent-tool-packages)))))
+                     (cons* gh-git-credential contained-browser-profile
+                            %agent-tool-packages)))))
 
 (define %agent-tools-manifest
   (scheme-file "agent-tools-manifest.scm"
@@ -79,11 +81,14 @@ search paths.")))
 
 (define llm-agent-packages
   (append %agent-tool-packages
-          (list claude-code codex opencode-bin pi-coding-agent)))
+          (list browser-profile claude-code codex opencode-bin
+                pi-coding-agent)))
 
 (define %agent-skills
+  ;; For contained agents: browser tasks fork the host's logins.
   `(("agent-browser"
-     ,(file-append agent-browser "/share/agent-browser/skills/agent-browser"))))
+     ,(local-file (project-path "scripts/contained-agent/skills/agent-browser")
+                  #:recursive? #t))))
 
 (define (agent-common-services)
   "Return the coding agents, their skills and dotfiles, shared by desktop
@@ -204,6 +209,9 @@ broker.  Boot deployments start it through the root Shepherd instead."
                                        (cons 'sha256sum #$(file-append coreutils "/bin/sha256sum"))
                                        (cons 'bash #$(file-append bash-minimal "/bin/bash")))
                                  #:podman-launcher #$%contained-podman-launcher
+                                 #:browser-snapshots
+                                 "~/.local/state/agent-browser/published"
+                                 #:render-nodes "/dev/dri"
                                  #:git #$(file-append git "/bin/git")
                                  #:github-secrets #$(github-token-directory)
                                  #:projects-secret

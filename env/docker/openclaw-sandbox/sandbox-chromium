@@ -12,6 +12,11 @@ if [ ! -d "$XDG_RUNTIME_DIR" ]; then
 fi
 test "$(stat -c %u "$XDG_RUNTIME_DIR")" = "$(id -u)"
 chmod 700 "$XDG_RUNTIME_DIR"
+# agent-browser reads stderr only once the browser is up, so anything that logs
+# more than a pipe holds before then blocks for good.  Sandboxes outlive
+# browsers: drop old logs from this tmpfs.
+find "$XDG_RUNTIME_DIR" -maxdepth 1 -name 'browser-*.log' -mmin +1440 -delete
+exec 2>"$XDG_RUNTIME_DIR/browser-$$.log"
 WLR_BACKENDS=headless
 WLR_LIBINPUT_NO_DEVICES=1
 export WLR_BACKENDS WLR_LIBINPUT_NO_DEVICES

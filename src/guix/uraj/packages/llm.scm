@@ -2,11 +2,15 @@
   #:use-module (gnu packages base)
   #:use-module (gnu packages bash)
   #:use-module (gnu packages elf)
+  #:use-module (gnu packages fonts)
   #:use-module (gnu packages gcc)
   #:use-module (gnu packages xorg)
   #:use-module (gnu packages chromium)
+  #:use-module (gnu packages gl)
   #:use-module (gnu packages linux)
+  #:use-module (gnu packages python)
   #:use-module (gnu packages version-control)
+  #:use-module (gnu packages window-management)
   #:use-module (guix build-system trivial)
   #:use-module (guix build-system copy)
   #:use-module (guix download)
@@ -16,9 +20,11 @@
   #:use-module (guix packages)
   #:use-module ((guix search-paths) #:select ($SSL_CERT_DIR $SSL_CERT_FILE))
   #:use-module (guix utils)
+  #:use-module (srfi srfi-1)
   #:use-module (nonguix build-system binary)
   #:use-module (nonguix build-system chromium-binary)
   #:use-module (uraj packages chromium-binary)
+  #:use-module (uraj utils file path)
   #:use-module ((px packages ai)
                 #:select ((claude-code . pantherx-claude-code)))
   #:use-module ((px packages tools)
@@ -26,6 +32,8 @@
   #:use-module ((shika packages ai)
                 #:select ((opencode-bin . shika-opencode-bin)))
   #:export (agent-browser
+            browser-profile
+            contained-browser-profile
             claude-code
             codex
             gh-git-credential
@@ -385,3 +393,168 @@ exec " github-cli "/bin/gh \"$@\"
 credential helpers give for the current repository's origin, when
 @env{GH_TOKEN} is unset.")
     (license (package-license github-cli))))
+
+;;; Browser tasks share browser-profile with the OpenClaw sandbox image.  The
+;;; host keeps the login identity and publishes snapshots of it, which
+;;; contained agents only fork, in their tmpfs home (see contained-agent).
+;;; Both sides run agent-browser's Chromium with the basic password store:
+;;; cookies encrypted with the host's keyring would be unreadable inside.
+(define browser-profile-source
+  (local-file (project-path "env/docker/openclaw-sandbox/browser-profile")
+              "browser-profile.py"))
+
+(define %browser-arguments
+  "--disable-blink-features=AutomationControlled,--password-store=basic")
+
+(define (browser-profile-package name programs description)
+  "PROGRAMS are (NAME FILE) entries installed in bin/."
+  (package
+    (name name)
+    (version (package-version agent-browser))
+    (source #f)
+    (build-system trivial-build-system)
+    (arguments
+     (list #:builder
+           #~(let ((bin (string-append #$output "/bin")))
+               (mkdir #$output)
+               (mkdir bin)
+               (for-each (lambda (program)
+                           (let ((file (string-append bin "/" (car program))))
+                             (copy-file (cadr program) file)
+                             (chmod file #o555)))
+                         (list #$@(map (lambda (program)
+                                         #~(list #$(car program)
+                                                 #$(cadr program)))
+                                       programs))))))
+    (home-page (package-home-page agent-browser))
+    (synopsis "Browser login snapshots and task profiles for agent-browser")
+    (description description)
+    (license license:expat)))
+
+;;; The user logs in in a window of the desktop session.
+(define browser-profile
+  (browser-profile-package
+   "browser-profile"
+   `(("browser-profile"
+      ,(mixed-text-file "browser-profile"
+         "#!" bash-minimal "/bin/sh
+# contained-agent exposes the default's published/; tests choose another.
+export BROWSER_PROFILE_ROOT=${BROWSER_PROFILE_ROOT:-$HOME/.local/state/agent-browser}
+export BROWSER_PROFILE_PUBLISHED=$BROWSER_PROFILE_ROOT/published
+# Daemons of their own: one started elsewhere keeps its own arguments.
+export AGENT_BROWSER_SOCKET_DIR=$BROWSER_PROFILE_ROOT/daemons
+export AGENT_BROWSER_HEADED=1
+export AGENT_BROWSER_ARGS=" %browser-arguments "
+# Terminals started by services, such as Paseo's, lack the session's display.
+if [ -z \"${WAYLAND_DISPLAY-}${DISPLAY-}\" ]; then
+  runtime=${XDG_RUNTIME_DIR:-/run/user/$(" coreutils "/bin/id -u)}
+  for socket in \"$runtime\"/wayland-*; do
+    if [ -S \"$socket\" ]; then
+      export XDG_RUNTIME_DIR=$runtime WAYLAND_DISPLAY=${socket##*/}
+      break
+    fi
+  done
+fi
+# Chromium picks X11 otherwise, which niri lacks.
+if [ -n \"${WAYLAND_DISPLAY-}\" ]; then
+  AGENT_BROWSER_ARGS=$AGENT_BROWSER_ARGS,--ozone-platform=wayland
+elif [ -z \"${DISPLAY-}\" ] && [ \"${1-}\" = login ]; then
+  echo 'browser-profile: login needs a desktop session: neither WAYLAND_DISPLAY nor DISPLAY is set' >&2
+  exit 1
+fi
+export PATH=" agent-browser "/bin:$PATH
+exec " python "/bin/python3 " browser-profile-source " \"$@\"
+")))
+   "This @command{browser-profile} keeps the host's browser login identity
+and publishes snapshots of it for contained agents."))
+
+(define %browser-fonts
+  (list font-google-noto font-google-noto-sans-cjk font-google-noto-emoji
+        font-liberation))
+
+(define contained-browser-fontconfig
+  (apply mixed-text-file "fonts.conf"
+         "<?xml version=\"1.0\"?>
+<!DOCTYPE fontconfig SYSTEM \"fonts.dtd\">
+<fontconfig>
+"
+         (append
+          (append-map (lambda (font) (list "  <dir>" font "/share/fonts</dir>\n"))
+                      %browser-fonts)
+          (list "  <cachedir prefix=\"xdg\">fontconfig</cachedir>
+</fontconfig>
+"))))
+
+;;; Mesa's hardware Vulkan drivers, without lavapipe.
+(define %contained-vulkan-drivers
+  '("intel" "intel_hasvk" "radeon" "nouveau" "virtio"))
+
+;;; Like the OpenClaw sandbox's sandbox-chromium, run headed Chromium in a
+;;; private cage on wlroots' headless backend: headless mode changes what
+;;; sites see.  cage exits with Chromium.  With a render node, compositing
+;;; and WebGL use it and software rendering stays refused, so a broken GPU
+;;; path shows; without one, allow SwiftShader, which agent-browser enables
+;;; only in headless mode.
+(define contained-chromium-script
+  (apply mixed-text-file "contained-chromium"
+         "#!" bash-minimal "/bin/sh
+set -eu
+export XDG_RUNTIME_DIR=$HOME/.browser-profile/runtime
+" coreutils "/bin/mkdir -m 700 -p \"$XDG_RUNTIME_DIR\"
+# agent-browser reads stderr only once the browser is up, but cage logs more
+# than a pipe holds before it starts Chromium, and would block for good.
+exec 2>\"$XDG_RUNTIME_DIR/browser-$$.log\"
+export WLR_BACKENDS=headless WLR_LIBINPUT_NO_DEVICES=1
+render=
+for node in /dev/dri/renderD*; do
+  if [ -c \"$node\" ]; then render=$node; break; fi
+done
+if [ -n \"$render\" ]; then
+  export WLR_RENDERER=vulkan WLR_RENDER_DRM_DEVICE=$render
+  # Without Chromium's own SwiftShader driver.
+  export VK_DRIVER_FILES="
+         (append
+          (cdr (append-map (lambda (driver)
+                             (list ":" mesa "/share/vulkan/icd.d/"
+                                   driver "_icd.x86_64.json"))
+                           %contained-vulkan-drivers))
+          (list "
+  for arg do
+    shift
+    case \"$arg\" in
+      --enable-unsafe-swiftshader) ;;
+      *) set -- \"$@\" \"$arg\" ;;
+    esac
+  done
+else
+  export WLR_RENDERER=pixman
+  set -- --enable-unsafe-swiftshader \"$@\"
+fi
+exec " cage "/bin/cage -- " ungoogled-chromium
+"/bin/chromium --ozone-platform=wayland \"$@\"
+"))))
+
+(define contained-browser-profile
+  (browser-profile-package
+   "contained-browser-profile"
+   `(("contained-chromium" ,contained-chromium-script)
+     ("browser-profile"
+      ,(mixed-text-file "browser-profile"
+         "#!" bash-minimal "/bin/sh
+# agent-browser keeps its daemons' files in ~/.agent-browser.
+export BROWSER_PROFILE_ROOT=$HOME/.browser-profile
+export BROWSER_PROFILE_PUBLISHED=/run/contained-agent/browser
+export BROWSER_PROFILE_IDENTITY_HINT='Browser logins are kept on the host. \
+Ask the user to run `browser-profile login URL` there, sign in in its window, \
+then run `browser-profile publish`; then create a new task.'
+export AGENT_BROWSER_HEADED=1
+export AGENT_BROWSER_EXECUTABLE_PATH=${0%/*}/contained-chromium
+export AGENT_BROWSER_ARGS=" %browser-arguments
+         ",--enable-gpu,--use-gl=angle,--use-angle=vulkan
+export AGENT_BROWSER_IDLE_TIMEOUT_MS=1800000
+export FONTCONFIG_FILE=" contained-browser-fontconfig "
+export PATH=" agent-browser "/bin:$PATH
+exec " python "/bin/python3 " browser-profile-source " \"$@\"
+")))
+   "This @command{browser-profile} forks task profiles from the login
+snapshots that the host publishes, for agents in containers."))
