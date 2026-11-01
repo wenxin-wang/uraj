@@ -44,6 +44,12 @@
             "font-jetbrains-mono"
             "font-sarasa-gothic"
             "font-nerd-symbols"
+            ;; Supply the proportional families preferred by fontconfig.
+            ;; Without the host fonts available on foreign distros, Arial
+            ;; and sans-serif otherwise fall back to Sarasa Mono in Feishu.
+            "font-google-noto"
+            "font-google-noto-sans-cjk"
+            "font-liberation"
             ;; Color emoji, e.g. Rime emoji candidates in fcitx5.
             "font-google-noto-emoji"
             ;; Utils
