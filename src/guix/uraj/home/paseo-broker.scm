@@ -49,7 +49,7 @@
   (program-file
    "paseo-broker"
    #~(let ((args (cdr (command-line))))
-       (if (and (pair? args) (member (car args) '("status" "configure")))
+       (if (and (pair? args) (member (car args) '("status" "configure" "ssh-refresh")))
            (apply execl #$(file-append python "/bin/python3") "python3"
                   #$broker-source args)
            (apply execl #$(file-append python "/bin/python3") "python3"

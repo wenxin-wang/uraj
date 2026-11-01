@@ -257,7 +257,7 @@
         (stop-unlocked dir tools)
         (apply throw key args)))))
 
-(define (ssh-start project policy tools)
+(define* (ssh-start project policy tools #:optional (automatic? #f))
   "Explicit host command: clear all identities and reload the configured keys."
   (unless policy (fail "no central ssh-agent configuration for ~a" project))
   (let ((dir (ssh-runtime project tools)))
@@ -265,7 +265,7 @@
      dir
      (lambda ()
        (start-unlocked project policy tools dir
-                       (fingerprint project policy tools) #f)))
+                       (fingerprint project policy tools) automatic?)))
     (string-append dir "/ssh.sock")))
 
 (define* (ssh-ensure project policy tools #:optional directory)
