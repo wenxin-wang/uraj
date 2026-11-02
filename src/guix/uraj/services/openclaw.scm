@@ -35,6 +35,8 @@
   ;; Explicit capabilities for custom models absent from the built-in catalog.
   ;; Responses uses developer instructions for reasoning models.
   (reasoning-models openclaw-provider-reasoning-models (default '()))
+  ;; Alist of reasoning model IDs to supported OpenAI reasoning efforts.
+  (reasoning-efforts openclaw-provider-reasoning-efforts (default '()))
   ;; OpenAI-compatible routes omit prompt_cache_key unless declared; without
   ;; it the Codex upstream behind new-api rarely reuses the prompt cache.
   (prompt-cache-key? openclaw-provider-prompt-cache-key? (default #f))
@@ -63,6 +65,8 @@
   (providers openclaw-providers)
   ;; Alist of declared provider/model references to slash-command aliases.
   (model-aliases openclaw-model-aliases (default '()))
+  ;; Alist of declared provider/model references to default thinking levels.
+  (model-thinking openclaw-model-thinking (default '()))
   ;; Engine is a local ID. With no sandbox ID, build on each service start.
   (engine-image openclaw-engine-image)
   (sandbox-image openclaw-sandbox-image (default #f))
@@ -148,7 +152,22 @@
                     (every (lambda (model)
                              (member model (openclaw-provider-models provider)))
                            (openclaw-provider-reasoning-models provider)))
-         (error "OpenClaw reasoning models must be declared provider models")))
+         (error "OpenClaw reasoning models must be declared provider models"))
+       (let ((efforts (openclaw-provider-reasoning-efforts provider)))
+         (unless (and (list? efforts)
+                      (every (lambda (entry)
+                               (and (pair? entry)
+                                    (member (car entry)
+                                            (openclaw-provider-reasoning-models provider))
+                                    (list? (cdr entry)) (pair? (cdr entry))
+                                    (every (lambda (level)
+                                             (and (string? level)
+                                                  (not (string-null? level))))
+                                           (cdr entry))))
+                             efforts)
+                      (= (length efforts)
+                         (length (delete-duplicates (map car efforts)))))
+           (error "OpenClaw reasoning efforts need distinct reasoning models and nonempty levels"))))
      providers)
     (let ((names (map openclaw-provider-name providers)))
       (unless (= (length names) (length (delete-duplicates names)))
@@ -161,6 +180,7 @@
                             (openclaw-provider-models provider))) providers))
       (error "OpenClaw default must be a declared provider/model reference")))
   (let ((aliases (openclaw-model-aliases config))
+        (thinking (openclaw-model-thinking config))
         (models (append-map
                  (lambda (provider)
                    (map (lambda (model)
@@ -176,7 +196,17 @@
       (error "OpenClaw aliases need declared models and lowercase command names"))
     (unless (and (= (length aliases) (length (delete-duplicates (map car aliases))))
                  (= (length aliases) (length (delete-duplicates (map cdr aliases)))))
-      (error "Duplicate OpenClaw model alias or reference")))
+      (error "Duplicate OpenClaw model alias or reference"))
+    (unless (and (list? thinking)
+                 (every (lambda (entry)
+                          (and (pair? entry) (member (car entry) models)
+                               (member (cdr entry)
+                                       '("off" "minimal" "low" "medium" "high"
+                                         "xhigh" "adaptive" "max" "ultra"))))
+                        thinking)
+                 (= (length thinking)
+                    (length (delete-duplicates (map car thinking)))))
+      (error "OpenClaw model thinking needs distinct declared models and valid levels")))
   (let ((names (map (lambda (skill)
                       (unless (and (list? skill) (= 2 (length skill))
                                    (string? (car skill))
@@ -214,15 +244,35 @@
           (api . ,(openclaw-provider-api provider))
           (models . ,(list->vector
                       (map (lambda (model)
-                             (append `((id . ,model) (name . ,model))
-                                     (if (member model
-                                                 (openclaw-provider-reasoning-models provider))
-                                         '((reasoning . #t)) '())
-                                     (if (openclaw-provider-image-input? provider)
-                                         '((input . #("text" "image"))) '())
-                                     (if (openclaw-provider-prompt-cache-key? provider)
-                                         '((compat . ((supportsPromptCacheKey . #t)))) '())))
+                             (let* ((efforts (assoc-ref
+                                              (openclaw-provider-reasoning-efforts provider)
+                                              model))
+                                    (compat
+                                     (append
+                                      (if (openclaw-provider-prompt-cache-key? provider)
+                                          '((supportsPromptCacheKey . #t)) '())
+                                      (if efforts
+                                          `((supportedReasoningEfforts
+                                             . ,(list->vector efforts))) '()))))
+                               (append `((id . ,model) (name . ,model))
+                                       (if (member model
+                                                   (openclaw-provider-reasoning-models provider))
+                                           '((reasoning . #t)) '())
+                                       (if (openclaw-provider-image-input? provider)
+                                           '((input . #("text" "image"))) '())
+                                       (if (null? compat) '() `((compat . ,compat))))))
                            (delete-duplicates (openclaw-provider-models provider))))))))
+
+(define (model-defaults config)
+  (let ((aliases (openclaw-model-aliases config))
+        (thinking (openclaw-model-thinking config)))
+    (map (lambda (model)
+           (let ((alias (assoc-ref aliases model))
+                 (level (assoc-ref thinking model)))
+             (cons model
+                   (append (if alias `((alias . ,alias)) '())
+                           (if level `((params . ((thinking . ,level)))) '())))))
+         (delete-duplicates (append (map car aliases) (map car thinking))))))
 
 ;;; The Gateway container has no store: copy the skills, following links.
 (define (openclaw-skills-directory config)
@@ -262,12 +312,7 @@
                              ;; Doctor pins the system agent on multi-agent startup.
                              (systemAgent . ((agentId . "main")))
                              (model . ((primary . ,(openclaw-model config))))
-                             (models . ,(if (null? (openclaw-model-aliases config))
-                                            '()
-                                            (map (lambda (entry)
-                                                   (cons (car entry)
-                                                         `((alias . ,(cdr entry)))))
-                                                 (openclaw-model-aliases config))))
+                             (models . ,(model-defaults config))
                              ;; No recurring heartbeat.  Event wakes such as
                              ;; background exec completions reply to their origin;
                              ;; "none" suppressed those too.  An explicit owner
