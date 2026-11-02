@@ -187,9 +187,9 @@ window-rule {
     open-floating true
 }
 
-debug {
-    honor-xdg-activation-with-invalid-serial
-}
+// Do not enable debug.honor-xdg-activation-with-invalid-serial: Feishu
+// requests activation that way for incoming messages, and niri honors it by
+// focusing Feishu even across workspaces.
 
 binds {
     Mod+Shift+Slash { show-hotkey-overlay; }
