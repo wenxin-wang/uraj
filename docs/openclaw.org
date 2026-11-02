@@ -686,6 +686,16 @@ OpenClaw 不发会话头，部署后 36 次 Astra 请求只命中 4 次。同一
 
 ** 快速切换模型
 
+Astra 的默认 thinking 为 =xhigh=，由 storie 的 =model-thinking= 生成
+=agents.defaults.models["new-api-gpt/gpt-6-astra"].params.thinking=。
+provider 的 =reasoning-efforts= 同时声明该模型支持的强度，生成
+=compat.supportedReasoningEfforts=，避免自定义 provider 把 =xhigh= 降为
+=high=。其他模型沿用上游默认；原先 Astra 没有显式设置时使用 =medium=。
+修改后重新部署并重启 OpenClaw 生效，不需要重建镜像。
+
+已有会话的 =/think= 设置优先于模型默认。单独发送 =/think default= 清除
+会话覆盖，或用 =/think xhigh= 显式设置当前会话；=/think= 查看当前强度。
+
 在已配对的飞书私聊中单独发送下列命令，切换当前会话模型；也可用
 =/model ALIAS -s=。恢复默认模型用 =/model default -s=。
 别名保存在 =agents.defaults.models.<provider/model>.alias=，由 Guix

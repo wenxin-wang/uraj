@@ -360,6 +360,7 @@
     (identity-file
      (local-file (project-path "secrets/hosts/storie/openclaw-identities.yaml")))
     (model "new-api-gpt/gpt-6-astra")
+    (model-thinking '(("new-api-gpt/gpt-6-astra" . "xhigh")))
     (model-aliases
      '(("new-api-gpt/gpt-6-astra" . "astra-6")
        ("new-api-gpt/gpt-6.1-sol" . "sol-6-1")
@@ -376,6 +377,7 @@
       (openclaw-provider
         (name "new-api-gpt") (api "openai-responses")
         (prompt-cache-key? #t) (image-input? #t)
+        (reasoning-efforts '(("gpt-6-astra" "low" "medium" "high" "xhigh" "max")))
         (reasoning-models '("gpt-6-astra"
                             "gpt-6.1-sol"
                             "gpt-6-sol"

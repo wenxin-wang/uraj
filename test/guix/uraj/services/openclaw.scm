@@ -63,6 +63,31 @@
  '((("new-api/missing" . "missing-6"))
    (("new-api/test-model" . "bad/name"))
    (("new-api/test-model" . "test-6") ("new-api/test-model" . "other-6"))))
+(for-each
+ (lambda (thinking)
+   (test-error "invalid or ambiguous model thinking refused" #t
+     (openclaw-config-file
+      (openclaw-configuration (inherit config) (model-thinking thinking)))))
+ '((("new-api/missing" . "xhigh"))
+   (("new-api/test-model" . "typo"))
+   (("new-api/test-model" . "xhigh") ("new-api/test-model" . "low"))))
+(test-equal "model thinking does not require an alias" "high"
+  (at (json-string->scm
+       (plain-file-content
+        (openclaw-config-file
+         (openclaw-configuration (inherit config)
+           (model-thinking '(("new-api/test-model" . "high")))))))
+      "agents" "defaults" "models" "new-api/test-model" "params" "thinking"))
+(for-each
+ (lambda (efforts)
+   (test-error "invalid or ambiguous reasoning capabilities refused" #t
+     (openclaw-config-file
+      (openclaw-configuration (inherit config)
+        (providers (list (openclaw-provider (inherit provider)
+                           (reasoning-models '("test-model"))
+                           (reasoning-efforts efforts))))))))
+ '((("missing" "xhigh")) (("test-model")) (("test-model" ""))
+   (("test-model" "high") ("test-model" "xhigh"))))
 (test-equal "Gateway and sandbox engine" '("engine" "gateway")
   (sort (map car (at manifest "services")) string<?))
 (test-equal "only restricted network" '#("restricted") (at gateway "networks"))
@@ -439,7 +464,23 @@
   (test-equal "storie default uses Responses" "openai-responses"
     (at provider "api"))
   (test-equal "storie default declares reasoning for developer instructions" #t
-    (at model "reasoning")))
+    (at model "reasoning"))
+  (test-equal "Astra retains its alias alongside the thinking default" "astra-6"
+    (at app "agents" "defaults" "models" "new-api-gpt/gpt-6-astra" "alias"))
+  (test-equal "only Astra has a model thinking default"
+    '(("new-api-gpt/gpt-6-astra" . "xhigh"))
+    (filter-map (lambda (entry)
+                  (let ((params (at (cdr entry) "params")))
+                    (and params (cons (car entry) (at params "thinking")))))
+                (at app "agents" "defaults" "models")))
+  (test-assert "Astra supports xhigh without losing prompt caching"
+    (and (member "xhigh" (vector->list (at model "compat" "supportedReasoningEfforts")))
+         (at model "compat" "supportsPromptCacheKey")))
+  (test-assert "other GPT models retain their reasoning capability defaults"
+    (every (lambda (row)
+             (or (equal? (at row "id") "gpt-6-astra")
+                 (not (at row "compat" "supportedReasoningEfforts"))))
+           (vector->list (at provider "models")))))
 (setenv "TO_ISO" "1")
 (define live (load (string-append (getcwd) "/env/guix/os/storie.scm")))
 (unsetenv "TO_ISO")
