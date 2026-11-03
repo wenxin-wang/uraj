@@ -1,0 +1,6 @@
+# 雾凇拼音（rime_ice）的方案补丁。
+patch:
+  # 默认关闭 emoji 候选：输入词语时它们会插在候选词后面，常占住首页，
+  # 把常用词挤到后面。需要时用 F4 方案选单临时打开。
+  # rime_ice.schema.yaml 的 switches 中 emoji 位于第 4 项（索引 3）。
+  switches/@3/reset: 0

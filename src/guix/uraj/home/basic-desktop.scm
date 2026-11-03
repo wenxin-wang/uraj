@@ -95,18 +95,18 @@ the link extensible: add another terminal package to the list when needed."
                (file-append rime-ice "/share/rime-ice/" name)))
        rime-ice-data-files))
 
-(define (rime-ice-build-refresh-service default-custom-path)
-  "Return an activation service that, when the rime-ice data or
-DEFAULT-CUSTOM-PATH changed since the last activation or the compiled
-default configuration is missing, removes the Rime
-build directory under ~/.local/share/fcitx5/rime and restarts fcitx5.
+(define (rime-ice-build-refresh-service config-paths)
+  "Return an activation service that, when the rime-ice data or any of
+CONFIG-PATHS changed since the last activation or the compiled default
+configuration is missing, removes the Rime build directory under
+~/.local/share/fcitx5/rime and restarts fcitx5.
 
 Rime recompiles a configuration only if its source file's mtime changed,
 but files deployed from the store have a frozen mtime (epoch + 1).  After
-a reconfigure installs new rime-ice data (or a new default.custom.yaml),
-deployment would otherwise silently keep using the stale build until one
-deletes the build directory by hand; the content-addressed store paths
-below change exactly when the contents do, so they serve as the trigger.
+a reconfigure installs new rime-ice data (or a new custom patch), deployment
+would otherwise silently keep using the stale build until one deletes the
+build directory by hand; the content-addressed store paths below change
+exactly when the contents do, so they serve as the trigger.
 
 Deleting the build is not enough while fcitx5 runs: Rime keeps the
 configuration it deployed in memory and reloads it only at startup, and
@@ -153,8 +153,11 @@ burn the respawn limit)."
                                 (string-append
                                  #$(file-append rime-ice "/share/rime-ice")
                                  "\n"
-                                 #$(local-file default-custom-path)
-                                 "\n"))
+                                 #$@(map (lambda (path)
+                                           #~(string-append
+                                              #$(local-file path)
+                                              "\n"))
+                                         config-paths)))
                                (previous
                                 (and (file-exists? stamp)
                                      (call-with-input-file stamp
@@ -237,8 +240,8 @@ services."
                     `((".terminfo"
                        ,(merged-terminfo-directory (list ghostty)))))
 
-    ;; 雾凇拼音（rime-ice）的数据文件；默认方案由 dotfiles 里的
-    ;; default.custom.yaml 补丁启用。
+    ;; 雾凇拼音（rime-ice）的数据文件；默认方案与开关状态由 dotfiles 里的
+    ;; default.custom.yaml、rime_ice.custom.yaml 补丁控制。
     (simple-service 'rime-ice-data
                     home-files-service-type
                     rime-ice-data-home-files)
@@ -246,8 +249,11 @@ services."
     ;; 数据或补丁变化时清掉旧 build/ 并重启 fcitx5，强制 rime 重新部署
     ;;（见 docstring）。
     (rime-ice-build-refresh-service
-     (project-path
-      "env/dotfiles/desktop/fcitx/.local/share/fcitx5/rime/default.custom.yaml"))
+     (map (lambda (name)
+            (project-path
+             (string-append "env/dotfiles/desktop/fcitx/.local/share/fcitx5/"
+                            "rime/" name)))
+          '("default.custom.yaml" "rime_ice.custom.yaml")))
 
     (service home-fcitx5-service-type
              (home-fcitx5-configuration
