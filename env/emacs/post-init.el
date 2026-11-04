@@ -1,40 +1,39 @@
 ;;; -*- lexical-binding: t; -*-
 
-;; Guix supplies the default packages; straight is only for explicit exceptions.
-;; Also load during byte-compilation, else the following
-;; `use-package` macros would expand without calls to `straight-use-package`.
-(eval-and-compile
-  (setq
-   straight-vc-git-default-clone-depth 1
-   straight-check-for-modifications nil
-   straight-use-package-by-default nil
-   use-package-always-ensure nil)
-  ;; straight itself is installed by Guix too; no downloaded bootstrap script.
-  (require 'straight)
-  (straight--reset-caches)
-  (setq straight-recipe-repositories nil)
-  (mapc #'straight-use-recipes straight-initial-recipe-repositories)
-  (straight-use-package-mode 1)
-  ;; Tell straight that Guix packages (including propagated dependencies) are
-  ;; already provided.  Otherwise a fallback package can clone another copy of
-  ;; e.g. magit or lsp-mode and shadow the version installed by Guix.
-  (require 'package)
-  (require 'guix-emacs)
-  (let ((package-alist nil))
-    (guix-emacs-load-package-descriptors)
-    (dolist (entry package-alist)
-      (add-to-list 'straight-built-in-pseudo-packages (car entry))))
-  ;; These dependencies are supplied by the Emacs version in our Guix profile.
-  (dolist (name '(org project eldoc jsonrpc which-key use-package editorconfig))
-    (add-to-list 'straight-built-in-pseudo-packages name)))
+;; straight manages Elisp packages.  Guix only supplies Emacs itself and
+;; packages with native parts (e.g. pdf-tools); see (uraj home emacs).
+(setq
+ straight-vc-git-default-clone-depth 1
+ straight-repository-branch "develop"
+ straight-check-for-modifications nil
+ straight-use-package-by-default t
+ use-package-always-ensure nil)
+(defvar bootstrap-version)
+(let ((bootstrap-file
+       (expand-file-name
+        "straight/repos/straight.el/bootstrap.el"
+        (or (bound-and-true-p straight-base-dir) user-emacs-directory)))
+      (bootstrap-version 7))
+  (unless (file-exists-p bootstrap-file)
+    (with-current-buffer
+        (url-retrieve-synchronously
+         "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
+         'silent 'inhibit-cookies)
+      (goto-char (point-max))
+      (eval-print-last-sexp)))
+  (load bootstrap-file nil 'nomessage))
+;; Use the versions bundled with Emacs instead of cloning newer copies when
+;; another package depends on them.
+(dolist (name '(org project eldoc jsonrpc which-key use-package editorconfig))
+  (add-to-list 'straight-built-in-pseudo-packages name))
 
-;; Byte-compilation requirements.
-(eval-when-compile
-  (setq use-package-always-defer t)
-  (require 'use-package)
-  (require 'cl-lib)
-  ;; For LSP
-  (setenv "LSP_USE_PLISTS" "true"))
+;; ;; Byte-compilation requirements.
+;; (eval-when-compile
+;;   (setq use-package-always-defer t)
+;;   (require 'use-package)
+;;   (require 'cl-lib)
+;;   ;; For LSP
+;;   (setenv "LSP_USE_PLISTS" "true"))
 
 ;; I don't care about this even when debugging, and it messes up with byte-compilation, so turn it off.
 (setq use-package-compute-statistics nil)
@@ -90,9 +89,19 @@
 ;; Better repeat.
 (use-package repeat-fu
   :blackout t
-  ;; Older repeat-fu versions define incf/decf in eval-when-compile, which
-  ;; causes problems when native-compiling the Meow preset separately.
-  ;; Keep its compile-angel exclusion below when loading the Guix package.
+  ;; repeat-fu defines ~incf~ & ~decf~ instead of using ~cl-lib~,
+  ;; inside a ~eval-when-compile~. This causes trouble for byte-compile
+  ;; and native-compile, where we must load the uncompiled ~repeat-fu.el~
+  ;; when compiling ~repeat-fu-preset-meow.el~. I can control this order
+  ;; for byte-compile by explicitly setting the loading order for ~straight.el~,
+  ;; but I cannot do the same thing for native-compile (as native-compile must
+  ;; use ~.elc~ files instead, so I just disable native-compile for
+  ;; ~repeat-fu-preset-meow.el~.
+  ;; Something I don't understand: I think the macros should be gone in the ~.elc~
+  ;; and native-compile should have nothing to do with them. So how did things
+  ;; happen?
+  ;; :straight (:build (:not compile))
+  :straight (:files ("repeat-fu-preset-meow.el" "repeat-fu.el"))
   :commands (repeat-fu-mode repeat-fu-execute)
 
   :custom
@@ -155,7 +164,6 @@
       (switch-to-buffer buffer))))
 
 (use-package scroll-on-jump
-  :straight t ; Not packaged in the pinned Guix channel.
   :demand t
   :custom
   (isearch-allow-motion t)
@@ -226,12 +234,11 @@ the macro key instead of the original key."
    '(?y . buffer))
 
   ;; Fix digit-arguments.
-  (eval-when-compile
-    (defmacro meow-expand-n (name n)
-      `(defun ,name ()
-         (interactive)
-         (let ((this-command 'meow-expand))
-           (meow-expand ,n)))))
+  (defmacro meow-expand-n (name n)
+    `(defun ,name ()
+       (interactive)
+       (let ((this-command 'meow-expand))
+         (meow-expand ,n))))
   (meow-expand-n meow-expand-1 1)
   (meow-expand-n meow-expand-2 2)
   (meow-expand-n meow-expand-3 3)
@@ -835,7 +842,6 @@ the macro key instead of the original key."
     (setenv "EDITOR" (concat "emacsclient -s " server_socket))))
 
 (use-package eat
-  ;; Keep the explicitly chosen fork instead of replacing it with upstream.
   :straight (eat :type git :host codeberg :repo "akib/emacs-eat"
                  :fork (:host github :repo "blahgeek/emacs-eat" :branch "dev"))
   :bind
@@ -958,7 +964,6 @@ dir is the directory of the buffer (param of my/project-try), when it's changed,
 ;; manage Emacs editing sessions and utilizes built-in Emacs functions to
 ;; persist and restore frames.
 (use-package easysession
-  :straight t ; Not packaged in the pinned Guix channel.
   :blackout easysession-save-mode
   :commands (easysession-switch-to
              easysession-save-as
@@ -994,7 +999,6 @@ dir is the directory of the buffer (param of my/project-try), when it's changed,
    103))
 
 (use-package buffer-terminator
-  :straight t ; Not packaged in the pinned Guix channel.
   :hook
   (emacs-startup . buffer-terminator-mode))
 
@@ -1141,7 +1145,6 @@ dir is the directory of the buffer (param of my/project-try), when it's changed,
 (use-package lsp-ui)
 
 (use-package lsp-pyright
-  :straight t ; Not packaged in the pinned Guix channel.
   :custom
   (lsp-pyright-multi-root nil)
   (lsp-pyright-langserver-command "pyright")
@@ -1251,6 +1254,7 @@ dir is the directory of the buffer (param of my/project-try), when it's changed,
                    (read-gptel-backend-config "~/.config/openweb-ui-token.json")))))
 
 (use-package ob-gptel
+  :straight (:type git :host github :repo "jwiegley/ob-gptel")
   :hook ((org-mode . ob-gptel-install-completions))
   :defines ob-gptel-install-completions
   :config
@@ -1261,7 +1265,8 @@ dir is the directory of the buffer (param of my/project-try), when it's changed,
               'ob-gptel-capf nil t)))
 
 (use-package aider
-  :straight t ; Not packaged in the pinned Guix channel.
+  ;; Upstream's default branch points at a feature branch; track main.
+  :straight (:branch "main")
   :bind ("C-c a" . aider-transient-menu)
   :config
   ;; or use aider-transient-menu-2cols / aider-transient-menu-1col, for narrow screen
@@ -1274,6 +1279,7 @@ dir is the directory of the buffer (param of my/project-try), when it's changed,
 
 
 (use-package claude-code-ide
+  :straight (:type git :host github :repo "manzaltu/claude-code-ide.el")
   :bind ("C-c D" . claude-code-ide-menu) ; Set your favorite keybinding
   :custom
   (claude-code-ide-terminal-backend 'eat)
