@@ -23,6 +23,9 @@
 ;;; first argument names the agent.
 ;;;
 ;;; Mount rules (later options cover earlier ones):
+;;; - Mounts are ordered by target depth, keeping their order otherwise
+;;;   (see `order-mounts'): a broad mount, such as a project's read-only
+;;;   ~/src, never covers a nested one, such as the writable work tree.
 ;;; - The git work tree and the repository's common git directory are
 ;;;   separate read-write mount points.  hooks/, config, and each linked
 ;;;   worktree's commondir/gitdir are read-only mount points on top: they make
@@ -125,6 +128,45 @@ if it fails."
   (if (file-exists? file)
       (list (string-append "--expose=" file))
       '()))
+
+(define (mount-depth option)
+  "Return the number of components of the target of OPTION, a `guix shell'
+--share or --expose option, or #f for any other option."
+  (define (target spec)
+    ;; SOURCE[=TARGET], split at the first = as Guix does.
+    (match (string-index spec #\=)
+      (#f spec)
+      (index (substring spec (1+ index)))))
+  (match (find (cut string-prefix? <> option) '("--share=" "--expose="))
+    (#f #f)
+    (prefix
+     ;; Lexically, as policy paths may be relative to the project: "..".
+     (length
+      (fold (lambda (part parts)
+              (cond ((member part '("" ".")) parts)
+                    ((string=? part "..") (if (pair? parts) (cdr parts) parts))
+                    (else (cons part parts))))
+            '()
+            (string-split (target (string-drop option (string-length prefix)))
+                          #\/))))))
+
+(define (order-mounts options)
+  "Stably sort the mounts among OPTIONS, up to any --, by target depth, in the
+positions the mounts held.  Guix mounts in order, so a later mount of a parent
+directory would cover nested ones, whichever policy file or clause each came
+from."
+  (let-values (((options command) (break (cut string=? "--" <>) options)))
+    (let loop ((options options)
+               (mounts (stable-sort (filter mount-depth options)
+                                    (lambda (a b)
+                                      (< (mount-depth a) (mount-depth b)))))
+               (acc '()))
+      (match options
+        (() (append-reverse acc command))
+        ((option . rest)
+         (if (mount-depth option)
+             (loop rest (cdr mounts) (cons (car mounts) acc))
+             (loop rest mounts (cons option acc))))))))
 
 (define (git-mounts git top common gitdir)
   "Mount the work tree TOP and the repository's COMMON git directory, with the
@@ -1178,10 +1220,9 @@ NUL.  All ssh-add output goes to stderr, never into this private protocol."
             (append (%podman-launcher)
                     (list "--project" project)
                     (map (cut string-append "--mount-option=" <>)
-                         (filter (lambda (option)
-                                   (or (string-prefix? "--share=" option)
-                                       (string-prefix? "--expose=" option)))
-                                 (append mounts project-options podman-tmp)))
+                         (order-mounts
+                          (filter mount-depth
+                                  (append mounts project-options podman-tmp))))
                     '("--" "guix")))
           '("guix")))
     (apply execlp (car launch) (car launch)
@@ -1189,51 +1230,50 @@ NUL.  All ssh-add output goes to stderr, never into this private protocol."
            "--container" "--no-cwd" "--network" "--expose=/gnu/store"
            ;; Shebangs written for other systems, as Guix System has it.
            "--symlink=/usr/bin/env=bin/env")
-           (append
-            ;; Broad common mounts (such as read-only ~/src) must precede
-            ;; the writable work tree and its nested Git protections.
-            (spec-mounts common)
-            mounts
-            (spec-mounts spec)
-            (map (match-lambda
-                   ((source . target)
-                    (string-append "--expose=" source "=" target)))
-                 seeded)
-            (map (match-lambda
-                   ((file . target)
-                    (string-append "--share=" file "=" target)))
-                 kept)
-            (append-map (match-lambda
-                          ((origin . clause)
-                           (clause-options origin clause top)))
-                        clauses)
-            (if (any (lambda (entry) (equal? (cdr entry) '(guix-daemon))) clauses)
-                (guix-daemon-options project)
-                '())
-            podman-tmp
-            (if podman?
-                '("--expose=@CONTAINED_PODMAN_SOCKET@=/run/contained-agent/podman")
-                ;; Host paths: a Podman runtime would need them mounted first.
-                (browser-options))
-            ;; Only this central-policy exception may expose SSH resources.
-            ;; Mount the socket itself, never the runtime directory or keys.
-            (if ssh-dir
-                (list (string-append "--expose=" ssh-dir
-                                     "/ssh.sock=/run/contained-agent/ssh.sock")
-                      (string-append "--expose=" ssh-dir "/known_hosts="
-                                     home "/.ssh/known_hosts")
-                      (string-append "--expose=" ssh-dir "/config="
-                                     home "/.ssh/config"))
-                '())
-            (spec-preserve common)
-            (spec-preserve spec)
-            credentials
-            (match (local-file (approved-manifest-name manifest))
-              (#f '())
-              (manifest (list (string-append "--manifest=" manifest))))
-            packages
-            (if ssh-dir '("openssh") '())
-            (list "--" "bash" "-c" "\
+           (order-mounts
+            (append
+             (spec-mounts common)
+             mounts
+             (spec-mounts spec)
+             (map (match-lambda
+                    ((source . target)
+                     (string-append "--expose=" source "=" target)))
+                  seeded)
+             (map (match-lambda
+                    ((file . target)
+                     (string-append "--share=" file "=" target)))
+                  kept)
+             (append-map (match-lambda
+                           ((origin . clause)
+                            (clause-options origin clause top)))
+                         clauses)
+             (if (any (lambda (entry) (equal? (cdr entry) '(guix-daemon))) clauses)
+                 (guix-daemon-options project)
+                 '())
+             podman-tmp
+             (if podman?
+                 '("--expose=@CONTAINED_PODMAN_SOCKET@=/run/contained-agent/podman")
+                 ;; Host paths: a Podman runtime would need them mounted first.
+                 (browser-options))
+             ;; Only this central-policy exception may expose SSH resources.
+             ;; Mount the socket itself, never the runtime directory or keys.
+             (if ssh-dir
+                 (list (string-append "--expose=" ssh-dir
+                                      "/ssh.sock=/run/contained-agent/ssh.sock")
+                       (string-append "--expose=" ssh-dir "/known_hosts="
+                                      home "/.ssh/known_hosts")
+                       (string-append "--expose=" ssh-dir "/config="
+                                      home "/.ssh/config"))
+                 '())
+             (spec-preserve common)
+             (spec-preserve spec)
+             credentials
+             (match (local-file (approved-manifest-name manifest))
+               (#f '())
+               (manifest (list (string-append "--manifest=" manifest))))
+             packages
+             (if ssh-dir '("openssh") '())
+             (list "--" "bash" "-c" "\
 # Guix creates HOME on tmpfs (default mode 1777).  OpenSSH checks its
 # permissions when reading ~/.ssh/config.  This is the synthetic home,
 # not a bind mount of the host's home; do not chmod its mounted children.
@@ -1280,38 +1320,38 @@ if command -v direnv >/dev/null; then
   export CLAUDE_ENV_FILE=$d/direnv.bash BASH_ENV=$d/bash-env
 fi
 exec \"$@\""
-                  "contained-agent"
-                  home
-                  (if project workdir home)
-                  (or (git-hooks clauses) "")
-                  (or direnv "")
-                  (if direnv (string-append top "/.envrc") "")
-                  (number->string (length seeded)))
-            (append-map (match-lambda
-                          ((source . target) (list target source)))
-                        seeded)
-            ;; Overlays need a mount namespace of the agent's own, which
-            ;; bubblewrap sets up without privileges.
-            (match (append (spec-overlay spec) (spec-overlay common)
-                           (append-map (match-lambda
-                                         ((file . target)
-                                          (list "--bind" target file)))
-                                       kept))
-              (() '())
-              (options
-               (append (list "bwrap" "--dev-bind" "/" "/" "--die-with-parent")
-                       options
-                       (list "--"))))
-            (if ssh-dir
-                '("env" "SSH_AUTH_SOCK=/run/contained-agent/ssh.sock")
-                '())
-            (if podman?
-                (list "bash" "-c" %podman-remote-setup "podman-remote"
-                      (or (assq-ref podman? 'tmpdir) ""))
-                '())
-            (list (assq-ref spec 'program))
-            (or (assq-ref spec 'arguments) '())
-            args)))))
+                   "contained-agent"
+                   home
+                   (if project workdir home)
+                   (or (git-hooks clauses) "")
+                   (or direnv "")
+                   (if direnv (string-append top "/.envrc") "")
+                   (number->string (length seeded)))
+             (append-map (match-lambda
+                           ((source . target) (list target source)))
+                         seeded)
+             ;; Overlays need a mount namespace of the agent's own, which
+             ;; bubblewrap sets up without privileges.
+             (match (append (spec-overlay spec) (spec-overlay common)
+                            (append-map (match-lambda
+                                          ((file . target)
+                                           (list "--bind" target file)))
+                                        kept))
+               (() '())
+               (options
+                (append (list "bwrap" "--dev-bind" "/" "/" "--die-with-parent")
+                        options
+                        (list "--"))))
+             (if ssh-dir
+                 '("env" "SSH_AUTH_SOCK=/run/contained-agent/ssh.sock")
+                 '())
+             (if podman?
+                 (list "bash" "-c" %podman-remote-setup "podman-remote"
+                       (or (assq-ref podman? 'tmpdir) ""))
+                 '())
+             (list (assq-ref spec 'program))
+             (or (assq-ref spec 'arguments) '())
+             args))))))
 
 (define* (contained-agent-main command-line
                                #:key agents common packages git
