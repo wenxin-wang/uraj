@@ -174,6 +174,19 @@ class ProfileTest(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             PROFILE.browser(self.root, "task", ["--profile=/tmp/other", "open"])
 
+    def test_dashboard_in_fork_only_environment_without_profile(self):
+        with (
+            mock.patch.object(PROFILE, "ROOT", self.root / "absent"),
+            mock.patch.object(PROFILE, "IDENTITY_HINT", "Log in on the host"),
+            mock.patch.object(PROFILE.subprocess, "run") as run,
+        ):
+            self.invoke("dashboard", "start", "--port", "4850")
+            run.assert_called_once_with(
+                ["agent-browser", "dashboard", "start", "--port", "4850"],
+                check=True,
+            )
+            self.assertFalse(PROFILE.ROOT.exists())
+
 
 if __name__ == "__main__":
     unittest.main()

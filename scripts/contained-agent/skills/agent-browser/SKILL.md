@@ -47,6 +47,16 @@ browser-profile publish
 Then create a new task: running tasks keep their fork. Websites may expire or
 rotate credentials; do not promise that forked credentials always work.
 
+## Human control
+
+When the user wants to operate the current browser, run
+`browser-profile dashboard start --port 4848` in this agent environment and
+give them `http://127.0.0.1:4848` and the `task-<task-id>` session name. Pick
+another port if another environment uses it. On a remote host, the user can
+forward that port over SSH. Wait for the user to finish before continuing
+automation or deleting the task. `browser-profile dashboard stop` stops only
+the dashboard. Human input in a task still does not publish persistent logins.
+
 ## Evidence
 
 Configured browser: headed Chromium on a private display in this container, not

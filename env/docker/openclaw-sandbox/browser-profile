@@ -145,12 +145,24 @@ def main():
     run_login.add_argument("command", nargs=argparse.REMAINDER)
     sub.add_parser("publish")
     sub.add_parser("create")
+    dashboard = sub.add_parser(
+        "dashboard", help="view and control this environment's browser sessions"
+    )
+    dashboard.add_argument("command", nargs=argparse.REMAINDER)
     for action in ("run", "finish"):
         task = sub.add_parser(action)
         task.add_argument("task")
         if action == "run":
             task.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args()
+    if args.action == "dashboard":
+        # Keep the launcher's socket directory: host identities, contained
+        # tasks and OpenClaw roles each discover their own running daemons.
+        # This needs neither a profile nor the lifecycle lock.
+        subprocess.run(
+            ["agent-browser", "dashboard", *args.command], check=True
+        )
+        return
     os.umask(0o077)
     ROOT.mkdir(parents=True, exist_ok=True)
     # Serialize managed lifecycle operations; browser daemons outlive this lock.

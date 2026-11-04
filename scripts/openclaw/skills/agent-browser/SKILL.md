@@ -48,6 +48,17 @@ remaining work in a fresh task. Otherwise report the observed blocker and
 needed user action. Do not replace requested logged-in work with generic
 advice or other sources without agreement.
 
+## Human control
+
+The user can operate existing sessions through agent-browser's dashboard.
+`browser-profile dashboard start` starts it inside this sandbox; its loopback
+URL is not reachable directly from the host. The repository's
+`python3 scripts/openclaw/browser-dashboard.py --ssh storie CONTAINER` starts and
+forwards it to the user's localhost. Give them the session name
+(`role-identity` or `task-<task-id>`) and wait for them to finish before
+continuing automation, publishing or deleting the task. Dashboard control
+does not automatically pause agent commands.
+
 ## Evidence
 
 Configured browser: headed Debian Chromium in this role's sandbox, not the
