@@ -231,6 +231,19 @@ class WorktreeMounts(Launcher):
         self.assertIn(f"--expose={worktree}/.git", argv)
         self.assertNotIn(f"--share={self.project}", argv)
 
+    def test_broad_policy_mounts_precede_the_work_tree(self):
+        # Guix mounts in order: ~/src exposed after the work tree would
+        # cover it read-only, with its Git protections.
+        self.policy('(expose ".." "~/src")')
+        result, argv, _ = self.launch()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        tree = argv.index(f"--share={self.project}")
+        self.assertLess(argv.index(f"--expose={self.project}/.."), tree)
+        self.assertLess(argv.index(f"--expose={self.home}/src"), tree)
+        self.assertLess(
+            tree, argv.index(f"--expose={self.project}/.git/config")
+        )
+
     def test_main_checkout_is_only_shared(self):
         result, argv, _ = self.launch()
         self.assertEqual(result.returncode, 0, result.stderr)
