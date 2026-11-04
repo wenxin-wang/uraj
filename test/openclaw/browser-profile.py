@@ -123,6 +123,51 @@ class ProfileTest(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "No snapshot"):
             self.invoke("create")
 
+    def test_lock_from_earlier_sandbox_is_cleared(self):
+        profile = self.root / "profile"
+        profile.mkdir()
+        (profile / "Cookies").write_text("login")
+        (profile / "SingletonLock").symlink_to("earlier-sandbox-328")
+        (profile / "SingletonSocket").symlink_to("/tmp/gone/SingletonSocket")
+        (profile / "SingletonCookie").symlink_to("123")
+        with mock.patch.object(PROFILE.subprocess, "run") as run:
+            PROFILE.browser(profile, "session", ["open", "about:blank"])
+        run.assert_called_once()
+        self.assertEqual([path.name for path in profile.iterdir()], ["Cookies"])
+
+    def test_lock_from_this_host_is_left_to_chromium(self):
+        profile = self.root / "profile"
+        profile.mkdir()
+        lock = profile / "SingletonLock"
+        lock.symlink_to(f"{PROFILE.socket.gethostname()}-328")
+        with mock.patch.object(PROFILE.subprocess, "run") as run:
+            PROFILE.browser(profile, "session", ["open", "about:blank"])
+        run.assert_called_once()
+        self.assertTrue(lock.is_symlink())
+
+    def test_foreign_lock_of_live_browser_is_kept(self):
+        profile = self.root / "profile"
+        profile.mkdir()
+        lock = profile / "SingletonLock"
+        lock.symlink_to("renamed-host-328")
+        process = subprocess.Popen(
+            [
+                sys.executable,
+                "-c",
+                "import time; time.sleep(30)",
+                f"--user-data-dir={profile}",
+            ]
+        )
+        try:
+            with mock.patch.object(PROFILE.subprocess, "run") as run:
+                with self.assertRaisesRegex(RuntimeError, "still uses"):
+                    PROFILE.browser(profile, "session", ["open"])
+            run.assert_not_called()
+            self.assertTrue(lock.is_symlink())
+        finally:
+            process.terminate()
+            process.wait()
+
     def test_invalid_task_and_profile_override(self):
         with self.assertRaises(RuntimeError):
             PROFILE.task_path("../identity")

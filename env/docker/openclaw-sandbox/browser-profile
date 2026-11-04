@@ -7,6 +7,7 @@ import json
 import os
 import re
 import shutil
+import socket
 import subprocess
 import sys
 import time
@@ -51,6 +52,21 @@ def ensure_stopped(profile):
                 )
 
 
+def clear_stale_lock(profile):
+    """Drop the lock of a browser that ended with an earlier sandbox."""
+    lock = profile / "SingletonLock"
+    if not lock.is_symlink():
+        return
+    # Chromium checks a lock from its own host, but refuses another host's as
+    # "in use".  Recreated sandboxes get a new hostname and a workspace has one
+    # sandbox, so a lock naming another host cannot be a browser still running.
+    if os.readlink(lock).rpartition("-")[0] == socket.gethostname():
+        return
+    ensure_stopped(profile)
+    for name in VOLATILE:
+        (profile / name).unlink(missing_ok=True)
+
+
 def browser(profile, session, args):
     forbidden = (
         "--session",
@@ -71,6 +87,7 @@ def browser(profile, session, args):
         "AGENT_BROWSER_CDP",
     ):
         env.pop(key, None)
+    clear_stale_lock(profile)
     subprocess.run(
         [
             "agent-browser",

@@ -419,6 +419,9 @@ CLI 的 =skills get= 正文来自镜像中同版本源码包的 =skills=、=skil
 =login URL= 打开主登录浏览器，=identity screenshot /workspace/login.png=
 可截图扫码。确认登录成功后 =publish= 正常关闭浏览器、检查进程退出并发布快照。
 首次使用会把已关闭的旧 =.agent-browser/profile= 迁移到 =identity=，不丢弃登录。
+重建沙箱会换主机名，旧沙箱里被杀死的浏览器留下的 =SingletonLock= 指向旧主机，
+Chromium 会一直报资料被占用；=browser-profile= 启动前检查没有本地进程使用该目录后
+清除这种锁。每个 workspace 只有一个沙箱，同主机的锁仍由 Chromium 自己判断。
 
 普通任务运行 =browser-profile create=，保存 JSON 返回的 task ID，然后用
 =browser-profile run ID open URL=、=run ID screenshot PATH= 等命令操作。
