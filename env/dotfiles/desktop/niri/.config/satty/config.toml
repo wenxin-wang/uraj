@@ -1,0 +1,7 @@
+# Satty renders text with femtovg, which only uses the fonts listed here
+# and does no fontconfig fallback of its own. Without a CJK fallback,
+# Chinese typed through fcitx5 has no glyphs to draw.
+[font]
+family = "Noto Sans"
+style = "Regular"
+fallback = ["Noto Sans CJK SC"]
