@@ -2,7 +2,8 @@
 (use-modules (gnu) (gnu home) (gnu home services)
              (gnu services) (gnu services shepherd)
              (guix gexp) (guix packages) (srfi srfi-1) (srfi srfi-64)
-             (uraj services paseo) (uraj system home) (uraj home paseo))
+             (uraj services paseo) (uraj system home) (uraj home paseo)
+             (uraj home paseo-broker))
 
 (define (lookup all name)
   (find (lambda (s) (memq name (shepherd-service-provision s))) all))
@@ -34,6 +35,14 @@
          (not (string-contains start "make-forkexec-constructor"))))
   (test-assert "system Home preserves the no-user-Shepherd activation flag"
     (string-contains start "GUIX_SYSTEM_IS_RUNNING_HOME_ACTIVATE=t")))
+(test-assert "managed broker runs the launcher Home updates"
+  (let ((home-files (service-value
+                     (fold-services (home-environment-services home)
+                                    #:target-type home-files-service-type))))
+    (and (assoc ".local/bin/contained-agent" home-files)
+         (string-contains
+          (format #f "~s" (gexp->approximate-sexp %home-launcher))
+          "/.local/bin/contained-agent"))))
 (test-equal "daemon depends on host broker" '(paseo-broker)
   (shepherd-service-requirement (lookup installed 'paseo)))
 (test-equal "storie broker waits for wenxin Home, not old data storage"

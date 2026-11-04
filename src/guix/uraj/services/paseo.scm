@@ -57,7 +57,7 @@
          (for-each (lambda (entry) (setenv (car entry) (cdr entry)))
                    '#$(paseo-environment config))
          #$(if (string=? command "broker")
-               #~(execl #$(broker-program contained-agent) "paseo-broker" "serve"
+               #~(execl #$(broker-program %home-launcher) "paseo-broker" "serve"
                         #$@(append-map (lambda (root) (list "--root" root))
                                       (paseo-roots config)))
                #~(execl #$paseo-service-program "paseo-service" "run"

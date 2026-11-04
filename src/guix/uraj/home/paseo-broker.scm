@@ -15,7 +15,7 @@
   #:use-module (uraj packages ssh)
   #:use-module (uraj packages llm)
   #:export (paseo-broker-home-services paseo-broker-bundle
-            broker-program paseo-broker-clients supervisor
+            broker-program %home-launcher paseo-broker-clients supervisor
             paseo-askpass-environment))
 
 (define supervisor
@@ -45,7 +45,14 @@
               #$(local-file (project-path "src/python/uraj/paseo/branch_gc.py"))
               (cdr (command-line))))))
 
+(define %home-launcher
+  ;; Home's link, not a store item: it is resolved for each execution, so a
+  ;; Home reconfigure reaches new sessions without restarting the broker.
+  #~(string-append (getenv "HOME") "/.local/bin/contained-agent"))
+
 (define (broker-program launcher)
+  "Return the broker, running LAUNCHER, a file-like object or a gexp evaluating
+to a file name."
   (program-file
    "paseo-broker"
    #~(let ((args (cdr (command-line))))

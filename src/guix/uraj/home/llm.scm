@@ -243,7 +243,7 @@ binary in place instead of this single-project wrapper."
 or a second user Shepherd broker. Agent settings remain user-managed."
   (append
    (agent-common-services)
-   (paseo-broker-home-services contained-agent #:autostart? #f)
+   (paseo-broker-home-services %home-launcher #:autostart? #f)
    (paseo-home-services #:desktop? #f)
    (list
     (simple-service 'paseo-cli home-profile-service-type (list paseo))
@@ -261,7 +261,7 @@ settings."
      (if setup
          (append
           (paseo-broker-home-services
-           contained-agent
+           %home-launcher
            #:autostart? (paseo-setup-autostart? setup)
            #:requirements (if (home-target-foreign? (current-home-target))
                               '(dbus graphical-session)

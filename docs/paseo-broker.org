@@ -75,6 +75,13 @@ Shepherd owns the boot service; foreign Home registers user services. Do not
 load a trial broker alongside either managed service.  Replacing a running broker
 can end its executions; finish them before deploying a new service definition.
 
+Managed brokers run Home's =~/.local/bin/contained-agent=, resolved for each
+execution, so a Home reconfigure reaches new sessions without a broker restart;
+running sessions keep their launcher.  Changes to the broker or supervisor still
+need one.  So do changes to =contained-agent ssh-service=, which stays running
+for the broker's lifetime, and new launchers must keep working with it until
+then.  The trial bundle above keeps its own store launcher.
+
 Switch only the two provider commands after successful version probes:
 
 #+begin_src sh
