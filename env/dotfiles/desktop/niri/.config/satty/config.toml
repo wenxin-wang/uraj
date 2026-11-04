@@ -1,7 +1,11 @@
 # Satty renders text with femtovg, which only uses the fonts listed here
 # and does no fontconfig fallback of its own. Without a CJK fallback,
 # Chinese typed through fcitx5 has no glyphs to draw.
+#
+# Guix ships Noto Sans CJK only as a variable collection; Satty passes
+# fontconfig's named-instance index to femtovg, which rejects it
+# ("Failed to load font: canvas error"). Sarasa Gothic is static.
 [font]
 family = "Noto Sans"
 style = "Regular"
-fallback = ["Noto Sans CJK SC"]
+fallback = ["Sarasa Gothic SC"]
