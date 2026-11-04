@@ -357,6 +357,17 @@ elif sys.argv[1:] == ['detached']:
         )
         self.assertEqual(client.returncode, 0)
 
+    def test_replaced_launcher_serves_the_next_execution(self):
+        # A Home reconfigure replaces the launcher under a running broker.
+        replacement = self.root / "replacement"
+        replacement.write_text(f"#!{sys.executable}\nprint('replaced')\n")
+        replacement.chmod(0o700)
+        self.launcher.unlink()
+        self.launcher.symlink_to(replacement)
+        client = self.client("--version")
+        self.assertEqual(client.communicate(timeout=10), (b"replaced\n", b""))
+        self.assertEqual(client.returncode, 0)
+
     def test_host_temporary_directory_is_not_execution_directory(self):
         for temporary in (None, str(self.root / "host-tmp")):
             with self.subTest(temporary=temporary):
