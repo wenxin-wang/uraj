@@ -1071,6 +1071,20 @@ python3 scripts/openclaw/browser-dashboard.py --ssh storie CONTAINER
 # 打开 http://127.0.0.1:4848
 #+end_src
 
+也可以告诉 agent：「启动浏览器 dashboard，确认可连接后告诉我端口、
+会话名和所在沙箱，然后等我操作完。」两边的 browser skill 都包含这个
+交接流程。agent 在目标沙箱中启动并验证 dashboard，回报实际端口。
+例如 agent 给出的端口是 4851，将它传给 =--dashboard-port=：
+
+#+begin_src sh
+python3 scripts/openclaw/browser-dashboard.py --ssh storie \
+  --dashboard-port 4851 --port 4848 CONTAINER
+# 仍然打开 http://127.0.0.1:4848
+#+end_src
+
+还需用 =--list= 确认目标容器名或 ID。脚本复用 4851 上已有的 dashboard；
+=--port 4848= 决定转发入口，两者不必相同。
+
 在终端按提示输入 storie 的 sudo 密码即可，=--list= 也支持密码提示。
 SSH 模式通过远端 PTY 运行一个提权 helper，整个转发期间不再逐请求执行
 sudo。密码由 SSH/sudo 处理，脚本不读取或保存密码。HTTP 和 WebSocket

@@ -1,6 +1,6 @@
 ---
 name: agent-browser
-description: Browse websites and manage this role's browser login through browser-profile.
+description: Browse websites, manage this role's browser login through browser-profile, and let the user operate existing browser sessions through a dashboard.
 ---
 
 # Browser tasks
@@ -50,15 +50,42 @@ advice or other sources without agreement.
 
 ## Human control
 
-The user can operate existing sessions through agent-browser's dashboard.
-`browser-profile dashboard start` starts it inside this sandbox; its loopback
-URL is not reachable directly from the host. The repository's
-`python3 scripts/openclaw/browser-dashboard.py --ssh storie CONTAINER` starts and
-forwards it to the user's localhost, prompting for sudo in their terminal.
-Give them the session name
-(`role-identity` or `task-<task-id>`) and wait for them to finish before
-continuing automation, publishing or deleting the task. Dashboard control
-does not automatically pause agent commands.
+When the user asks to take over the browser, start the dashboard yourself in
+this sandbox. Reuse its existing dashboard, or choose a free loopback port
+(4848 is a default, not a requirement) and run
+`browser-profile dashboard start --port PORT`. If the installed wrapper lacks
+this subcommand, use `agent-browser dashboard start --port PORT` in the same
+environment, retaining its daemon socket directory.
+
+Before handing over, poll `http://127.0.0.1:PORT/api/sessions` briefly with
+`Origin: http://127.0.0.1:PORT` and confirm the intended `role-identity` or
+`task-<task-id>` is listed. A startup message alone does not prove readiness.
+Report a startup failure instead of handing over an unverified port; retry
+another free port if occupied without stopping another dashboard.
+
+Give the user the actual dashboard port, session name and sandbox identity.
+Report the dashboard's listening port, not a session's stream port from the API.
+Report `hostname` as a matching hint if the runtime container name/ID is not
+known; do not assume that a custom hostname is a valid container ID. The user
+can find the container with the repository script's `--ssh storie --list`.
+Provide the forwarding command with the actual port substituted:
+
+```sh
+python3 scripts/openclaw/browser-dashboard.py --ssh storie \
+  --dashboard-port PORT --port 4848 CONTAINER
+```
+
+`--dashboard-port` is the port reported by the agent inside the sandbox.
+`--port` is the forwarding listener on the user's machine and the storie host;
+the user opens `http://127.0.0.1:4848`. These ports can differ. The script reuses
+an already-running dashboard at the specified sandbox port and prompts for
+sudo in the user's terminal. The sandbox's loopback URL alone is not reachable
+from the user's machine. Use the actual deployment host if it is not storie.
+
+Pause browser automation, including background login polling, for the handoff.
+Keep the browser, dashboard and profile available until the user says to
+continue; do not publish or delete the task while they are operating it.
+Dashboard input does not automatically pause agent commands.
 
 ## Evidence
 

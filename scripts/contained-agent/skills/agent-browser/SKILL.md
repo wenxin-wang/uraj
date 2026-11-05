@@ -1,6 +1,6 @@
 ---
 name: agent-browser
-description: Browse websites, take screenshots, and interact with web pages using browser task profiles forked from the user's published logins.
+description: Browse websites using task profiles forked from the user's published logins, and let the user operate existing browser sessions through a dashboard.
 ---
 
 # Browser tasks in contained agents
@@ -49,13 +49,34 @@ rotate credentials; do not promise that forked credentials always work.
 
 ## Human control
 
-When the user wants to operate the current browser, run
-`browser-profile dashboard start --port 4848` in this agent environment and
-give them `http://127.0.0.1:4848` and the `task-<task-id>` session name. Pick
-another port if another environment uses it. On a remote host, the user can
-forward that port over SSH. Wait for the user to finish before continuing
-automation or deleting the task. `browser-profile dashboard stop` stops only
-the dashboard. Human input in a task still does not publish persistent logins.
+When the user asks to take over the browser, start the dashboard yourself
+inside the environment running that browser. Reuse this environment's existing
+dashboard, or choose a free loopback port (4848 is a default, not a requirement)
+and run `browser-profile dashboard start --port PORT`. If the installed wrapper
+lacks this subcommand, use `agent-browser dashboard start --port PORT` in the
+same environment, retaining its daemon socket directory.
+
+Before handing over, poll `http://127.0.0.1:PORT/api/sessions` briefly with
+`Origin: http://127.0.0.1:PORT` and confirm the intended session is listed
+(`task-<task-id>` for managed tasks). A startup message alone does not prove
+readiness. Report a startup failure instead of handing over an unverified
+port; retry another free port
+if occupied without stopping another environment's dashboard.
+
+Give the user the actual dashboard port, session name, and connection command:
+
+- On the same host, open `http://127.0.0.1:PORT` directly.
+- For a remote host, run `ssh -N -L 4848:127.0.0.1:PORT HOST` locally and open
+  `http://127.0.0.1:4848`. Fill in the known host and actual port; the local
+  listening port can be changed independently. Contained agents share their
+  host network, so they do not use the OpenClaw container-forwarding script.
+
+Report the dashboard's listening port, not a session's stream port from the API.
+Pause browser automation, including background polling, for the handoff.
+Keep the browser, dashboard and task available until the user says to continue;
+do not finish the task while they are operating it.
+`browser-profile dashboard stop` stops only the dashboard. Human input in a
+task still does not publish persistent logins.
 
 ## Evidence
 

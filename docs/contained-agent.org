@@ -639,6 +639,10 @@ In the contained agent session whose browser you want to use, run:
 browser-profile dashboard start --port 4848
 #+end_src
 
+You can ask the agent to start and verify the dashboard and report its port
+and session name. The browser skill includes this handoff. Use the reported
+port in the URL or SSH destination below; 4848 is only the default.
+
 Open =http://127.0.0.1:4848= in your own browser and select =task-ID=.
 The Guix container shares the host network, so the URL works on the host.
 For a remote host, run =ssh -N -L 4848:127.0.0.1:4848 HOST= locally first.
