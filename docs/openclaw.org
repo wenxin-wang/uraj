@@ -1071,13 +1071,20 @@ python3 scripts/openclaw/browser-dashboard.py --ssh storie CONTAINER
 # 打开 http://127.0.0.1:4848
 #+end_src
 
-脚本启动该沙箱内的 dashboard，并通过 SSH、=compose exec=、=podman exec=
-转发 HTTP 和 WebSocket，无需重建镜像或发布容器端口。只在本机
-=127.0.0.1= 监听。不同沙箱可用 =--port 4849= 等本地端口同时打开；
+在终端按提示输入 storie 的 sudo 密码即可，=--list= 也支持密码提示。
+SSH 模式通过远端 PTY 运行一个提权 helper，整个转发期间不再逐请求执行
+sudo。密码由 SSH/sudo 处理，脚本不读取或保存密码。HTTP 和 WebSocket
+通过独立的 SSH 端口转发通道传输，不经过 PTY。
+
+helper 启动沙箱内的 dashboard，并通过 =compose exec=、=podman exec=
+转发流量，无需重建镜像或发布容器端口。本机和远端 helper 都只监听
+=127.0.0.1=。=--port= 默认 4848，同时用于本机和远端宿主的监听端口；
+任一端已占用时换用 =--port 4849= 等端口，也可同时接管多个沙箱。
 =--dashboard-port= 指定沙箱内端口，默认也是 4848。
 
-本机需 Python 3，远端需能非交互执行 =sudo -n /etc/openclaw/compose=。
-若 sudo 需要交互密码，在 storie 上的终端运行脚本（省略 =--ssh=）：
+本机和远端用户 PATH 中均需 Python 3；脚本会在 sudo 重置 PATH 前定位
+远端 Python。helper 代码从当前 checkout 通过 SSH 参数传入，远端无需
+checkout 或临时脚本。也可在 storie 上直接提权运行（省略 =--ssh=）：
 
 #+begin_src sh
 sudo python3 scripts/openclaw/browser-dashboard.py CONTAINER
@@ -1085,7 +1092,8 @@ sudo python3 scripts/openclaw/browser-dashboard.py CONTAINER
 ssh -N -L 4848:127.0.0.1:4848 storie
 #+end_src
 
-Ctrl-C 关闭转发，浏览器和 dashboard 保持运行。需要停止 dashboard 时：
+Ctrl-C 或 SSH 断开会关闭转发 helper 及其 exec 进程，浏览器和 dashboard
+保持运行。需要停止 dashboard 时：
 
 #+begin_src sh
 sudo /etc/openclaw/compose exec -T engine podman exec CONTAINER \

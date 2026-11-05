@@ -54,7 +54,8 @@ The user can operate existing sessions through agent-browser's dashboard.
 `browser-profile dashboard start` starts it inside this sandbox; its loopback
 URL is not reachable directly from the host. The repository's
 `python3 scripts/openclaw/browser-dashboard.py --ssh storie CONTAINER` starts and
-forwards it to the user's localhost. Give them the session name
+forwards it to the user's localhost, prompting for sudo in their terminal.
+Give them the session name
 (`role-identity` or `task-<task-id>`) and wait for them to finish before
 continuing automation, publishing or deleting the task. Dashboard control
 does not automatically pause agent commands.
