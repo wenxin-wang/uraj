@@ -173,6 +173,53 @@ except KeyboardInterrupt:
         self.assertEqual(command[0], "/etc/openclaw/compose")
         self.assertNotIn("sudo", command)
 
+    def test_dashboard_start_drops_launch_defaults_keeps_discovery(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = root / "environment.json"
+            executable = root / "agent-browser"
+            executable.write_text(
+                f"#!{sys.executable}\n"
+                "import json, os, sys\n"
+                "from pathlib import Path\n"
+                f"Path({str(output)!r}).write_text(json.dumps(\n"
+                "    [sys.argv[1:], dict(os.environ)]))\n"
+            )
+            executable.chmod(0o700)
+            with (
+                mock.patch.object(sys, "argv", [str(SCRIPT), "sandbox"]),
+                mock.patch.dict(
+                    os.environ,
+                    {
+                        "PATH": directory + os.pathsep + os.environ["PATH"],
+                        "AGENT_BROWSER_SOCKET_DIR": "/tmp/role-daemons",
+                        "AGENT_BROWSER_HEADED": "1",
+                        "AGENT_BROWSER_EXECUTABLE_PATH": "/bin/chromium",
+                        "AGENT_BROWSER_ARGS": "--enable-gpu",
+                    },
+                    clear=True,
+                ),
+                mock.patch.object(
+                    DASHBOARD, "engine_command", side_effect=lambda a: a[2:]
+                ),
+                mock.patch.object(DASHBOARD, "ForwardServer"),
+                mock.patch("builtins.print"),
+            ):
+                DASHBOARD.main()
+            arguments, environment = json.loads(output.read_text())
+            self.assertEqual(
+                arguments, ["dashboard", "start", "--port", "4848"]
+            )
+            self.assertEqual(
+                environment["AGENT_BROWSER_SOCKET_DIR"], "/tmp/role-daemons"
+            )
+            for key in (
+                "AGENT_BROWSER_HEADED",
+                "AGENT_BROWSER_EXECUTABLE_PATH",
+                "AGENT_BROWSER_ARGS",
+            ):
+                self.assertNotIn(key, environment)
+
     def test_remote_shell_prompts_and_preserves_helper_arguments(self):
         # Exercise the exact remote shell command on a real PTY. This fake
         # sudo only asks for a disposable test password; it never elevates.

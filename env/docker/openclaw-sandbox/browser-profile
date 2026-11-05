@@ -159,8 +159,18 @@ def main():
         # Keep the launcher's socket directory: host identities, contained
         # tasks and OpenClaw roles each discover their own running daemons.
         # This needs neither a profile nor the lifecycle lock.
+        # Dashboard commands select only a session, without its --profile.
+        # In 0.38.2 these inherited defaults force a launch command that drops
+        # the existing profile. Running daemons already retain their settings.
+        env = os.environ.copy()
+        for key in (
+            "AGENT_BROWSER_HEADED",
+            "AGENT_BROWSER_EXECUTABLE_PATH",
+            "AGENT_BROWSER_ARGS",
+        ):
+            env.pop(key, None)
         subprocess.run(
-            ["agent-browser", "dashboard", *args.command], check=True
+            ["agent-browser", "dashboard", *args.command], env=env, check=True
         )
         return
     os.umask(0o077)

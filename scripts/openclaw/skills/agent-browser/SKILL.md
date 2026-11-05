@@ -54,14 +54,32 @@ When the user asks to take over the browser, start the dashboard yourself in
 this sandbox. Reuse its existing dashboard, or choose a free loopback port
 (4848 is a default, not a requirement) and run
 `browser-profile dashboard start --port PORT`. If the installed wrapper lacks
-this subcommand, use `agent-browser dashboard start --port PORT` in the same
-environment, retaining its daemon socket directory.
+this subcommand or predates the dashboard environment fix, use:
+
+```sh
+env -u AGENT_BROWSER_HEADED -u AGENT_BROWSER_EXECUTABLE_PATH \
+  -u AGENT_BROWSER_ARGS agent-browser dashboard start --port PORT
+```
+
+Retain the daemon socket directory. These launch defaults cause 0.38.2's
+dashboard API to reopen managed browsers without their profile. If an existing
+dashboard was started with them, stop and restart only the dashboard using the
+corrected command; keep its browser sessions running.
 
 Before handing over, poll `http://127.0.0.1:PORT/api/sessions` briefly with
 `Origin: http://127.0.0.1:PORT` and confirm the intended `role-identity` or
 `task-<task-id>` is listed. A startup message alone does not prove readiness.
 Report a startup failure instead of handing over an unverified port; retry
 another free port if occupied without stopping another dashboard.
+
+For desktop Chromium on agent-browser 0.38.2, synchronize the target's viewport
+before handing over: run `eval '[innerWidth, innerHeight]'`, then
+`set viewport WIDTH HEIGHT` with those values through the same
+`browser-profile identity` or `browser-profile run <task-id>` command prefix.
+The dashboard otherwise assumes 1280 x 720 even when headed Chrome's content
+area is shorter, so visible buttons receive clicks at the wrong coordinates.
+Keep any intentional device emulation. Do not test clicks on the user's page
+as a readiness check.
 
 Give the user the actual dashboard port, session name and sandbox identity.
 Report the dashboard's listening port, not a session's stream port from the API.

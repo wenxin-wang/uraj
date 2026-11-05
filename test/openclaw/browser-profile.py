@@ -178,11 +178,22 @@ class ProfileTest(unittest.TestCase):
         with (
             mock.patch.object(PROFILE, "ROOT", self.root / "absent"),
             mock.patch.object(PROFILE, "IDENTITY_HINT", "Log in on the host"),
+            mock.patch.dict(
+                PROFILE.os.environ,
+                {
+                    "AGENT_BROWSER_SOCKET_DIR": "/tmp/role-daemons",
+                    "AGENT_BROWSER_HEADED": "1",
+                    "AGENT_BROWSER_EXECUTABLE_PATH": "/bin/sandbox-chromium",
+                    "AGENT_BROWSER_ARGS": "--enable-gpu",
+                },
+                clear=True,
+            ),
             mock.patch.object(PROFILE.subprocess, "run") as run,
         ):
             self.invoke("dashboard", "start", "--port", "4850")
             run.assert_called_once_with(
                 ["agent-browser", "dashboard", "start", "--port", "4850"],
+                env={"AGENT_BROWSER_SOCKET_DIR": "/tmp/role-daemons"},
                 check=True,
             )
             self.assertFalse(PROFILE.ROOT.exists())

@@ -1061,6 +1061,18 @@ agent-browser 0.38.2 自带网页 dashboard，可以查看实时页面、点击�
 原生菜单及系统弹窗；操作前让 agent 等待，完成后再继续，dashboard 不会
 自动暂停 agent。
 
+agent-browser 0.38.2 在 headed Chromium 下可能把页面尺寸误报为
+1280 x 720，而实际内容区更矮，导致画面可见但点击坐标偏移。skill 在交接前
+会用 =browser-profile identity eval '[innerWidth, innerHeight]'= 读取尺寸，
+再执行 =browser-profile identity set viewport WIDTH HEIGHT= 同步 dashboard，
+保留当前桌面页面的尺寸。任务副本则将 =identity= 换成 =run TASK=。
+
+新版包装器和转发脚本还会移除 dashboard 进程继承的浏览器启动参数，避免
+0.38.2 在执行 Fit、导航等菜单命令时用缺少 profile 的参数重启浏览器。
+已运行的旧 dashboard 需要先在沙箱内执行 =agent-browser dashboard stop=，
+再用新版脚本启动；浏览器会话可以保持运行。启动环境修正后，也可以点右下角
+尺寸菜单选择 =Fit=，通过调整页面大小修正点击坐标。
+
 OpenClaw 沙箱在 Docker engine 里的 rootless Podman 中，dashboard 只监听
 沙箱的 loopback，不能直接从宿主访问。仓库提供转发脚本，在本机运行：
 

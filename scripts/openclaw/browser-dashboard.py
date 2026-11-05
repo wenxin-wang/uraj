@@ -211,6 +211,15 @@ def main():
                 [
                     "exec",
                     args.container,
+                    # Existing images may predate browser-profile dashboard.
+                    # Avoid launch defaults that reopen sessions sans profile.
+                    "env",
+                    "-u",
+                    "AGENT_BROWSER_HEADED",
+                    "-u",
+                    "AGENT_BROWSER_EXECUTABLE_PATH",
+                    "-u",
+                    "AGENT_BROWSER_ARGS",
                     "agent-browser",
                     "dashboard",
                     "start",
