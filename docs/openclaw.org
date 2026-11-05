@@ -284,6 +284,14 @@ OpenClaw 内置提示词要求群里的登录二维码、验证码和验证链�
 表情，关闭 =streaming.block.enabled=。飞书 v2026.10.3 只支持 =off= 和
 =partial=，不能套用 Telegram/Discord 的 =progress= 模式。
 
+飞书应用必须开通应用身份权限 =cardkit:card:write=：在开放平台的
+「权限管理」申请后创建并发布应用版本，按后台要求完成审批。
+缺少此权限时，=POST /open-apis/cardkit/v1/cards= 返回 HTTP 400，
+响应体为 =99991672 Access denied= 并列出 =cardkit:card:write=；
+Gateway 日志可能仅显示 =streaming_start_failed= 和 HTTP 400，随后回退
+普通回复，看不到进度卡片。权限生效后等约一分钟再发消息验证（上游创建
+失败后退避 60 秒），无需为权限变更重新构建镜像。
+
 上游发现 =reply_payload_sending= 或 =message_sending= hook 时，会连同
 工具活动、压缩状态一起关闭预览。镜像补丁 =feishu-guarded-progress.mjs=
 保留正文和 reasoning 的预览禁用，只允许固定中文状态复用原生 CardKit：
@@ -304,8 +312,10 @@ CardKit 不可用时回退普通回复；撤回失败则由上游尝试清空卡
 
 =2026.10.3-progress1= 已在 storie 构建，声明已固定其 image ID。
 断网临时容器验证了两份 bundle 的语法、runtime 导入及原生
-=config validate --json=（无警告）。尚未 reconfigure 或切换线上服务，
-飞书实际卡片显示和撤回仍待部署后验收。
+=config validate --json=（无警告）。2026-11-05 已核对线上镜像、配置和
+两份 bundle 补丁均生效；真实 CardKit 创建请求被缺失的
+=cardkit:card:write= 权限拒绝。实际卡片显示和撤回仍待权限生效后验收，
+离线测试不验证飞书应用的实际授权。
 
 ** 状态与验证
 
@@ -799,7 +809,8 @@ v2026.10.3 把飞书富文本（post）消息转成 Markdown 时会转义 =-=：
 应用版本使其生效。缺少该权限时，日志会出现 =99991672 Access denied=；
 若消息仅有 @、又无法读取引用内容，则会被 =skipping empty message=
 跳过。首次测试应发送 =@机器人 请回复测试成功=，不要只发送一个 @。
-初始配置采用非流式文本回复，不要求文档、云盘或 Card Kit 能力。
+当前配置启用流式卡片，还需应用身份权限 =cardkit:card:write=；
+开通、发布及排错见上文“处理进度卡片”。
 回复附带图片（例如 agent-browser 截图）时，Gateway 先调用
 =/open-apis/im/v1/images= 上传，需要应用身份权限 =im:resource:upload=
 （或 =im:resource=），开通后发布应用版本。缺少时日志出现
