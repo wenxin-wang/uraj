@@ -1,0 +1,71 @@
+// Unmodified compiled regions from the deployed OpenClaw v2026.10.3 image:
+// sha256:e981b32878c5ff8a4cab67a5eec5135f2d659b6111dcc4776b2eed5624da2070
+// /app/dist/dispatch-from-config-CvU-ucKf.mjs
+// Upstream: src/auto-reply/reply/dispatch-from-config.ts
+// Regenerate on upgrade; do not adapt this fixture to make a patch pass.
+/*
+MIT License
+
+Copyright (c) 2026 OpenClaw Foundation
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+	const shouldForwardProgressCallback = (options) => {
+		if (options?.requiresToolSummaryVisibility === true && !shouldSendToolSummaries() && params.replyOptions?.suppressDefaultToolProgressMessages !== true && options.allowWhenToolSummariesHidden !== true) return false;
+		return !state.suppressAutomaticSourceDelivery || allowSuppressedSourceProgressCallbacks && !state.sendPolicyDenied && options?.forwardWhenSourceDeliverySuppressed === true;
+	};
+	const preserveProgressCallbackStartOrder = params.replyOptions?.preserveProgressCallbackStartOrder === true;
+	const wrapProgressCallback = (callback, options) => {
+		if (!callback) return;
+		return async (...args) => {
+			const start = preserveProgressCallbackStartOrder ? createDeferredCore() : void 0;
+			if (start) {
+				const previousStart = progressState.progressCallbackStartTail;
+				progressState.progressCallbackStartTail = start.promise;
+				await previousStart;
+			}
+			try {
+				if (isDispatchOperationAborted()) return;
+				state.getDispatchReplyOperation()?.recordActivity();
+				markProgress();
+				if (options?.waitForDirectBlockReplyDelivery) {
+					await waitForPendingDirectBlockReplyDelivery(state.getDispatchAbortOperation()?.abortSignal);
+					if (isDispatchOperationAborted()) return;
+				}
+				if (shouldForwardProgressCallback(options)) {
+					if (preserveProgressCallbackStartOrder && options?.onForward) await options.onForward(...args);
+					else if (!preserveProgressCallbackStartOrder) await options?.onForward?.(...args);
+					const callbackResult = callback(...args);
+					start?.resolve();
+					const result = await callbackResult;
+					if (result === false) return result;
+					await options?.onVisible?.(...args);
+				}
+				return;
+			} finally {
+				start?.resolve();
+			}
+		};
+	};
+	const forwardItemEvent = wrapProgressCallback(params.replyOptions?.onItemEvent, {
+		forwardWhenSourceDeliverySuppressed: true,
+		requiresToolSummaryVisibility: true,
+		waitForDirectBlockReplyDelivery: true,
+		onForward: (payload) => preserveProgressCallbackStartOrder && shouldDeliverDurableCommentaryProgress(payload) ? noteCommentaryProgress(payload) : void 0
+	});

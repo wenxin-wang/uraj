@@ -282,7 +282,9 @@ OpenClaw 内置提示词要求群里的登录二维码、验证码和验证链�
 
 飞书使用 =renderMode="card"=、=streaming.mode="partial"=，保留 Typing
 表情，关闭 =streaming.block.enabled=。飞书 v2026.10.3 只支持 =off= 和
-=partial=，不能套用 Telegram/Discord 的 =progress= 模式。
+=partial=，不能套用 Telegram/Discord 的 =progress= 模式。这些配置用于
+开启状态卡；有发送前检查 hook 时，最终正文由镜像补丁改走普通富文本消息，
+使用飞书正常消息字号，保留 Markdown 和长答案拆分。
 
 飞书应用必须开通应用身份权限 =cardkit:card:write=：在开放平台的
 「权限管理」申请后创建并发布应用版本，按后台要求完成审批。
@@ -295,27 +297,34 @@ Gateway 日志可能仅显示 =streaming_start_failed= 和 HTTP 400，随后回�
 上游发现 =reply_payload_sending= 或 =message_sending= hook 时，会连同
 工具活动、压缩状态一起关闭预览。镜像补丁 =feishu-guarded-progress.mjs=
 保留正文和 reasoning 的预览禁用，只允许固定中文状态复用原生 CardKit：
-“正在处理…”、“正在查阅资料…”、“正在执行任务…”、“正在压缩上下文…”等。
+“正在等待模型响应…”、“正在查阅资料…”、“正在执行任务…”、
+“正在压缩上下文…”等。通过 =suppressDefaultToolProgressMessages= 声明
+由频道接管进度，使默认 verbose 关闭时也能收到工具和压缩事件；否则仅仅
+注册回调仍会被上游的进度可见性检查拦住。
 不展示模型写的进度正文、计划、工具参数、路径、结果或未知工具名称，也不
 在检查前展示角色名称和模型信息；上游标记隐藏的工具活动仍不显示。
 
-最终回复仍经过原有发送前检查，包含首次身份提示，然后在同一张卡片定稿，
-临时状态消失。完成回执仍走上游 =message_sent=，成功后才登记身份已提示。
+状态卡使用 =streaming_mode=false=，按 CardKit 元素替换接口更新，避免
+长任务触发流式卡片约十分钟的 =card streaming timeout (200850)=。
+每 15 秒更新已用时和距上次进展的时间；计时更新不会重置上次进展时间，
+也不代表模型仍在输出。模型开始回复、工具事件和压缩事件才推进阶段。
+
+最终回复仍经过原有发送前检查，包含首次身份提示，单独作为普通消息发送，
+随后撤回状态卡。完成回执仍走上游 =message_sent=，成功后才登记身份已提示。
 取消、静默或没有获准正文时，撤回状态卡片；模型失败仍保留上游错误回退。
-超长答案、附件或原生控件沿用上游的拆分与替换规则，不保证都放在一张卡里。
+最终发送、取消、错误和清理时停止计时，迟到的事件不能重建状态卡。
+超长答案、附件或原生控件沿用上游的发送规则；显式原生控件仍可使用卡片。
 CardKit 不可用时回退普通回复；撤回失败则由上游尝试清空卡片，接口持续
-失败可能残留固定状态。暂不添加计时器、无进展时长或额外状态消息。
+失败可能残留状态卡，但不会阻止获准答案的发送，也不会把状态当作已交付的答案。
 
 补丁必须随镜像构建，再把新 image ID 写入 =env/guix/os/storie.scm= 并部署。
 只改配置不会开启带角色插件的进度预览。升级上游时须重新核对：补丁会严格
 检查 runtime 和 setup 两份 bundle 的布局，不匹配即停止构建。
 
-=2026.10.3-progress1= 已在 storie 构建，声明已固定其 image ID。
-断网临时容器验证了两份 bundle 的语法、runtime 导入及原生
-=config validate --json=（无警告）。2026-11-05 已核对线上镜像、配置和
-两份 bundle 补丁均生效；真实 CardKit 创建请求被缺失的
-=cardkit:card:write= 权限拒绝。实际卡片显示和撤回仍待权限生效后验收，
-离线测试不验证飞书应用的实际授权。
+2026-11-05 在 =progress1= 的线上日志确认：权限生效后卡片创建成功，
+约十分钟后更新报 =200850=。修复版本为 =2026.10.3-progress2=。
+使用真实应用验证了未发布状态卡的创建、元素替换和清空，均返回成功；
+该探针不发送聊天消息。实际飞书消息显示、长任务和撤回仍需部署后验收。
 
 ** 状态与验证
 
@@ -594,13 +603,13 @@ SDK 补丁不保证解决 Doctor 的其它错误；
 #+begin_src sh
 sudo docker build --network=host --pull=false \
   --build-arg BASE_IMAGE=sha256:f855681d24db345dcab753842f1137d5e5354ad83da7be28caacc7c0f9c939b0 \
-  -t localhost/openclaw-gateway:2026.10.3-progress1 \
+  -t localhost/openclaw-gateway:2026.10.3-progress2 \
   env/docker/openclaw-gateway
 sudo docker run --rm --network none --read-only \
   --user 1000:1000 --workdir /app/dist --entrypoint node \
-  localhost/openclaw-gateway:2026.10.3-progress1 \
+  localhost/openclaw-gateway:2026.10.3-progress2 \
   --input-type=module -e 'await import("@larksuiteoapi/node-sdk")'
-sudo docker image inspect --format '{{.Id}}' localhost/openclaw-gateway:2026.10.3-progress1
+sudo docker image inspect --format '{{.Id}}' localhost/openclaw-gateway:2026.10.3-progress2
 #+end_src
 
 把输出的新 ID 写入 =env/guix/os/storie.scm= 的 OpenClaw =image= 字段，
@@ -1257,8 +1266,10 @@ python3 test/openclaw/browser-profile.py
 python3 test/openclaw/browser-dashboard.py
 #+end_src
 
-进度卡片测试使用从固定部署镜像提取的原始 dispatcher fixture，替换外部
-接口后执行真实的更新、定稿、撤回和回退路径，并与角色检查联测。
+进度卡片测试使用从固定部署镜像提取的原始 dispatcher、CardKit session
+和核心进度转发 fixture，替换外部接口后执行更新、普通消息发送、撤回和
+回退路径，并与角色检查联测。模拟时钟覆盖十分钟以上的等待和计时清理；
+默认 verbose 关闭时的真实转发逻辑也纳入测试。
 可把应用进度补丁前的 runtime/setup bundle 复制到临时目录，再运行：
 
 #+begin_src sh
@@ -1290,8 +1301,10 @@ FEISHU_DIST=/tmp/feishu-dist node --test test/openclaw/feishu-guarded-progress.t
 9. 用 =openclaw_config_set= 和沙箱中的 =openclaw config set= 修改默认模型成功；
    CLI 读取仅返回默认模型，其他路径和命令被拒绝。
 10. 在话题里发起需要查阅资料或执行工具的请求，确认同一张卡片更新固定
-    状态、完成后只保留答案；首次身份提示仍出现。取消任务、静默回复和
-    私人群加人导致回复被拦截时，确认状态清理且没有私人正文提前显示。
+    状态、已用时和距上次进展的时间；等待超过十分钟仍可更新。完成后
+    答案以正常字号的普通消息出现，状态卡撤回；首次身份提示仍出现。
+    取消任务、静默回复和私人群加人导致回复被拦截时，确认状态清理且
+    没有私人正文提前显示。
 
 仓库已包含用户提供的 image ID 和加密凭据。此处的自动测试不验证
 storie 上的镜像内容、凭据有效性或飞书授权，也未执行主机 reconfigure。

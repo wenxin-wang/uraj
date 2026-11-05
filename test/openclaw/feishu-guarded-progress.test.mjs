@@ -5,7 +5,8 @@ import path from "node:path";
 import test from "node:test";
 import vm from "node:vm";
 import {
-  patchDirectory, patchFeishuGuardedProgress, urajFeishuToolStatus,
+  patchDirectory, patchFeishuGuardedProgress, patchFeishuStatusSession,
+  urajFeishuToolStatus,
 } from "../../env/docker/openclaw-gateway/feishu-guarded-progress.mjs";
 import { PersonaStore } from "../../scripts/openclaw/config-plugin/persona-store.mjs";
 import { Personas, SHARED } from "../../scripts/openclaw/config-plugin/persona.mjs";
@@ -13,15 +14,23 @@ import { Personas, SHARED } from "../../scripts/openclaw/config-plugin/persona.m
 // Execute the actual upstream dispatcher, stubbing only its external services.
 // FEISHU_DIST additionally validates both bundles copied from a target image.
 const original = await fs.readFile(new URL("./fixtures/feishu-reply-dispatcher.txt", import.meta.url), "utf8");
+const originalSession = await fs.readFile(new URL("./fixtures/feishu-streaming-session.txt", import.meta.url), "utf8");
+const forwarding = await fs.readFile(new URL("./fixtures/feishu-progress-forwarding.txt", import.meta.url), "utf8");
 const patched = patchFeishuGuardedProgress(original);
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
 function harness({ hooks = ["reply_payload_sending"], mode = "partial", renderMode = "card",
-  requiredMentionTargets, startGate, startError, closeError, discardError } = {}) {
+  requiredMentionTargets, startGate, startError, closeError, discardError, sendError } = {}) {
   const calls = { starts: [], updates: [], closes: [], discards: 0, static: [], errors: [] };
   const noReply = { visibleReplySent: false };
   const receipt = (content) => ({ visibleReplySent: true, content, messageId: "om_card" });
-  const send = async (params) => { calls.static.push(params); return receipt(params.text); };
+  const send = kind => async (params) => {
+    if (sendError) throw sendError;
+    calls.static.push({ kind, ...params });
+    return receipt(params.text);
+  };
+  let now = 100000;
+  const timers = new Set();
   class Session {
     active = false;
     async start(target, type, options) {
@@ -46,6 +55,9 @@ function harness({ hooks = ["reply_payload_sending"], mode = "partial", renderMo
     }
   }
   const context = {
+    Date: { now: () => now },
+    setInterval: callback => { timers.add(callback); return callback; },
+    clearInterval: callback => timers.delete(callback),
     getFeishuRuntime: () => ({ channel: { text: {
       resolveTextChunkLimit: () => 4000, resolveChunkMode: () => "length",
       resolveMarkdownTableMode: () => "off", convertMarkdownTables: t => t,
@@ -85,7 +97,7 @@ function harness({ hooks = ["reply_payload_sending"], mode = "partial", renderMo
     chunkFeishuCardMarkdown: ({ text }) => [text],
     chunkFeishuPostMarkdown: ({ text }) => [text],
     resolveTextChunksWithFallback: (_text, chunks) => chunks,
-    sendStructuredCardFeishu: send, sendMessageFeishu: send,
+    sendStructuredCardFeishu: send("card"), sendMessageFeishu: send("post"),
     materializeFeishuPostMarkdownSoftBreaks: t => t,
     stripReasoningTagsFromText: t => t, formatReasoningMessage: t => t,
     mergeStreamingText: (_previous, next) => next,
@@ -97,13 +109,114 @@ function harness({ hooks = ["reply_payload_sending"], mode = "partial", renderMo
     identity: { name: "PRIVATE_IDENTITY" }, allowReasoningPreview: true,
     replyToMessageId: "om_topic", rootId: "om_topic", threadReply: true,
     requiredMentionTargets, runtime: { error: e => calls.errors.push(e) } });
-  return { ...dispatcher, calls };
+  return { ...dispatcher, calls, timers, advance(ms) {
+    now += ms;
+    for (const callback of timers) callback();
+  } };
+}
+
+// Execute the real core forwarding gate with its normal verbose-off policy.
+function progressBridge(replyOptions) {
+  return vm.runInNewContext(forwarding + "\n({ forwardItemEvent, wrapProgressCallback });", {
+    params: { replyOptions },
+    state: { suppressAutomaticSourceDelivery: false, getDispatchReplyOperation: () => undefined,
+      getDispatchAbortOperation: () => undefined },
+    shouldSendToolSummaries: () => false,
+    isDispatchOperationAborted: () => false,
+    markProgress: () => {},
+    waitForPendingDirectBlockReplyDelivery: async () => {},
+  });
 }
 
 async function finalize(h, text) {
   const result = await h.delivery.deliver({ text }, { kind: "final" });
   await h.dispatcherOptions.onIdle();
   return result.finalization ? await result.finalization : result;
+}
+
+test("default verbosity forwards sanitized progress only when the channel owns it", async () => {
+  let forwarded = 0;
+  const onItemEvent = () => { forwarded++; return false; };
+  await progressBridge({ onItemEvent }).forwardItemEvent({ kind: "tool" });
+  assert.equal(forwarded, 0, "the upstream gate reproduces PR 90's missing updates");
+  await progressBridge({ onItemEvent, suppressDefaultToolProgressMessages: true })
+    .forwardItemEvent({ kind: "tool" });
+  assert.equal(forwarded, 1);
+});
+
+test("long model waits show elapsed time and time since real progress, then stop", async () => {
+  const h = harness();
+  await h.dispatcherOptions.onReplyStart();
+  h.advance(615000);
+  await tick();
+  assert.match(h.calls.updates.at(-1), /正在等待模型响应/);
+  assert.match(h.calls.updates.at(-1), /已用时 10 分 15 秒 · 距上次进展 10 分 15 秒/);
+  await progressBridge(h.replyOptions).forwardItemEvent({ kind: "tool", name: "read" });
+  h.advance(15000);
+  await tick();
+  assert.match(h.calls.updates.at(-1), /正在查阅资料/);
+  assert.match(h.calls.updates.at(-1), /已用时 10 分 30 秒 · 距上次进展 15 秒/);
+  await finalize(h, "answer");
+  const count = h.calls.updates.length;
+  h.advance(15000);
+  h.replyOptions.onAssistantMessageStart();
+  await tick();
+  assert.equal(h.calls.updates.length, count);
+  assert.equal(h.timers.size, 0);
+});
+
+test("cleanup during startup stops the timer and late progress cannot revive it", async () => {
+  const gate = Promise.withResolvers();
+  const h = harness({ startGate: gate.promise });
+  await h.dispatcherOptions.onReplyStart();
+  h.dispatcherOptions.onCleanup();
+  h.replyOptions.onItemEvent({ kind: "tool", name: "exec" });
+  assert.equal(h.timers.size, 0);
+  gate.resolve();
+  await h.dispatcherOptions.onIdle();
+  assert.equal(h.calls.discards, 1);
+});
+
+for (const statusOnly of [true, false]) {
+  test(`real CardKit session uses the correct card mode and endpoint: statusOnly=${statusOnly}`, async () => {
+    let now = 100000;
+    const requests = [];
+    const errors = [];
+    const Session = vm.runInNewContext(patchFeishuStatusSession(originalSession) + "\nFeishuStreamingSession;", {
+      STREAMING_UPDATE_THROTTLE_MS: 1000,
+      Date: { now: () => now },
+      resolveFeishuCardTemplate: value => value,
+      requestFeishuApi: fn => fn(),
+      shouldPushStreamingUpdate: () => true,
+      truncateSummary: text => text.slice(0, 50),
+    });
+    const session = new Session({ im: { message: {
+      create: async () => ({ code: 0, data: { message_id: "om_status" } }),
+      delete: async () => { throw new Error("delete unavailable"); },
+    } } }, {}, error => errors.push(error));
+    session.requestCardKit = async (path, operation, method, body) => {
+      requests.push({ path, operation, method, body: body() });
+      return { code: 0, data: { card_id: "card_status" } };
+    };
+    await session.start("oc_group", "chat_id", { urajStatusOnly: statusOnly });
+    const card = JSON.parse(requests[0].body.data);
+    assert.equal(card.config.streaming_mode, !statusOnly);
+    await session.update("正在等待模型响应…");
+    now += 615000;
+    await session.update("正在执行任务…\n\n已用时 10 分 15 秒");
+    const updates = requests.filter(r => r.method === "PUT");
+    assert.equal(updates.length, 2);
+    for (const request of updates) {
+      assert.equal(request.path, statusOnly ? "/card_status/elements/content" : "/card_status/elements/content/content");
+    }
+    // Failed deletion must still blank the status via the non-streaming API.
+    await session.discard();
+    const cleared = requests.filter(r => r.method === "PUT").at(-1);
+    assert.equal(cleared.path, "/card_status/elements/content");
+    assert.equal(JSON.parse(cleared.body.element).content, "");
+    assert.equal(session.isActive(), false);
+    assert.equal(errors.filter(e => /failed/i.test(e)).length, 1);
+  });
 }
 
 test("status strings cannot contain tool arguments, names, prose or hidden events", () => {
@@ -121,28 +234,36 @@ test("status strings cannot contain tool arguments, names, prose or hidden event
 });
 
 for (const hook of ["reply_payload_sending", "message_sending"]) {
-  test(`${hook}: fixed progress reuses one card, accepted final replaces status`, async () => {
+  test(`${hook}: fixed progress reuses one card, accepted final is a normal post`, async () => {
     const h = harness({ hooks: [hook] });
     assert.equal(h.replyOptions.onPartialReply, undefined);
     assert.equal(h.replyOptions.onReasoningStream, undefined);
     assert.equal(h.replyOptions.disableBlockStreaming, true);
     await h.dispatcherOptions.onReplyStart();
-    h.replyOptions.onItemEvent({ kind: "tool", name: "exec", text: "SECRET" });
-    h.replyOptions.onCompactionStart();
+    const bridge = progressBridge(h.replyOptions);
+    await bridge.forwardItemEvent({ kind: "tool", name: "exec", text: "SECRET" });
+    await bridge.wrapProgressCallback(h.replyOptions.onCompactionStart,
+      { requiresToolSummaryVisibility: true })();
     h.replyOptions.onCompactionEnd();
     h.replyOptions.onAssistantMessageStart();
     await tick();
     assert.equal(h.calls.starts.length, 1);
     assert.equal(h.calls.starts[0].options.replyToMessageId, "om_topic");
     assert.equal(h.calls.starts[0].options.replyInThread, true);
+    assert.equal(h.calls.starts[0].options.urajStatusOnly, true);
+    assert.equal(h.calls.starts[0].options.note, undefined);
     assert.match(h.calls.updates.join("\n"), /正在执行任务/);
     assert.match(h.calls.updates.join("\n"), /正在压缩上下文/);
     assert.doesNotMatch(JSON.stringify(h.calls), /SECRET|PRIVATE_IDENTITY/);
     const final = "我目前是「家庭助手 · 共享」。\n\n已检查的答案";
     assert.equal((await finalize(h, final)).visibleReplySent, true);
-    assert.equal(h.calls.closes[0].text, final);
-    assert.equal(h.calls.discards, 0);
-    assert.equal(h.calls.static.length, 0);
+    assert.equal(h.calls.closes.length, 0);
+    assert.equal(h.calls.discards, 1);
+    assert.equal(h.calls.static.length, 1);
+    assert.equal(h.calls.static[0].kind, "post");
+    assert.equal(h.calls.static[0].text, final);
+    assert.equal(h.calls.static[0].replyToMessageId, "om_topic");
+    assert.equal(h.timers.size, 0);
     h.replyOptions.onItemEvent({ kind: "tool" });
     h.replyOptions.onCompactionStart();
     await tick();
@@ -190,6 +311,7 @@ test("cleanup failures propagate without revealing persona metadata", async () =
   await h.dispatcherOptions.onReplyStart();
   await assert.rejects(h.dispatcherOptions.onIdle(), /provider unavailable/);
   assert.equal(h.calls.closes.length, 0);
+  assert.equal(h.timers.size, 0);
   assert.doesNotMatch(JSON.stringify(h.calls), /PRIVATE_IDENTITY/);
 });
 
@@ -212,15 +334,34 @@ test("long answers discard status and use upstream static delivery", async () =>
   assert.equal(h.calls.static[0].text, text);
 });
 
-test("finalization failure retains upstream fallback and reports delivery failure", async () => {
-  const h = harness({ closeError: new Error("CardKit finalization failed") });
+test("status cleanup failure cannot prevent delivery of an accepted long answer", async () => {
+  const h = harness({ discardError: new Error("CardKit cleanup failed") });
   await h.dispatcherOptions.onReplyStart();
-  const result = await h.delivery.deliver({ text: "accepted answer" }, { kind: "final" });
-  const rejected = assert.rejects(result.finalization, /Partial delivery/);
-  await assert.rejects(h.dispatcherOptions.onIdle(), /CardKit finalization failed/);
-  await rejected;
+  const text = "accepted answer".repeat(1000);
+  const result = await h.delivery.deliver({ text }, { kind: "final" });
+  assert.equal(result.visibleReplySent, true);
+  assert.equal(result.finalization, undefined);
+  await assert.rejects(h.dispatcherOptions.onIdle(), /CardKit cleanup failed/);
   assert.equal(h.calls.static.length, 1);
-  assert.equal(h.calls.static[0].text, "accepted answer");
+  assert.equal(h.calls.static[0].text, text);
+  assert.equal(h.calls.static[0].kind, "post");
+  assert.equal(await h.ensureNoVisibleReplyFallback("cleanup failed"), false);
+  assert.equal(h.timers.size, 0);
+});
+
+test("failed post delivery is not reported as a successful answer and cleans up status", async () => {
+  const h = harness({ sendError: new Error("post delivery failed") });
+  await h.dispatcherOptions.onReplyStart();
+  let failure;
+  await assert.rejects(h.delivery.deliver({ text: "answer" }, { kind: "final" }), error => {
+    failure = error;
+    assert.equal(error.deliveryResult.visibleReplySent, false);
+    return true;
+  });
+  await h.delivery.onError(failure, { kind: "final" });
+  assert.equal(h.calls.static.length, 0);
+  assert.equal(h.calls.discards, 1);
+  assert.equal(h.timers.size, 0);
 });
 
 test("concurrent dispatchers keep card status and final answers separate", async () => {
@@ -230,8 +371,8 @@ test("concurrent dispatchers keep card status and final answers separate", async
   first.replyOptions.onCompactionStart();
   second.replyOptions.onItemEvent({ kind: "tool", name: "read" });
   await Promise.all([finalize(first, "first answer"), finalize(second, "second answer")]);
-  assert.equal(first.calls.closes[0].text, "first answer");
-  assert.equal(second.calls.closes[0].text, "second answer");
+  assert.equal(first.calls.static[0].text, "first answer");
+  assert.equal(second.calls.static[0].text, "second answer");
   assert.doesNotMatch(first.calls.updates.join("\n"), /正在查阅资料|second answer/);
   assert.doesNotMatch(second.calls.updates.join("\n"), /正在压缩上下文|first answer/);
 });
@@ -243,6 +384,8 @@ for (const options of [{ mode: "off" }, { renderMode: "raw" }, { requiredMention
     assert.equal(h.replyOptions.onItemEvent, undefined);
     assert.equal(h.replyOptions.onCompactionStart, undefined);
     assert.equal(h.calls.starts.length, 0);
+    assert.equal((await finalize(h, "普通答案")).visibleReplySent, true);
+    assert.equal(h.calls.static[0].kind, "post");
   });
 }
 
@@ -303,10 +446,14 @@ test("layout drift, duplicate patches and missing bundles fail before writing an
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "feishu-progress-layout-"));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
   assert.throws(() => patchDirectory(root), /not found/);
-  await fs.writeFile(path.join(root, "runtime.mjs"), original);
-  await fs.writeFile(path.join(root, "setup.mjs"), original.replace("onCompactionEnd:", "changedCallback:"));
+  const bundle = originalSession + original;
+  await fs.writeFile(path.join(root, "runtime.mjs"), bundle);
+  await fs.writeFile(path.join(root, "setup.mjs"), bundle.replace("onCompactionEnd:", "changedCallback:"));
   assert.throws(() => patchDirectory(root), /Unexpected Feishu dispatcher layout/);
-  assert.equal(await fs.readFile(path.join(root, "runtime.mjs"), "utf8"), original);
+  assert.equal(await fs.readFile(path.join(root, "runtime.mjs"), "utf8"), bundle);
+  await fs.writeFile(path.join(root, "setup.mjs"), bundle.replace("streaming_mode: true,", "layout changed"));
+  assert.throws(() => patchDirectory(root), /Unexpected Feishu streaming session layout/);
+  assert.equal(await fs.readFile(path.join(root, "runtime.mjs"), "utf8"), bundle);
 });
 
 test("target image bundles match the pinned dispatcher and accept the patch", {
@@ -317,6 +464,10 @@ test("target image bundles match the pinned dispatcher and accept the patch", {
     if (!file.endsWith(".mjs")) continue;
     const source = await fs.readFile(path.join(process.env.FEISHU_DIST, file), "utf8");
     if (patchFeishuGuardedProgress(source) === null) continue;
+    patchFeishuStatusSession(source);
+    const sessionStart = source.indexOf("var FeishuStreamingSession = class {");
+    const sessionEnd = source.indexOf("\n};", sessionStart) + 4;
+    assert.ok(originalSession.includes(source.slice(sessionStart, sessionEnd)), file);
     const start = source.indexOf("function createFeishuReplyDispatcher(params) {");
     const end = source.indexOf("\n//#endregion", start);
     // The setup bundle imports the SDK export under its public name.
