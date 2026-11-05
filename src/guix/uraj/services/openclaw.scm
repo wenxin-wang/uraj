@@ -386,8 +386,10 @@
           (groupPolicy . "open") (requireMention . #t)
           (groupSessionScope . "group_topic") (replyInThread . "enabled")
           (configWrites . #t) (resolveSenderNames . #f)
-          (typingIndicator . #t) (renderMode . "raw")
-          (streaming . ((mode . "off")))
+          ;; The image's guarded-progress patch permits fixed status text while
+          ;; persona hooks retain control of model content and final delivery.
+          (typingIndicator . #t) (renderMode . "card")
+          (streaming . ((mode . "partial") (block . ((enabled . #f)))))
           (tools . ((doc . #f) (chat . #f) (wiki . #f) (drive . #f)
                     (perm . #f) (scopes . #f) (bitable . #f)))
           (accounts . ((main . (,@(if (openclaw-feishu-app-id config)

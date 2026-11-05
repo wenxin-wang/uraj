@@ -164,6 +164,12 @@
          engine-volumes))
 (test-equal "Feishu uses its built-in typing reaction" #t
   (at app "channels" "feishu" "typingIndicator"))
+(test-equal "Feishu uses native cards" "card"
+  (at app "channels" "feishu" "renderMode"))
+(test-equal "Feishu supports partial streaming, not progress mode" "partial"
+  (at app "channels" "feishu" "streaming" "mode"))
+(test-equal "Feishu keeps block replies disabled" #f
+  (at app "channels" "feishu" "streaming" "block" "enabled"))
 (test-assert "custom GET receipt is disabled"
   (not (assoc "OPENCLAW_FEISHU_RECEIPT_REACTION" (at gateway "environment"))))
 (define volumes (vector->list (at gateway "volumes")))

@@ -238,8 +238,8 @@ Gateway 必须在线。批量变更可替换整个 =agents.entries= 或 =binding
 角色名称、共享/私人标识及 =/persona= 入口，不依靠提示词。成功发送后
 才持久化“已提示”；发送失败允许重试。切换命令自身也明确回复新身份。
 这不是机器人刚入群就主动发卡片：首次有消息触发回复时才提示，仍受 @要求
-和飞书消息权限约束，不订阅机器人入群事件。保持非流式回复，以便发送前
-检查和身份提示覆盖完整回复。
+和飞书消息权限约束，不订阅机器人入群事件。正文在发送前检查通过后才进入
+卡片，身份提示覆盖完整回复；处理中只显示下面的固定状态。
 
 私人角色仅允许本人在私聊，或只有本人和一个机器人的群里选择。全局命令
 管理员也不能选择别人的私人角色。群主/成员查询需要飞书应用身份权限
@@ -277,6 +277,45 @@ OpenClaw 内置提示词要求群里的登录二维码、验证码和验证链�
 变更原子同步的保证：检查与发送之间仍可能发生变更，这属于家庭使用的
 尽力保护。以前的群历史不撤回，新成员能否看历史由飞书设置决定。
 不处理退群事件，不因人数恢复而自动解锁；本人通过 =/persona= 手动选择。
+
+** 处理进度卡片
+
+飞书使用 =renderMode="card"=、=streaming.mode="partial"=，保留 Typing
+表情，关闭 =streaming.block.enabled=。飞书 v2026.10.3 只支持 =off= 和
+=partial=，不能套用 Telegram/Discord 的 =progress= 模式。
+
+飞书应用必须开通应用身份权限 =cardkit:card:write=：在开放平台的
+「权限管理」申请后创建并发布应用版本，按后台要求完成审批。
+缺少此权限时，=POST /open-apis/cardkit/v1/cards= 返回 HTTP 400，
+响应体为 =99991672 Access denied= 并列出 =cardkit:card:write=；
+Gateway 日志可能仅显示 =streaming_start_failed= 和 HTTP 400，随后回退
+普通回复，看不到进度卡片。权限生效后等约一分钟再发消息验证（上游创建
+失败后退避 60 秒），无需为权限变更重新构建镜像。
+
+上游发现 =reply_payload_sending= 或 =message_sending= hook 时，会连同
+工具活动、压缩状态一起关闭预览。镜像补丁 =feishu-guarded-progress.mjs=
+保留正文和 reasoning 的预览禁用，只允许固定中文状态复用原生 CardKit：
+“正在处理…”、“正在查阅资料…”、“正在执行任务…”、“正在压缩上下文…”等。
+不展示模型写的进度正文、计划、工具参数、路径、结果或未知工具名称，也不
+在检查前展示角色名称和模型信息；上游标记隐藏的工具活动仍不显示。
+
+最终回复仍经过原有发送前检查，包含首次身份提示，然后在同一张卡片定稿，
+临时状态消失。完成回执仍走上游 =message_sent=，成功后才登记身份已提示。
+取消、静默或没有获准正文时，撤回状态卡片；模型失败仍保留上游错误回退。
+超长答案、附件或原生控件沿用上游的拆分与替换规则，不保证都放在一张卡里。
+CardKit 不可用时回退普通回复；撤回失败则由上游尝试清空卡片，接口持续
+失败可能残留固定状态。暂不添加计时器、无进展时长或额外状态消息。
+
+补丁必须随镜像构建，再把新 image ID 写入 =env/guix/os/storie.scm= 并部署。
+只改配置不会开启带角色插件的进度预览。升级上游时须重新核对：补丁会严格
+检查 runtime 和 setup 两份 bundle 的布局，不匹配即停止构建。
+
+=2026.10.3-progress1= 已在 storie 构建，声明已固定其 image ID。
+断网临时容器验证了两份 bundle 的语法、runtime 导入及原生
+=config validate --json=（无警告）。2026-11-05 已核对线上镜像、配置和
+两份 bundle 补丁均生效；真实 CardKit 创建请求被缺失的
+=cardkit:card:write= 权限拒绝。实际卡片显示和撤回仍待权限生效后验收，
+离线测试不验证飞书应用的实际授权。
 
 ** 状态与验证
 
@@ -546,21 +585,22 @@ from /app/dist/...=，说明运行时从该路径无法解析飞书 SDK，即使
 针对现有 =v2026.10.3= 镜像，在本仓库根目录构建部署层。它安装上游飞书插件
 声明的 =@larksuiteoapi/node-sdk@1.74.0=，保留原有 pnpm 依赖树，并在构建中
 以运行用户验证导入；同时按固定 sha256 安装与引擎一致的 Podman 5.8.9 静态
-远程客户端，供 Podman 沙箱后端使用。它还应用 =feishu-topic-chat.mjs=，按内容
-定位编译后的飞书消息处理函数；找不到预期代码时构建失败，升级上游版本后
-需重新核对。SDK 补丁不保证解决 Doctor 的其它错误；
+远程客户端，供 Podman 沙箱后端使用。它还应用 =feishu-topic-chat.mjs= 和
+=feishu-guarded-progress.mjs=，按内容定位编译后的飞书消息处理和回复函数；
+找不到预期代码时构建失败，升级上游版本后需重新核对。
+SDK 补丁不保证解决 Doctor 的其它错误；
 传递依赖未锁定，应记录构建产物 ID。
 
 #+begin_src sh
 sudo docker build --network=host --pull=false \
   --build-arg BASE_IMAGE=sha256:f855681d24db345dcab753842f1137d5e5354ad83da7be28caacc7c0f9c939b0 \
-  -t localhost/openclaw-gateway:2026.10.3-sandbox1 \
+  -t localhost/openclaw-gateway:2026.10.3-progress1 \
   env/docker/openclaw-gateway
 sudo docker run --rm --network none --read-only \
   --user 1000:1000 --workdir /app/dist --entrypoint node \
-  localhost/openclaw-gateway:2026.10.3-sandbox1 \
+  localhost/openclaw-gateway:2026.10.3-progress1 \
   --input-type=module -e 'await import("@larksuiteoapi/node-sdk")'
-sudo docker image inspect --format '{{.Id}}' localhost/openclaw-gateway:2026.10.3-sandbox1
+sudo docker image inspect --format '{{.Id}}' localhost/openclaw-gateway:2026.10.3-progress1
 #+end_src
 
 把输出的新 ID 写入 =env/guix/os/storie.scm= 的 OpenClaw =image= 字段，
@@ -769,7 +809,8 @@ v2026.10.3 把飞书富文本（post）消息转成 Markdown 时会转义 =-=：
 应用版本使其生效。缺少该权限时，日志会出现 =99991672 Access denied=；
 若消息仅有 @、又无法读取引用内容，则会被 =skipping empty message=
 跳过。首次测试应发送 =@机器人 请回复测试成功=，不要只发送一个 @。
-初始配置采用非流式文本回复，不要求文档、云盘或 Card Kit 能力。
+当前配置启用流式卡片，还需应用身份权限 =cardkit:card:write=；
+开通、发布及排错见上文“处理进度卡片”。
 回复附带图片（例如 agent-browser 截图）时，Gateway 先调用
 =/open-apis/im/v1/images= 上传，需要应用身份权限 =im:resource:upload=
 （或 =im:resource=），开通后发布应用版本。缺少时日志出现
@@ -1110,6 +1151,17 @@ guix build -L src/guix -L src/guile -f test/guix/uraj/openclaw-program.scm
 python3 test/python/uraj/container/seccomp.py
 #+end_src
 
+进度卡片测试使用从固定部署镜像提取的原始 dispatcher fixture，替换外部
+接口后执行真实的更新、定稿、撤回和回退路径，并与角色检查联测。
+可把应用进度补丁前的 runtime/setup bundle 复制到临时目录，再运行：
+
+#+begin_src sh
+FEISHU_DIST=/tmp/feishu-dist node --test test/openclaw/feishu-guarded-progress.test.mjs
+#+end_src
+
+它会检查布局及 fixture 与镜像是否一致；fixture 保留来源 image ID 和
+上游许可证，升级时应从新镜像重新提取。此测试不连接飞书或调用模型。
+
 服务测试检查 Guix/SOPS 组合、权限、网络、SecretRef、镜像选择和失败
 清理；运行时测试使用临时目录、模拟挂载元数据和 chown，不访问主机
 /data、/run 或 Docker。还需要在真实部署时验证：
@@ -1131,6 +1183,9 @@ python3 test/python/uraj/container/seccomp.py
    后沙箱复用，重启引擎后自动重建。
 9. 用 =openclaw_config_set= 和沙箱中的 =openclaw config set= 修改默认模型成功；
    CLI 读取仅返回默认模型，其他路径和命令被拒绝。
+10. 在话题里发起需要查阅资料或执行工具的请求，确认同一张卡片更新固定
+    状态、完成后只保留答案；首次身份提示仍出现。取消任务、静默回复和
+    私人群加人导致回复被拦截时，确认状态清理且没有私人正文提前显示。
 
 仓库已包含用户提供的 image ID 和加密凭据。此处的自动测试不验证
 storie 上的镜像内容、凭据有效性或飞书授权，也未执行主机 reconfigure。

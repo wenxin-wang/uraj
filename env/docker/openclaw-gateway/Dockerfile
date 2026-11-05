@@ -26,6 +26,10 @@ RUN curl -fsSLo /tmp/podman-remote.tar.gz \
 COPY feishu-topic-chat.mjs /tmp/feishu-topic-chat.mjs
 RUN node /tmp/feishu-topic-chat.mjs /app/dist && rm /tmp/feishu-topic-chat.mjs
 
+COPY feishu-guarded-progress.mjs /tmp/feishu-guarded-progress.mjs
+RUN node /tmp/feishu-guarded-progress.mjs /app/dist \
+    && rm /tmp/feishu-guarded-progress.mjs
+
 USER 1000:1000
 WORKDIR /app/dist
 RUN node --input-type=module -e 'await import("@larksuiteoapi/node-sdk")' \
