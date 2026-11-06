@@ -47,6 +47,13 @@
 ;; cannot negotiate DMA-BUF (Feishu and other WebRTC/GStreamer clients)
 ;; fail with "no more input formats".  The patch is upstream PR #1791
 ;; (merged for the next release); drop it once Guix's niri includes it.
+;;
+;; niri 26.04 has no per-window control over xdg-activation.  The
+;; honor-xdg-activation-with-invalid-serial debug flag, which the browser
+;; needs to raise linking windows, also lets Feishu steal focus when a
+;; message arrives.  Backport upstream commit d89a3ebb (the
+;; focus-on-xdg-activate window rule) so the dotfiles can mark Feishu
+;; urgent instead of focusing it; drop it once Guix's niri has the rule.
 (define niri-with-libinput-plugins
   (package
     (inherit niri)
@@ -57,7 +64,10 @@
         (append (origin-patches (package-source niri))
                 (list (local-file
                        (project-path
-                        "src/guix/uraj/packages/patches/niri-shm-support.patch")))))))
+                        "src/guix/uraj/packages/patches/niri-shm-support.patch"))
+                      (local-file
+                       (project-path
+                        "src/guix/uraj/packages/patches/niri-focus-on-xdg-activate.patch")))))))
     (inputs
      (modify-inputs (package-inputs niri)
        (replace "libinput-minimal" libinput-minimal-with-lua-plugins)))))

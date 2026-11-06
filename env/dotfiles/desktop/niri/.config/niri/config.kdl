@@ -179,6 +179,16 @@ window-rule {
     open-floating true
 }
 
+// Feishu Meetings (Xwayland) requests activation when a meeting reminder
+// arrives; honoring it switches workspaces.  The invalid-serial debug flag
+// below is needed so opening a link raises the browser, so the meeting
+// window opts out of activation focusing instead.
+window-rule {
+    match app-id=r#"^((Main_)?Meeting)$"#
+    match title=r#"^Feishu Meetings$"#
+    focus-on-xdg-activate false
+}
+
 // Brocadesoft print client (Xwayland Qt tray app): the spooled-jobs dialog and
 // its notifications are all dialogs, so none of them want a tile.  Its title is
 // translated ("任务队列" here), so match the locale-independent app-id.
@@ -187,9 +197,12 @@ window-rule {
     open-floating true
 }
 
-// Do not enable debug.honor-xdg-activation-with-invalid-serial: Feishu
-// requests activation that way for incoming messages, and niri honors it by
-// focusing Feishu even across workspaces.
+// Links opened from other apps reach the browser with an invalid activation
+// serial; without this, their windows are only marked urgent.  The Feishu
+// Meetings window opts out of activation focusing with the window rule above.
+debug {
+    honor-xdg-activation-with-invalid-serial
+}
 
 binds {
     Mod+Shift+Slash { show-hotkey-overlay; }
