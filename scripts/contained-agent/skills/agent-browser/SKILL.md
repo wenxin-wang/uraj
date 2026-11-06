@@ -1,6 +1,6 @@
 ---
 name: agent-browser
-description: Browse websites, take screenshots, and interact with web pages using browser task profiles forked from the user's published logins.
+description: Browse websites using task profiles forked from the user's published logins, and let the user operate existing browser sessions through a dashboard.
 ---
 
 # Browser tasks in contained agents
@@ -46,6 +46,60 @@ browser-profile publish
 
 Then create a new task: running tasks keep their fork. Websites may expire or
 rotate credentials; do not promise that forked credentials always work.
+
+## Human control
+
+When the user asks to take over the browser, start the dashboard yourself
+inside the environment running that browser. Reuse this environment's existing
+dashboard, or choose a free loopback port (4848 is a default, not a requirement)
+and run `browser-profile dashboard start --port PORT`. If the installed wrapper
+lacks this subcommand or predates the dashboard environment fix, run the native
+agent-browser executable with `AGENT_BROWSER_HEADED`,
+`AGENT_BROWSER_EXECUTABLE_PATH` and `AGENT_BROWSER_ARGS` unset. On Guix it lives
+at `share/agent-browser/bin/agent-browser` under the same store package as the
+resolved `bin/agent-browser` launcher; older launchers reinsert the executable
+default. Retain the daemon socket directory. These defaults cause 0.38.2's
+dashboard API to reopen managed browsers without their profile. If an existing
+dashboard was started with them, stop and restart only the dashboard using the
+corrected command; keep its browser sessions running.
+
+Before handing over, poll `http://127.0.0.1:PORT/api/sessions` briefly with
+`Origin: http://127.0.0.1:PORT` and confirm the intended session is listed
+(`task-<task-id>` for managed tasks). A startup message alone does not prove
+readiness. Report a startup failure instead of handing over an unverified
+port; retry another free port
+if occupied without stopping another environment's dashboard.
+
+For desktop Chromium on agent-browser 0.38.2, synchronize the target's viewport
+before handing over: run
+`browser-profile run <task-id> eval '[innerWidth, innerHeight]'`, then
+`browser-profile run <task-id> set viewport WIDTH HEIGHT` with those values.
+The dashboard otherwise assumes 1280 x 720 even when headed Chrome's content
+area is shorter, so visible buttons receive clicks at the wrong coordinates.
+Keep any intentional device emulation. Do not test clicks on the user's page
+as a readiness check.
+
+Then confirm an actual `frame` message arrives on
+`ws://127.0.0.1:PORT/api/session/STREAM_PORT/stream`, using the session's port
+from `/api/sessions`. HTTP success and `screencasting: true` alone do not prove
+that frames arrive. For diagnosis, use `browser-profile run <task-id>`;
+even an `eval` through `/api/exec` can reopen the browser if an old dashboard
+still carries the launch defaults.
+
+Give the user the actual dashboard port, session name, and connection command:
+
+- On the same host, open `http://127.0.0.1:PORT` directly.
+- For a remote host, run `ssh -N -L 4848:127.0.0.1:PORT HOST` locally and open
+  `http://127.0.0.1:4848`. Fill in the known host and actual port; the local
+  listening port can be changed independently. Contained agents share their
+  host network, so they do not use the OpenClaw container-forwarding script.
+
+Report the dashboard's listening port, not a session's stream port from the API.
+Pause browser automation, including background polling, for the handoff.
+Keep the browser, dashboard and task available until the user says to continue;
+do not finish the task while they are operating it.
+`browser-profile dashboard stop` stops only the dashboard. Human input in a
+task still does not publish persistent logins.
 
 ## Evidence
 

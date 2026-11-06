@@ -145,12 +145,39 @@ def main():
     run_login.add_argument("command", nargs=argparse.REMAINDER)
     sub.add_parser("publish")
     sub.add_parser("create")
+    dashboard = sub.add_parser(
+        "dashboard", help="view and control this environment's browser sessions"
+    )
+    dashboard.add_argument("command", nargs=argparse.REMAINDER)
     for action in ("run", "finish"):
         task = sub.add_parser(action)
         task.add_argument("task")
         if action == "run":
             task.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args()
+    # Older skill instructions may put dashboard after identity/run. It is
+    # environment-wide even there, so use the same clean startup path.
+    if args.action in ("identity", "run") and args.command[:1] == ["dashboard"]:
+        args.action = "dashboard"
+        args.command = args.command[1:]
+    if args.action == "dashboard":
+        # Keep the launcher's socket directory: host identities, contained
+        # tasks and OpenClaw roles each discover their own running daemons.
+        # This needs neither a profile nor the lifecycle lock.
+        # Dashboard commands select only a session, without its --profile.
+        # In 0.38.2 these inherited defaults force a launch command that drops
+        # the existing profile. Running daemons already retain their settings.
+        env = os.environ.copy()
+        for key in (
+            "AGENT_BROWSER_HEADED",
+            "AGENT_BROWSER_EXECUTABLE_PATH",
+            "AGENT_BROWSER_ARGS",
+        ):
+            env.pop(key, None)
+        subprocess.run(
+            ["agent-browser", "dashboard", *args.command], env=env, check=True
+        )
+        return
     os.umask(0o077)
     ROOT.mkdir(parents=True, exist_ok=True)
     # Serialize managed lifecycle operations; browser daemons outlive this lock.

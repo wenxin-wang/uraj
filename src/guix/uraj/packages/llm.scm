@@ -330,7 +330,13 @@ Run @command{paseo-desktop} for the GUI or @command{paseo} for the CLI.")
                   (call-with-output-file launcher
                     (lambda (port)
                       (format port "#!~a
-export AGENT_BROWSER_EXECUTABLE_PATH=\"${AGENT_BROWSER_EXECUTABLE_PATH:-~a}\"
+# Dashboard API commands reuse sessions without supplying their --profile.
+# Launch defaults would make 0.38.2 reopen those browsers without the profile.
+if [ \"${1-}\" = dashboard ]; then
+  unset AGENT_BROWSER_HEADED AGENT_BROWSER_EXECUTABLE_PATH AGENT_BROWSER_ARGS
+else
+  export AGENT_BROWSER_EXECUTABLE_PATH=\"${AGENT_BROWSER_EXECUTABLE_PATH:-~a}\"
+fi
 exec ~a \"$@\"~%"
                               (search-input-file inputs "/bin/bash")
                               (search-input-file inputs "/bin/chromium")
