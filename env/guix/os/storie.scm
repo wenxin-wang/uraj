@@ -344,8 +344,8 @@
 
 (define %openclaw-configuration
   (openclaw-configuration
-    ;; v2026.10.3 with topic routing and guarded native progress cards.
-    (image "sha256:e6e3757b05b1d86369c381fc625dd6fe3fbf4e13e479cb14f87e97dd7ad5030f")
+    ;; v2026.10.3 with durable progress, readable cards and chat previews.
+    (image "sha256:ed5bfc3c5b098cd05e6d88942d27a693094079d6f6e0a29810332679ff7d05dc")
     (image-repository "localhost/openclaw-gateway")
     ;; Engine built manually; sandbox builds at service start. See docs/openclaw.org.
     (engine-image

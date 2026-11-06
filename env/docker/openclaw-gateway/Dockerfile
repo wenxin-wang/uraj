@@ -30,6 +30,9 @@ COPY feishu-guarded-progress.mjs /tmp/feishu-guarded-progress.mjs
 RUN node /tmp/feishu-guarded-progress.mjs /app/dist \
     && rm /tmp/feishu-guarded-progress.mjs
 
+COPY feishu-card-style.mjs /tmp/feishu-card-style.mjs
+RUN node /tmp/feishu-card-style.mjs /app/dist && rm /tmp/feishu-card-style.mjs
+
 USER 1000:1000
 WORKDIR /app/dist
 RUN node --input-type=module -e 'await import("@larksuiteoapi/node-sdk")' \
