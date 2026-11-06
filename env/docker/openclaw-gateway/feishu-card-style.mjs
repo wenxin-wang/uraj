@@ -4,6 +4,28 @@ import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
+// Preview only the accepted body, without our exact first-reply persona banner
+// or card metadata. Keep the original body and delivery receipts untouched.
+export function urajFeishuCardSummary(text) {
+  const plain = text.trim()
+    .replace(/<at\b[^>]*>[\s\S]*?<\/at>/giu, "").trim()
+    .replace(/^我目前是「[^\r\n]+」(?:，(?:不使用私人角色的记忆|使用你的私人身份和记忆)。\r?\n可以继续聊，或用 \/persona 选择／创建角色。|。用 \/persona 可以选择／创建角色。)\r?\n\r?\n/u, "")
+    .replace(/^ {0,3}(?:`{3,}|~{3,})[^\r\n]*$/gm, "")
+    .replace(/!?\[([^\]\r\n]*)\]\([^\r\n)]*\)/g, "$1")
+    .replace(/<\/?(?:font|text_tag|b|i|u|s)\b[^>]*>/giu, "")
+    .replace(/^\s{0,3}(?:#{1,6}\s+|>\s*|[-+*]\s+|\d+[.)]\s+)/gm, "")
+    .replace(/(\*\*|__|~~)([\s\S]*?)\1/g, "$2")
+    .replace(/([*_])([^\s*_][^*_]*?)\1/g, "$2")
+    .replace(/`+([^`]+?)`+/g, "$1")
+    .replace(/\\([\\`*_{}\[\]()#+.!>|~-])/g, "$1")
+    .replace(/&(amp|lt|gt|quot|apos|nbsp);/g, (_, entity) => ({
+      amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ",
+    })[entity])
+    .replace(/\s+/g, " ").trim();
+  const characters = Array.from(plain);
+  return characters.length > 80 ? characters.slice(0, 79).join("") + "…" : plain;
+}
+
 // Feishu's "heading" text-size enum is 16px on both desktop and mobile; it
 // changes the font size, not the Markdown structure or font weight.
 // https://open.feishu.cn/document/feishu-cards/card-json-v2-components/content-components/rich-text
@@ -14,6 +36,9 @@ export function urajStyleFeishuCard(card) {
   for (const element of card.body.elements) {
     if (element.tag === "markdown") element.text_size ??= "heading";
   }
+  card.config.summary ??= { content: urajFeishuCardSummary(card.body.elements
+    .filter(element => element.tag === "markdown" && element.text_size !== "normal")
+    .map(element => element.content).join("\n\n")) || "卡片消息" };
   return card;
 }
 
@@ -41,6 +66,11 @@ export function patchFeishuCardStyle(source) {
   if (!source.includes(session) && !source.includes(structured)) return null;
   if (source.includes("urajStyleFeishuCard")) throw new Error("Feishu card style already patched");
   if (source.includes(session)) {
+    source = patchFunction(source, "function resolveCardHeader(agentId, identity) {", [
+      ['const name = identity?.name?.trim() || (agentId === "main" ? "" : agentId);',
+        'const rawName = identity?.name?.trim() || (agentId === "main" ? "" : agentId);\n' +
+        '\tconst name = rawName === "household-shared" ? "共享助手" : rawName;'],
+    ]);
     source = patchFunction(source, "function resolveCardNote(agentId, identity, prefixCtx) {", [
       ['if (prefixCtx.model) parts.push(`Model: ${prefixCtx.model}`);',
         'if (prefixCtx.model) parts.push(`Model: ${prefixCtx.model}`);\n' +
@@ -52,6 +82,8 @@ export function patchFeishuCardStyle(source) {
     source = source.replaceAll(contentId, contentId + ',\n\t\t\ttext_size: "heading"');
     source = replaceOnce(source, 'element_id: "note"', 'element_id: "note",\n\t\t\t\ttext_size: "normal"');
     source = replaceOnce(source, "data: JSON.stringify(cardJson)", "data: JSON.stringify(urajStyleFeishuCard(cardJson))");
+    source = replaceOnce(source, "summary: { content: truncateSummary(acceptedText) }",
+      "summary: { content: urajFeishuCardSummary(acceptedText) }");
   }
   if (source.includes(structured)) {
     source = patchFunction(source, structured, [
@@ -69,7 +101,7 @@ export function patchFeishuCardStyle(source) {
     ]);
   }
   const anchor = source.includes(session) ? session : structured;
-  return source.replace(anchor, urajStyleFeishuCard.toString() + "\n" + anchor);
+  return source.replace(anchor, urajFeishuCardSummary.toString() + "\n" + urajStyleFeishuCard.toString() + "\n" + anchor);
 }
 
 function* files(directory) {

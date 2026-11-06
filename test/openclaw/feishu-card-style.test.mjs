@@ -39,6 +39,7 @@ test("shared sender styles final and background answer cards; byte budget includ
   assert.equal(card.header.padding, "8px 12px 8px 12px");
   assert.equal(card.body.padding, card.header.padding);
   assert.equal(card.body.vertical_spacing, "4px");
+  assert.equal(card.config.summary.content, "正文 加粗 printf hello");
   const mentions = [{ id: "ou_test" }];
   const chunks = h.chunkFeishuCardMarkdown({ text, ...options, firstChunkMentions: mentions });
   assert.equal(chunks.contentBytes(text, true), Buffer.byteLength(JSON.stringify(h.buildStructuredCard(text, { ...options, mentions }))));
@@ -60,6 +61,46 @@ test("generated presentation cards retain buttons and distinguish context from b
   assert.equal(card.body.elements[3].tag, "button");
   assert.equal(card.body.elements[3].text.content, "查看");
   assert.equal(card.header.template, "green");
+  assert.equal(card.config.summary.content, "正文 详细说明");
+});
+
+test("answer previews skip only known persona banners and exclude mentions and metadata", () => {
+  const h = harness();
+  for (const banner of [
+    "我目前是「家庭助手 · 共享」，不使用私人角色的记忆。\n可以继续聊，或用 /persona 选择／创建角色。",
+    "我目前是「私人助手 · 私人」，使用你的私人身份和记忆。\n可以继续聊，或用 /persona 选择／创建角色。",
+    "我目前是「私人助手 · 私人」。用 /persona 可以选择／创建角色。",
+  ]) {
+    const text = banner + "\n\n## 未能确认验证通过\n\n请查看 [日志](https://example.com)。";
+    const card = h.buildStructuredCard(text, { mentions: [{ id: "ou_test" }], note: "Model: hidden | Effort: high" });
+    assert.equal(card.config.summary.content, "未能确认验证通过 请查看 日志。");
+    assert.ok(card.body.elements[0].content.endsWith(text), "only the preview omits the banner");
+  }
+  const normal = "我目前是「值班人」。这里是本次检查结果。";
+  assert.equal(h.buildStructuredCard(normal).config.summary.content, normal);
+});
+
+test("previews retain readable code, cap Unicode text, and handle cards with only controls", () => {
+  const h = harness();
+  const card = h.buildStructuredCard("**检查完成**\n- `foo_bar` &lt; 3\n- ![截图](https://example.com/image)");
+  assert.equal(card.config.summary.content, "检查完成 foo_bar < 3 截图");
+  const long = h.buildStructuredCard("😀".repeat(90)).config.summary.content;
+  assert.equal(long, "😀".repeat(79) + "…");
+  const controls = h.buildFeishuPresentationCard({ presentation: { blocks: [
+    { type: "buttons", buttons: [{ label: "查看" }] },
+  ] } });
+  assert.equal(controls.config.summary.content, "卡片消息");
+});
+
+test("shared identity has a friendly title without changing custom identities", () => {
+  const resolve = vm.runInNewContext(patchFeishuCardStyle(session + dispatcher) + "\nresolveCardHeader;", {
+    resolveFeishuIdentityEmoji: value => value ?? "",
+  });
+  assert.equal(resolve("household-shared").title, "共享助手");
+  assert.equal(resolve("household-shared", { name: "household-shared", emoji: "🏠" }).title, "🏠 共享助手");
+  assert.equal(resolve("household-shared", { name: "家庭管家" }).title, "家庭管家");
+  assert.equal(resolve("private-alice", { name: "Alice" }).title, "Alice");
+  assert.equal(resolve("main"), undefined);
 });
 
 test("style layout drift fails atomically across all four runtime/setup bundles", async t => {

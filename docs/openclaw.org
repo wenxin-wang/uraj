@@ -293,6 +293,12 @@ presentation 卡的排版：正文用 =text_size="heading"=（桌面和手机均
 14px 更接近常规聊天正文；客户端字体设置和缩放仍可能影响实际观感。
 显式提供的原生卡片保留自身排版。
 
+自动生成的答案卡通过 =config.summary.content= 设置聊天列表摘要：取获准
+正文开头最多 80 个 Unicode 字符（含省略号），清理 Markdown 和换行，跳过
+插件添加的首次身份介绍，不包含 Model / Effort 元信息；正文和发送回执仍
+保留完整身份提示。无正文的控件卡使用“卡片消息”。标题中的默认
+=household-shared= 显示为“共享助手”，自定义名称和内部角色 ID 不变。
+
 答案卡的原有 Model / Provider 提示保留，并增加 Effort。它取自
 本次运行 =onModelSelected= 回调提供的 =thinkingLevel=，包括模型回退后
 实际选中的级别，不从配置默认值猜测。未取得运行元信息时不补写虚假的
@@ -323,6 +329,8 @@ Gateway 日志可能仅显示 =streaming_start_failed= 和 HTTP 400，随后回�
 长任务触发流式卡片约十分钟的 =card streaming timeout (200850)=。
 每 15 秒更新已用时和距上次进展的时间；计时更新不会重置上次进展时间，
 也不代表模型仍在输出。模型开始回复、工具事件和压缩事件才推进阶段。
+聊天列表摘要同步显示固定的当前阶段，阶段不变时不重复请求摘要接口；
+更新失败保留正文更新结果，在下次进度刷新时重试。撤回失败后的清空也清除摘要。
 
 最终回复仍经过原有发送前检查，包含首次身份提示，单独作为答案卡发送，
 随后撤回状态卡。完成回执仍走上游 =message_sent=，成功后才登记身份已提示。
@@ -336,14 +344,15 @@ CardKit 不可用时仍可发送普通的非流式答案卡；超过上游表格
 补丁必须随镜像构建，再把新 image ID 写入 =env/guix/os/storie.scm= 并部署。
 只改配置不会开启带角色插件的进度预览。升级上游时须重新核对：补丁会严格
 检查 runtime 和 setup 的 dispatcher/session 及共享卡片构造器布局，
-不匹配即停止构建。字号、间距和元信息也计入上游卡片分片的字节预算。
+不匹配即停止构建。字号、间距、摘要和元信息都计入上游卡片分片的字节预算。
 
 2026-11-05 在 =progress1= 的线上日志确认：权限生效后卡片创建成功，
 约十分钟后更新报 =200850=。=progress2= 修复进度并曾将正文改为普通消息；
 =2026.10.3-progress3= 保留这些进度修复，恢复答案卡并加入可读字号和 effort。
+=2026.10.3-progress4= 增加正文摘要、阶段摘要及共享角色的友好标题。
 使用真实应用验证了未发布状态卡的创建、元素替换和清空，均返回成功；
-2026-11-06 新排版也通过同样的 API 验证。探针不发送聊天消息，实际飞书
-消息显示、长任务和撤回仍需部署后验收。
+2026-11-06 新排版、答案摘要和非流式状态摘要更新也通过 API 验证。
+探针不发送聊天消息，实际飞书消息显示、长任务和撤回仍需部署后验收。
 
 ** 状态与验证
 
@@ -623,13 +632,13 @@ SDK 补丁不保证解决 Doctor 的其它错误；
 #+begin_src sh
 sudo docker build --network=host --pull=false \
   --build-arg BASE_IMAGE=sha256:f855681d24db345dcab753842f1137d5e5354ad83da7be28caacc7c0f9c939b0 \
-  -t localhost/openclaw-gateway:2026.10.3-progress3 \
+  -t localhost/openclaw-gateway:2026.10.3-progress4 \
   env/docker/openclaw-gateway
 sudo docker run --rm --network none --read-only \
   --user 1000:1000 --workdir /app/dist --entrypoint node \
-  localhost/openclaw-gateway:2026.10.3-progress3 \
+  localhost/openclaw-gateway:2026.10.3-progress4 \
   --input-type=module -e 'await import("@larksuiteoapi/node-sdk")'
-sudo docker image inspect --format '{{.Id}}' localhost/openclaw-gateway:2026.10.3-progress3
+sudo docker image inspect --format '{{.Id}}' localhost/openclaw-gateway:2026.10.3-progress4
 #+end_src
 
 把输出的新 ID 写入 =env/guix/os/storie.scm= 的 OpenClaw =image= 字段，
@@ -1328,6 +1337,8 @@ FEISHU_DIST=/tmp/feishu-dist node --test \
     状态、已用时和距上次进展的时间；等待超过十分钟仍可更新。完成后
     答案卡正文更易读，状态卡撤回；首次身份提示和实际 Model / Effort 仍出现。
     后台完成通知的自动卡片也使用相同字号和边距。
+    在聊天列表确认摘要显示正文（跳过身份介绍），处理中显示当前阶段；
+    默认共享角色的卡内标题显示“共享助手”。
     取消任务、静默回复和私人群加人导致回复被拦截时，确认状态清理且
     没有私人正文提前显示。
 

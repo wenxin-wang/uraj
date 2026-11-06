@@ -138,12 +138,33 @@ export function patchFeishuStatusSession(source) {
     ['summary: { content: "[Generating...]" },',
       'summary: { content: options?.urajStatusOnly ? "正在处理" : "[Generating...]" },'],
     ["hasNote: Boolean(options?.note)",
-      "hasNote: Boolean(options?.note),\n\t\t\turajStatusOnly: options?.urajStatusOnly === true"],
+      "hasNote: Boolean(options?.note),\n\t\t\turajStatusOnly: options?.urajStatusOnly === true,\n\t\t\turajSummary: \"正在处理\""],
     ["this.writeCardContent(nextText, false,", "this.writeCardContent(nextText, this.state.urajStatusOnly === true,"],
     // Clearing a status card after a failed delete must also use element
     // replacement, not the streaming-only content endpoint.
     ["const replace = !text.startsWith(this.state.sentText);",
       "const replace = this.state.urajStatusOnly === true || !text.startsWith(this.state.sentText);"],
+    // Share the session's serial queue and sequence counter. Summary failure
+    // must not turn a successful body update into a failed delivery.
+    ['"Update card content"));\n\t\t\treturn true;',
+      '"Update card content"));\n\t\t\tawait this.urajUpdateStatusSummary(text);\n\t\t\treturn true;'],
+    ["\tclearFlushTimer() {", `\tasync urajUpdateStatusSummary(text) {
+\t\tif (!this.state?.urajStatusOnly || !text) return;
+\t\tconst summary = text.split("\\n", 1)[0].trim();
+\t\tif (summary === this.state.urajSummary) return;
+\t\tthis.state.sequence += 1;
+\t\ttry {
+\t\t\tawait this.requestCardKit(\`/\${this.state.cardId}/settings\`, "status-summary", "PATCH", () => ({
+\t\t\t\tsettings: JSON.stringify({ config: { summary: { content: summary } } }),
+\t\t\t\tsequence: this.state.sequence,
+\t\t\t\tuuid: \`summary_\${this.state.cardId}_\${this.state.sequence}\`
+\t\t\t}), (response, auditContext) => assertSuccessfulCardKitResponse(response, auditContext, "Update status summary"));
+\t\t\tthis.state.urajSummary = summary;
+\t\t} catch (error) {
+\t\t\tthis.log?.(\`Status summary update failed: \${String(error)}\`);
+\t\t}
+\t}
+\tclearFlushTimer() {`],
   ];
   for (const [before] of replacements) {
     if (source.split(before).length !== 2) {

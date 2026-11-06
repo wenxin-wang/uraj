@@ -344,8 +344,8 @@
 
 (define %openclaw-configuration
   (openclaw-configuration
-    ;; v2026.10.3 with durable progress, readable cards and model/effort notes.
-    (image "sha256:19b3f0d4b59f48d67dca8195856084a8fd40b340c16f6d81382632c93d26f9c0")
+    ;; v2026.10.3 with durable progress, readable cards and chat previews.
+    (image "sha256:ed5bfc3c5b098cd05e6d88942d27a693094079d6f6e0a29810332679ff7d05dc")
     (image-repository "localhost/openclaw-gateway")
     ;; Engine built manually; sandbox builds at service start. See docs/openclaw.org.
     (engine-image

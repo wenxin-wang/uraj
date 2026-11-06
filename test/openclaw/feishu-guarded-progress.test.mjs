@@ -8,7 +8,7 @@ import {
   patchDirectory, patchFeishuGuardedProgress, patchFeishuStatusSession,
   urajFeishuToolStatus,
 } from "../../env/docker/openclaw-gateway/feishu-guarded-progress.mjs";
-import { patchFeishuCardStyle } from "../../env/docker/openclaw-gateway/feishu-card-style.mjs";
+import { patchFeishuCardStyle, urajFeishuCardSummary } from "../../env/docker/openclaw-gateway/feishu-card-style.mjs";
 import { PersonaStore } from "../../scripts/openclaw/config-plugin/persona-store.mjs";
 import { Personas, SHARED } from "../../scripts/openclaw/config-plugin/persona.mjs";
 
@@ -191,6 +191,7 @@ for (const statusOnly of [true, false]) {
     let now = 100000;
     const requests = [];
     const errors = [];
+    let failSummary = false;
     const Session = vm.runInNewContext(patchFeishuCardStyle(patchFeishuStatusSession(originalSession + original)) + "\nFeishuStreamingSession;", {
       STREAMING_UPDATE_THROTTLE_MS: 1000,
       Date: { now: () => now },
@@ -205,6 +206,10 @@ for (const statusOnly of [true, false]) {
     } } }, {}, error => errors.push(error));
     session.requestCardKit = async (path, operation, method, body) => {
       requests.push({ path, operation, method, body: body() });
+      if (operation === "status-summary" && failSummary) {
+        failSummary = false;
+        throw new Error("temporary summary failure");
+      }
       return { code: 0, data: { card_id: "card_status" } };
     };
     await session.start("oc_group", "chat_id", { urajStatusOnly: statusOnly });
@@ -212,22 +217,37 @@ for (const statusOnly of [true, false]) {
     assert.equal(card.config.streaming_mode, !statusOnly);
     assert.equal(card.body.elements[0].text_size, "heading");
     assert.equal(card.body.padding, "8px 12px 8px 12px");
+    assert.equal(card.config.summary.content, statusOnly ? "正在处理" : "[Generating...]");
     await session.update("正在等待模型响应…");
     now += 615000;
+    failSummary = statusOnly;
     await session.update("正在执行任务…\n\n已用时 10 分 15 秒");
+    assert.equal(session.state.sentText, "正在执行任务…\n\n已用时 10 分 15 秒");
+    // A failed summary does not fail the body; the next heartbeat retries it.
+    for (const seconds of [30, 45]) {
+      now += 15000;
+      await session.update(`正在执行任务…\n\n已用时 10 分 ${seconds} 秒`);
+    }
     const updates = requests.filter(r => r.method === "PUT");
-    assert.equal(updates.length, 2);
+    assert.equal(updates.length, 4);
     for (const request of updates) {
       assert.equal(request.path, statusOnly ? "/card_status/elements/content" : "/card_status/elements/content/content");
       if (statusOnly) assert.equal(JSON.parse(request.body.element).text_size, "heading");
     }
+    const summaries = requests.filter(r => r.operation === "status-summary");
+    assert.deepEqual(summaries.map(r => JSON.parse(r.body.settings).config.summary.content),
+      statusOnly ? ["正在等待模型响应…", "正在执行任务…", "正在执行任务…"] : []);
     // Failed deletion must still blank the status via the non-streaming API.
     await session.discard();
     const cleared = requests.filter(r => r.method === "PUT").at(-1);
     assert.equal(cleared.path, "/card_status/elements/content");
     assert.equal(JSON.parse(cleared.body.element).content, "");
+    assert.equal(JSON.parse(requests.at(-1).body.settings).config.summary.content, "");
+    const sequences = requests.slice(1).map(r => r.body.sequence);
+    assert.equal(new Set(sequences).size, sequences.length);
+    assert.deepEqual(sequences, [...sequences].sort((a, b) => a - b));
     assert.equal(session.isActive(), false);
-    assert.equal(errors.filter(e => /failed/i.test(e)).length, 1);
+    assert.equal(errors.filter(e => /failed/i.test(e)).length, statusOnly ? 2 : 1);
   });
 }
 
@@ -452,6 +472,7 @@ test("real persona hook still controls welcome receipt and cancels a changed pri
   await h.dispatcherOptions.onReplyStart();
   const accepted = await personas.sending(event, ctx);
   assert.match(accepted.payload.text, /家庭助手 · 共享/);
+  assert.equal(urajFeishuCardSummary(accepted.payload.text), "answer");
   assert.equal((await store.read()).groups.oc_group.announced, false);
   const receipt = await finalize(h, accepted.payload.text);
   await personas.sent({ success: receipt.visibleReplySent, content: receipt.content }, ctx);
