@@ -2,7 +2,8 @@
 // Keep that guard for model text, reasoning and tool details. Only fixed status
 // strings may precede the hooks. Status uses a non-streaming CardKit card so
 // long model/tool waits do not hit Feishu's streaming timeout; accepted answers
-// use upstream post delivery, receipts and chunking at the normal message size.
+// use upstream static card delivery, receipts and chunking. The separate card
+// style patch sets readable text sizes and the final model/effort footer.
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -93,7 +94,6 @@ export function patchFeishuGuardedProgress(source) {
     ["onCleanup: () => {", "onCleanup: () => {\n\t\t\turajProgress.stop();"],
     ["deliver: async (inputPayload, info) => {",
       'deliver: async (inputPayload, info) => {\n\t\t\t\tif (urajGuardedStatus && info?.kind === "final") urajProgress.stop();'],
-    ["const useStaticCard = hasText &&", "const useStaticCard = !modifyingHooksRegistered && hasText &&"],
     ["const useStreamingCard = hasText &&", "const useStreamingCard = !modifyingHooksRegistered && hasText &&"],
     ['const shouldStreamText = info?.kind === "block" || info?.kind === "final";',
       'const shouldStreamText = !modifyingHooksRegistered && (info?.kind === "block" || info?.kind === "final");'],

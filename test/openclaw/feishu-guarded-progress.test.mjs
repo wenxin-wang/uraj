@@ -8,6 +8,7 @@ import {
   patchDirectory, patchFeishuGuardedProgress, patchFeishuStatusSession,
   urajFeishuToolStatus,
 } from "../../env/docker/openclaw-gateway/feishu-guarded-progress.mjs";
+import { patchFeishuCardStyle } from "../../env/docker/openclaw-gateway/feishu-card-style.mjs";
 import { PersonaStore } from "../../scripts/openclaw/config-plugin/persona-store.mjs";
 import { Personas, SHARED } from "../../scripts/openclaw/config-plugin/persona.mjs";
 
@@ -16,7 +17,15 @@ import { Personas, SHARED } from "../../scripts/openclaw/config-plugin/persona.m
 const original = await fs.readFile(new URL("./fixtures/feishu-reply-dispatcher.txt", import.meta.url), "utf8");
 const originalSession = await fs.readFile(new URL("./fixtures/feishu-streaming-session.txt", import.meta.url), "utf8");
 const forwarding = await fs.readFile(new URL("./fixtures/feishu-progress-forwarding.txt", import.meta.url), "utf8");
-const patched = patchFeishuGuardedProgress(original);
+const prefixSource = await fs.readFile(new URL("./fixtures/feishu-reply-prefix.txt", import.meta.url), "utf8");
+const styledBundle = patchFeishuCardStyle(originalSession + patchFeishuGuardedProgress(original));
+const patched = styledBundle.slice(styledBundle.indexOf("//#region extensions/feishu/src/streaming-update.ts"));
+const createPrefix = vm.runInNewContext(prefixSource + "\ncreateReplyPrefixContext;", {
+  normalizeOptionalString: value => value?.trim(),
+  extractShortModelName: value => value.split("/").at(-1),
+  resolveAgentIdentity: () => ({}),
+  resolveEffectiveMessagesConfig: () => ({}),
+});
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
 function harness({ hooks = ["reply_payload_sending"], mode = "partial", renderMode = "card",
@@ -65,7 +74,7 @@ function harness({ hooks = ["reply_payload_sending"], mode = "partial", renderMo
     } } }),
     resolveFeishuRuntimeAccount: () => ({ accountId: "main", appId: "test", appSecret: "test",
       config: { renderMode, streaming: { mode } } }),
-    createChannelReplyPipeline: () => ({ responsePrefixContextProvider: () => ({}) }),
+    createChannelReplyPipeline: createPrefix,
     getGlobalHookRunner: () => ({ hasHooks: name => hooks.includes(name) }),
     resolveChannelPreviewStreamMode: config => config.streaming.mode,
     resolveChannelStreamingBlockEnabled: () => false,
@@ -182,7 +191,7 @@ for (const statusOnly of [true, false]) {
     let now = 100000;
     const requests = [];
     const errors = [];
-    const Session = vm.runInNewContext(patchFeishuStatusSession(originalSession) + "\nFeishuStreamingSession;", {
+    const Session = vm.runInNewContext(patchFeishuCardStyle(patchFeishuStatusSession(originalSession + original)) + "\nFeishuStreamingSession;", {
       STREAMING_UPDATE_THROTTLE_MS: 1000,
       Date: { now: () => now },
       resolveFeishuCardTemplate: value => value,
@@ -201,6 +210,8 @@ for (const statusOnly of [true, false]) {
     await session.start("oc_group", "chat_id", { urajStatusOnly: statusOnly });
     const card = JSON.parse(requests[0].body.data);
     assert.equal(card.config.streaming_mode, !statusOnly);
+    assert.equal(card.body.elements[0].text_size, "heading");
+    assert.equal(card.body.padding, "8px 12px 8px 12px");
     await session.update("正在等待模型响应…");
     now += 615000;
     await session.update("正在执行任务…\n\n已用时 10 分 15 秒");
@@ -208,6 +219,7 @@ for (const statusOnly of [true, false]) {
     assert.equal(updates.length, 2);
     for (const request of updates) {
       assert.equal(request.path, statusOnly ? "/card_status/elements/content" : "/card_status/elements/content/content");
+      if (statusOnly) assert.equal(JSON.parse(request.body.element).text_size, "heading");
     }
     // Failed deletion must still blank the status via the non-streaming API.
     await session.discard();
@@ -234,7 +246,7 @@ test("status strings cannot contain tool arguments, names, prose or hidden event
 });
 
 for (const hook of ["reply_payload_sending", "message_sending"]) {
-  test(`${hook}: fixed progress reuses one card, accepted final is a normal post`, async () => {
+  test(`${hook}: fixed progress reuses one card, accepted final uses a separate answer card`, async () => {
     const h = harness({ hooks: [hook] });
     assert.equal(h.replyOptions.onPartialReply, undefined);
     assert.equal(h.replyOptions.onReasoningStream, undefined);
@@ -260,7 +272,7 @@ for (const hook of ["reply_payload_sending", "message_sending"]) {
     assert.equal(h.calls.closes.length, 0);
     assert.equal(h.calls.discards, 1);
     assert.equal(h.calls.static.length, 1);
-    assert.equal(h.calls.static[0].kind, "post");
+    assert.equal(h.calls.static[0].kind, "card");
     assert.equal(h.calls.static[0].text, final);
     assert.equal(h.calls.static[0].replyToMessageId, "om_topic");
     assert.equal(h.timers.size, 0);
@@ -285,6 +297,28 @@ for (const reason of ["cancelled_by_reply_payload_sending_hook", "empty_after_re
     assert.equal(h.calls.static.length, 0);
   });
 }
+
+test("answer footer uses the actual selected model and effort, including fallback", async () => {
+  const h = harness();
+  h.replyOptions.onModelSelected({ provider: "primary", model: "gpt-6-astra", thinkLevel: "xhigh" });
+  await h.dispatcherOptions.onReplyStart();
+  h.replyOptions.onModelSelected({ provider: "fallback", model: "gpt-6-luna", thinkLevel: "low" });
+  await tick();
+  assert.doesNotMatch(JSON.stringify(h.calls), /gpt-6|Effort|PRIVATE_IDENTITY/);
+  await finalize(h, "accepted answer");
+  assert.match(h.calls.static[0].note, /Model: gpt-6-luna \| Effort: low \| Provider: fallback/);
+  assert.doesNotMatch(h.calls.static[0].note, /astra|xhigh/);
+});
+
+test("unknown model/effort is omitted; a resolved off effort is shown", async () => {
+  const unknown = harness();
+  await finalize(unknown, "command reply");
+  assert.doesNotMatch(unknown.calls.static[0].note, /Model:|Effort:/);
+  const off = harness();
+  off.replyOptions.onModelSelected({ provider: "test", model: "test-model", thinkLevel: "off" });
+  await finalize(off, "answer");
+  assert.match(off.calls.static[0].note, /Effort: off/);
+});
 
 test("cancel waits for an in-flight card start, then discards it", async () => {
   const gate = Promise.withResolvers();
@@ -344,13 +378,13 @@ test("status cleanup failure cannot prevent delivery of an accepted long answer"
   await assert.rejects(h.dispatcherOptions.onIdle(), /CardKit cleanup failed/);
   assert.equal(h.calls.static.length, 1);
   assert.equal(h.calls.static[0].text, text);
-  assert.equal(h.calls.static[0].kind, "post");
+  assert.equal(h.calls.static[0].kind, "card");
   assert.equal(await h.ensureNoVisibleReplyFallback("cleanup failed"), false);
   assert.equal(h.timers.size, 0);
 });
 
-test("failed post delivery is not reported as a successful answer and cleans up status", async () => {
-  const h = harness({ sendError: new Error("post delivery failed") });
+test("failed answer card delivery is not reported as success and cleans up status", async () => {
+  const h = harness({ sendError: new Error("card delivery failed") });
   await h.dispatcherOptions.onReplyStart();
   let failure;
   await assert.rejects(h.delivery.deliver({ text: "answer" }, { kind: "final" }), error => {
@@ -385,7 +419,7 @@ for (const options of [{ mode: "off" }, { renderMode: "raw" }, { requiredMention
     assert.equal(h.replyOptions.onCompactionStart, undefined);
     assert.equal(h.calls.starts.length, 0);
     assert.equal((await finalize(h, "普通答案")).visibleReplySent, true);
-    assert.equal(h.calls.static[0].kind, "post");
+    assert.equal(h.calls.static[0].kind, options.renderMode === "raw" ? "post" : "card");
   });
 }
 

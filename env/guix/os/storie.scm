@@ -344,8 +344,8 @@
 
 (define %openclaw-configuration
   (openclaw-configuration
-    ;; v2026.10.3 with durable status cards and normal-size Feishu replies.
-    (image "sha256:43b3f9d1403f3dd967ca44dcb2fd832be3b6f0f134b3688cdb30ae8c036589fe")
+    ;; v2026.10.3 with durable progress, readable cards and model/effort notes.
+    (image "sha256:19b3f0d4b59f48d67dca8195856084a8fd40b340c16f6d81382632c93d26f9c0")
     (image-repository "localhost/openclaw-gateway")
     ;; Engine built manually; sandbox builds at service start. See docs/openclaw.org.
     (engine-image
