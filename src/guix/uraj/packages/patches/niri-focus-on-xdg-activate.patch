@@ -1,0 +1,74 @@
+diff --git a/niri-config/src/lib.rs b/niri-config/src/lib.rs
+index 329b7669..c7e5aa09 100644
+--- a/niri-config/src/lib.rs
++++ b/niri-config/src/lib.rs
+@@ -1790,6 +1790,7 @@ mod tests {
+                     open_focused: Some(
+                         true,
+                     ),
++                    focus_on_xdg_activate: None,
+                     min_width: None,
+                     min_height: None,
+                     max_width: None,
+diff --git a/niri-config/src/window_rule.rs b/niri-config/src/window_rule.rs
+index f2bc2ad1..f44a90ee 100644
+--- a/niri-config/src/window_rule.rs
++++ b/niri-config/src/window_rule.rs
+@@ -34,6 +34,8 @@ pub struct WindowRule {
+     pub open_floating: Option<bool>,
+     #[knuffel(child, unwrap(argument))]
+     pub open_focused: Option<bool>,
++    #[knuffel(child, unwrap(argument))]
++    pub focus_on_xdg_activate: Option<bool>,
+ 
+     // Rules applied dynamically.
+     #[knuffel(child, unwrap(argument))]
+diff --git a/src/handlers/mod.rs b/src/handlers/mod.rs
+index 3532078b..8c3e2a7f 100644
+--- a/src/handlers/mod.rs
++++ b/src/handlers/mod.rs
+@@ -74,7 +74,7 @@ use smithay::{
+ 
+ pub use crate::handlers::xdg_shell::KdeDecorationsModeState;
+ use crate::layout::workspace::WorkspaceId;
+-use crate::layout::ActivateWindow;
++use crate::layout::{ActivateWindow, LayoutElement};
+ use crate::niri::{DndIcon, NewClient, State};
+ use crate::protocols::ext_workspace::{self, ExtWorkspaceHandler, ExtWorkspaceManagerState};
+ use crate::protocols::foreign_toplevel::{
+@@ -824,7 +824,9 @@ impl XdgActivationHandler for State {
+         if token_data.timestamp.elapsed() < XDG_ACTIVATION_TOKEN_TIMEOUT {
+             if let Some((mapped, _)) = self.niri.layout.find_window_and_output_mut(&surface) {
+                 let window = mapped.window.clone();
+-                if token_data.user_data.get::<UrgentOnlyMarker>().is_some() {
++                if token_data.user_data.get::<UrgentOnlyMarker>().is_some()
++                    || mapped.rules().focus_on_xdg_activate == Some(false)
++                {
+                     mapped.set_urgent(true);
+                     self.niri.queue_redraw_all();
+                 } else {
+diff --git a/src/window/mod.rs b/src/window/mod.rs
+index 14527cd2..a086c347 100644
+--- a/src/window/mod.rs
++++ b/src/window/mod.rs
+@@ -73,6 +73,9 @@ pub struct ResolvedWindowRules {
+     /// Whether the window should open focused.
+     pub open_focused: Option<bool>,
+ 
++    /// Whether the window should receive focus on xdg-activation requests.
++    pub focus_on_xdg_activate: Option<bool>,
++
+     /// Extra bound on the minimum window width.
+     pub min_width: Option<u16>,
+     /// Extra bound on the minimum window height.
+@@ -257,6 +260,10 @@ impl ResolvedWindowRules {
+                     resolved.open_focused = Some(x);
+                 }
+ 
++                if let Some(x) = rule.focus_on_xdg_activate {
++                    resolved.focus_on_xdg_activate = Some(x);
++                }
++
+                 if let Some(x) = rule.min_width {
+                     resolved.min_width = Some(x);
+                 }
