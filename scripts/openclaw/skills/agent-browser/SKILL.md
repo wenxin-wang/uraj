@@ -81,6 +81,13 @@ area is shorter, so visible buttons receive clicks at the wrong coordinates.
 Keep any intentional device emulation. Do not test clicks on the user's page
 as a readiness check.
 
+Then confirm an actual `frame` message arrives on
+`ws://127.0.0.1:PORT/api/session/STREAM_PORT/stream`, using the session's port
+from `/api/sessions`. HTTP success and `screencasting: true` alone do not prove
+that frames arrive. For diagnosis, use `browser-profile identity` or
+`browser-profile run <task-id>`; even an `eval` through `/api/exec` can reopen
+the browser if an old dashboard still carries the launch defaults.
+
 Give the user the actual dashboard port, session name and sandbox identity.
 Report the dashboard's listening port, not a session's stream port from the API.
 Report `hostname` as a matching hint if the runtime container name/ID is not

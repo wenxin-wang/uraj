@@ -155,6 +155,11 @@ def main():
         if action == "run":
             task.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args()
+    # Older skill instructions may put dashboard after identity/run. It is
+    # environment-wide even there, so use the same clean startup path.
+    if args.action in ("identity", "run") and args.command[:1] == ["dashboard"]:
+        args.action = "dashboard"
+        args.command = args.command[1:]
     if args.action == "dashboard":
         # Keep the launcher's socket directory: host identities, contained
         # tasks and OpenClaw roles each discover their own running daemons.

@@ -190,13 +190,26 @@ class ProfileTest(unittest.TestCase):
             ),
             mock.patch.object(PROFILE.subprocess, "run") as run,
         ):
-            self.invoke("dashboard", "start", "--port", "4850")
-            run.assert_called_once_with(
-                ["agent-browser", "dashboard", "start", "--port", "4850"],
-                env={"AGENT_BROWSER_SOCKET_DIR": "/tmp/role-daemons"},
-                check=True,
-            )
-            self.assertFalse(PROFILE.ROOT.exists())
+            for prefix in (
+                ("dashboard",),
+                ("identity", "dashboard"),
+                ("run", "unused-task", "dashboard"),
+            ):
+                with self.subTest(prefix=prefix):
+                    run.reset_mock()
+                    self.invoke(*prefix, "start", "--port", "4850")
+                    run.assert_called_once_with(
+                        [
+                            "agent-browser",
+                            "dashboard",
+                            "start",
+                            "--port",
+                            "4850",
+                        ],
+                        env={"AGENT_BROWSER_SOCKET_DIR": "/tmp/role-daemons"},
+                        check=True,
+                    )
+                    self.assertFalse(PROFILE.ROOT.exists())
 
 
 if __name__ == "__main__":
