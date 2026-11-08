@@ -8,6 +8,7 @@
   #:use-module (gnu packages base)
   #:use-module (uraj packages docker)
   #:use-module (uraj services logs)
+  #:use-module (uraj services shepherd)
   #:export (paseo-relay-configuration paseo-relay-service-type
             paseo-relay-commit paseo-relay-compose-file paseo-relay-command))
 
@@ -85,7 +86,8 @@
                      (system* #$command "stop" "--timeout" "30")
                      (apply throw args)))))
       (stop #~(lambda _ (invoke #$command "stop" "--timeout" "30") #f))
-      (actions (list (shepherd-configuration-action (paseo-relay-compose-file config))))))))
+      (actions (list (shepherd-configuration-action (paseo-relay-compose-file config))
+                     restart-with-arguments-action))))))
 
 (define paseo-relay-service-type
   (service-type

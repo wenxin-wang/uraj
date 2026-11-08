@@ -107,7 +107,8 @@ ls -l /data/new-api/logs/
 The tag lasts until the next plain start: a reboot, a dependency restart
 (e.g. =dockerd=) or =sudo herd restart new-api= return to the configured
 image. A reconfigure does not restart a running service, so restart after
-deploying. An invalid or missing tag leaves new-api stopped; restart without
+deploying. A tag still applies when the restart is the one that loads a
+reconfigured definition. An invalid or missing tag leaves new-api stopped; restart without
 a tag to recover.
 
 To update new-api or the plugin: change =UPSTREAM_TAG= or the plugin in
