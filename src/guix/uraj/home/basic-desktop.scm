@@ -54,6 +54,7 @@
             "font-google-noto-emoji"
             ;; Utils
             "zbar"
+            "procps"          ;pgrep for SSH discovery of the desktop bus
             ;; pinentry-auto selects this in Wayland/X11 sessions; basic-dev
             ;; supplies pinentry-tty for console and SSH sessions.
             "pinentry-qt"

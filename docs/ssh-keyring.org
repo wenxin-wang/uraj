@@ -85,6 +85,28 @@ broker needs the new Home environment and the same session D-Bus address.
 Headless sessions still need an unlocked password store or an interactive
 unlock elsewhere; no password is collected through Paseo.
 
+** GitHub CLI from SSH
+
+=gh auth setup-git= configures Git to ask =gh= for HTTPS credentials.  When
+the token is in GNOME Keyring, =gh= also needs the desktop's session bus.
+Without it, =gh auth status= can report an invalid token from =default=
+even though the same account works in the desktop session.
+
+The desktop Home profile's =65-session-bus.sh= fills an unset
+=DBUS_SESSION_BUS_ADDRESS= in SSH login shells.  It first checks the usual
+=$XDG_RUNTIME_DIR/bus= socket, then the bus address of the same user's
+running niri process: Guix System uses =dbus-run-session= with a different
+socket path.  Existing bus addresses are preserved.  This neither starts
+a keyring nor unlocks one, and requires an existing desktop/user bus and
+an accessible, unlocked keyring.
+
+After Home reconfiguration, reconnect over SSH or source
+=~/.profile.d/65-session-bus.sh= in an existing shell.  Check
+=gh auth status --hostname github.com= and =git push --dry-run=.  Do not
+log out of =gh= or replace the token solely because the bus was missing.
+
+** Stored SSH passwords
+
 Old GCR/keyring SSH entries use different attributes from QtKeychain, so expect
 to enter and save each SSH password once again.  Existing keyring files are
 not deleted or migrated.  QtKeychain 0.15 uses =user= (key path), =server=
