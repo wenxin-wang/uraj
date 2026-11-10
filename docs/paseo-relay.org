@@ -88,7 +88,9 @@ sudo herd status paseo-relay   # the running value names the commit
 #+end_src
 
 The commit lasts until the next plain start: a reboot, a dependency restart
-or =sudo herd restart paseo-relay= return to the configured one.
+or =sudo herd restart paseo-relay= return to the configured one. A commit
+still applies when the restart is the one that loads a reconfigured
+definition.
 
 The network service refuses incompatible existing settings and never deletes
 the network to repair them. Inspect the mismatch before changing anything.

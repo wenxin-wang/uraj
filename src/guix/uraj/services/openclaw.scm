@@ -20,6 +20,7 @@
   #:use-module (uraj utils gexp)
   #:use-module (uraj packages docker)
   #:use-module (uraj services logs)
+  #:use-module (uraj services shepherd)
   #:export (openclaw-provider openclaw-configuration
             openclaw-service-type openclaw-config-file
             openclaw-compose-file openclaw-prepare-program openclaw-secrets))
@@ -674,7 +675,8 @@
                   (system* #$command "stop" "--timeout" "30")
                   (apply throw args))))))
        (stop #~(lambda _ (invoke #$command "stop" "--timeout" "30") #f))
-       (actions (list (shepherd-configuration-action (openclaw-compose-file config))))))))
+       (actions (list (shepherd-configuration-action (openclaw-compose-file config))
+                      restart-with-arguments-action))))))
 
 (define (openclaw-accounts config)
   ;; Names the dedicated IDs on the host; the containers use them numerically.

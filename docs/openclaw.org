@@ -1250,6 +1250,7 @@ running value 同时记录请求引用和实际 ID。镜像不存在则失败，
 不会承诺旧实例仍运行，也不会自动回退。
 
 采用临时版本后，下一次普通 restart、重启机器或部署仍使用声明版本。
+部署后首次带 tag 的 restart 会加载新定义，tag 同样生效。
 正式采用时更新声明 image。版本切换前停服务，将整个
 =/data/openclaw/= 做一致性备份到受保护的
 =/core-data/backups/openclaw/=，并保留对应镜像和密文配置。

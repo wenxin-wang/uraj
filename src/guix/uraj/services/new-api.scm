@@ -10,6 +10,7 @@
   #:use-module (json)
   #:use-module (uraj packages docker)
   #:use-module (uraj services logs)
+  #:use-module (uraj services shepherd)
   #:export (new-api-configuration new-api-service-type
             new-api-compose-file new-api-prepare-program))
 
@@ -242,7 +243,8 @@
                (system* #$command "stop" "--timeout" "30")
                (apply throw args)))))
       (stop #~(lambda _ (invoke #$command "stop" "--timeout" "30") #f))
-      (actions (list (shepherd-configuration-action (new-api-compose-file config))))))))
+      (actions (list (shepherd-configuration-action (new-api-compose-file config))
+                     restart-with-arguments-action))))))
 
 (define new-api-service-type
   (service-type

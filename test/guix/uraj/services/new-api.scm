@@ -167,6 +167,33 @@
             (test-equal (string-append "rejected tag " tag) '(#f ())
               (start tag)))
           '("" "-x" ".x" "a:b" "a/b" "a b" "x@sha256"))
+
+;; Run the real restart action with stubbed Shepherd procedures.  Stopping
+;; returns the replacement left by a reconfigure, plus a dependent.
+(define (restart name . args)
+  (let ((m (make-fresh-user-module)) (calls '()))
+    (module-define! m 'current-service (lambda () 'old))
+    (module-define! m 'stop-service
+                    (lambda (s) (and (eq? s 'old) '(replacement dependent))))
+    (module-define! m 'start-service
+                    (lambda (s . args) (set! calls (cons (cons s args) calls))))
+    (let* ((action (find (lambda (a) (eq? (shepherd-action-name a) 'restart))
+                         ((@@ (gnu services shepherd) shepherd-service-actions)
+                          (lookup installed name))))
+           (proc (eval (gexp->approximate-sexp (shepherd-action-procedure action))
+                       m)))
+      (list (apply proc 'running args) (reverse calls)))))
+(for-each
+ (lambda (name)
+   (test-equal (string-append (symbol->string name)
+                              " restart passes its argument to a replacement")
+     '(#t ((replacement "dev") (dependent)))
+     (restart name "dev")))
+ '(new-api paseo-relay openclaw))
+(test-equal "plain restart starts the replacement without arguments"
+  '(#t ((replacement) (dependent)))
+  (restart 'new-api))
+
 (define failures (test-runner-fail-count (test-runner-current)))
 (test-end "new-api")
 (exit (if (zero? failures) 0 1))
