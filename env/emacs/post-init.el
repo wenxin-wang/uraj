@@ -1027,33 +1027,34 @@ dir is the directory of the buffer (param of my/project-try), when it's changed,
   :config
   (require 'org-tempo))
 
+(use-package vulpea
+  :hook
+  (emacs-startup . (lambda () (vulpea-db-autosync-mode +1)))
+  :init
+  (setq vulpea-db-sync-directories
+        (seq-filter
+         #'file-exists-p
+         (list "~/office/" "~/src/khalis/" "~/hearth/" "~/pylon/" "~/labyrinth/")))
+  (setq vulpea-default-notes-directory (car vulpea-db-sync-directories))
+  :bind
+  ;; ("C-c n c" . org-roam-capture)
+  ;; ("C-c n d" . org-roam-dailies-goto-today)
+  ;; ("C-c n g" . org-roam-graph)
+  ("C-c n f" . vulpea-find)
+  ("C-c n i" . vulpea-insert)
+  :custom
+  (vulpea-db-async-extraction 'full)
+  (vulpea-db-parse-method 'single-temp-buffer)
+  (vulpea-db-index-plain-links nil)
+  (vulpea-create-default-template '(:file-name "${id}-${slug}.org")))
+
 (use-package org-journal
+  :after (vulpea)
   :bind ("C-c n j" . org-journal-new-entry)
   :custom
-  (org-journal-dir (file-truename "~/pylon/journals/"))
+  (org-journal-dir (file-truename (file-name-concat vulpea-default-notes-directory "journals")))
   (org-journal-date-prefix "#+TITLE: ")
   (org-journal-date-format "%A, %B %d %Y"))
-
-(use-package org-roam
-  :init
-  (with-eval-after-load
-      'org
-    (org-roam-db-autosync-mode))
-  :bind
-  ("C-c n c" . org-roam-capture)
-  ("C-c n d" . org-roam-dailies-goto-today)
-  ("C-c n g" . org-roam-graph)
-  ("C-c n f" . org-roam-node-find)
-  ("C-c n i" . org-roam-node-insert)
-  :custom
-  (org-roam-capture-templates
-   '(("d" "default" plain "%?" :target
-      (file+head
-       "%<%Y%m%dT%H%M%S>-${slug}.org"
-       ":PROPERTIES:\n:ID:       %(car (split-string (file-name-nondirectory (org-roam-capture--get :new-file)) \"-\"))\n:END:\n#+title: ${title}\n")
-      :unnarrowed t)))
-  (org-roam-extract-new-file-path "%<%Y%m%dT%H%M%S>-${slug}.org")
-  (org-roam-directory (file-truename "~/pylon")))
 
 ;; Programming.
 

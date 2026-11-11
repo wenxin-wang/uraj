@@ -21,6 +21,7 @@
      ;; Data.
      "direnv"
      "fd"
+     "fswatch"
      "git"
      "git-lfs"
      "ripgrep"
