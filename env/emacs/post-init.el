@@ -1031,10 +1031,18 @@ dir is the directory of the buffer (param of my/project-try), when it's changed,
   :hook
   (emacs-startup . (lambda () (vulpea-db-autosync-mode +1)))
   :init
-  (setq vulpea-db-sync-directories
+  (defun subdirs-if-exists (dir &optional excludes)
+    (when (file-exists-p dir)
         (seq-filter
-         #'file-exists-p
-         (list "~/office/" "~/src/khalis/" "~/hearth/" "~/pylon/" "~/labyrinth/")))
+	  (lambda (p)
+	    (and (file-directory-p p)
+		 (not (member (file-name-nondirectory p) excludes))))
+         (directory-files dir t directory-files-no-dot-files-regexp))))
+  (setq vulpea-db-sync-directories
+        (seq-filter #'file-exists-p
+                    (append
+                     (subdirs-if-exists "~/spaces/office/")
+                     (subdirs-if-exists "~/spaces/" '("office")))))
   (setq vulpea-default-notes-directory (car vulpea-db-sync-directories))
   :bind
   ;; ("C-c n c" . org-roam-capture)
