@@ -1197,6 +1197,7 @@ def main():
                 args.root = [
                     "~/src",
                     "~/Projects",
+                    "~/spaces",
                     "~/.local/share/paseo/worktrees",
                 ]
             BrokerServer(args).run_event_loop()

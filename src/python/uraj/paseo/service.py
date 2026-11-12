@@ -19,7 +19,7 @@ from uraj.config import yaml_config
 # Authorized like a project root, but not among agents' common mounts.
 WORKTREES = ".local/share/paseo/worktrees"
 OLD_WORKTREES = "Projects/paseo-worktrees"
-ROOTS = ("src", "Projects", WORKTREES)
+ROOTS = ("src", "Projects", "spaces", WORKTREES)
 # Seconds to wait for a policy SOPS decrypts: at boot the daemon may start
 # before SOPS is done.
 SECRET_TIMEOUT = 10
