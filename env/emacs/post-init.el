@@ -1042,7 +1042,8 @@ dir is the directory of the buffer (param of my/project-try), when it's changed,
         (seq-filter #'file-exists-p
                     (append
                      (subdirs-if-exists "~/spaces/office/")
-                     (subdirs-if-exists "~/spaces/" '("office")))))
+                     (subdirs-if-exists "~/spaces/" '("office"))
+		     '("~/src/pylon"))))
   (setq vulpea-default-notes-directory (car vulpea-db-sync-directories))
   :bind
   ;; ("C-c n c" . org-roam-capture)
