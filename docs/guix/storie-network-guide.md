@@ -22,14 +22,14 @@ its sibling macvlan interface. No dedicated Paseo IP or namespace is needed.
 
 ## Deployment
 
-Prepare the router's DHCP reservation for `02:31:00:00:00:02`, then
-reconfigure and reboot to switch the network and discard old leases/addresses
-on the physical interface. Check the server's DHCP client-ID matching rules
-as well as its MAC reservation; the host address is supplied by DHCP.
+The router needs a DHCP reservation for `02:31:00:00:00:02`. Check the
+server's DHCP client-ID matching rules as well as its MAC reservation; the
+host address is supplied by DHCP.
 
 Do not restart `networking` or `host-macvlan` casually over SSH: Shepherd
-can stop dependent services, including SSH and Paseo. Apply network changes with reconfigure followed by reboot. Reconfiguration alone does
-not guarantee that the old running network service has been replaced.
+can stop dependent services, including SSH and Paseo. Apply network changes
+with reconfigure followed by reboot. Reconfiguration alone does not guarantee
+that the old running network service has been replaced.
 
 After boot, check:
 
@@ -55,7 +55,7 @@ The installed system exports `/core-data` and `/media-data` read/write to
 prefix is dynamically assigned.
 These are client source networks, not the server's subnet. Other source
 addresses are not authorized by the exports. Connect to the host (currently
-`172.31.0.5`), not the former container address `172.31.255.6`.
+`172.31.0.5`).
 `crossmnt` includes mounted child datasets such as `archive` and `backups`,
 including future children. NFS waits for all four expected ZFS mounts;
 the installer does not start NFS.
@@ -76,11 +76,9 @@ so this is appropriate for trusted machines on the LAN, not isolation from
 their administrators. For untrusted clients, use Kerberos (`sec=krb5p`)
 with a separate identity setup. AUTH_SYS does not encrypt file traffic.
 
-Keep existing ZFS ownership intact. At inspection on 2026-10-21,
-`/core-data` and `/core-data/archive` were `0:0` mode 755,
-`/core-data/backups` was `0:100` mode 755, and `/media-data` was
-`105:100` mode 755; `wenxin` was `1000:998`. A read/write export does not
-grant that account permission to create files in these top-level directories.
+Keep existing ZFS ownership intact. The top-level directories belong to root
+or service accounts, not to an ordinary login user, so a read/write export
+does not grant that user permission to create files in them.
 Permissions within child directories and on existing files are independent;
 these top-level modes do not imply that all existing files are unwritable.
 For shared writes, provision a dedicated subdirectory on the server, assign
@@ -110,7 +108,7 @@ them: Guix writes direct autofs entries into `auto.master` in a form
 automount rejects.
 Reconfigure each client to enable this service; the live installers do not
 include it.
-Deploy the server's current LAN allowlist first.
+The server's exports must already allow the client's source address.
 
 Boot starts the local automounter without contacting storie. Accessing a
 share triggers an NFSv4.2 mount over IPv4 TCP. Any process can trigger it,
