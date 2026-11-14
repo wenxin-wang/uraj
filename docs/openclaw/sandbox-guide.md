@@ -1,7 +1,5 @@
 # OpenClaw 执行沙箱
 
-> 迁移自 `docs/openclaw.org` 的 “执行沙箱”（2026-11-14，内容未改）。
-
 ## 执行沙箱
 
 Shepherd 用 compose 同时启动 Gateway 与引擎容器 `engine`。引擎内运行

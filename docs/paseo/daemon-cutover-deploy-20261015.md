@@ -2,8 +2,6 @@
 
 > 旧文档：只读，不再更新。现状见 [daemon-guide.md](daemon-guide.md)。
 
-> 迁移自 `docs/paseo-daemon.org` 的 “First transition and operation”（2026-11-14，内容未改）。
-
 ## First transition and operation
 
 Finish active sessions before switching: broker/daemon shutdown ends provider

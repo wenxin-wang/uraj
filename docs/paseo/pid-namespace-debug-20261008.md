@@ -1,7 +1,5 @@
 # Investigation: Guix PID namespace versus cgroup
 
-> 迁移自 `docs/paseo-broker.org` 的 “Investigation: Guix PID namespace versus cgroup (2026-10-08)”（2026-11-14，内容未改）。
-
 ## Investigation: Guix PID namespace versus cgroup (2026-10-08)
 
 Source inspected: installed Guix 90d978cb9a60a3ea5bf676c9637ae2f718304a31,

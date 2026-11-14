@@ -30,9 +30,10 @@ uraj 的文档按模块和日期组织，有术语表、模块登记表和子项
    11/14 定：迁移后单独的 `layout` PR。
 5. ~~术语表里 4 处冲突的统一方式。~~ 11/14 定：按建议，写在
    [术语表](../../glossary.md#用词约定) 的“用词约定”。
-6. `paseo-broker.org` 的“Acceptance before enabling the broker”清单是否已全部做完。
-   迁移时按验收清单放在 `docs/paseo/broker-acceptance-design-20261016.md`，
-   仍待人确认它是已完成的记录还是待办。
+6. ~~`paseo-broker.org` 的“Acceptance before enabling the broker”清单是否已全部做完。~~
+   11/14 定：已完成，broker 已长期使用。放在
+   `docs/paseo/broker-acceptance-measure-20261016.md`，标为旧文档。
+7. ~~拆出的文件首行是否注明来源。~~ 11/14 定：不注明，来源看 git 历史。
 
 ## 文档
 

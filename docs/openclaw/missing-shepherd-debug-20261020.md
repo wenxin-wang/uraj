@@ -1,7 +1,5 @@
 # OpenClaw 部署后没有 Shepherd 服务
 
-> 迁移自 `docs/openclaw.org` 的 “部署后没有 Shepherd 服务”（2026-11-14，内容未改）。
-
 ## 部署后没有 Shepherd 服务
 
 若 `/etc/openclaw` 已存在，但 `sudo herd status openclaw` 找不到服务，

@@ -1,7 +1,5 @@
 # 用 guix deploy 远程更新
 
-> 迁移自 `env/guix/os/README.org` 的 “用 guix deploy 远程更新”（2026-11-14，内容未改）。
-
 ## 用 guix deploy 远程更新
 
 共享的 `base-os` 创建 `guix-deploy` 用户，桌面和服务器都继承它。

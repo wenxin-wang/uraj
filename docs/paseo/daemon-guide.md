@@ -1,7 +1,5 @@
 # Paseo application container and services
 
-> 迁移自 `docs/paseo-daemon.org` 的 “开头”、“Layout”、“Configuration”、“Image attachments”、“Daemon mounts and independent SSH agent”、“Storie”、“Verification”（2026-11-14，内容未改）。
-
 ## Layout
 
 `(uraj services paseo)` starts two system Shepherd services at boot:

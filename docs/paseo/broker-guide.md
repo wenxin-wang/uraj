@@ -1,7 +1,5 @@
 # Paseo broker
 
-> 迁移自 `docs/paseo-broker.org` 的 “开头”、“Implemented trial and lappie commands”、“Execution tiers”（2026-11-14，内容未改）。
-
 ## Implemented trial and lappie commands
 
 | File | Role |

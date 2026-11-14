@@ -1,7 +1,5 @@
 # 系统日志读取
 
-> 迁移自 `env/guix/os/README.org` 的 “系统日志读取”（2026-11-14，内容未改）。
-
 ## 系统日志读取
 
 共享系统配置以 rsyslog 替换 Shepherd 内置的 system-log 服务。

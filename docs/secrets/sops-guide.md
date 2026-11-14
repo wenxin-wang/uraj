@@ -1,7 +1,5 @@
 # SOPS secrets
 
-> 迁移自 `secrets/README.org` 的 “SOPS secrets”、“布局与权限”、“编辑与验证”、“接入机器”（2026-11-14，内容未改）。
-
 ## SOPS secrets
 
 仓库根目录的 `.sops.yaml` 定义收件人；`keys/admin.asc` 只包含公钥。

@@ -1,7 +1,5 @@
 # storie 的 Immich
 
-> 迁移自 `env/guix/os/README.org` 的 “storie 的 Immich”（2026-11-14，内容未改）。
-
 ## storie 的 Immich
 
 主体是 `(uraj services immich)`，由 `storie.scm` 引用。安装系统启动

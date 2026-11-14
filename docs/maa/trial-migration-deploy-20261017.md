@@ -2,8 +2,6 @@
 
 > 旧文档：只读，不再更新。现状见 [redroid-guide.md](redroid-guide.md)。
 
-> 迁移自 `docs/maa.org` 的 “Move from the trials to production”（2026-11-14，内容未改）。
-
 ## Move from the trials to production
 
 The tested, logged-in instance at `.5` uses

@@ -1,7 +1,5 @@
 # Arknights automation on redroid
 
-> 迁移自 `docs/maa.org` 的 “Deployment with redroid”、“Design”、“Networking”、“Control plane”、“Implementation and first deployment”、“ARM translation”、“Runtime evidence and remaining checks”、“storie standby”、“References”（2026-11-14，内容未改）。
-
 ## Deployment with redroid
 
 ### Design

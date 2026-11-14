@@ -1,7 +1,5 @@
 # Guix runtime modules
 
-> 迁移自 `docs/coding-style.org` 的 “Guix runtime modules”（2026-11-14，内容未改）。
-
 ## Guix runtime modules
 
 Use `(uraj utils gexp)` when a generated program or activation gexp imports local

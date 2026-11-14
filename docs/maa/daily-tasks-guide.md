@@ -1,7 +1,5 @@
 # MAA scheduled daily tasks
 
-> 迁移自 `docs/maa.org` 的 “Scheduled daily tasks”（2026-11-14，内容未改）。
-
 ## Scheduled daily tasks
 
 The installed hypie system includes `%maa-services` from

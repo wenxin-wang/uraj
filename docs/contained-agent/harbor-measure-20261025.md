@@ -1,7 +1,5 @@
 # Harbor acceptance
 
-> 迁移自 `docs/contained-agent.org` 的 “Harbor acceptance”（2026-11-14，内容未改）。
-
 ## Harbor acceptance
 
 The worktree already includes jobs/, instances/ and the apt-cacher files.

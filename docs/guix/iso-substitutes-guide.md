@@ -1,7 +1,5 @@
 # Live ISO 的内网 substitutes
 
-> 迁移自 `env/guix/os/README.org` 的 “Live ISO 的内网 substitutes”（2026-11-14，内容未改）。
-
 ## Live ISO 的内网 substitutes
 
 运行 `maak -f env/guix/os/maak.scm build-iso [配置路径]` 时，ISO 会信任

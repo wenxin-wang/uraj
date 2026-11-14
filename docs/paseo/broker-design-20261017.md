@@ -2,8 +2,6 @@
 
 > 旧文档：只读，不再更新。现状见 [broker-guide.md](broker-guide.md)。
 
-> 迁移自 `docs/paseo-broker.org` 的 “Status and scope”、“Observed Paseo contract”、“Launch and transport”、“Host policy and integration”、“Cleanup boundary: invariant and alternative cgroup implementation”（2026-11-14，内容未改）。
-
 ## Status and scope
 
 The broker is integrated with the boot service described in

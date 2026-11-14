@@ -1,7 +1,5 @@
 # Guix 的 crates 下载镜像
 
-> 迁移自 `env/guix/os/README.org` 的 “Guix 的 crates 下载镜像”（2026-11-14，内容未改）。
-
 ## Guix 的 crates 下载镜像
 
 共享 `base-services` 为 Guix daemon 设置

@@ -1,7 +1,5 @@
 # MAA production recipe checks
 
-> 迁移自 `docs/maa.org` 的 “Production recipe checks, 2026-10-17”（2026-11-14，内容未改）。
-
 ## Production recipe checks, 2026-10-17
 
 The Guix Houdini package, static BusyBox (including its upstream tests), and

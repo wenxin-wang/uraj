@@ -1,7 +1,5 @@
 # Coding style checks
 
-> 迁移自 `docs/coding-style.org` 的 “Coding style”（2026-11-14，内容未改）。
-
 ## Coding style
 
 C/C++ uses the applicable rules of the [Google C++ style guide](https://google.github.io/styleguide/cppguide.html), with

@@ -1,7 +1,5 @@
 # Parent-death experiment results
 
-> 迁移自 `docs/paseo-broker.org` 的 “Parent-death experiment results (2026-10-09)”（2026-11-14，内容未改）。
-
 ## Parent-death experiment results (2026-10-09)
 
 Reproducible harness:

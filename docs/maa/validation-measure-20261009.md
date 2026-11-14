@@ -2,8 +2,6 @@
 
 > 旧文档：只读，不再更新。现状见 [redroid-guide.md](redroid-guide.md)。
 
-> 迁移自 `docs/maa.org` 的 “Validation status”（2026-11-14，内容未改）。
-
 ## Validation status
 
 The network implementation now uses the shared restricted-network service;

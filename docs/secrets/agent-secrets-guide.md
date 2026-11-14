@@ -1,7 +1,5 @@
 # contained agent 与 Paseo 的秘密
 
-> 迁移自 `secrets/README.org` 的 “contained agent 与 Paseo 的 GitHub token”、“contained agent 与 Paseo 的私有沙箱策略”、“Paseo 的 per-host YAML 配置”（2026-11-14，内容未改）。
-
 ## contained agent 与 Paseo 的 GitHub token
 
 容器内的 agent 和 Paseo daemon 通过 HTTPS 推拉、用 `gh` 提 PR 需要

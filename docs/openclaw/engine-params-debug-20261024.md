@@ -1,7 +1,5 @@
 # OpenClaw 引擎参数的验证
 
-> 迁移自 `docs/openclaw.org` 的 “引擎参数的验证”（2026-11-14，内容未改）。
-
 ## 引擎参数的验证
 
 引擎的放宽参数沿用 contained-agent Podman runtime 原型的经验，但那是在

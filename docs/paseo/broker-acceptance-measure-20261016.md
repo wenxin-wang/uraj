@@ -1,6 +1,6 @@
 # Acceptance before enabling the broker
 
-> 迁移自 `docs/paseo-broker.org` 的 “Acceptance before enabling the broker”（2026-11-14，内容未改）。
+> 旧文档：只读，不再更新。验收已完成，broker 已长期使用；现状见 [broker-guide.md](broker-guide.md)。
 
 ## Acceptance before enabling the broker
 

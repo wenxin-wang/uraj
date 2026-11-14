@@ -1,7 +1,5 @@
 # Storie OpenClaw / 飞书：范围
 
-> 迁移自 `docs/openclaw.org` 的 “当前范围”、“参考”（2026-11-14，内容未改）。
-
 ## 当前范围
 
 一个飞书 bot、一个 Gateway 容器、多个独立身份和记忆的 agent，通过 new-api 调用模型。

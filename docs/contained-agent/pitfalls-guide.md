@@ -1,7 +1,5 @@
 # contained-agent pitfalls
 
-> 迁移自 `docs/contained-agent.org` 的 “Pitfalls”（2026-11-14，内容未改）。
-
 ## Pitfalls
 
 Each of these was hit or tested while building this.

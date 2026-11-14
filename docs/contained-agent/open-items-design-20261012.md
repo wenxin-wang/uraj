@@ -2,8 +2,6 @@
 
 > 旧文档：只读，不再更新。现状见 [contained-agent](../contained-agent.md)。
 
-> 迁移自 `docs/contained-agent.org` 的 “Open items”（2026-11-14，内容未改）。
-
 ## Open items
 
 - Paseo outside the agent's container: see [Paseo broker design](../paseo/broker-guide.md)

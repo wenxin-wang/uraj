@@ -1,7 +1,5 @@
 # Agent specs
 
-> 迁移自 `docs/contained-agent.org` 的 “Agent specs”（2026-11-14，内容未改）。
-
 ## Agent specs
 
 Specs are alists in `llm.scm` (Codex uses `codex-spec` in the launcher);

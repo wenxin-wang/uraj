@@ -1,7 +1,5 @@
 # Local Podman runtime
 
-> 迁移自 `docs/contained-agent.org` 的 “Local Podman runtime”（2026-11-14，内容未改）。
-
 ## Local Podman runtime
 
 The central `(podman-remote)` clause starts or reuses a project-owned rootless

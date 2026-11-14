@@ -1,7 +1,5 @@
 # The contained-agent container
 
-> 迁移自 `docs/contained-agent.org` 的 “The container”（2026-11-14，内容未改）。
-
 ## The container
 
 - `--container --no-cwd --network --expose=/gnu/store`.  The whole store is

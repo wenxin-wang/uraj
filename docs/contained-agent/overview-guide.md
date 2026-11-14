@@ -1,7 +1,5 @@
 # contained-agent overview
 
-> 迁移自 `docs/contained-agent.org` 的 “开头”、“Components”、“Use”、“What agents cannot do”（2026-11-14，内容未改）。
-
 `contained-agent` runs a coding agent (Codex, Claude Code, OpenCode, Pi) inside
 `guix shell --container`.  The container shares only the current project
 and the parts of the agent's own state that must persist.  The same command

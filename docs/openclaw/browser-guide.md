@@ -1,7 +1,5 @@
 # OpenClaw 沙箱里的浏览器
 
-> 迁移自 `docs/openclaw.org` 的 “沙箱里的浏览器”、“手动接管沙箱浏览器”（2026-11-14，内容未改）。
-
 ## 沙箱里的浏览器
 
 沙箱镜像 `env/docker/openclaw-sandbox` 带 agent-browser、Debian 的

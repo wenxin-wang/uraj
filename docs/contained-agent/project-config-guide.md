@@ -1,7 +1,5 @@
 # Project configuration
 
-> 迁移自 `docs/contained-agent.org` 的 “Project configuration”（2026-11-14，内容未改）。
-
 ## Project configuration
 
 Clauses, in both places below:

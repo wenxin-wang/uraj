@@ -1,7 +1,5 @@
 # Optional Guix daemon access
 
-> 迁移自 `docs/contained-agent.org` 的 “Optional Guix daemon access”（2026-11-14，内容未改）。
-
 ## Optional Guix daemon access
 
 The managed uraj entry includes `(guix-daemon)` so its sessions can run

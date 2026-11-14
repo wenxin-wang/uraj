@@ -1,7 +1,5 @@
 # Per-project SSH agents
 
-> 迁移自 `docs/contained-agent.org` 的 “Per-project SSH agents”（2026-11-14，内容未改）。
-
 ## Per-project SSH agents
 
 Only the central `projects.scm` or host-private `projects.local.scm` may

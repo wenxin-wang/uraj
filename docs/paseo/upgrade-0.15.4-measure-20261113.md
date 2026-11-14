@@ -1,7 +1,5 @@
 # Paseo upgrade from 0.11.4 to 0.15.4
 
-> 迁移自 `docs/paseo-daemon.org` 的 “Upgrade from 0.11.4 to 0.15.4”（2026-11-14，内容未改）。
-
 ## Upgrade from 0.11.4 to 0.15.4
 
 As checked on 2026-11-13, [0.15.4](https://github.com/getpaseo/paseo/releases/tag/v0.15.4) is the latest stable release;

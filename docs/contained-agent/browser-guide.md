@@ -1,7 +1,5 @@
 # Browser tasks
 
-> 迁移自 `docs/contained-agent.org` 的 “Browser tasks”（2026-11-14，内容未改）。
-
 ## Browser tasks
 
 Agents browse with the OpenClaw sandbox's `browser-profile` design: the user
