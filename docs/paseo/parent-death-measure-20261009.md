@@ -5,7 +5,7 @@
 ## Parent-death experiment results (2026-10-09)
 
 Reproducible harness:
-[parent-death-namespace.py](../test/python/uraj/guix/contained-agent/parent-death-namespace.py).
+[parent-death-namespace.py](../../test/python/uraj/guix/contained-agent/parent-death-namespace.py).
 Run with Linux Python 3.9+, an installed Guix, user/PID/mount namespaces,
 and pidfd support:
 

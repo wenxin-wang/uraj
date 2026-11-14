@@ -88,7 +88,7 @@ a common numeric group on all machines, and use mode 2770 with umask 0007.
 Do not recursively chown existing application data (including Immich) or
 disable root squash to solve an ownership mismatch.
 
-Deploy using the commands in `env/guix/os/README.org`. Verify on storie:
+Deploy using the commands in [deploy-guide.md](deploy-guide.md). Verify on storie:
 
 ```sh
 sudo herd status nfs

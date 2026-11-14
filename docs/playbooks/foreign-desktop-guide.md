@@ -31,7 +31,7 @@ roles/foreign-distro 做（foreign distro 专属部分）：
 - 安装宿主 `gnome-keyring` 与 `libpam-gnome-keyring`，保留宿主的
   Secret Service、登录解锁与密码库。Guix Home 的 askpass 通过用户
   D-Bus 访问它；只禁用 GNOME/GCR 的 SSH agent。配置与验证见
-  [SSH 密码存储](../../docs/ssh-keyring.md)。
+  [SSH 密码存储](../desktop/ssh-keyring-guide.md)。
 - 安装 pcscd（智能卡 / YubiKey，Debian 系；说明见
   src/guix/uraj/home/basic-dev.scm）
 - 允许 evince 读 `/gnu/store/**`（写入

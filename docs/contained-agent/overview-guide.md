@@ -48,7 +48,7 @@ as `contained-agent` the first argument names the agent, or is `allow` or
   so `codex`, `claude`, `opencode` and `pi` are the contained ones.
   The originals remain at `~/.guix-home/profile/bin/`.
 - Paseo: Home activation configures daily broker clients in `~/.paseo/config.json`
-  (see [daemon service](paseo-daemon.md)):
+  (see [daemon service](../paseo/daemon-guide.md)):
   ```json
   "agents": { "providers": {
     "codex":  { "command": ["/home/wenxin/.guix-home/profile/bin/paseo-codex-daily"] },
@@ -64,7 +64,7 @@ as `contained-agent` the first argument names the agent, or is `allow` or
   one project and make every other workspace unreachable.
   Restart the daemon after a change: it caches the provider version probe.
 - Approve a project's own files: `contained-agent allow [DIRECTORY]`.
-- Approve a new worktree as its source checkout (see [Inherited approvals](#inherited-approvals)):
+- Approve a new worktree as its source checkout (see [Inherited approvals](project-config-guide.md#inherited-approvals)):
   `contained-agent inherit [DIRECTORY]`.
 
 ## What agents cannot do

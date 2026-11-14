@@ -295,7 +295,7 @@ devices.  Building a `program-file` alone does not test module loading.
 Both entry points use `with-uraj-modules` from `(uraj utils gexp)` to collect
 `uraj` as well as `guix` / `gnu` dependencies. Guix's default closure
 selector excludes third-party modules, even the root module. See
-[Guix runtime modules](coding-style.md#guix-runtime-modules) for the shared convention and its limits.
+[Guix runtime modules](../guix/runtime-modules-guide.md#guix-runtime-modules) for the shared convention and its limits.
 
 The packet test needs `nft`, `ip`, `unshare`, `nsenter`, `sysctl`, Python and
 Guix on PATH.  It creates its own user/network namespaces and virtual peers;

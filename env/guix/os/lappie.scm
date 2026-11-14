@@ -95,7 +95,7 @@
           (permissions #o400)))))
 
 ;; GitHub tokens and private sandbox policies for contained agents and
-;; Paseo, see secrets/README.org.
+;; Paseo, see docs/secrets/agent-secrets-guide.md.
 (define %agent-secrets
   (let ((user (user-account-name %main-user)))
     (append (github-token-secrets user)

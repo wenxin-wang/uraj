@@ -14,11 +14,12 @@
             sandbox-policy-secret))
 
 ;;; SOPS secrets of contained-agent and the Paseo daemon, see
-;;; secrets/README.org.  (uraj system secrets) decrypts them on the hosts
-;;; that have them.  The programs using them know which hosts these are
-;;; and, on them, wait for each file at runtime instead of starting without
-;;; it: at boot they may run before SOPS is done.  The host is checked at
-;;; runtime because a Home is not always built on the machine it is for.
+;;; docs/secrets/agent-secrets-guide.md.  (uraj system secrets) decrypts
+;;; them on the hosts that have them.  The programs using them know which
+;;; hosts these are and, on them, wait for each file at runtime instead of
+;;; starting without it: at boot they may run before SOPS is done.  The
+;;; host is checked at runtime because a Home is not always built on the
+;;; machine it is for.
 
 (define (on-hosts hosts value)
   #~(and (member (gethostname) '#$hosts) #$value))

@@ -4,7 +4,8 @@
 GitHub has no API to create personal access tokens, so this opens the token
 form with what it can fill in, reads the token you paste back without echoing
 it, checks it, and stores it in secrets/shared/github.yaml with SOPS.  Run on
-the host, in the project's Guix environment; see secrets/README.org.
+the host, in the project's Guix environment; see
+docs/secrets/agent-secrets-guide.md.
 """
 
 import argparse

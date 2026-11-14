@@ -6,7 +6,7 @@
 
 ## Open items
 
-- Paseo outside the agent's container: see [Paseo broker design](paseo-broker.md)
+- Paseo outside the agent's container: see [Paseo broker design](../paseo/broker-guide.md)
   for the implemented host execution service, lappie trial commands and
   lifecycle/cleanup tests.  The host provider switch is explicit; existing
   direct provider commands still rely on Paseo's process-tree cleanup.

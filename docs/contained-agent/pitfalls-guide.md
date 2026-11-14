@@ -39,7 +39,7 @@ Each of these was hit or tested while building this.
 - `--nesting` shares the host's `~/.cache/guix` read-write: the channel
   checkouts that host-side `guix pull` and `time-machine` evaluate.  The
   optional `guix-daemon` clause covers this with a project-specific cache,
-  mounted after nesting's mappings.  See [Optional Guix daemon access](#optional-guix-daemon-access) for
+  mounted after nesting's mappings.  See [Optional Guix daemon access](guix-daemon-guide.md#optional-guix-daemon-access) for
   the remaining tradeoffs.
 
 ### Mounts

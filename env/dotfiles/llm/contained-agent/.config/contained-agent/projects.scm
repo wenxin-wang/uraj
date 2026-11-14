@@ -4,7 +4,8 @@
 ;;;   (project ROOT (expose PATH ...) (share PATH ...) (preserve REGEXP ...)
 ;;;                 (guix-daemon) (git-hooks DIR))
 ;;; Projects may add the same clauses in .guix/contained-agent.scm, which
-;;; count after `contained-agent allow'; see docs/contained-agent.org.
+;;; count after `contained-agent allow'; see
+;;; docs/contained-agent/project-config-guide.md.
 ;;; Host-private additions (same project syntax, no reconfigure needed):
 ;;; ~/.config/contained-agent/projects.local.scm.  Keep identities and host
 ;;; names there; it is not deployed by Home or stored in this repository.

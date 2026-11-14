@@ -61,5 +61,5 @@ DeepSeek 尚未配置。Live ISO 不声明 OpenClaw。
 - [官方飞书接入](https://docs.openclaw.ai/channels/feishu)
 - [SecretRef 契约](https://docs.openclaw.ai/gateway/secrets/secretref-contract)
 - [选定版本源码](https://github.com/openclaw/openclaw/tree/v2026.10.3)
-- [Restricted workload networks](restricted-network.md)
-- [仓库 SOPS 约定](../secrets/README.md)
+- [Restricted workload networks](../restricted-network/networks-guide.md)
+- [仓库 SOPS 约定](../secrets/sops-guide.md)

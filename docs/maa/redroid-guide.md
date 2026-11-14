@@ -37,7 +37,7 @@ Android.  Do not use host networking: Android manages routes and networking
 inside its namespace, and its ADB daemon must not listen on the host's LAN
 interfaces.  Do not publish container ports.
 
-Guix's shared [restricted-network service](restricted-network.md) owns IPv4 forwarding and
+Guix's shared [restricted-network service](../restricted-network/networks-guide.md) owns IPv4 forwarding and
 nftables tables for egress masquerading and filtering.  Docker's automatic
 iptables/ip6tables, IP forwarding and userland proxy management are disabled.
 The default Docker bridge is disabled; the redroid network is explicitly

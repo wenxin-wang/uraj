@@ -109,7 +109,7 @@ suggests `ssh-start` on the host; no partial agent is kept.  To permanently
 disable automatic SSH access, remove the central clause and stop the agent.
 
 The above host lifecycle applies to direct terminal use.  The
-[Paseo broker](paseo-broker.md) instead keeps a separate shared SSH service outside session
+[Paseo broker](../paseo/broker-guide.md) instead keeps a separate shared SSH service outside session
 namespaces.  It unlocks once per project and unchanged policy during a broker
 lifetime; closing a session does not remove those keys.  Broker shutdown clears
 that service.  Its PID records are isolated from direct host `ssh-start` and

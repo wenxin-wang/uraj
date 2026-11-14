@@ -55,7 +55,7 @@ added with a project's central `preserve` clause.
 
 Paseo's system tier currently uses this same policy; its host tier bypasses
 contained-agent. Terminal `claude`/`codex` remain contained by default. See
-[Paseo provider and configuration management](paseo-daemon.md#configuration).
+[Paseo provider and configuration management](../paseo/daemon-guide.md#configuration).
 
 - `~/.claude` is an overlay.  Settings (`settings.json` links to one of the
   `settings.json.*` profiles), plugins, skills and any new file such as

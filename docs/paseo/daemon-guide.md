@@ -20,7 +20,7 @@ It cannot see the broker's execution records or SSH material, host agent
 credentials, user Shepherd socket, or Guix daemon socket. The host broker
 launches agents through the existing contained-agent policy. Socket peers
 must have the broker's host UID, including across the daemon's user namespace.
-This remains a same-user execution boundary; see [broker limitations](paseo-broker.md).
+This remains a same-user execution boundary; see [broker limitations](broker-guide.md).
 
 Lappie and foreign-distro desktops run both services in the niri session's
 Home Shepherd. On Guix System, the broker waits for `gnome-keyring-secrets`;
@@ -88,7 +88,7 @@ older clients hide them. This is not a live-session sandbox switch.
 System currently uses exactly the daily launcher and project permissions.
 Host runs the Guix package's real binary outside namespaces as the broker user;
 it does not bypass the agent's own permission settings or grant root. See
-[broker execution tiers](paseo-broker.md#execution-tiers) for lifetime and authorization limits.
+[broker execution tiers](broker-guide.md#execution-tiers) for lifetime and authorization limits.
 Host inherits the broker's `TMPDIR` when set, otherwise applications use their
 normal system temporary directory. Its temporary files are not placed in the
 broker's execution records directory or recursively removed on session exit;
@@ -153,7 +153,7 @@ Direct `paseo-service activate` accepts `--public-config FILE` and
 `--private-config FILE`. Guix Home supplies these automatically on declared hosts.
 
 The selected public and private mappings use the `overrides`/`delete` format in
-[the shared configuration module](json-config.md). Private wins over public, which wins over
+[the shared configuration module](../config/json-config-guide.md). Private wins over public, which wins over
 existing settings/defaults. `worktrees.root` and the first element of each
 provider `command` may use `~/`; activation expands it against the target
 user's Home before writing JSON. Other arguments and environment values remain
@@ -263,7 +263,7 @@ It is read as data, never evaluated, and is not managed or overwritten by
 Home activation. With no file, the existing daemon mounts remain unchanged.
 A host can instead keep its policy encrypted in the repository, as
 `secrets/hosts/HOST/paseo.yaml`, which SOPS decrypts to
-`/run/secrets/paseo/sandbox.scm` (see [secrets/README.org](../secrets/README.md)).  It then
+`/run/secrets/paseo/sandbox.scm` (see [docs/secrets/agent-secrets-guide.md](../secrets/agent-secrets-guide.md)).  It then
 replaces the unmanaged file, whose presence fails the start so that it is
 never silently ignored.  The service launcher knows, from build time,
 which hosts have an encrypted policy: there, it waits up to 10 seconds for
@@ -276,7 +276,7 @@ project policy. Extra project mounts do not expand the broker's allowed
 roots. Its `preserve` clause covers only the daemon container's own
 environment; variables for provider executions are named separately in
 `~/.config/paseo/broker-sandbox.json` and read by the host broker, as
-described in [the broker policy](paseo-broker.md).
+described in [the broker policy](broker-guide.md).
 
 ```scheme
 ;; Writable data, and clone over HTTPS whatever the host's login reaches.

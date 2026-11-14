@@ -51,9 +51,9 @@ key 会让解密失败。
 使用方：
 
 - agent：`env/dotfiles/llm/contained-agent/.config/contained-agent/projects.scm`
-  中项目写 `(github "personal")` 等，见 [docs/contained-agent.org](../docs/contained-agent.md)。
+  中项目写 `(github "personal")` 等，见 [docs/contained-agent/project-config-guide.md](../contained-agent/project-config-guide.md)。
 - Paseo daemon：`~/.config/paseo/sandbox.scm` 写 `(github "world")`，见
-  [docs/paseo-daemon.org](../docs/paseo-daemon.md)。
+  [docs/paseo/daemon-guide.md](../paseo/daemon-guide.md)。
 
 launcher 在每次启动时读取 token 文件，不会改用宿主机自己的登录。
 Guix System 上文件缺失时最多等 10 秒（开机时 agent 或 Paseo 可能先于
@@ -88,7 +88,7 @@ contained-agent:
 ```
 
 `paseo.yaml` 同理，键为 `paseo` 下的 `sandbox.scm`。语法分别见
-[docs/contained-agent.org](../docs/contained-agent.md) 与 [docs/paseo-daemon.org](../docs/paseo-daemon.md)。
+[docs/contained-agent/project-config-guide.md](../contained-agent/project-config-guide.md) 与 [docs/paseo/daemon-guide.md](../paseo/daemon-guide.md)。
 
 文件存在即声明：各主机的系统配置用 `sandbox-policy-secrets` 解密到上表
 路径，归主用户所有、权限 0400；`contained-agent` 与 Paseo 服务程序在
@@ -136,5 +136,5 @@ Home 的系统 Shepherd 服务依赖对应的 `sops-secret-paseo/config.yaml`，
 解密文件不会因 Git 中的密文变化而自动刷新。配置合并不会自动重启 Paseo。
 foreign distro 需要自行用 SOPS 解密并向 Home 指定该私密 YAML 路径。
 
-合并、删除和路径展开规则见 [Paseo 文档](../docs/paseo-daemon.md) 与
-[通用配置模块文档](../docs/json-config.md)。
+合并、删除和路径展开规则见 [Paseo 文档](../paseo/daemon-guide.md) 与
+[通用配置模块文档](../config/json-config-guide.md)。

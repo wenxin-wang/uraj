@@ -111,7 +111,7 @@ reconfigure or `contained-agent allow`.
 A host can also keep such additions encrypted in the repository, as
 `secrets/hosts/HOST/contained-agent.yaml`, which SOPS decrypts to
 `/run/secrets/contained-agent/projects.scm` (see
-[secrets/README.org](../secrets/README.md)).  It joins the other two
+[docs/secrets/agent-secrets-guide.md](../secrets/agent-secrets-guide.md)).  It joins the other two
 files with the same syntax and rules.  The launcher knows, from build time,
 which hosts have one: there, it waits up to 10 seconds for the file, as an
 agent may start at boot before SOPS is done, then fails rather than start
@@ -177,7 +177,7 @@ token, which is the same one unless a `git-credential` clause applies.
 Remotes must use HTTPS for these to apply; SSH remotes keep using the
 `ssh-agent` clause, if any.  The tokens live inside a container with
 network access: treat them as readable by anything the agent runs; their
-scope is the protection.  [secrets/README.org](../secrets/README.md) covers requesting and rotating
+scope is the protection.  [docs/secrets/agent-secrets-guide.md](../secrets/agent-secrets-guide.md) covers requesting and rotating
 them.  uraj uses `(github "personal")`.
 
 Central configuration can select a manifest for this worktree:

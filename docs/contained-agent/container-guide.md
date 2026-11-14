@@ -23,7 +23,7 @@
   own command sandbox and by the overlays below.  Changes to the default package list
   take effect after Home reconfigure and starting a new agent session.
 - The network is still the host's (`--network`).  An allowlisting proxy is
-  future work; see [Open items](#open-items).
+  future work; see [Open items](open-items-design-20261012.md#open-items).
 - All agents can read `~/src` when it exists, including other repositories
   and their uncommitted files.  Common mounts come first; the current work
   tree is then mounted read-write, followed by its Git protections.  Other
@@ -31,7 +31,7 @@
 - All agents can read `~/.cache/paseo-tmp` when it exists. Paseo uses it as
   `TMPDIR` so Codex's `localImage` paths work across container boundaries.
   This includes other sessions' attachments and temporary files; see
-  [image attachments](paseo-daemon.md#image-attachments) for setup and cleanup.
+  [image attachments](../paseo/daemon-guide.md#image-attachments) for setup and cleanup.
 - All agents can also read `~/.paseo/uploads`, where Paseo stores file
   attachments such as PDFs. Only this subtree is exposed read-only; the
   remaining Paseo state stays private. This includes uploads from other
@@ -70,7 +70,7 @@ host-side git run code or read other files:
 A mount point cannot be renamed or removed (`EBUSY`).  The rule that makes
 this hold: every directory from a protected path up to the root of the
 writable share containing it must itself be a mount point.  That is why
-`.git` is a share of its own.  See [Pitfalls](#pitfalls) for the tests behind it.
+`.git` is a share of its own.  See [Pitfalls](pitfalls-guide.md#pitfalls) for the tests behind it.
 
 The main work tree of a linked worktree is automatically exposed read-only,
 even outside `~/src`, subject to the usual denied-path rules.  Bare
@@ -102,7 +102,7 @@ session:
 | `git remote add R URL` | `git config --global remote.R.url URL` and `remote.R.fetch '+refs/heads/*:refs/remotes/R/*'` |
 | `git config KEY VALUE` | `git config --global KEY VALUE` |
 
-A `git-hooks` clause (see [Project configuration](#project-configuration)) sets `core.hooksPath`
+A `git-hooks` clause (see [Project configuration](project-config-guide.md#project-configuration)) sets `core.hooksPath`
 in the same file, as hooks cannot be installed in the read-only `hooks/`.
 uraj's host-side hook, which `scripts/coding_style/install-hooks` links
 into the main work tree, is a deliberate exception to the read-only
@@ -118,7 +118,7 @@ its namesake on `origin`, and `@{push}` resolves, without any upstream.
 tmpfs home, so they start empty; the launcher carries over a single one,
 for the work tree's top-level `.envrc`, only when the host approved that
 exact path.  Linked worktrees need an approval of their own path, which
-they may inherit, see [Inherited approvals](#inherited-approvals); otherwise run `direnv allow`
+they may inherit, see [Inherited approvals](project-config-guide.md#inherited-approvals); otherwise run `direnv allow`
 in each worktree.
 
 The approval is written as direnv records it, under

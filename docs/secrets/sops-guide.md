@@ -28,7 +28,7 @@ sops-guix，从各自的 Ed25519 SSH host key 派生 age identity；需要在
 OpenClaw 的可选部署使用 `hosts/storie/openclaw.yaml`，同一份密文内
 分别保存飞书 App Secret、new-api token 和 Gateway token。服务启用后
 才声明这三个 secret，运行时各自解密；创建流程及挂载权限见
-[OpenClaw 部署说明](../docs/openclaw.md)。尚未创建飞书应用时可以保持未启用，
+[OpenClaw 部署说明](../openclaw/deploy-guide.md)。尚未创建飞书应用时可以保持未启用，
 不需要先提交占位凭据。新建密文只需收件人公钥，编辑已有密文才需要
 可用的解密私钥。
 

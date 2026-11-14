@@ -1,8 +1,8 @@
 ---
 # Host layer for a desktop that runs the Guix Home environment on a
 # foreign distro (apt packages, /etc files, GDM, udev).  Run on the
-# machine itself; see README.org.  Per-host steps, if any, live in
-# hosts/<hostname>.yml.
+# machine itself; see docs/playbooks/foreign-desktop-guide.md.  Per-host
+# steps, if any, live in hosts/<hostname>.yml.
 - name: Set up the foreign-distro desktop host layer
   hosts: localhost
   connection: local

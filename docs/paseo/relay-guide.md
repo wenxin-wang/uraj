@@ -3,7 +3,7 @@
 ## Layout
 
 Immich keeps 172.31.0.6; the Guix Paseo daemon uses storie's host address
-(see [daemon deployment and pairing](paseo-daemon.md)).
+(see [daemon deployment and pairing](daemon-guide.md)).
 The relay listens at 172.31.0.8:4000 on the shared macvlan network
 `docker_lan`, attached to `enp1s0`, with gateway 172.31.0.1.
 

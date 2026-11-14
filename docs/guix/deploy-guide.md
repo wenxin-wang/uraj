@@ -63,7 +63,7 @@ storie 的部署声明已经设置 `(build-locally? #t)`，系统在开发机构
 再传输到 storie 激活，不需要在 storie 执行 reconfigure。
 
 `uraj-home-reconfigure` 未传入配置文件时，若存在 `env/guix/os/$(hostname).scm`
-则部署该机器配置中嵌入的 Home（见 [Home-only deployment](../../../docs/home-only-deployment.md)），否则使用
+则部署该机器配置中嵌入的 Home（见 [Home-only deployment](home-only-deploy-guide.md)），否则使用
 `env/guix/os/home.scm`。
 
 `uraj-system-reconfigure` 和 `uraj-home-reconfigure` 会将配置路径后的

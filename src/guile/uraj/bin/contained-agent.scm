@@ -572,8 +572,8 @@ names hooks in each work tree."
 ;;; Credentials from host files.
 
 (define %github-secrets
-  ;; Where SOPS decrypts the token of each tier, see secrets/README.org, or
-  ;; #f if this host has no tokens.
+  ;; Where SOPS decrypts the token of each tier, see
+  ;; docs/secrets/agent-secrets-guide.md, or #f if this host has no tokens.
   (make-parameter "/run/secrets/github"))
 
 (define %github-tiers '("public" "personal" "world"))
