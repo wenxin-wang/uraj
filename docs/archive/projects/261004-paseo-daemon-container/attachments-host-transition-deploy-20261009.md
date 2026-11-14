@@ -1,7 +1,5 @@
 # 附件：daemon 仍在主机上运行时的过渡做法
 
-以下段落原在 [daemon-guide](../../../paseo/daemon-guide.md) 的 Image attachments 一节，2026-10-09 随 272f58d 写入，原文未改。
-
 For the transition while Paseo still runs on the host, stop the old daemon
 and start it with the same launcher in host mode (with the broker running):
 

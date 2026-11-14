@@ -1,7 +1,5 @@
 # storie 从旧 paseo 账号切换到 wenxin 的 Home
 
-以下段落原在 [daemon-guide](../../../paseo/daemon-guide.md) 的 Storie 一节和 [relay-guide](../../../paseo/relay-guide.md) 的 Layout 一节，2026-10-09 随 272f58d 写入，原文未改。前四段出自 daemon-guide，最后一段出自 relay-guide。
-
 There is no dedicated `paseo` account declaration, separate Home activation,
 old-data migration, or host bind mount for `/home/paseo` or `/workspace`.
 The old `/data/paseo` contents are not read, copied, deleted or chowned.

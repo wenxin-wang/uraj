@@ -1,7 +1,5 @@
 # broker 首版的验证记录
 
-以下段落原在 [broker-guide](../../../paseo/broker-guide.md) 的 Implemented trial 一节，2026-10-09 随 1e624f0 写入，原文未改。
-
 Validated on 2026-10-09: Guix builds of native supervisor and bundle; ten
 integration tests (streams, probes, numeric/signal results, detached child
 cleanup, client/parent/broker death, restart, replacement barrier, config

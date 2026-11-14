@@ -61,7 +61,6 @@ codex-desktop 打包、非 Guix 桌面 playbook），手册里的过程直接删
 - `restricted-network` 网络表缺 `sandboxed-agents`、redroid 网络，hypie 部署块已启用。
 - `codex-desktop` 不再装进 Home；MAA 文档引用从未提交的 `scripts/redroid/` 脚本。
 - 部署命令七种写法，统一链到 `guix/deploy-guide.md` 新加的“命令速查”，并补 hypie。
-- 公开仓库里不该出现的私人名字（`foreign-desktop-guide` 等处）删掉。
 
 ## PR 划分
 

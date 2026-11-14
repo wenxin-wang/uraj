@@ -1,7 +1,5 @@
 # broker 试用包的构建、加载和回退步骤
 
-以下段落原在 [broker-guide](../../../paseo/broker-guide.md) 的 Implemented trial 一节，2026-10-09 随 1e624f0 写入，原文未改。当时 broker 以 lappie 用户 Shepherd 里手动加载的试用包运行；现在由 Home 或系统服务管理。
-
 In a host terminal on lappie, as wenxin (no sudo), build a GC-rooted trial:
 
 ```sh

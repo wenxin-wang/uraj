@@ -32,7 +32,7 @@ uraj 的文档按模块和日期组织，有术语表、模块登记表和子项
    [术语表](../../glossary.md#用词约定) 的“用词约定”。
 6. ~~`paseo-broker.org` 的“Acceptance before enabling the broker”清单是否已全部做完。~~
    11/14 定：已完成，broker 已长期使用。放在
-   `docs/archive/paseo/broker-acceptance-measure-20261016.md`。
+   `docs/archive/projects/261008-paseo-broker/broker-acceptance-measure-20261016.md`。
 7. ~~拆出的文件首行是否注明来源。~~ 11/14 定：不注明，来源看 git 历史。
 8. ~~旧文档是否在第一行标注。~~ 11/14 定：不标注。
 9. ~~`AGENTS.md` 是否保留“旧文档只读，以后删掉”的规则。~~ 11/14 定：不保留。迁移是一次性的，
@@ -51,3 +51,9 @@ uraj 的文档按模块和日期组织，有术语表、模块登记表和子项
 - [glossary-design-20261114](glossary-design-20261114.md)：术语表初版。
 - [agents-md-design-20261114](agents-md-design-20261114.md)：`AGENTS.md` 新结构草稿。
 - [templates-design-20261114](templates-design-20261114.md)：子项目三件套模板。
+11. ~~第 4 步怎么整理手册里的过程。~~ 11/14 定：过时内容、过程段落和历史项目一起做，
+    见 [cleanup-design-20261114.md](cleanup-design-20261114.md)；paseo 先做试用批次。
+12. ~~OpenClaw 文档里 storie 的公网域名是否替换。~~ 11/14 定：不替换，不算隐私。
+13. ~~`contained-agent/pitfalls-guide.md` 怎么处理。~~ 11/14 定：仍有效的坑并入对应手册，
+    历史进归档，删掉这篇。
+14. ~~`pylon`、`voyage`、`traj-record` 是否从文档里删掉。~~ 11/14 定：不算私人信息，保留。

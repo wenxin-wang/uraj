@@ -40,8 +40,9 @@ the system services and the matching Home configuration together. No
 lingering Home Shepherd or changes to niri session ownership are needed.
 Desktop machines listen at `127.0.0.1:6767`; storie listens on all interfaces.
 All share `~/src`, `~/Projects`, `~/spaces` and
-`~/.local/share/paseo/worktrees` when present. Create these directories before starting the service; new projects
-inside an already mounted root require no remount.
+`~/.local/share/paseo/worktrees` when present. Create these directories before
+starting the service; new projects inside an already mounted root require no
+remount.
 
 ## Configuration
 
@@ -329,7 +330,8 @@ applications. The user copies other agent settings/credentials into
 Both system services run as `wenxin:users`. The broker waits for
 `guix-home-wenxin`; the daemon then waits for the broker. Project roots are
 `/home/wenxin/src`, `/home/wenxin/Projects`, `/home/wenxin/spaces` and the
-default worktree root `~/.local/share/paseo/worktrees`. State lives in `~/.paseo` in wenxin's Home.
+default worktree root `~/.local/share/paseo/worktrees`. State lives in
+`~/.paseo` in wenxin's Home.
 
 The daemon listens on **storie's address**, port 6767. Pair clients through
 the relay (see [relay-guide](relay-guide.md)). Every host, storie included, uses
