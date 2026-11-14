@@ -474,8 +474,9 @@
               (interval . "30s") (timeout . "10s")
               (start_period . "60s") (retries . 5)))))
           ;; Rootless Podman nested in Docker; see
-          ;; docs/openclaw/engine-params-debug-20261024.md for why
-          ;; each relaxation is needed.  Only selected sandbox state is shared.
+          ;; docs/archive/projects/261024-openclaw-podman-sandbox/
+          ;; engine-params-debug-20261024.md for why each relaxation is
+          ;; needed.  Only selected sandbox state is shared.
           (engine .
            ((image . ,(openclaw-engine-image config))
             (pull_policy . "never") (restart . "on-failure")
