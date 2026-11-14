@@ -1,6 +1,6 @@
 # 文档布局和协作约定 进度
 
-当前：第 4 步，按模块调研过时内容和手册里的过程记录。
+当前：第 4 步，paseo 试用批次等审阅。
 
 1. ~~提案：目录和 docs 布局、术语表初版、模块登记表初版、三件套模板、
    `AGENTS.md` 新结构、现有文档去向表~~ 已完成。PR #97 合并，待定项按建议执行。
@@ -20,8 +20,12 @@
      `env/maa/profiles/default.toml`、`projects.scm`、`remote-maa` 会原样进 store，
      下次部署会重建，内容只差注释。
 3. ~~目录收敛：`exp/bqn/uraj/` 改名为 `exp/bqn_20261014/`，`.gitignore` 的
-   `/output/` 改 `/out/`。~~ 单独的 `layout` PR。
-4. 修过时内容和整理手册：按模块分 PR，改迁移后的手册。
+   `/output/` 改 `/out/`。~~ PR #99 已合并。
+4. 修过时内容和整理手册：按模块分 PR，改迁移后的手册。做法和历史项目清单见
+   [cleanup-design-20261114.md](cleanup-design-20261114.md)。
+   - paseo（试用批次）：历史项目 `261004-paseo-daemon-container`、`261008-paseo-broker`，
+     手册去掉试用、切换和迁移步骤，修 relay 可达性、`~/spaces`、按 worktree 分 SSH agent。
+   - 待做：guix 和 secrets、contained-agent 和 desktop、openclaw、maa 和 restricted-network、new-api。
    - 逐条处理 [发现的过时内容](migration-design-20261114.md#发现的过时内容)。
    - 把夹在手册里的带日期记录拆成过程文档：`maa/daily-tasks-guide.md` 的
      CA bundle 排查和 depot 测试，`guix/storie-network-guide.md` 的 NFS 检查，
