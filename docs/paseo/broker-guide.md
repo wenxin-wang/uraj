@@ -1,6 +1,6 @@
 # Paseo broker
 
-## Implemented trial and lappie commands
+## Commands and runtime
 
 | File | Role |
 |---|---|
@@ -9,13 +9,14 @@
 | `src/guix/uraj/home/paseo-broker.scm` | Guix build, standalone trial bundle, Home files and Shepherd service |
 | `test/python/uraj/guix/contained-agent/paseo-broker.py` | Real-process integration tests with fake providers |
 
-The broker accepts only same-UID peers for now.  It permits project cwd under
+The broker accepts only same-UID peers.  It permits project cwd under
 \~/src, \~/Projects and \~/.local/share/paseo/worktrees by default, plus a
 no-project home cwd for probes.
 Storie uses the same roots under /home/wenxin.  `--root` on the
 server changes the roots.  Cwd is canonicalized, but concurrent host-path
-rename/symlink attacks are not fully hardened; do not yet treat this as the
-untrusted cross-UID/Paseo-container boundary described in the longer design.
+rename/symlink attacks are not fully hardened; do not treat this as an
+untrusted cross-UID or Paseo-container boundary
+(see the [design](../archive/projects/261008-paseo-broker/broker-design-20261017.md)).
 It executes the existing installed contained-agent policy, including its
 current optional SSH/Guix access settings; broker transport adds no new grant.
 
@@ -28,76 +29,23 @@ directories.  SIGTERM cancellation allows two seconds; the broker additionally
 escalates a stuck supervisor after five seconds.  Runtime files/socket are
 user-private.  Status exposes metadata only, not argv or credentials.
 
-In a host terminal on lappie, as wenxin (no sudo), build a GC-rooted trial:
-
-```sh
-cd ~/src/uraj
-mkdir -p ~/.local/state
-paseo_bundle=$(guix build -L src/guix -L src/guile \
-  -r "$HOME/.local/state/paseo-broker-trial" \
-  -e '((@ (uraj home paseo-broker) paseo-broker-bundle) (@@ (uraj home llm) contained-agent))')
-herd load root "$paseo_bundle/share/paseo-broker/shepherd.scm"
-herd start paseo-broker
-"$paseo_bundle/bin/paseo-broker" status
-```
-
-These explicit trial commands load and start the service in the existing user
-Shepherd.  Normal Home reconfiguration installs the profile clients and automatically
+Normal Home reconfiguration installs the profile clients and automatically
 merges their commands into Paseo configuration. On Guix System the root
-Shepherd owns the boot service; foreign Home registers user services. Do not
-load a trial broker alongside either managed service.  Replacing a running broker
-can end its executions; finish them before deploying a new service definition.
+Shepherd owns the boot service; foreign Home registers user services.
+Replacing a running broker can end its executions; finish them before
+deploying a new service definition.
+
+A standalone bundle for experiments is built with `paseo-broker-bundle`
+(`src/guix/uraj/home/paseo-broker.scm`) and loaded with
+`herd load root .../share/paseo-broker/shepherd.scm`; do not load it next to a
+managed service.
 
 Managed brokers run Home's `~/.local/bin/contained-agent`, resolved for each
 execution, so a Home reconfigure reaches new sessions without a broker restart;
 running sessions keep their launcher.  Changes to the broker or supervisor still
 need one.  So do changes to `contained-agent ssh-service`, which stays running
 for the broker's lifetime, and new launchers must keep working with it until
-then.  The trial bundle above keeps its own store launcher.
-
-Switch only the two provider commands after successful version probes:
-
-```sh
-"$paseo_bundle/bin/paseo-broker" configure \
-  --client-directory "$paseo_bundle/libexec/paseo-broker"
-```
-
-This reads existing \~/.paseo/config.json, probes both clients, writes a private
-backup beside the file, preserves other provider/settings fields and replaces
-the configuration atomically.  Managed symlink configs are refused.  It prints
-the backup path.  No daemon restart is hidden in this command.
-
-After allowing current sessions to finish, restart Paseo and create a new agent:
-
-```sh
-paseo daemon restart
-"$paseo_bundle/bin/paseo-broker" status
-```
-
-Check a small prompt, interrupt a turn and continue, then close the session and
-check its execution disappears.  Closing the app with daemon retained should
-not remove it.  Provider sessions can remain idle between turns: idle does not
-mean their process should have exited.  The restart can end the current agent,
-so execute it only after this implementation conversation has finished.
-
-Restore only provider command fields from the printed backup if needed:
-
-```sh
-"$paseo_bundle/bin/paseo-broker" configure --restore /path/to/printed/backup
-paseo daemon restart
-herd stop paseo-broker
-```
-
-Validated on 2026-10-09: Guix builds of native supervisor and bundle; ten
-integration tests (streams, probes, numeric/signal results, detached child
-cleanup, client/parent/broker death, restart, replacement barrier, config
-backup/restore, status and malformed request); isolated Shepherd load/start/
-status/stop using the exact trial file.  Real contained-agent version probes
-returned Codex 0.155.0 and Claude Code 2.1.287.  Real Codex app-server initialize
-and stdin-EOF exit passed through the full broker/Guix path with temporary
-state and no credentials.  Codex warns about PATH helper creation with a
-temporary CODEX_HOME; this test warning did not prevent the handshake.
-Authenticated model turns and the actual lappie Paseo UI remain host-side tests.
+then.  The standalone bundle keeps its own store launcher.
 
 ### SSH passphrase prompts during broker startup
 
@@ -115,11 +63,7 @@ Version probes do not exercise encrypted SSH keys.  The regression test
 `paseo-broker-askpass.py` unlocks a disposable encrypted key without a terminal,
 using a fake askpass helper; it does not validate the user's graphical session.
 
-Do not restart a live broker just to refresh these settings: stopping it ends
-its active executions.  Wait for its executions to finish first.  A newly built
-broker can then be run in the foreground from a desktop terminal to inherit
-that terminal's environment, without restarting Paseo or changing provider
-commands.  Existing clients use the same socket protocol.
+Restarting the broker ends its executions; wait for them to finish.
 
 ### Broker sandbox policy (execution environment)
 
@@ -194,10 +138,6 @@ SSH connections remain alive. If unlocking fails, the command reports failure
 and the project agent is stopped. Retry the command, then reopen affected
 sessions because the replacement agent has a new socket inode.
 
-Deploy the updated broker and contained-agent launcher together. An already
-running older broker does not support this command; installing it requires a
-broker restart when its sessions can be interrupted.
-
 Status reports `ssh_preparation` as `not-started`, `unlocking`, or `ready`.
 The broker remains responsive while askpass waits.  Canceling a waiting session
 prevents that session from launching; an already-open shared unlock prompt may
@@ -205,15 +145,8 @@ finish and populate the cache for other sessions.  Cancel the dialog to reject
 the unlock.  A rejected unlock fails that request without stopping the service.
 The service's stderr goes to the broker log/terminal, never provider stdout.
 
-Regression coverage in `paseo-broker-shared-ssh.py` uses real encrypted test
-keys, SSH agents, and PID namespaces, with a fake askpass and Guix-shell probe.
-It checks concurrent and later reuse, worktrees, separate projects, policy
-reload, failed unlock/retry, cancellation, and broker death/restart cleanup.
-It neither reads user credentials nor starts the user's Paseo installation.
-
-The design/history sections below include future hardening and alternatives;
-the implemented trial is narrower, notably no cgroup requirement, PTY support,
-cross-UID peer authorization or hardened hostile path-race handling.
+Regression coverage is in `paseo-broker-shared-ssh.py` (real encrypted test
+keys, SSH agents and PID namespaces; no user credentials).
 
 ## Execution tiers
 
@@ -280,5 +213,5 @@ its own policy design.
 
 `paseo-AGENT-{daily,system,host}` clients live in the Home and daemon profiles,
 not in agent containers. Legacy `paseo-AGENT` clients still select daily.
-The configure/restore trial command continues managing only legacy command
+`paseo-broker configure [--restore BACKUP]` manages only the legacy command
 fields; Guix activation manages the labeled provider entries and overrides.

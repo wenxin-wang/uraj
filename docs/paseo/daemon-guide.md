@@ -43,11 +43,6 @@ All share `~/src`, `~/Projects` and `~/.local/share/paseo/worktrees` when
 present. Create these directories before starting the service; new projects
 inside an already mounted root require no remount.
 
-When migrating lappie, stop the old system `paseo` and `paseo-broker` (and any
-manually started daemon) before starting their Home replacements. Reconfigure
-the system, then log out and back into niri to load the new Home services and
-session environment. Do not run both service owners against the same state.
-
 ## Configuration
 
 Home activation maintains ten provider entries in writable
@@ -193,12 +188,11 @@ and close the desktop app before reapplying settings that they may also write.
 When no worktree root is configured, Home uses and creates
 `~/.local/share/paseo/worktrees`. It is an authorized broker root and daemon
 mount, but not one of the agents' common mounts: each agent sees only its own
-worktree, and human project directories stay free of agent worktrees. A root
-equal to the previous default `~/Projects/paseo-worktrees` is moved to the
-new one; worktrees already there keep working, since `~/Projects` remains a
-root. Other custom roots are preserved and must also be
-covered by the configured broker roots and daemon mounts. Storie uses the
-same default as desktop machines.
+worktree, and human project directories stay free of agent worktrees.
+Activation moves a root equal to the old default
+`~/Projects/paseo-worktrees` to the new one; `~/Projects` stays a root. Other
+custom roots are preserved and must also be covered by the configured broker
+roots and daemon mounts. Storie uses the same default as desktop machines.
 
 Desktop activation also sets
 `settings.daemon.manageBuiltInDaemon=false` and marks the legacy settings
@@ -236,23 +230,6 @@ All contained agents can read this directory, including attachments from
 other sessions and other temporary files Paseo creates there. It is not
 automatically cleared; remove stale files only after the sessions using them
 have ended. Do not replace the directory while containers have it mounted.
-
-For the transition while Paseo still runs on the host, stop the old daemon
-and start it with the same launcher in host mode (with the broker running):
-
-```sh
-paseo_service=$(guix build -L src/guix -L src/guile \
-  -e '(@ (uraj home paseo) paseo-service-program)')
-"$paseo_service" run-host
-```
-
-Alternatively, start the existing host daemon with
-`TMPDIR="$HOME/.cache/paseo-tmp" paseo daemon run` after creating that directory
-with mode 0700. Both methods require the updated contained-agent Home/broker
-launcher. Restart providers after the directory exists and the new launcher
-is selected; existing containers retain their old mounts. Resend images that
-were materialized under the old temporary directory. Setting `TMPDIR` only
-on the provider or broker does not change where Paseo writes images.
 
 ## Daemon mounts and independent SSH agent
 
@@ -354,19 +331,8 @@ Both system services run as `wenxin:users`. The broker waits for
 `/home/wenxin/src`, `/home/wenxin/Projects` and the default worktree root
 `~/.local/share/paseo/worktrees`. State lives in `~/.paseo` in wenxin's Home.
 
-There is no dedicated `paseo` account declaration, separate Home activation,
-old-data migration, or host bind mount for `/home/paseo` or `/workspace`.
-The old `/data/paseo` contents are not read, copied, deleted or chowned.
-
-The daemon listens on **storie's address**, port 6767. The old
-`172.31.0.7` is unused by this service. Pair clients through the relay; the old
-account's connection state is not migrated.
-
-The separate relay service is unchanged at `172.31.0.8:4000`. A macvlan host
-cannot directly reach that child, so the new daemon does not inherit the old
-private relay environment overrides. Configure
-a relay endpoint reachable from the host. Previously issued private-relay
-pairing links are not automatically migrated.
+The daemon listens on **storie's address**, port 6767. Pair clients through
+the relay (see [relay-guide](relay-guide.md)).
 
 ## Verification
 
@@ -389,5 +355,5 @@ pairing links are not automatically migrated.
   daemon container and its independently mounted SSH socket.
 - Existing broker lifecycle and shared-SSH regressions cover execution cleanup.
 
-Authenticated model turns, desktop connection setup, and the first storie
-cutover remain deployment checks; these tests do not modify live services.
+Authenticated model turns and desktop connection setup remain deployment
+checks; these tests do not modify live services.

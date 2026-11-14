@@ -30,7 +30,7 @@ Old branches without ownership metadata are retained.
 
 Every registered worktree protects its branch, including locked, missing,
 and prunable entries. The integration branch and `backup/*` are protected.
-There is no 30-day requirement. One of these proofs is required:
+One of these proofs is required:
 
 - The branch tip is an ancestor of the current local integration tip.
 - GitHub reports a merged same-repository PR with the exact branch name
@@ -63,9 +63,6 @@ processes, another broker, or workspace restoration in the Paseo UI. Avoid
 manual concurrent checkout/restore during GC. The snapshot recheck and
 compare-and-delete reduce races but are not a transaction spanning Paseo
 and Git. The script leaves all worktree directories untouched.
-
-Deploy the updated Home/broker package and restart the broker to enable
-the hook. Existing running services are not modified by editing this repo.
 
 ## Validation
 

@@ -9,7 +9,7 @@ The relay listens at 172.31.0.8:4000 on the shared macvlan network
 
 `docker-lan` ensures that network exists and validates its configuration.
 It adopts the existing Immich network without disconnecting containers.
-Both Compose projects now treat the network as external, so removing either
+Both Compose projects treat the network as external, so removing either
 project does not remove the network. Stopping `docker-lan` leaves it intact.
 Its existing automatic allocation range remains 172.31.0.6/32; explicit
 container addresses such as .8 come from the enclosing /24 subnet.
@@ -26,7 +26,7 @@ tags and Debian packages are not pinned to immutable snapshots.
 The build uses host networking because storie disables Docker's default bridge.
 The running container uses only macvlan, with no host port mappings or volumes.
 
-## First deployment
+## Deployment
 
 Run these commands on storie from the updated repository checkout.
 First inspect the existing network and confirm the new address is unused:
@@ -94,8 +94,6 @@ definition.
 
 The network service refuses incompatible existing settings and never deletes
 the network to repair them. Inspect the mismatch before changing anything.
-After migration, use the current `/etc/immich/compose` wrapper; an old generation's
-Compose file still describes the network as owned by Immich.
 
 This config exposes the relay only on the LAN. Public mobile access still
 requires a reachable hostname and a TLS reverse proxy supporting WebSocket
