@@ -190,6 +190,13 @@
   :custom
   (meow-expand-exclude-mode-list '())
   :config
+  (defun copy-current-line-position-to-clipboard ()
+    "Copy current line in file to clipboard as '</path/to/file>:<line-number>'."
+    (interactive)
+    (let ((path-with-line-number
+           (concat (buffer-file-name) ":" (number-to-string (line-number-at-pos)))))
+      (kill-new path-with-line-number)
+      (message (concat path-with-line-number " copied to clipboard"))))
   (setq meow-cheatsheet-layout meow-cheatsheet-layout-qwerty)
 
   ;; Advice to set last-command-event when meow dispatches kbd macros,
@@ -1033,17 +1040,17 @@ dir is the directory of the buffer (param of my/project-try), when it's changed,
   :init
   (defun subdirs-if-exists (dir &optional excludes)
     (when (file-exists-p dir)
-        (seq-filter
-	  (lambda (p)
-	    (and (file-directory-p p)
-		 (not (member (file-name-nondirectory p) excludes))))
-         (directory-files dir t directory-files-no-dot-files-regexp))))
+      (seq-filter
+	   (lambda (p)
+	     (and (file-directory-p p)
+		      (not (member (file-name-nondirectory p) excludes))))
+       (directory-files dir t directory-files-no-dot-files-regexp))))
   (setq vulpea-db-sync-directories
         (seq-filter #'file-exists-p
                     (append
                      (subdirs-if-exists "~/spaces/office/")
                      (subdirs-if-exists "~/spaces/" '("office"))
-		     '("~/src/pylon"))))
+		             '("~/src/pylon"))))
   (setq vulpea-default-notes-directory (car vulpea-db-sync-directories))
   :bind
   ;; ("C-c n c" . org-roam-capture)
