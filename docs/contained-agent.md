@@ -15,6 +15,8 @@
 - [pitfalls-guide](contained-agent/pitfalls-guide.md)：已知的坑。
 - [development-guide](contained-agent/development-guide.md)：修改和测试 contained-agent。
 
-## 过程文档
+## 历史项目
 
-- [harbor-measure-20261025](contained-agent/harbor-measure-20261025.md)：Harbor 在 Podman 运行时里的验收。
+- [261008-contained-agent](archive/projects/261008-contained-agent/README.md)：容器、项目配置和策略、项目 SSH agent、open items。
+- [261017-contained-podman](archive/projects/261017-contained-podman/README.md)：Podman 运行时、Harbor 验收。
+- [261028-agent-browser](archive/projects/261028-agent-browser/README.md)：contained-agent 和 OpenClaw 两边的浏览器、GPU、dashboard。
