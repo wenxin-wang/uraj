@@ -1,7 +1,5 @@
 # Acceptance before enabling the broker
 
-> 旧文档：只读，不再更新。验收已完成，broker 已长期使用；现状见 [broker-guide.md](broker-guide.md)。
-
 ## Acceptance before enabling the broker
 
 Use fake providers and temporary state first; then real Paseo/provider smoke

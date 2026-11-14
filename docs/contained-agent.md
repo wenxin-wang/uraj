@@ -18,4 +18,4 @@
 ## 过程文档
 
 - [harbor-measure-20261025](contained-agent/harbor-measure-20261025.md)：Harbor 在 Podman 运行时里的验收。
-- [open-items-design-20261012](contained-agent/open-items-design-20261012.md)：旧文档，当时的待办。
+- [open-items-design-20261012](contained-agent/open-items-design-20261012.md)：当时的待办。

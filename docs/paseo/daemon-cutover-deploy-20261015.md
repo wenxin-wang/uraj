@@ -1,7 +1,5 @@
 # Paseo daemon: first transition
 
-> 旧文档：只读，不再更新。现状见 [daemon-guide.md](daemon-guide.md)。
-
 ## First transition and operation
 
 Finish active sessions before switching: broker/daemon shutdown ends provider

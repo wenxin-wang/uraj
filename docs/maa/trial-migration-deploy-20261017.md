@@ -1,7 +1,5 @@
 # MAA: move from the trials to production
 
-> 旧文档：只读，不再更新。现状见 [redroid-guide.md](redroid-guide.md)。
-
 ## Move from the trials to production
 
 The tested, logged-in instance at `.5` uses

@@ -10,5 +10,5 @@ hypie 上 redroid 里的明日方舟日常任务自动化，storie 上有手动�
 ## 过程文档
 
 - [runtime-measure-20261017](maa/runtime-measure-20261017.md)：生产配方的检查。
-- [trial-migration-deploy-20261017](maa/trial-migration-deploy-20261017.md)：旧文档，从试验实例迁到生产。
-- [validation-measure-20261009](maa/validation-measure-20261009.md)：旧文档，早期 redroid 实现的验证。
+- [trial-migration-deploy-20261017](maa/trial-migration-deploy-20261017.md)：从试验实例迁到生产。
+- [validation-measure-20261009](maa/validation-measure-20261009.md)：早期 redroid 实现的验证。

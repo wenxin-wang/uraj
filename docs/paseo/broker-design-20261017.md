@@ -1,7 +1,5 @@
 # Paseo broker design: host execution and container cleanup
 
-> 旧文档：只读，不再更新。现状见 [broker-guide.md](broker-guide.md)。
-
 ## Status and scope
 
 The broker is integrated with the boot service described in

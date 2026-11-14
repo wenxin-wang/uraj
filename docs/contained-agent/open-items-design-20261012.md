@@ -1,7 +1,5 @@
 # contained-agent open items
 
-> 旧文档：只读，不再更新。现状见 [contained-agent](../contained-agent.md)。
-
 ## Open items
 
 - Paseo outside the agent's container: see [Paseo broker design](../paseo/broker-guide.md)

@@ -16,7 +16,7 @@ storie 上的飞书 bot：Gateway、引擎容器、执行沙箱和角色插件�
 
 ## 过程文档
 
-- [profile-snapshot-deploy-20261029](openclaw/profile-snapshot-deploy-20261029.md)：旧文档，浏览器 profile 快照方案上线。
+- [profile-snapshot-deploy-20261029](openclaw/profile-snapshot-deploy-20261029.md)：浏览器 profile 快照方案上线。
 - [engine-params-debug-20261024](openclaw/engine-params-debug-20261024.md)：引擎容器参数逐项验证。
 - [image-generation-design-20261020](openclaw/image-generation-design-20261020.md)：图片生成接入方案，未实施。
 - [missing-shepherd-debug-20261020](openclaw/missing-shepherd-debug-20261020.md)：部署后没有 Shepherd 服务的排查。

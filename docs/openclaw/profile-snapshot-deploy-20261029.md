@@ -1,7 +1,5 @@
 # OpenClaw Profile 快照方案上线
 
-> 旧文档：只读，不再更新。现状见 [browser-guide.md](browser-guide.md)。
-
 ## Profile 快照方案上线
 
 镜像 `sha256:bf69eb314709f5de2106b2dcc72a2f8ef53adb4e66c1ac6160c91f06fa7ed2f7`
