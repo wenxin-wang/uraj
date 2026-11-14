@@ -15,7 +15,7 @@ OpenClaw 的 exec、process 和文件工具原先在 Gateway 容器里运行，�
 ## 背景
 
 - 引擎的放宽参数沿用 contained-agent Podman 运行时的经验，见
-  [261017-contained-podman](../261017-contained-podman/README.md)；那是在 rootless Podman
+  contained-agent 的历史项目 `261017-contained-podman`；那是在 rootless Podman
   外层验证的，Docker 外层要另做一次，所以先有一个一次性探针。
 - 探针记录见 [engine-params-debug-20261024](engine-params-debug-20261024.md)。
 

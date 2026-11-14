@@ -30,8 +30,8 @@ Gateway token 可用密码管理器生成至少 32 字节随机值，直接填�
 的 `/run/secrets/`，不挂给引擎或沙箱。SecretRef 引用这些普通文件，Guix store、Compose 和
 声明配置都只有路径及引用，没有凭据值。容器不获得主机 age/GPG 私钥。
 
-Gateway、引擎和沙箱都以宿主账号 `openclaw`（UID 2010）运行，不再与管理员
-共用 UID 1000。凭据隔离来自挂载：沙箱进程虽是同一 UID，但其挂载命名空间
+Gateway、引擎和沙箱都以主机账号 `openclaw`（UID 2010）运行，不与管理员
+共用 UID。凭据隔离来自挂载：沙箱进程虽是同一 UID，但其挂载命名空间
 里没有这些文件。SecretRef 本身不是任意代码执行场景中的秘密隔离边界。
 
 轮换时先更新密文及系统声明，再重新解密，然后重建容器：
@@ -47,6 +47,7 @@ sudo herd restart openclaw
 
 ## 配置、存储与启动
 
+停用 OpenClaw 时把 `%openclaw-configuration` 设为 `#f`。
 在 storie 的仓库开发环境中，先确认声明的镜像确实存在（此命令不拉取）：
 
 ```sh
@@ -55,11 +56,11 @@ for image in <image> <engine-image>; do
 done
 ```
 
-确认使用含飞书插件的镜像后，在仓库根目录部署：
+确认使用含飞书插件的镜像后，部署 storie（命令见
+[guix/deploy-guide](../guix/deploy-guide.md)，例如 `uraj-deploy storie`），
+然后在 storie 上：
 
 ```sh
-sudo --preserve-env=GUILE_LOAD_PATH guix time-machine \
-  -C env/guix/channels-lock.scm -- system reconfigure env/guix/os/storie.scm
 sudo herd restart sops-secrets
 sudo herd start openclaw
 sudo herd status openclaw
@@ -73,7 +74,7 @@ sudo /etc/openclaw/compose exec gateway node openclaw.mjs channels status --prob
 new-api 的 token 权限、模型名称及协议均可用。不要以 Gateway 的
 健康检查通过代替这一步。
 
-| 宿主机路径 | 容器路径 | 用途 |
+| 主机路径 | 容器路径 | 用途 |
 |---|---|---|
 | /etc/openclaw/base.json | 同路径，只读 | Guix 初始配置与不变量 |
 | /etc/openclaw/config*.mjs | 同路径，只读 | 校验入口与策略 |
@@ -87,16 +88,16 @@ new-api 的 token 权限、模型名称及协议均可用。不要以 Gateway �
 | /var/log/openclaw/containers.log | syslog 接收 | 运维日志，轮转 |
 
 附件初期随 state 保存；`/media-data/openclaw/` 暂不创建。
-home 是私有数据；workspace 可由 `log-readers` 读取，见“执行沙箱”。
+home 是私有数据；workspace 可由 `log-readers` 读取，见 [sandbox-guide](sandbox-guide.md)。
 HOME 整体可写，允许上游创建 `.openclaw`、`.config/openclaw` 和
 `.openclaw.update-captures` 等目录；镜像根文件系统和声明配置仍只读。
 运行配置可写；启动前先对齐 Guix 基础字段并验证，Doctor 修复与升级迁移
 仍属于受信任维护操作。若它们引入策略不支持的 agent 字段，下次校验或
 启动会拒绝，应审查后调整策略，不自动删除动态数据。
 启动程序按上文创建目录与属主；新 HOME 权限为 0700、属主为 2010:2010。
-首次加入 `sandboxed-agents` 后，正在运行的 `restricted-network` 不会因
+新增网络（如 `sandboxed-agents`）后，正在运行的 `restricted-network` 不会因
 reconfigure 重新执行，网络与规则尚不存在；Compose 要求所有外部网络存在，
-因此连启动前的 reconcile 也会失败。部署后先执行
+因此连启动前的 reconcile 也会失败。须先执行
 `sudo herd restart restricted-network`（会短暂重启依赖它的服务），再启动
 OpenClaw。
 容器 stdout/stderr 遵循现有日志组规则；它们也可能带有聊天相关诊断信息。
@@ -125,7 +126,7 @@ Gateway，等待 `/startupz`。这个检查不代表飞书和模型都连通；
 需要下面的端到端验收。容器健康状态变成 unhealthy 不会由 Docker 的
 on-failure 自动重启；该策略只处理进程退出。
 
-基础设置以 Guix 声明为准。agent 配置编辑使用前述校验入口；UI/向导属于
+基础设置以 Guix 声明为准。agent 配置编辑使用[校验入口](config-guide.md)；UI/向导属于
 可信管理员入口，不会自动经过该校验。没有发布主机端口，管理界面通过 SSH
 转发至容器 IP：
 

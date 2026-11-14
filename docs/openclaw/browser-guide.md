@@ -1,7 +1,5 @@
 # OpenClaw 沙箱里的浏览器
 
-## 沙箱里的浏览器
-
 沙箱镜像 `env/docker/openclaw-sandbox` 带 agent-browser、Debian 的
 Chromium、Mesa Vulkan 和中日韩及 emoji 字体。命令和浏览器在同一个沙箱
 容器里运行；不使用 OpenClaw 内置的 `browser` 工具，上游 Podman 后端也
@@ -82,7 +80,7 @@ agent-browser 0.38.2 在 headed Chromium 下可能把页面尺寸误报为
 保留当前桌面页面的尺寸。任务副本则将 `identity` 换成 `run TASK`。
 
 OpenClaw 沙箱在 Docker engine 里的 rootless Podman 中，dashboard 只监听
-沙箱的 loopback，不能直接从宿主访问。仓库提供转发脚本，在本机运行：
+沙箱的 loopback，不能直接从主机访问。仓库提供转发脚本，在本机运行：
 
 ```sh
 # 先列出 storie 上运行中的沙箱，选择目标角色对应的容器名。
@@ -112,7 +110,7 @@ sudo。密码由 SSH/sudo 处理，脚本不读取或保存密码。HTTP 和 Web
 
 helper 启动沙箱内的 dashboard，并通过 `compose exec`、`podman exec`
 转发流量，无需重建镜像或发布容器端口。本机和远端 helper 都只监听
-`127.0.0.1`。`--port` 默认 4848，同时用于本机和远端宿主的监听端口；
+`127.0.0.1`。`--port` 默认 4848，同时用于本机和远端主机的监听端口；
 任一端已占用时换用 `--port 4849` 等端口，也可同时接管多个沙箱。
 `--dashboard-port` 指定沙箱内端口，默认也是 4848。
 
@@ -134,7 +132,13 @@ sudo /etc/openclaw/compose exec -T engine podman exec CONTAINER \
   agent-browser dashboard stop
 ```
 
-新版包装器也支持在沙箱内执行 `browser-profile dashboard start` / `stop`。
-dashboard 依赖该沙箱的 daemon 目录，只显示已启动的 session；任务副本里的
-修改仍不会写回主登录。需要持久登录时操作 `role-identity`，成功后再
+包装器也支持在沙箱内执行 `browser-profile dashboard start` / `stop`；
+旧式 `identity dashboard`、`run TASK dashboard` 也转到该路径，它移除 dashboard
+进程继承的浏览器启动参数，避免 0.38.2 在执行 Fit、导航等菜单命令时用缺少
+profile 的参数重启浏览器。dashboard 依赖该沙箱的 daemon 目录，只显示已启动
+的 session；任务副本里的修改仍不会写回主登录。需要持久登录时操作 `role-identity`，成功后再
 `browser-profile publish`。
+
+更换沙箱镜像或 skill 后，旧沙箱要按
+[images-guide](images-guide.md#沙箱引擎与沙箱镜像) 末尾的步骤重建（会关闭当前
+浏览器和 dashboard，保留 workspace 和 profile），再让 agent 重新读取 browser skill。

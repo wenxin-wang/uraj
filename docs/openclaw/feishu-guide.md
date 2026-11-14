@@ -1,20 +1,15 @@
 # OpenClaw 飞书与模型
 
-## 飞书与模型
-
-### 消息处理中的表情提示
+## 消息处理中的表情提示
 
 启用飞书插件内置的 `typingIndicator=true`。插件在回复处理阶段给
 原消息添加 `Typing` 表情，结束后移除，不另外发送确认文本。
-它表示“正在处理”，不是消息接收的持久回执；无需本地插件补丁或
-为此重建镜像。表情接口失败只记录诊断，不阻断正常回复。
+它表示“正在处理”，不是消息接收的持久回执。表情接口失败只记录诊断，不阻断正常回复。
 
 飞书应用需启用并发布消息表情回复权限
 `im:message.reactions:write_only`。修改 Guix 配置后重新部署即可。
-原有 SDK 修复镜像继续使用；已构建的 GET 补丁镜像在移除其环境开关后
-也不会添加 GET，但后续不再需要维护该补丁。
 
-### 提示缓存
+## 提示缓存
 
 自定义 OpenAI 兼容地址默认不发送 `prompt_cache_key`。因此 `new-api-gpt`
 设置 `prompt-cache-key? #t`，为每个模型生成
@@ -36,7 +31,7 @@ OpenClaw 不能按会话设置请求头，所以在 new-api 的 `CodexMT`
 `sync_fields` 只补缺失的一侧，Codex CLI 自带的会话头不受影响。该设置
 保存在 new-api 数据库，不由 Guix 管理；重建 new-api 或渠道时需重新填写。
 
-### 快速切换模型
+## 快速切换模型
 
 Astra 的默认 thinking 为 `xhigh`，由 storie 的 `model-thinking` 生成
 `agents.defaults.models["new-api-gpt/gpt-6-astra"].params.thinking`。
@@ -102,7 +97,7 @@ v2026.10.3 把飞书富文本（post）消息转成 Markdown 时会转义 `-`：
 回复。内置 `/astra-6`、`/model` 仍会切换模型，但确认回复会被拦下，飞书里
 看不到；在这类群里用 `/groupmodel`，它的回复可以送达。
 
-### 应用配置和配对
+## 应用配置和配对
 
 在飞书开放平台创建应用，启用机器人能力，取得 App ID 和 App Secret。
 按选定版本的官方飞书说明配置长连接、`im.message.receive_v1` 消息事件、
@@ -113,14 +108,14 @@ v2026.10.3 把飞书富文本（post）消息转成 Markdown 时会转义 `-`：
 若消息仅有 @、又无法读取引用内容，则会被 `skipping empty message`
 跳过。首次测试应发送 `@机器人 请回复测试成功`，不要只发送一个 @。
 当前配置启用流式卡片，还需应用身份权限 `cardkit:card:write`；
-开通、发布及排错见上文“处理进度卡片”。
+开通、发布及排错见 [persona-guide](persona-guide.md#处理进度卡片)。
 回复附带图片（例如 agent-browser 截图）时，Gateway 先调用
 `/open-apis/im/v1/images` 上传，需要应用身份权限 `im:resource:upload`
 （或 `im:resource`），开通后发布应用版本。缺少时日志出现
 `99991672 Access denied ... im:resource:upload`，整条回复不会送达，用户
 只收到无可见回复的兜底提示。
 
-#### 按群切换 @要求
+### 按群切换 @要求
 
 飞书后台「权限管理」搜索并开通应用身份权限 `im:message.group_msg`
 （获取群组中所有消息），再创建并发布应用版本，按后台要求完成审批。
@@ -156,7 +151,7 @@ Guix 的 `identity-file` 仅引用密文，Gateway 启动对齐配置时从
 Gateway 按其配置加载策略应用成功保存的修改；并发冲突时重试命令。
 此入口针对当前部署的飞书 `main` 账号；不支持被账号级 groups 覆盖的配置。
 
-#### 私聊配对
+### 私聊配对
 
 不用查询自己的 `open_id`。Gateway 启动后，在飞书私聊 bot，它会向
 未批准的用户返回配对码。在 storie 查看请求并批准你自己的配对码：
@@ -172,13 +167,15 @@ sudo /etc/openclaw/compose exec gateway node openclaw.mjs pairing approve feishu
 他们共用 Gateway，但默认私人角色、工作区和记忆各自独立。飞书用户配对与管理 UI 的设备配对
 是两套独立机制。
 
+## 模型配置
+
 在 new-api 中创建 OpenClaw 专用 token，限制模型及额度。所有 provider
-共用已有的 `new-api-token`，不需要为 GPT、Claude、DeepSeek 另建
-秘密或机器人。每个 provider 独立设置名字、API 协议和模型列表。
+共用已有的 `new-api-token`，不需要为 GPT、Claude 另建秘密或机器人。每个 provider 独立设置名字、API 协议和模型列表。
 配置入口是 `env/guix/os/storie.scm` 的 `%openclaw-configuration`。
 
-以下模型 ID 是占位值，替换成 new-api 实际提供的 ID。`model` 必须
-填写完整的 `provider/model-id`，并且模型已列在对应 provider 中：
+storie 的实际声明见 `%openclaw-configuration`；下面的模型 ID 是占位值，
+替换成 new-api 实际提供的 ID。`model` 必须填写完整的
+`provider/model-id`，并且模型已列在对应 provider 中：
 
 自定义推理模型可在 provider 中用 `(reasoning-models '("MODEL-ID"))`
 显式声明；该列表必须是 `models` 的子集。OpenClaw 的 Responses 请求根据
@@ -197,23 +194,16 @@ GPT 和 Claude 模型均显式设置 `reasoning: true`；这也允许选择推�
   (openclaw-provider
     (name "new-api-claude")
     (api "anthropic-messages")
-    (models '("CLAUDE-MODEL-ID")))
-  (openclaw-provider
-    (name "new-api-deepseek")
-    (api "openai-completions")
-    (models '("DEEPSEEK-MODEL-ID")))))
+    (models '("CLAUDE-MODEL-ID")))))
 ```
 
-暂时不用 DeepSeek 时，先省略它的整个 `openclaw-provider`，日后补上。
 每个 provider 内可列多个模型，重复 ID 去重；不同 provider 可包含
-相同 ID。provider 名称必须唯一。旧的顶层 `models`、`model-api`、
-`model-base-url` 字段已替换为此 `providers` 列表。
+相同 ID。provider 名称必须唯一。
 
 | Provider 名称 | API 协议 | 默认 base URL |
 |---|---|---|
 | new-api-gpt | openai-responses | http://172.31.0.9:3000/v1 |
 | new-api-claude | anthropic-messages | http://172.31.0.9:3000 |
-| new-api-deepseek | openai-completions | http://172.31.0.9:3000/v1 |
 
 默认 URL 根据 `api` 选择，不根据模型名字猜测。Anthropic SDK 会追加
 `/v1/messages`，所以它的 base URL 不带 `/v1`。可以在单个 provider
@@ -229,5 +219,5 @@ Completions，将它的 `api` 改为 `openai-completions`；每个渠道实际
 
 飞书中作为普通文本发送 `/model`、`/model list` 查看模型，发送
 `/model new-api-claude/CLAUDE-MODEL-ID` 切换当前会话。管理界面的聊天模型选择器也可
-切换。这是会话状态；持久默认模型可用校验入口在 Guix 批准的列表中
+切换。这是会话状态；持久默认模型可用[校验入口](config-guide.md)在 Guix 批准的列表中
 选择。模型目录仍由 Guix 声明。多个可选模型不会自动变成失败回退列表。
