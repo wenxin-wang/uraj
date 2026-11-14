@@ -21,13 +21,11 @@ connect a veth to its own bridge, enter that namespace and launch
 its privilege boundary are not implemented here; existing contained-agent
 sessions still share the host network.
 
-The former `agents` / `br-agents` network is now named
-`static-agent` / `br-static-agent`.  Reserve `br-agent` for the future
-contained-agent bridge so its permissions can be configured independently.
-The singular spelling keeps `br-static-agent` within Linux's 15-character
-interface-name limit while retaining the `br-` plus network-name convention.
-An existing deployment must follow the offline topology migration below;
-changing the declaration does not rename a live Docker bridge.
+Reserve `br-agent` for a future contained-agent bridge so its permissions
+can be configured independently.  A bridge is named `br-` plus the network
+name, which must fit Linux's 15-character interface-name limit (hence
+`br-sbx-agents` for `sandboxed-agents`).  Changing a declaration does not
+rename a live Docker bridge; see the topology rules under Lifecycle.
 
 ## Declared networks
 
@@ -208,11 +206,8 @@ state.  For immediate full revocation, stop affected workloads and clear their
 specific conntrack entries before resuming them.  NAT mappings also persist
 for the lifetime of existing flows.
 
-When migrating redroid, the old `inet uraj_redroid` and `ip uraj_redroid_nat`
-tables are not silently deleted.  Apply the new protection first, then remove
-those exact legacy tables during a stopped-workload maintenance window, or
-reboot into the new system configuration.  Keep unrelated tables intact.
-The shared service manages only `restricted_network`.
+The shared service manages only `restricted_network`; other tables are never
+touched.
 
 ### Updating only the running Shepherd service
 
@@ -312,16 +307,3 @@ and `nft list table ip restricted_network`.  Test from a container attached
 only to the intended network, using the configured DNS, before attaching
 accounts or data.  The actual subnet is checked against host/VPN routes on
 startup; later routing changes still require operator review.
-
-Validation: 105 Scheme assertions and 45 packet checks passed, including the
-redroid profile, inherited LAN DNS, unrestricted interface selection and
-empty-list egress denial.  Ruff checks passed and the generated Guix
-provisioning program was built successfully.  Both generated entry points
-also passed the isolated module-loading test.  No live system reconfiguration
-was performed.
-
-The VPN bypass has mock runtime tests (added once, refused when a foreign
-rule holds the priority, absent by default, and capture detected with or
-without it).  It was also run with real `ip` in a user/network namespace with
-a simulated strongSwan table 220: before, the subnet resolved via table 220;
-after two runs, through its bridge.
