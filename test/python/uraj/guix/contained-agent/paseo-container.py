@@ -35,6 +35,34 @@ def stop(process):
             process.wait(timeout=5)
 
 
+def terminal_command(profile, port, env, *args):
+    deadline = time.monotonic() + 60
+    while True:
+        result = subprocess.run(
+            [
+                str(Path(profile) / "bin/paseo"),
+                "terminal",
+                *args,
+                "--host",
+                f"127.0.0.1:{port}",
+                "--json",
+            ],
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode == 0:
+            return json.loads(result.stdout)
+        # HTTP health is available before WebSocket initialization finishes.
+        assert "Unexpected server response: 503" in result.stderr, (
+            result.stdout,
+            result.stderr,
+        )
+        assert time.monotonic() < deadline, result.stderr
+        time.sleep(0.2)
+
+
 def main():
     profile = os.environ["PROFILE"]
     guix = os.environ.get("GUIX", "guix")
@@ -56,7 +84,9 @@ def main():
         launcher.chmod(0o700)
         runtime = home / ".local/state/paseo-broker"
         env = {
-            k: v for k, v in os.environ.items() if not k.startswith("PASEO_")
+            k: v
+            for k, v in os.environ.items()
+            if not k.startswith("PASEO_") and k not in ("BASH_ENV", "ENV")
         }
         env.update(HOME=str(home), PASEO_BROKER_DIRECTORY=str(runtime))
         broker = subprocess.Popen(
@@ -163,6 +193,31 @@ def main():
                     except (OSError, urllib.error.URLError):
                         time.sleep(0.2)
                 print("PASS: real Paseo daemon healthy over host network")
+                terminal = terminal_command(
+                    profile, port, env, "create", "--cwd", str(root)
+                )
+                terminal_command(
+                    profile,
+                    port,
+                    env,
+                    "send-keys",
+                    terminal["id"],
+                    "--literal",
+                    "printf '%s\\n' paseo-terminal-smoke\n",
+                )
+                deadline = time.monotonic() + 10
+                while True:
+                    capture = terminal_command(
+                        profile, port, env, "capture", terminal["id"]
+                    )
+                    if "paseo-terminal-smoke" in capture["lines"]:
+                        break
+                    assert time.monotonic() < deadline, capture
+                    time.sleep(0.1)
+                terminal_command(profile, port, env, "kill", terminal["id"])
+                print(
+                    "PASS: terminal worker runs a shell using copied node-pty"
+                )
                 if sandbox_arguments:
                     socket_path = next(
                         (home / ".local/state/paseo-sandbox").glob(
@@ -196,7 +251,7 @@ def main():
                     print("PASS: real container reaches independent SSH agent")
             settings = json.loads((home / ".paseo/config.json").read_text())
             assert settings["agents"]["providers"]["codex"]["command"] == [
-                str(home / ".guix-home/profile/bin/paseo-codex")
+                str(home / ".guix-home/profile/bin/paseo-codex-daily")
             ]
         finally:
             if daemon is not None:
