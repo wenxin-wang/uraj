@@ -44,12 +44,12 @@ Unsolicited forwarding into redroid is blocked; the host can connect
 directly to the instance's private IP.  The private subnet must not overlap
 the host's LAN or VPN routes.  Wi-Fi and Ethernet use the same routed design.
 
-hypie's fwd2home is a full tunnel (strongSwan's `from all lookup 220`), which
-captured the bridge subnet in both directions: ADB from the host timed out
-and Android's DNS failed.  hypie therefore sets `vpn-bypass-priority` to
-200, so the restricted-network service adds `to 10.203.0.0/24 lookup main`
-ahead of it; startup checks that the subnet routes through `br-redroid`.  Reconfiguration does not restart the
-running service; apply such changes with `sudo herd restart restricted-network`, then start the dependent redroid instance again.
+hypie sets `vpn-bypass-priority` to 200 because fwd2home is a full tunnel
+that would otherwise capture the bridge subnet (see
+[the VPN bypass](../restricted-network/networks-guide.md#lifecycle-and-migration)).
+Reconfiguration does not restart the running service; apply such changes
+with `sudo herd restart restricted-network`, then start the dependent
+redroid instance again.
 
 Only `inet restricted_network` and `ip restricted_network` are replaced,
 atomically.  Stopping the network services retains protection; it never
@@ -64,8 +64,7 @@ should share it.
 
 The `network` field of `redroid-configuration` holds a `restricted-network`
 record, defaulting to `%redroid-network`.  The redroid service contributes
-this record directly to `restricted-network-service-type`; no separate
-redroid network service or field-conversion layer is needed.
+this record directly to `restricted-network-service-type`.
 
 ```scheme
 (service restricted-network-service-type)
@@ -109,11 +108,7 @@ or its persistent data.
 The production container starts automatically under Shepherd.  Its own
 Shepherd service, rather than Guix's OCI service, prepares every `docker run`:
 it waits for dockerd to answer, builds the layered image if needed, and
-removes a container still named `redroid-maa`.  dockerd removes the `--rm`
-container of an unclean shutdown only some time after it restarts, and
-Guix's OCI stop launches `docker rm -f` without waiting, so `herd restart`
-also raced it; both made `docker run` fail on the name.  Stop now waits for
-the removal.
+removes a container still named `redroid-maa`; stop waits for the removal.
 
 The layered image is built from the official Android 13 amd64 base, pinned to
 `sha256:524987f1fc489f6018e2c9d0dd622e5eccea13eb896417cb4bfb26bc3fea9afd`
@@ -135,8 +130,8 @@ The expected 64-bit library hash is
 The package installs the native bridge and its ARM guest libraries. It omits
 ARM executable runners and binfmt_misc registration, which would affect the
 host and is not required for app native-library translation. Explicit boot
-properties select Houdini, ARM ABIs and their x86 mappings. The old NDK
-libraries, guest trees, linker configurations and init script are removed
+properties select Houdini, ARM ABIs and their x86 mappings. The base image's
+NDK translation libraries, guest trees, linker configurations and init script are removed
 before copying Houdini into the image. A Guix-built static BusyBox performs
 this build step: Android's own shell cannot run before APEX is mounted.
 The temporary BusyBox and preparation script are then removed.
@@ -150,23 +145,12 @@ the latter path. Init waits for `uraj.houdini.linker.ready` to become `1`.
 A missing/duplicate system section or failed helper leaves zygote blocked
 for diagnosis instead of silently booting without the correction.
 
-### Runtime evidence and remaining checks
+### Host checks
 
-The same HPE library on the Codysk Android 13 base passed account login,
-a short TR-1 battle-loading test and MAA daily tasks on 2026-10-17. The
-unmodified Codysk NDK image and earlier ChromeOS Houdini 11 failed startup.
-The official Android 13 base with this HPE payload completed three initial
-launch observations without native crashes; the first and third reached
-resource selection. The daily validation above subsequently confirmed login
-and MAA on production; battle was not repeated on that base. The
-first official trial exposed the missed `class_start main` hook; the helper
-was then applied manually and successfully invoked through init. The fixed
-boot hook still needs a full production restart check. The production
-package additionally omits host-global binfmt registration; it does not
-change the library binaries. These limits remain explicit even though this
-configuration now replaces the trial setup.
+Verified on hypie: login and the MAA daily tasks; battle was tested once
+(TR-1 loading), on the Codysk Android 13 base only.
 
-Before reconfiguration, on hypie:
+Before first use, on hypie:
 
 ```sh
 grep binder /proc/filesystems
@@ -174,20 +158,16 @@ ls -l /dev/dri/by-path/pci-0000:00:02.0-render
 ip -4 route show table all
 ```
 
-The pinned Guix x86_64 kernel configurations include Binder and binderfs.
-The running kernel still needs checking.  If binderfs is missing, load
-`binder_linux` if it is a module, or rebuild/boot a kernel with Binder enabled.
-No extra Binder DKMS module or ashmem driver is installed by this service.
-
+The kernel must provide Binder and binderfs (`grep binder /proc/filesystems`;
+load `binder_linux` if it is a module).  No Binder DKMS module or ashmem
+driver is installed by this service.
 The Intel device is bind-mounted at `/dev/dri/intel-render` inside Android.
 The container is privileged, as in the upstream deployment recipe.  The
 `modprobe` sysctl is global: Android's `init.rc` sets it to an empty string at
 early-init, which disables module autoloading on the host too (upstream
-[issue #932](https://github.com/remote-android/redroid-doc/issues/932)).  On hypie that broke the boot VPN: charon could not load `esp4`,
-and failed with `Requested type not found (93)`.  The host's `fuse` module,
-which Android needs, was never loaded either: vold aborted on the missing
-`/sys/fs/fuse/connections`, and Android rebooted in a loop.  The service now
-loads `fuse` at boot.
+[issue #932](https://github.com/remote-android/redroid-doc/issues/932)).
+The service therefore loads the host's `fuse` module, which Android needs,
+at boot.
 
 A small statically linked entrypoint therefore binds a copy of
 `/system/etc/init/hw/init.rc` without that `write`, read-only, then executes
@@ -199,11 +179,10 @@ that `/proc` path are rejected by runc, hence the entrypoint.
 The helper is built from `src/guix/uraj/packages/aux-files/redroid-init.c`.
 It avoids depending on Android's shell/APEX libraries before init has run.
 
-From the repository on hypie, with `TO_ISO` unset:
+Deploy with the commands in the [deploy guide](../guix/deploy-guide.md),
+then:
 
 ```sh
-sudo guix time-machine -C env/guix/channels-lock.scm -- \
-  system -L src/guix -L src/guile reconfigure env/guix/os/hypie.scm
 sudo herd start redroid-maa
 sudo herd status redroid-maa
 sudo docker logs --tail 100 redroid-maa
@@ -253,14 +232,11 @@ remote-maa hack-fsync 0              # fsync back, then sync the host
 The game's resource download calls fsync after every 8 KiB write.  On
 storie's Btrfs each takes 5–17 ms, capping the download at 1–4 MB/s with
 11–20 times write amplification; without it the download reached about
-20 MB/s, limited by CPU.  The game's anti-cheat exits once it is traced, so
-strace fault injection is out; Docker ignores seccomp profiles for this
-`--privileged` container; and `wrap.<package>` with LD_PRELOAD bypasses
-Houdini, so the ARM libraries fail to load.  `hack-fsync` instead preloads
-a libc-free shim into zygote, from which every app forks: a wrapper
-bind-mounted over `/system/bin/app_process64` sets `LD_PRELOAD`, then
-zygote restarts.  This also closes the game.  `install` and `upgrade` turn
-it on for the installation unless it already is.
+20 MB/s, limited by CPU.  `hack-fsync` preloads a libc-free shim into
+zygote, from which every app forks: a wrapper bind-mounted over
+`/system/bin/app_process64` sets `LD_PRELOAD`, then zygote restarts.  This
+also closes the game.  `install` and `upgrade` turn it on for the
+installation unless it already is.
 
 While it is on, a host crash can lose or corrupt Android's recent writes;
 `sync` on the host still flushes them.  The anti-cheat may notice the
@@ -274,7 +250,6 @@ is manual.  The session persists in the data directory.
 
 ### storie standby
 
-hypie went offline during its site's maintenance in late October 2026.
 storie (Celeron J6412, UHD Gen11, 15 GiB) carries the same redroid and MAA
 services as a manual standby, with `auto-start? #f` for `redroid-maa`.
 Every host's scheduled run first tries a TCP connection to the instance's
@@ -288,10 +263,8 @@ Its Android data is a fresh directory, not a copy of hypie's: log in and
 download the game resources once, with
 `REMOTE_MAA_HOST=storie.home.labbies.wenxinwang.me remote-maa login`.  The
 redroid network reuses `10.203.0.0/24`; storie's `static-agent` network is
-`10.204.0.0/24`.  Adding it needed `sudo herd restart restricted-network`,
-which also restarts openclaw, its only dependent.  The CPU is roughly half
-of hypie's i5-7500, so measure game startup and a full daily round before
-relying on it.
+`10.204.0.0/24`.  Restarting `restricted-network` also restarts its dependents, such as
+openclaw.  The CPU is roughly half of hypie's i5-7500.
 
 ### References
 

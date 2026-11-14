@@ -1,13 +1,11 @@
 # MAA scheduled daily tasks
 
-## Scheduled daily tasks
-
 The installed hypie system includes `%maa-services` from
 `src/guix/uraj/services/maa.scm`; the live installer does not. Reconfigure
 hypie to activate it. mcron uses hypie's inherited `Asia/Shanghai` timezone
 and runs at minute zero of each configured hour; missed runs are not replayed.
 
-`env/maa/tasks/daily.toml` restores the previous daily configuration:
+`env/maa/tasks/daily.toml` holds the daily configuration:
 Official client login, 3/4-star recruitment (leave 5/6-star tags for manual
 handling), preset base rotation and clues, friend visits and credit shopping,
 rewards, depot recognition, then close the game. There is no `Fight` task
@@ -18,10 +16,9 @@ Pure Gold production (`drones = "PureGold"`).
 The dedicated `maa` system account keeps state under `/var/lib/maa`, with
 ADB server port 5038 separate from interactive clients. A nonblocking lock
 prevents overlapping runs, and a two-hour timeout bounds a stuck run.
-Start the ADB server explicitly before MaaCore: in the first live test,
-letting MaaCore spawn it left a communication pipe open in the background
-server and delayed connection by a minute. Prestarting it connected in one
-second. Both startup and MAA run inside the lock and timeout.
+Start the ADB server explicitly before MaaCore; if MaaCore spawns it, a
+communication pipe stays open in the background server and delays the
+connection by about a minute. Both startup and MAA run inside the lock and timeout.
 The command's `PATH` includes both ADB and `bash-minimal`: MaaCore's
 PosixIO invokes `sh -c` through `execlp`. An ADB-only `PATH` lets the
 absolute-path server startup succeed but makes subsequent device commands
@@ -49,9 +46,7 @@ The wrapper runs inside the existing lock and timeout. Its parser follows
 the pinned [CLI callback output](https://github.com/MaaAssistantArknights/maa-cli/blob/v0.7.5/crates/maa-cli/src/run/callback/mod.rs) and
 [MaaCore DepotInfo format](https://github.com/MaaAssistantArknights/MaaAssistantArknights/blob/v6.19.0/src/MaaCore/Task/Miscellaneous/DepotRecognitionTask.cpp);
 recheck these when upgrading. Test locally with
-`python3 test/maa/depot.py`. This persistence path has fixture-based tests.
-The operator also reported a successful manual test on hypie on 2026-10-20,
-using the built command without system reconfiguration.
+`python3 test/maa/depot.py`.
 
 maa-cli 0.7.5 also performs a mandatory API hot update before task parsing,
 including during `--dry-run`; this needs outbound HTTPS. The optional
@@ -60,20 +55,5 @@ that run. See the [pinned CLI run implementation](https://github.com/MaaAssistan
 
 The scheduled command sets `SSL_CERT_DIR` to the `nss-certs` store
 directory and clears `SSL_CERT_FILE`. This package contains individual
-certificates, not `etc/ssl/certs/ca-certificates.crt`. The 2026-10-17
-21:00 scheduled run pointed at that nonexistent bundle and aborted with
-`No CA certificates were loaded from the system`. Interactive validation
-does not validate the scheduler's certificate environment; after deploying
-the fix, check the dedicated account's scheduled invocation as well.
-
-Live validation on hypie on 2026-10-17, 16:20–16:25 Asia/Shanghai, used
-the Guix store MAA/ADB binaries and this task/profile/CLI configuration
-against production `10.203.0.2:5555` (game 2.7.81), with temporary writable
-state and ADB port 5038. All six tasks reported `Completed`, followed by
-`AllTasksCompleted` and exit status 0. One recruitment was started; base,
-mall and rewards tasks completed, and the game was closed. No combat task
-was configured. This validates the controller and saved game login; the
-dedicated system account and scheduled invocation still await deployment.
-An earlier attempt failed during the mandatory API update before entering
-the game; the retry succeeded. MaaResource download is MAA recognition
-data, not a reinstall or download of the game's data.
+certificates, not `etc/ssl/certs/ca-certificates.crt`. Interactive
+validation does not exercise the scheduler's certificate environment.

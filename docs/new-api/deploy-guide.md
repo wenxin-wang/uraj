@@ -30,9 +30,8 @@ Storage:
 Contained agents see these only when their project exposes the directory,
 e.g. `(expose "/var/log/new-api")`: a sandbox cannot drop `log-readers`, so
 the mounts decide what an agent reads. rsyslog reads its routes only at
-startup, so the first deployment of a route needs `sudo herd restart syslogd`;
-that also restarts the Compose stacks, which require it. Until then their
-output still lands in `/var/log/messages`.
+startup, so after adding a route run `sudo herd restart syslogd`; that also
+restarts the Compose stacks, which require it.
 
 Shepherd checks both mounts before every start and generates the two secrets
 on first start. It refuses to generate a database password when a database
