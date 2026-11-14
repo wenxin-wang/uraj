@@ -5,7 +5,9 @@
 ### Design
 
 hypie's installed system runs `redroid-maa` under Docker (not the live
-installer).  Guix declares the container and its dependencies; Shepherd manages its lifecycle.
+installer); storie declares the same service as a manual standby (see below).
+Guix declares the container and its dependencies; Shepherd manages its
+lifecycle.
 Android's `/data` is bind-mounted from
 `/var/lib/redroid/data/maa-houdini-13` on the system disk.  Other Android instances must have separate names, data
 directories and IP addresses.  Guix generation rollback does not roll back
@@ -104,6 +106,8 @@ or its persistent data.
 - `src/guix/uraj/build/redroid.scm`: Android runtime checks.
 - `env/guix/os/hypie.scm`: Docker, `restricted-network-service-type` (with
   the fwd2home bypass) and the redroid service, any egress interface.
+- `env/guix/os/storie.scm`: the redroid service as a standby
+  (`auto-start? #f`), next to storie's own networks.
 
 The production container starts automatically under Shepherd.  Its own
 Shepherd service, rather than Guix's OCI service, prepares every `docker run`:
@@ -131,9 +135,10 @@ The package installs the native bridge and its ARM guest libraries. It omits
 ARM executable runners and binfmt_misc registration, which would affect the
 host and is not required for app native-library translation. Explicit boot
 properties select Houdini, ARM ABIs and their x86 mappings. The base image's
-NDK translation libraries, guest trees, linker configurations and init script are removed
-before copying Houdini into the image. A Guix-built static BusyBox performs
-this build step: Android's own shell cannot run before APEX is mounted.
+NDK translation libraries, guest trees, linker configurations and init script
+are removed before copying Houdini into the image. A Guix-built static
+BusyBox performs this build step: Android's own shell cannot run before APEX
+is mounted.
 The temporary BusyBox and preparation script are then removed.
 
 Houdini requires the default system linker namespace to permit
@@ -263,8 +268,8 @@ Its Android data is a fresh directory, not a copy of hypie's: log in and
 download the game resources once, with
 `REMOTE_MAA_HOST=storie.home.labbies.wenxinwang.me remote-maa login`.  The
 redroid network reuses `10.203.0.0/24`; storie's `static-agent` network is
-`10.204.0.0/24`.  Restarting `restricted-network` also restarts its dependents, such as
-openclaw.  The CPU is roughly half of hypie's i5-7500.
+`10.204.0.0/24`.  Restarting `restricted-network` also restarts its
+dependents, such as openclaw.  The CPU is roughly half of hypie's i5-7500.
 
 ### References
 
