@@ -24,7 +24,7 @@ fork tasks from those and can neither log in persistently nor write back.
   included, never reach the host.  The agent-browser skill in Home
   describes this flow.  With nothing published, `create` starts an empty
   profile, as public sites need no login.  An agent can still read the forked cookies, and
-  could copy them into the work tree; publish only logins agents may use.
+  could copy them into the worktree; publish only logins agents may use.
 - Both sides run agent-browser's Chromium with `--password-store=basic`:
   cookies encrypted with the host's keyring would be unreadable inside.
 - GPU: the launcher exposes each `/dev/dri/renderD*` with `/sys/dev/char`
