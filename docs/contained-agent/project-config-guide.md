@@ -6,7 +6,7 @@ Clauses, in both places below:
   the source is missing. Each entry can also be `(SOURCE TARGET)` to mount
   at a different container path. Both source and target expand `~/`;
   relative paths are relative to the current worktree root, even when
-  launched from a subdirectory or inheriting the main work tree's policy.
+  launched from a subdirectory or inheriting the main worktree's policy.
   A plain `PATH` still uses the same source and target. Both ends of a
   mapping are subject to the denied-path checks.
 - `(preserve REGEXP ...)`: host environment variables passed through when
@@ -23,14 +23,14 @@ Central configuration only: `(podman-remote)`, `(ssh-agent ...)` and the
 credential clauses `(github TIER)`, `(git-credential URL FILE)` and
 `(env NAME ...)`, described below.
 
-Central: `projects.scm`, keyed by the current work tree's canonical root.
+Central: `projects.scm`, keyed by the current worktree's canonical root.
 A linked worktree without an entry inherits the entries of the checkout
 Paseo created it from, if that checkout has any, and otherwise the main
-work tree's.  The source comes from Paseo's registry
+worktree's.  The source comes from Paseo's registry
 (`$PASEO_HOME/projects/{workspaces,projects}.json`, default `~/.paseo`),
-which no container mounts; it counts only when it is a work tree of the
+which no container mounts; it counts only when it is a worktree of the
 same repository.  A missing or unreadable registry falls back to the main
-work tree.  An explicit worktree entry in any central source replaces that
+worktree.  An explicit worktree entry in any central source replaces that
 fallback across all sources; even an empty `(project "PATH")` disables
 inheritance.
 It reaches the program through Home, so the
@@ -76,7 +76,7 @@ The file is created with private permissions if missing; existing content
 is preserved.  A failed worktree creation does not open the editor.
 
 Add an exact `(project "~/src/uraj-maa" ...)` entry on the host for its
-required permissions instead of inheriting the main work tree's.  Subdirectory
+required permissions instead of inheriting the main worktree's.  Subdirectory
 launches use that worktree's root; symlink aliases resolve to the same root.
 In Paseo, add this directory as a project and select `Local` to use it
 directly.  `New worktree` in that project creates another path which
@@ -129,13 +129,13 @@ value never appears on a command line.  A project-local credential clause,
 even approved, is a bad clause.
 
 - `(github TIER)`: git over HTTPS and `gh` on github.com, with the token SOPS
-  decrypts to `/run/secrets/github/TIER`.  Unlike other credential files,
+  decrypts to `/run/secrets/github/TIER` (TIER is the token level).  Unlike other credential files,
   on Guix System, whose agent hosts all declare the tokens, a missing one
   is waited for, up to 10 seconds, and then fails the launch; on foreign
   distros, which have no SOPS service, the clause is skipped with a
-  warning.  Tiers nest:
+  warning.  Levels nest:
 
-  | Tier | Token | Reaches |
+  | Level | Token | Reaches |
   |---|---|---|
   | `public` | fine-grained, selected repositories | your public repositories |
   | `personal` | fine-grained, all repositories | all your repositories |
@@ -146,8 +146,8 @@ even approved, is a bad clause.
 - `(git-credential URL FILE)`: git over HTTPS below `URL`, which must start
   with `https://`.  git matches it as a prefix of whole path segments, so
   `https://github.com/OWNER` covers that owner's repositories, while
-  `…/REPO.git` misses a remote spelled `…/REPO`.  These come before the tier:
-  give an isolated project only this clause, or narrow one owner of a tier.
+  `…/REPO.git` misses a remote spelled `…/REPO`.  These come before the level:
+  give an isolated project only this clause, or narrow one owner of a level.
 - `(env NAME (file FILE))`: the variable `NAME` set to `FILE`'s contents.
   It overrides `preserve`, which passes the launcher's own environment: the
   host's value is dropped even when the file is missing.
@@ -210,9 +210,9 @@ sandbox.  So they count only once approved:
    `git diff` against the last approved copy and asks on a terminal.
 2. On `y` the copy is kept under its nar hash in
    `~/.local/state/contained-agent/approved/<encoded-worktree-path>/`.
-3. A session hashes the current work tree's files and, on a match within
-   that work tree's approval directory, loads the
-   approved copy, never the work tree.  Otherwise it warns and starts
+3. A session hashes the current worktree's files and, on a match within
+   that worktree's approval directory, loads the
+   approved copy, never the worktree.  Otherwise it warns and starts
    without them.
 
 The whole `.guix` directory is hashed, as a manifest may `load` its
@@ -222,7 +222,7 @@ covered.
 
 <a id="inherited-approvals"></a>A new worktree takes over the approvals of a
 checkout it inherits policy from: the one Paseo created it from, else the
-main work tree, as for central entries.  Both registries are outside every
+main worktree, as for central entries.  Both registries are outside every
 container.  It does so only when that checkout has approved, at its own
 path, both the worktree's current project-local files (same nar hash) and
 its current `.envrc` (as direnv names the approval), each where present.

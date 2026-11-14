@@ -1,6 +1,6 @@
 # Playbooks
 
-宿主层配置：Guix Home 管不到的部分（apt 包、/etc、display manager、
+主机层配置：Guix Home 管不到的部分（apt 包、/etc、display manager、
 systemd 系统层、udev 等）。一台机器第一次装好 Guix Home 后运行一次，
 之后按需重跑。加密（sops）相关内容不在这里。
 
@@ -24,7 +24,7 @@ Python 的 python-apt。
 `apparmor`、`keyboard`、`keyring`、`guix`。
 
 roles/foreign-distro 做（foreign distro 专属部分）：
-- 安装宿主 `gnome-keyring` 与 `libpam-gnome-keyring`，保留宿主的
+- 安装主机的 `gnome-keyring` 与 `libpam-gnome-keyring`，保留主机的
   Secret Service、登录解锁与密码库。Guix Home 的 askpass 通过用户
   D-Bus 访问它；只禁用 GNOME/GCR 的 SSH agent。配置与验证见
   [SSH 密码存储](../desktop/ssh-keyring-guide.md)。
@@ -66,7 +66,7 @@ roles/foreign-distro 做（foreign distro 专属部分）：
 playbooks 目录属于 Ansible 层；与 Guix 共用的文件放在 env/ 的主题目录
 下，两边共同引用：
 
-- `env/desktop/61-keyboard-local.hwdb`：keyboard role 部署到
+- `env/desktop/61-keyboard-local.hwdb`：basic-system role（tag `keyboard`）部署到
   /etc/udev/hwdb.d/（copy 的 src 用 playbook_dir 指过去），
   src/guix/uraj/hardware/keyboard.scm 通过 file->udev-hardware 引用
 
@@ -88,10 +88,10 @@ niri-session 的 Guix 侧引用只在 window-managers.scm 注释中指出位置�
    镜像配置；文件里缺什么就补那里）
 2. `guix home reconfigure` 部署 Guix Home（dotfiles、shepherd、以及
    profile 里的 ansible 都从这来）
-3. `env/playbooks/setup-foreign-desktop.sh` 配宿主层
+3. `env/playbooks/setup-foreign-desktop.sh` 配主机层
 4. 重新登录
 
 ## 边界
 
-- 这里只做宿主层。用户环境（dotfiles、shepherd 服务、软件包）由 Guix
+- 这里只做主机层。用户环境（dotfiles、shepherd 服务、软件包）由 Guix
   Home 管；bootstrap Guix 本身按 pylon 文档人工完成，不在这里脚本化。

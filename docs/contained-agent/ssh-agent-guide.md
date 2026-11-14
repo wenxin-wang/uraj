@@ -88,7 +88,7 @@ The host socket is
 `$XDG_RUNTIME_DIR/contained-agent/<32-hex-path-hash>/ssh.sock`.  If
 `XDG_RUNTIME_DIR` is unset, `/run/user/UID` is used; the runtime directory
 must already exist, belong to the user, and be private.  The hash uses the
-canonical current work tree path, so linked worktrees get separate agents
+canonical current worktree path, so linked worktrees get separate agents
 and sockets, even when they share a Git repository.  No extra project
 name is needed.  A host-side lock serializes lifecycle operations.
 

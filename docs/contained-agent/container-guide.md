@@ -27,7 +27,7 @@
   remaining Paseo state stays private. This includes uploads from other
   sessions.
 - Clone temporary reference code into `/tmp/reference-code/`, or use an
-  ignored `.reference-code/` directory in the current work tree to retain it.
+  ignored `.reference-code/` directory in the current worktree to retain it.
   Read access to `~/src` does not grant permission to clone into it.
 
 ### Working directory
@@ -47,7 +47,7 @@ does not work: Paseo passes host paths to the agent.
 
 ### Git
 
-The work tree and the repository's common git directory are separate
+The worktree and the repository's common git directory are separate
 read-write mount points.  Read-only mount points on top cover what makes
 host-side git run code or read other files:
 
@@ -63,11 +63,11 @@ writable share containing it must itself be a mount point.  That is why
 could otherwise be escaped by renaming its parent (`mv .git .git.x`, then
 recreating `.git` with a malicious `config` or hook).
 
-The main work tree of a linked worktree is automatically exposed read-only,
+The main worktree of a linked worktree is automatically exposed read-only,
 even outside `~/src`, subject to the usual denied-path rules.  Bare
-repositories have no main work tree to expose.  Commits land in the shared
+repositories have no main worktree to expose.  Commits land in the shared
 `.git` and show up on the host at once.
-If `git worktree list` cannot identify the main work tree (for example with
+If `git worktree list` cannot identify the main worktree (for example with
 `--separate-git-dir`), expose it explicitly in project configuration.
 
 Because `config` is read-only, commands writing it fail: `git push -u` pushes
@@ -96,8 +96,8 @@ session:
 A `git-hooks` clause (see [project-config-guide](project-config-guide.md)) sets `core.hooksPath`
 in the same file, as hooks cannot be installed in the read-only `hooks/`.
 uraj's host-side hook, which `scripts/coding_style/install-hooks` links
-into the main work tree, is a deliberate exception to the read-only
-`hooks/`: host-side commits run the work tree's check, which agents can
+into the main worktree, is a deliberate exception to the read-only
+`hooks/`: host-side commits run the worktree's check, which agents can
 change.
 
 With `push.default=current`, a bare `git push` pushes the current branch to
@@ -107,7 +107,7 @@ its namesake on `origin`, and `@{push}` resolves, without any upstream.
 
 `direnv` is among the container packages.  Its approvals live in the
 tmpfs home, so they start empty; the launcher carries over a single one,
-for the work tree's top-level `.envrc`, only when the host approved that
+for the worktree's top-level `.envrc`, only when the host approved that
 exact path.  Linked worktrees need an approval of their own path, which
 they may inherit, see [Inherited approvals](project-config-guide.md#inherited-approvals); otherwise run `direnv allow`
 in each worktree.
