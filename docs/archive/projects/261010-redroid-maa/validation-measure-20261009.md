@@ -3,7 +3,7 @@
 ## Validation status
 
 The network implementation now uses the shared restricted-network service;
-see [its tests and migration instructions](../../restricted-network/networks-guide.md).  The following records describe
+see [its tests and migration instructions](../../../restricted-network/networks-guide.md).  The following records describe
 the earlier redroid-specific implementation and are historical, not proof of
 the new policy's deployment on hypie.
 

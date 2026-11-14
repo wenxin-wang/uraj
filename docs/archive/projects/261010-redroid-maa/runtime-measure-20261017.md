@@ -17,4 +17,4 @@ sh test/redroid/retire-trials.sh
 
 Full Docker build of this Guix-produced recipe, migration, production restart
 and retirement of the trial containers require the host deployment steps
-above. They were not executed from the agent's restricted environment.
+in [trial-migration-deploy-20261017](trial-migration-deploy-20261017.md). They were not executed from the agent's restricted environment.

@@ -7,6 +7,6 @@ hypie 上 redroid 里的明日方舟日常任务自动化，storie 上有手动�
 - [redroid-guide](maa/redroid-guide.md)：Android 实例的设计、网络、ARM 转译、运行和远程访问、storie 备用。
 - [daily-tasks-guide](maa/daily-tasks-guide.md)：日常任务的时刻表、任务内容和排查记录。
 
-## 过程文档
+## 历史项目
 
-- [runtime-measure-20261017](maa/runtime-measure-20261017.md)：生产配方的检查。
+- [261010-redroid-maa](archive/projects/261010-redroid-maa/README.md)：hypie 上的 redroid、ARM 转译、日常任务、storie 备用。
