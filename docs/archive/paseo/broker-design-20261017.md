@@ -3,10 +3,10 @@
 ## Status and scope
 
 The broker is integrated with the boot service described in
-[Paseo application container and boot service](daemon-guide.md). Guix System starts it as
+[Paseo application container and boot service](../../paseo/daemon-guide.md). Guix System starts it as
 the daemon's host user; the daemon itself runs in a Guix application container.
 Foreign Guix Home uses user Shepherd. This extends
-[contained-agent](../contained-agent/overview-guide.md) without replacing its mount, state-overlay, Git protection
+[contained-agent](../../contained-agent/overview-guide.md) without replacing its mount, state-overlay, Git protection
 or approved-manifest implementation. Existing direct terminal use stays as is.
 The deployment still needs the host-side cutover described in that document.
 

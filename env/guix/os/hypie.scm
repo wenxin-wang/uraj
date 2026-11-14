@@ -376,7 +376,7 @@
            '(("data" . "/data")
              ("data/wenxin" . "/data/wenxin"))))
     ;; Official Android 13 + HPE Houdini; migrate data before deployment
-    ;; (docs/maa/trial-migration-deploy-20261017.md).
+    ;; (docs/archive/maa/trial-migration-deploy-20261017.md).
     (list (service containerd-service-type)
           (service docker-service-type %redroid-docker-configuration)
           (service oci-service-type (oci-configuration (runtime 'docker)))

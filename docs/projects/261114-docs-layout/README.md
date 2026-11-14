@@ -32,11 +32,14 @@ uraj 的文档按模块和日期组织，有术语表、模块登记表和子项
    [术语表](../../glossary.md#用词约定) 的“用词约定”。
 6. ~~`paseo-broker.org` 的“Acceptance before enabling the broker”清单是否已全部做完。~~
    11/14 定：已完成，broker 已长期使用。放在
-   `docs/paseo/broker-acceptance-measure-20261016.md`。
+   `docs/archive/paseo/broker-acceptance-measure-20261016.md`。
 7. ~~拆出的文件首行是否注明来源。~~ 11/14 定：不注明，来源看 git 历史。
 8. ~~旧文档是否在第一行标注。~~ 11/14 定：不标注。
 9. ~~`AGENTS.md` 是否保留“旧文档只读，以后删掉”的规则。~~ 11/14 定：不保留。迁移是一次性的，
    原 org 文档转换后已删除，没有并存的旧文档；术语表“旧叫法”改为对照现有文档里的旧说法。
+10. ~~过时的过程文档怎么处理。~~ 11/14 定：移到 `docs/archive/<module>/`，模块索引不再列出。
+    共 7 篇：contained-agent 的 open items，Paseo 的 broker 原始设计、broker 验收清单、
+    daemon 首次切换，MAA 的试验迁移和早期验证，OpenClaw 的 profile 快照上线。
 
 ## 文档
 

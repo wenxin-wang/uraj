@@ -21,7 +21,7 @@
   own command sandbox and by the overlays below.  Changes to the default package list
   take effect after Home reconfigure and starting a new agent session.
 - The network is still the host's (`--network`).  An allowlisting proxy is
-  future work; see [Open items](open-items-design-20261012.md#open-items).
+  future work; see [Open items](../archive/contained-agent/open-items-design-20261012.md#open-items).
 - All agents can read `~/src` when it exists, including other repositories
   and their uncommitted files.  Common mounts come first; the current work
   tree is then mounted read-write, followed by its Git protections.  Other
