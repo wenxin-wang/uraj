@@ -1,7 +1,5 @@
 # Agent specs
 
-## Agent specs
-
 Specs are alists in `llm.scm` (Codex uses `codex-spec` in the launcher);
 `~` stands for the home directory.
 
@@ -25,10 +23,8 @@ copied by the launcher script.
 
 ### OpenCode and Pi
 
-Both are installed by the common Home services, including lappie's embedded
-Home. `opencode` and `pi` run contained; the original commands remain in
-`~/.guix-home/profile/bin/`. Pi is packaged from the official
-`earendil-works/pi` release as `pi-coding-agent` (the executable is `pi`).
+`opencode` and `pi` run contained; the original commands remain in
+`~/.guix-home/profile/bin/`.
 
 OpenCode reads `~/.config/opencode` through a temporary overlay. Its data
 and state directories (`~/.local/share/opencode` and
@@ -51,7 +47,7 @@ added with a project's central `preserve` clause.
 
 ### Claude Code
 
-Paseo's system tier currently uses this same policy; its host tier bypasses
+Paseo's system tier uses this same policy; its host tier bypasses
 contained-agent. Terminal `claude`/`codex` remain contained by default. See
 [Paseo provider and configuration management](../paseo/daemon-guide.md#configuration).
 
@@ -99,25 +95,19 @@ when deleting a thread, which is incompatible with a single-file bind mount.
 Thread-name index changes are consequently session-local; the rollout and
 database state remain persistent.
 
-On first startup, Codex indexes the shared active and archived rollouts into
-the contained database before showing the trust screen.  Let this finish.  An
-interrupted worker holds its backfill lease for 15 minutes, while a new process
-waits only 30 seconds.  During that interval startup may report that the
-database appears damaged.  After the worker has stopped and the lease expires,
-start one instance and let it complete the import.  Do not delete the database
-or mark an unfinished import complete.  The `~/.codex` path in the diagnostic
-names the rollout source; the database remains in `contained-sqlite/`.
+On first startup, Codex imports the shared rollouts into the contained
+database before showing the trust screen.  Let this finish and do not delete
+the database; an interrupted import may make startup report a damaged database
+for a while.
 
-The integration test uses a temporary HOME, checks two consecutive overlays,
-configuration symlinks, shared SQLite WAL state, credentials and sessions:
+Codex's own `workspace-write` sandbox (Paseo's `auto` mode) makes `.git`
+entirely read-only.  Failures there do not say whether our layer would have
+stopped them; test with `full-access` to see our layer alone.  Its
+`read-only` and `workspace-write` sandboxes also build their own `/dev`,
+without the render node, and block the network unless
+`sandbox_workspace_write.network_access` is set.  Without it agent-browser
+fails to start; with it browser tasks run on SwiftShader.  `full-access` has
+both the network and the render node.
 
-```sh
-CODEX_TEST_BINARY=/path/to/real/codex \
-  python3 test/python/uraj/guix/contained-agent/contained-agent-codex.py
-```
-
-With `CODEX_TEST_BINARY` it exercises the real `config/batchWrite` trust
-update and file login with a fake API key, imports active and archived rollout
-fixtures, and resumes an expired backfill lease.  It checks that backfill is
-complete before stopping the server.  Without it, the test checks the mount
-behavior using local file operations.
+Plugin caches live in an overlay: a marketplace update is downloaded again by
+every session until a host-side Codex syncs it.

@@ -5,9 +5,9 @@
 `src/python/uraj/config/json_config.py` is independent of Paseo. It separates
 `merge_objects` (recursive data merge), `apply_layer` (deletion and overrides),
 `read_object` (required file input), and `update_file` (atomic writable output).
-Claude and other applications can reuse these functions for JSON settings.
+Other applications can reuse these functions for JSON settings.
 TOML configuration, including Codex's main config, needs a format-specific
-reader/writer; it is not converted to JSON by this change.
+reader/writer and is not handled here.
 
 The companion `yaml_config.py` safely reads host-specific YAML declarations.
 `public_layer` selects `hosts.<hostname>` from a combined document, whose

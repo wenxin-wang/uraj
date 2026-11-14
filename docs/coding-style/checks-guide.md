@@ -1,7 +1,5 @@
 # Coding style checks
 
-## Coding style
-
 C/C++ uses the applicable rules of the [Google C++ style guide](https://google.github.io/styleguide/cppguide.html), with
 clang-format's Google preset and cpplint. Python uses the [Google Python style guide](https://google.github.io/styleguide/pyguide.html),
 with Ruff for formatting and linting, configured in `ruff.toml`.
@@ -14,9 +12,7 @@ Lint enables `E4/E7/E9` (basic style/errors), `F` (undefined/unused names),
 Imports use one import per line and alphabetical ordering within sections.
 Docstrings are optional throughout the repository: `D100-D107` are disabled.
 Existing docstrings are still checked against the Google convention.
-We do not enable `E501`: the formatter's line length is best-effort, and some
-strings or comments cannot sensibly be wrapped. No Python minimum version is
-imposed here; version-dependent modernization rules are not enabled.
+`E501` is not enabled: the formatter's line length is best-effort.
 This is not a complete replacement for Pylint's analysis or the Google guide.
 See [Ruff formatter](https://docs.astral.sh/ruff/formatter/) and [Google docstring convention](https://docs.astral.sh/ruff/settings/#lintpydocstyle_convention).
 

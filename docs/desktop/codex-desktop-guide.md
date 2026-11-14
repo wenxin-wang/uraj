@@ -18,30 +18,23 @@ uraj-guix shell -L src/guix -L src/guile \
 
 If `uraj-guix` cannot find `maak`, use the equivalent prefix
 `guix time-machine -C env/guix/channels-lock.scm --`.
-The package is included in `(uraj home llm)`; a Home reconfigure installs it.
+No Home installs the package (it was removed from Home on 2026-10-10); build
+and try it manually as above.
 
 ## Coexistence with the CLI
 
-- `codex` remains the separately packaged CLI (currently 0.155.0).
+- `codex` remains the separately packaged CLI.
 - `codex-desktop` and `chatgpt` launch the desktop application.
-- The desktop keeps its bundled Codex 0.160.0 and Code Mode host.  Do not
+- The desktop keeps its bundled Codex and Code Mode host.  Do not
   replace these with the independently updated CLI without testing protocol
   compatibility with the GUI.
 - The clients can share `~/.codex/config.toml`, including MCP configuration.
   See https://learn.chatgpt.com/docs/extend/mcp .  Shared configuration means
   changes made by either client may affect the other.
 
-## Validation and limits
-
-The locked-channel build, default grafts, CLI/desktop profile coexistence,
-and library resolution for 26 Linux x64 dynamic binaries were checked.
-Timed startup checks with temporary `--user-data-dir` directories reached
-window-ready and a successful bundled app-server handshake under both
-XWayland and native Wayland (`--ozone-platform=wayland`), without disabling
-the sandbox.  These are startup checks, not an end-to-end agent task test.
+## Limits
 
 Only x86_64-linux is packaged.  Optional Qt shims and foreign-platform or
 musl addons are retained but excluded from ELF patching; the default UI uses
 GTK.  The desktop can download additional runtimes/plugins into user state:
 those downloads are not part of this Guix package's pinned dependency closure.
-No Home reconfigure is performed by building or testing this package.

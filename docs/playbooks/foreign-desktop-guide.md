@@ -15,13 +15,9 @@ env/playbooks/setup-foreign-desktop.sh
 ```
 
 脚本封装了 `ansible-playbook -e ansible_python_interpreter=/usr/bin/python3 -K env/playbooks/foreign-desktop.yml`，额外参数原样传给 playbook（如
-`--tags pcscd`；后给的 `-e` 会覆盖脚本自己的）。脚本做两件 locale 相关
-的事：把 `LANG`/`LC_ALL` 固定为 `C.UTF-8`（sudo 不保留
-`GUIX_LOCPATH`，Guix Python 在 become 下解析不了会话 locale）；模块统一
-用系统 `/usr/bin/python3` 跑（apt 模块从系统 `locale -a` 挑到 `C.utf8`
-后 `setlocale`，Guix glibc 不认这个名字；sudo 的 `secure_path` 在保留
-逻辑之后无条件替换 `PATH`，`-E`/`--preserve-env` 也带不进 Guix 自己的
-`locale` 命令；而且 apt 本来就需要系统 Python 的 python-apt）。
+`--tags pcscd`；后给的 `-e` 会覆盖脚本自己的）。脚本把 `LANG`/`LC_ALL` 固定为 `C.UTF-8`，模块统一用系统
+`/usr/bin/python3` 跑：Guix Python 在 sudo 下解析不了会话 locale，apt 也需要系统
+Python 的 python-apt。
 `ansible-playbook` 来自 Guix Home profile；
 `syntax-check` 与 `--check` 可以预演（`--check` 里 apt 结果只是预测）。
 常用 tag：`foreign-distro`、`basic-system`、`session`、`gdm`、`pcscd`、
@@ -99,6 +95,3 @@ niri-session 的 Guix 侧引用只在 window-managers.scm 注释中指出位置�
 
 - 这里只做宿主层。用户环境（dotfiles、shepherd 服务、软件包）由 Guix
   Home 管；bootstrap Guix 本身按 pylon 文档人工完成，不在这里脚本化。
-- 以后不装 Guix 的机器会用自己的 class playbook 复用 role
-  （basic-system、dotfiles 等），不套用本 playbook。
-- pylon 里给 voyage 等其它机器的配置以后再迁移，不进 foreign-desktop。

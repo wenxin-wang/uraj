@@ -1,14 +1,12 @@
 # Local Podman runtime
 
-## Local Podman runtime
-
 The central `(podman-remote)` clause starts or reuses a project-owned rootless
 Podman runtime next to the Guix agent container, reached through a filesystem
 Unix socket.  It needs no SSH identity, extra account or ACLs, and is
 independent of SSH clauses.
 
 ```scheme
-(project "~/Projects/20260929-traj-generation/traj-record"
+(project "~/src/PROJECT"
   (podman-remote (tmpdir "~/.cache/harbor/tmp"))
   (share "~/.cache/harbor"))
 ```
@@ -86,18 +84,12 @@ the private cgroup management files to UID 1000, then drops UID/GID and clears
 supplementary groups before starting the API.  Startup checks the service UID,
 rootless status and active seccomp filter.  Service and task cgroups are separate.
 
-The runtime image is pulled by the digest of quay.io/podman/stable:v5.8.7's
-manifest list,
-`sha256:2fb39ca923dd9e0ee33f9e319c3a107a2bfde022a6a31560cbd56a862821e7d3`, and
-must match the verified image ID
-`0e1abc5572ecd4dbc4574f60669bdbbafe804af7f6709b257cc93b8a797106ea` before it is
-executed.  A tag would move: the host service's fresh store pulled a newer
-:latest and failed this check.  A mismatch still fails closed; it does not
-silently upgrade the runtime.
-The underlying supervisor accepts explicit image/reference and expected-ID
-arguments for a reviewed update.  The active API image is Podman 5.8.7; the
-host client is the Guix Podman package.  This image pin is a compatibility pin,
-not a signature/provenance verification system.
+The runtime image is pulled by the digest of a pinned `quay.io/podman/stable`
+manifest list and must match a verified image ID before it is executed.  Both
+are constants in `src/python/uraj/contained_podman.py`.  A mismatch fails
+closed; it never silently upgrades the runtime.  The supervisor accepts
+explicit image/reference and expected-ID arguments for a reviewed update.  The
+pin is a compatibility pin, not signature or provenance verification.
 
 ### Lifecycle and storage
 
@@ -143,26 +135,27 @@ before explicitly stopping the runtime.
 
 After reboot, the next session recreates the service, socket and cgroup using
 the persistent storage; cached images remain available.  It does not resume
-old tasks automatically.  Old task metadata may remain and cause name conflicts.
-An interrupted startup is retried on the next attachment when no session holds
-a lease.  There is no automatic storage purge; unused policy versions retain
-their own caches.  The host service and each inner engine use native rootless
-overlay storage; the inner graphroot is a host bind mount, so no overlay is
-stacked on another.  Startup fails unless the inner engine reports the
-selected driver.  `--storage-driver=vfs` selects VFS for the inner engine; the
-driver is part of the runtime identity, so switching selects separate storage.
-All runtimes share the host service's copy of the pinned runtime image.  Inner
-storage is shared only by clients of the same runtime, not by other runtimes
-or the user's ordinary host Podman.  No shared read-only image library is
-used.
+old tasks automatically, and old task metadata may remain and cause name
+conflicts.  An interrupted startup is retried on the next attachment when no
+session holds a lease.  Nothing is purged automatically.  Storage is native
+rootless overlay; `--storage-driver=vfs` selects VFS for the inner engine and
+is part of the runtime identity, so switching selects separate storage.
 
 Agents' Podman is a remote client, so the inner engine resolves image names.
 Its only short-name search registry is docker.io, as with Docker: references
 such as `alexgshaw/fix-git:20251031` in task definitions resolve without the
 TTY that enforcing mode needs to choose among several registries.  The
 image's short-name aliases still apply.  The client's and the host's
-registries.conf have no effect here.  A running runtime picks this up when it
-is next started.
+registries.conf have no effect here.
+
+### Harbor
+
+Share `~/.cache/harbor` and its TMPDIR, as in the example above, so relative
+Compose binds resolve to the same files from the agent and the runtime.  Use
+project-local output paths and the configured TMPDIR for generated bind
+sources; the synthetic HOME and private `/tmp` files are not runtime bind
+sources.  Default privileged tasks are not promised: the tested privileged
+variant explicitly binds `/sys` read-only.
 
 ### Self-check
 

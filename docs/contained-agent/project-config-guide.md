@@ -1,7 +1,5 @@
 # Project configuration
 
-## Project configuration
-
 Clauses, in both places below:
 
 - `(expose PATH ...)`, `(share PATH ...)`: extra mounts, skipped when
@@ -84,8 +82,6 @@ In Paseo, add this directory as a project and select `Local` to use it
 directly.  `New worktree` in that project creates another path which
 inherits this entry unless it has its own central entry.
 
-Worktrees share Git objects and branches, but have separate working files
-and indexes.  A branch normally cannot be checked out in two worktrees.
 Remove a clean, unused worktree with `git -C ~/src/uraj worktree remove PATH`;
 its branch remains.  Remove its host policy too when retiring the path.
 

@@ -1,7 +1,5 @@
 # Optional Guix daemon access
 
-## Optional Guix daemon access
-
 The managed uraj entry includes `(guix-daemon)` so its sessions can run
 `guix build`, `guix home/system build` and `guix time-machine`.  It may also
 be added to host-private central configuration or an explicitly approved
@@ -35,12 +33,4 @@ builds use the daemon's network outside the session's network policy.  The
 cache isolation avoids direct writes to host channel checkouts; it does not
 turn daemon access into a restricted build API.
 
-`python3 test/python/uraj/guix/contained-agent/contained-agent-guix.py` verifies opt-in, approved local
-configuration, one-time independent cache seeding, XDG cache coverage and
-mount ordering with real bind mounts.  It does not require a daemon.
-After deploying, verify in a new uraj session with:
-
-```sh
-guix build hello --dry-run
-guix time-machine -C env/guix/channels-lock.scm -- describe
-```
+Tests and the check after deploying: [development-guide](development-guide.md).

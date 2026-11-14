@@ -4,8 +4,8 @@
 
 The desktop installs `ksshaskpass-with-qtkeychain` from `(uraj packages ssh)`.
 It backports upstream commit
-[46c7a429: Switch from KWallet to QtKeychain](https://invent.kde.org/plasma/ksshaskpass/-/commit/46c7a4294babcfed9f0db064e407416b8bfb5b47) onto Guix's 6.5.5.  The 6.7.5
-release needs Qt 6.10 / KF 6.26; the pinned environment has Qt 6.9.2 / KF 6.24.
+[46c7a429: Switch from KWallet to QtKeychain](https://invent.kde.org/plasma/ksshaskpass/-/commit/46c7a4294babcfed9f0db064e407416b8bfb5b47) onto Guix's ksshaskpass;
+drop it when Guix ships a release with QtKeychain.
 The patch adapts context and omits an identifier rename in a newer prompt
 parser absent from 6.5.5.  It adds no local password-handling implementation.
 
@@ -43,30 +43,20 @@ D-Bus activation remains available when PAM was not involved, with an unlock
 prompt on first use.  Passwordless/autologin sessions cannot supply a login
 password for automatic unlocking.
 
-This PAM change needs a **system** reconfigure and a fresh greetd login; Home
-reconfigure alone cannot install it or recover a password from a past login.
-An existing keyring labelled `default` is preserved.  Merely giving it the
-same password as the account does not make it the PAM `login` keyring.  After
-the first PAM-enabled login, unlock that existing keyring and select
-"Automatically unlock this on login" if offered: its password is then stored
-in the unlocked `login` keyring.  Alternatively use Seahorse to make `Login`
-the default and save SSH passwords there again.  Changing the default does
-not move existing entries, and no keyring files need to be deleted or renamed.
+This PAM change needs a **system** reconfigure and a fresh greetd login.
+An existing keyring labelled `default` is not the PAM `login` keyring: unlock
+it once and select "Automatically unlock this on login" if offered, or use
+Seahorse to make `Login` the default and save SSH passwords there again.
 
 Home disables the old `gnome-keyring-ssh.desktop` autostart and masks
-`gcr-ssh-agent.socket` / `gcr-ssh-agent.service`.  An existing custom unit at
-either mask path causes activation to fail rather than overwrite it.  These
-masks are activation-created; removing the Home service later does not remove
-them automatically (use `systemctl --user unmask` when intentionally reverting).
-The foreign niri-session wrapper reloads the user manager and stops GCR's SSH
-units, leaving the host password daemon running.  It also replaces inherited
-GCR/Keyring SSH socket paths with the existing gpg-agent socket.  Other agent
-socket paths, including forwarded agents, are preserved.
-
-Reconfigure Home and update the foreign-desktop `keyring,session` tasks, then
-log out and back in.  Home activation alone does not stop an already running
-SSH component inside an older host keyring daemon.  Do not kill the password
-daemon merely to switch askpass: it may hold the unlocked login keyring.
+`gcr-ssh-agent.socket` / `gcr-ssh-agent.service`; an existing custom unit at
+either mask path makes activation fail rather than be overwritten.  The masks
+are activation-created and not removed with the Home service (`systemctl
+--user unmask` reverts them).  The foreign niri-session wrapper stops GCR's SSH
+units, leaving the host password daemon running, and replaces inherited
+GCR/Keyring SSH socket paths with the existing gpg-agent socket; other agent
+socket paths, including forwarded agents, are preserved.  Do not kill the
+password daemon to switch askpass: it may hold the unlocked login keyring.
 
 ## Passwords and normal use
 
@@ -100,18 +90,10 @@ socket path.  Existing bus addresses are preserved.  This neither starts
 a keyring nor unlocks one, and requires an existing desktop/user bus and
 an accessible, unlocked keyring.
 
-After Home reconfiguration, reconnect over SSH or source
-`~/.profile.d/65-session-bus.sh` in an existing shell.  Check
-`gh auth status --hostname github.com` and `git push --dry-run`.  Do not
-log out of `gh` or replace the token solely because the bus was missing.
-
-### Stored SSH passwords
-
-Old GCR/keyring SSH entries use different attributes from QtKeychain, so expect
-to enter and save each SSH password once again.  Existing keyring files are
-not deleted or migrated.  QtKeychain 0.15 uses `user` (key path), `server`
-(`ksshaskpass`) and `type` (`plaintext`, meaning text rather than binary data).
-The latter is an item format, not a request to store the keyring unencrypted.
+Old GCR/keyring SSH entries use different attributes from QtKeychain, so each
+SSH password is saved again once.  QtKeychain 0.15 stores `user` (key path),
+`server` (`ksshaskpass`) and `type` (`plaintext`: an item format, not an
+unencrypted keyring).
 
 ## Validation
 
@@ -123,19 +105,6 @@ guix build -L src/guix -L src/guile --no-grafts \
 ```
 
 With that package plus `python`, `gnome-keyring`, `libsecret`, `dbus` and
-`openssh` on PATH, run:
-
-```sh
-python3 test/python/uraj/guix/keyring/askpass.py
-```
-
-The tests use a private temporary HOME, session bus and password daemon.  They
-exercise both direct unlocking and PAM-style `--login` followed by the
-session's `--start --components=secrets`.  Each test
-stores a disposable password with Secret Service, reads it using the actual
-askpass binary, loads an encrypted SSH key with `ssh-add -h`, and verifies that
-an unbound signing request is refused.  Qt's offscreen backend avoids touching
-the desktop.  This validates password lookup and key constraints, not the
-visible save/cancel dialog or an actual host login.  The desktop configuration
-tests additionally check the generated greetd/passwd PAM entries, their
-optional control flags and the Home initialization service.
+`openssh` on PATH, run `python3 test/python/uraj/guix/keyring/askpass.py`.  It
+uses a private HOME, session bus and password daemon, and checks password
+lookup and `ssh-add -h` constraints, not the visible dialog or a real login.
