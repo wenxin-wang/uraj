@@ -1,7 +1,5 @@
 # Guix 的 crates 下载镜像
 
-## Guix 的 crates 下载镜像
-
 共享 `base-services` 为 Guix daemon 设置
 `GUIX=/etc/guix-daemon-command`。该程序只包装 `perform-download`，
 将 crates.io API 和 static.crates.io 的 crate 地址展开为

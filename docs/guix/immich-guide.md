@@ -1,7 +1,5 @@
 # storie 的 Immich
 
-## storie 的 Immich
-
 主体是 `(uraj services immich)`，由 `storie.scm` 引用。安装系统启动
 Docker、containerd 和 Immich；live ISO 不启动这些服务。
 Engine 来自 Guix，CLI 使用 shikanox 的 `docker-full`（包含 Compose 5.4）。
@@ -29,9 +27,6 @@ Engine 来自 Guix，CLI 使用 shikanox 的 `docker-full`（包含 Compose 5.4�
 命名空间和密码文件挂载一致；数据 bind mounts 保留。
 
 ```sh
-# 在已安装的 storie 上，从仓库环境构建/部署（不是运行在开发机上）：
-guix time-machine -C env/guix/channels-lock.scm -- system build env/guix/os/storie.scm
-sudo -E guix time-machine -C env/guix/channels-lock.scm -- system reconfigure env/guix/os/storie.scm
 sudo herd status immich
 sudo /etc/immich/compose ps
 sudo /etc/immich/compose logs --tail 100
@@ -87,18 +82,16 @@ storie 已通过 `host-sops-services` 声明数据库 secret，并配置：
 ```
 
 实际路径由 `sops-secret->secret-file` 推导，和解密服务保持一致。
-本次在本机生成了新密码，供尚未初始化的数据库使用。如果此前已经运行
-并初始化过数据库，需要改用现有密码，或同步更新 PostgreSQL role；
+如果数据库已经初始化，需要使用现有密码，或同步更新 PostgreSQL role；
 重启本身不会改密。
 管理员密码由首次注册设置；SMTP/OAuth 等可选功能启用后才有额外密钥。
 recipients 沿用仓库 `.sops.yaml`；目标私钥由现有 host-sops 服务管理。
-本次不增加额外备份任务。
 
 Immich 自带数据库导出仍按应用默认值运行，输出到媒体目录的 backups。
 原有 ZFS 定时器使用 `--default-exclude`：只有显式设置
 `com.sun:auto-snapshot=true` 的数据集才会被快照。保留策略为每小时
-72 份、每天 31 份；本次没有给 archive 设置属性，也没有增加快照任务。
+72 份、每天 31 份。
 移动硬盘、冷存储以及恢复演练留待另行设计。
 
-本次不扫描整个 archive 为外部图库。已有照片可另选具体目录只读挂载，
+不要把整个 archive 扫描为外部图库。已有照片可另选具体目录只读挂载，
 避免把 Immich 自己的媒体目录再次作为 External Library 导入。

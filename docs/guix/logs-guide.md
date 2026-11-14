@@ -1,7 +1,5 @@
 # 系统日志读取
 
-## 系统日志读取
-
 共享系统配置以 rsyslog 替换 Shepherd 内置的 system-log 服务。
 `wenxin` 属于 `log-readers`，可读取当前 `/var/log/messages`；
 该文件保持 `root:log-readers 0640`。激活时也会调整已有当前文件的
@@ -13,12 +11,11 @@
 
 继续使用 Shepherd 默认的外部日志复制截断轮转和 zstd 压缩。
 当前 `messages` 的属组不因轮转改变；归档可能变为 root 组，仍需
-sudo 读取。不增加权限修复任务或压缩回调。
+sudo 读取。
 
-首次切换建议 reconfigure 后重启，使旧的内置 logger 释放 `/dev/log`
-并由 rsyslog 接管。Guix 会安装配置到 `/etc/syslog.conf`，rsyslog 和
-Shepherd 统一使用 `/var/run/syslog.pid`。之后重新登录（以及重启
-agent）让附加组生效。`herd status syslogd` 可检查服务状态；
+Guix 会安装配置到 `/etc/syslog.conf`，rsyslog 和 Shepherd 统一使用
+`/var/run/syslog.pid`。加入 `log-readers` 后重新登录（以及重启 agent）
+让附加组生效。`herd status syslogd` 可检查服务状态；
 `herd reload syslogd` 仅发送 HUP 重新打开日志，不会重新读取 rsyslog
 配置，配置更新需要重启该服务。
 

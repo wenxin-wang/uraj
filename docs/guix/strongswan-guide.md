@@ -14,8 +14,7 @@ CA 信任和 DNS 插件配置仍由 `src/guix/uraj/services/strongswan.scm` 管�
 
 域名、认证身份、用户名和密码都放在
 `secrets/hosts/lappie/strongswan.yaml` 的加密 `strongswan.fwd2home` 字符串中。
-已迁移原草稿的域名和身份；若密码仍是 `REPLACE_WITH_PASSWORD`，启动会
-拒绝连接。在仓库根目录使用管理员密钥编辑：
+若密码仍是 `REPLACE_WITH_PASSWORD`，启动会拒绝连接。在仓库根目录使用管理员密钥编辑：
 
 ```sh
 sops secrets/hosts/lappie/strongswan.yaml
@@ -49,11 +48,10 @@ strongswan:
 `local.id`、`local.eap_id`、凭据 `id` 是独立字段，精简时保留各自原值，
 不要自动改成同一个用户名；服务器地址和证书身份也分别保留。
 
-**兼容现有密文：** 目前未改写已有密文，它仍可包含完整配置。运行时先
-include 解密文件，再 include 公共模板；同名节合并，模板中的公共字段
-覆盖旧值。你可以在 SOPS 编辑器中删去密文中重复的公共字段，保留上面的
-私密片段，无需同时迁移才能使用模板。配置不是把密文字符串插入模板：
-swanctl 在运行时合并两份配置，敏感内容始终不参与 Guix 构建。
+密文可以只含上面的私密片段，也可以仍含完整配置：运行时先 include
+解密文件，再 include 公共模板；同名节合并，模板中的公共字段覆盖旧值。
+配置不是把密文字符串插入模板：swanctl 在运行时合并两份配置，敏感内容
+始终不参与 Guix 构建。
 
 将 `secret` 改为真实密码。它是 swanctl 配置语法：使用双引号，并对密码
 中的反斜杠和双引号进行转义。编辑器应禁用明文备份、交换文件和持久撤销。
@@ -134,19 +132,16 @@ EAP 具体方法由服务端协商，IKE/ESP 使用 strongSwan 默认提案。
 charon 不会重装丢失的虚拟 IP：IKE 仍是 ESTABLISHED，但源地址没了，
 内网不可达，只能重启连接。网卡恢复后 charon 会自行重装 220 表路由。
 
-休眠后原 IKE 消失时，插件撤销 DNS 条目是正常清理；重新建立 IKE 并收到
-DNS 后会再次注册。DNS 条目消失不应靠长期保留旧 DNS 来掩盖。若隧道
-仍是 ESTABLISHED 但条目缺失，则应另查 openresolv/网络管理器更新，不能
-仅归因于断线。不保留断开后的 VPN DNS，也不提供断线期间的 kill switch。
+IKE 消失（例如休眠后）时插件撤销 DNS 条目是正常清理，重新建立后会再次
+注册；隧道仍是 ESTABLISHED 但条目缺失时，另查 openresolv/网络管理器。
+不保留断开后的 VPN DNS，也不提供断线期间的 kill switch。
 
 服务端使用 `pools = dhcp, v6pool` 时，DHCP 返回的 DNS 可以下发给客户端；
 仅设置全网流量选择器并不保证下发 DNS。若连接后 `resolvconf -l` 没有
 `lo.strongswan-charon`，检查服务端 DHCP 是否提供 DNS，或在服务端 pool/attr
 配置中指定 VPN 内可达的 DNS。不要为修复客户端 DNS 改写服务端身份校验。
 
-若正在运行旧名 `uraj-charon` 的版本，先在重新部署前执行
-`sudo herd stop uraj-charon`，让旧实例释放 VICI socket 和 DNS 条目。
-重新部署后使用下面的新服务名。
+旧服务名 `uraj-charon` 已改为 `strongswan-charon`。
 
 更新系统配置后，需重启 charon 并重新协商（会断开它管理的所有 VPN）：
 
@@ -164,8 +159,6 @@ sudo resolvconf -l
 物理网络，让网络管理器重新登记 DNS。诊断输出中的内部 DNS 地址也应
 按敏感信息处理。客户端的 `remote_addrs`、`remote.id` 和用户名仍仅存于
 SOPS 加密字符串及 root 可读的运行时文件，不写入公开配置或 Guix store。
-
-真实 VPN 连接仍需在填写密码并部署后验证。
 
 参考：[swanctl 配置](https://docs.strongswan.org/docs/latest/swanctl/swanctlConf.html)、
 [加载连接](https://docs.strongswan.org/docs/latest/swanctl/swanctlLoadConns.html)、

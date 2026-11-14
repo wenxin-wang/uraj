@@ -39,12 +39,12 @@ token 的 scope，成功后才写入密文，并打印过期时间。token 不�
 参数里。首次创建文件只需公钥；更新已有文件需要管理员卡或本机 age
 identity。fine-grained 默认有效期 366 天，`--days` 可改；到期后重新运行
 同一命令即轮换。新建公开仓库后，在 GitHub 上编辑 public token 的仓库
-范围即可（据称 token 值不变，未验证）。
+范围即可。
 
 `(uraj system secrets)` 的 `github-token-secrets` 把每级解密到
 `/run/secrets/github/<级别>`，归主用户所有、权限 0400；密文文件尚不存在
-时不声明任何 secret。运行 agent 或 Paseo 的 Guix System 主机都要声明。三个级别都写入后再提交并 reconfigure，否则缺少的
-key 会让解密失败。
+时不声明任何 secret。运行 agent 或 Paseo 的 Guix System 主机都要声明。
+三个级别都写入后再提交并 reconfigure，否则缺少的 key 会让解密失败。
 
 使用方：
 
@@ -57,10 +57,10 @@ launcher 在每次启动时读取 token 文件，不会改用宿主机自己的�
 Guix System 上文件缺失时最多等 10 秒（开机时 agent 或 Paseo 可能先于
 sops 解密启动），仍缺失则报错退出；foreign distro 没有 sops-guix 系统
 服务，告警并不带 token 启动。只轮换 token（声明不变）时，
-reconfigure 后还要重新解密：重启机器，或 `sudo herd restart sops-secrets`
-（后者尚未在本仓库的主机上验证）。之后新启动的 agent 即可使用；Paseo
-daemon 启动时挂载的是文件本身，sops 原地重写时新值可见，替换文件时需要
-重启 daemon（未验证 sops-guix 采用哪种方式）。
+reconfigure 后还要重新解密：重启机器，或重启对应的 `sops-secret-<名字>`
+服务（名字见 `sudo herd status`；`sops-secrets` 只是等待它们完成）。之后
+新启动的 agent 即可使用；sops-guix 以新文件替换旧文件，Paseo daemon 启动
+时挂载的是旧文件，需要重启 daemon。
 
 ## contained agent 与 Paseo 的私有沙箱策略
 
@@ -93,8 +93,8 @@ contained-agent:
 构建时记下哪些主机有哪份策略，运行时在这些主机上最多等 10 秒，仍缺失
 则报错退出，不会不带策略启动。新增、删除这些文件都要同时 reconfigure
 system 和 Home。只改内容时 reconfigure system，再重新解密（重启或
-`sudo herd restart sops-secrets`）；agent 下次启动读到新内容，Paseo daemon
-需要重启。
+重启对应的 `sops-secret-<名字>` 服务）；agent 下次启动读到新内容，
+Paseo daemon 需要重启。
 
 `~/.config/contained-agent/projects.local.scm` 仍可与密文配置并用，子句
 合并生效。Paseo 只用一份策略：某台主机有密文时，本机不能再有
@@ -125,7 +125,6 @@ paseo:
 `agent-configuration-secrets` 声明上述子树，以 YAML 格式解密至
 `/run/secrets/paseo/config.yaml`，归主用户所有，权限 0400。主机身份
 必须匹配，私密层优先于公开层；明文只在 activation 时读取，不进入 store。
-初始文件只有主机名和空 override，不包含迁移来的凭据。
 
 Home 的系统 Shepherd 服务依赖对应的 `sops-secret-paseo/config.yaml`，
 确保开机先解密再合并。单独执行 Home activation 时也会短暂等待文件，
