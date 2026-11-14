@@ -35,16 +35,15 @@ TODO：启用 cron 前处理没有入站消息的主动发送；新建的 cron �
 `web_fetch`、`view_image`、`memory_search`、`memory_get` 也已开放；
 前者及记忆工具在 Gateway 执行，需同时列入 `tools.sandbox.tools.alsoAllow`。
 自定义模型默认按纯文本处理，读取截图时图片会被丢弃；两个 provider 都设置
-`image-input? #t`，生成 `input: ["text", "image"]`。已直接经 new-api 用
-图片请求验证 GPT-6 Astra、GPT-6 Luna 和三个 Claude 模型能识别图片内容；
-其余 GPT 模型同走 Codex 渠道，未逐个验证。
+`image-input? #t`，生成 `input: ["text", "image"]`。未逐个验证每个模型是否
+真能识别图片内容。
 `message` 工具在 Gateway 执行，同样列入 `alsoAllow`；跨平台发送关闭
 （`tools.message.crossContext.allowAcrossProviders`），角色插件再把它限制为
 仅 `send`、仅当前会话或本轮请求人的私聊（见「群聊角色与私人身份」）。
 浏览器工具和飞书文档工具保持关闭。
 执行策略使用 `tools.exec.mode="full"`；不要同时声明旧的 `security/ask`。
-2026.10.3 启动时的 Doctor 会将 `security="full", ask="off"` 迁移成
-`mode="full"`，混用旧模板会导致不变量检查报差异。
+Doctor 会把旧的 `security/ask` 迁移成 `mode="full"`，混用旧模板会导致
+不变量检查报差异。
 
 `env/guix/os/storie.scm` 已声明 OpenClaw，包含固定 image ID、飞书
 GPT/Claude 两组 provider，默认模型为 `new-api-gpt/gpt-6-astra`（`/astra-6`）。

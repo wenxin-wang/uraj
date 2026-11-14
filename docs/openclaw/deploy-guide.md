@@ -47,9 +47,6 @@ sudo herd restart openclaw
 
 ## 配置、存储与启动
 
-现有 storie 声明已填写完毕，不需要手动向 `host-sops-services` 添加
-重复 secret。以后停用时可将 `%openclaw-configuration` 改成 `#f`。
-
 在 storie 的仓库开发环境中，先确认声明的镜像确实存在（此命令不拉取）：
 
 ```sh
@@ -64,16 +61,13 @@ done
 sudo --preserve-env=GUILE_LOAD_PATH guix time-machine \
   -C env/guix/channels-lock.scm -- system reconfigure env/guix/os/storie.scm
 sudo herd restart sops-secrets
-sudo herd restart syslogd
 sudo herd start openclaw
 sudo herd status openclaw
 sudo /etc/openclaw/compose exec gateway node openclaw.mjs channels status --probe
 ```
 
-显式重启 SOPS 是为了在已经运行的主机上解密新增条目；失败时先解决
-解密问题，不继续启动。首次添加日志路由需要重启 `syslogd`，也会
-重启依赖它的其它服务，应安排可接受的维护时间。已运行时 `herd start`
-不会重建容器；修改配置或轮换凭据后使用 `herd restart openclaw`。
+已运行时 `herd start` 不会重建容器；修改配置或轮换凭据后使用
+`herd restart openclaw`。
 
 完成首次私聊配对，再分别用 GPT 和 Claude 模型发送一条消息，确认
 new-api 的 token 权限、模型名称及协议均可用。不要以 Gateway 的
@@ -99,18 +93,6 @@ HOME 整体可写，允许上游创建 `.openclaw`、`.config/openclaw` 和
 运行配置可写；启动前先对齐 Guix 基础字段并验证，Doctor 修复与升级迁移
 仍属于受信任维护操作。若它们引入策略不支持的 agent 字段，下次校验或
 启动会拒绝，应审查后调整策略，不自动删除动态数据。
-旧布局（HOME 挂在 `/home/node`、workspace 挂在 `/workspace`、属主 1000）
-不自动迁移。接入沙箱时数据基本为空，按清空处理：停服务并移除容器，
-备份后清空 `/data/openclaw`，然后部署新配置：
-
-```sh
-sudo herd stop openclaw
-sudo /etc/openclaw/compose down
-sudo mkdir -p /core-data/backups/openclaw
-sudo tar -C /data -czf /core-data/backups/openclaw/before-sandbox.tar.gz openclaw
-sudo rm -rf /data/openclaw
-```
-
 启动程序按上文创建目录与属主；新 HOME 权限为 0700、属主为 2010:2010。
 首次加入 `sandboxed-agents` 后，正在运行的 `restricted-network` 不会因
 reconfigure 重新执行，网络与规则尚不存在；Compose 要求所有外部网络存在，
