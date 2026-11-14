@@ -6,7 +6,7 @@ Unix socket.  It needs no SSH identity, extra account or ACLs, and is
 independent of SSH clauses.
 
 ```scheme
-(project "~/src/PROJECT"
+(project "~/Projects/20260929-traj-generation/traj-record"
   (podman-remote (tmpdir "~/.cache/harbor/tmp"))
   (share "~/.cache/harbor"))
 ```
