@@ -17,4 +17,4 @@
 8. ~~挂载顺序~~ 已完成。11/04 PR #85。
 9. ~~整理 open items~~ 已完成。Paseo 在容器外由
    [paseo-broker](../261008-paseo-broker/TODO.md) 完成；每个 agent 一个 SSH agent 已有；
-   容器自有网络加白名单代理未做，不再跟踪。
+   容器自有网络加白名单代理未做，要做时另开项目。
