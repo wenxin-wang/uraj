@@ -75,7 +75,6 @@ Guix 代码按 Guix 的层次分目录（`packages/`、`services/`、`home/`、`
   `TODO.md`（进度的唯一来源）、`step-<n>-handoff.md`（交接）三件套，加上带日期的
   过程文档。模板在 [`docs/projects/template/`](docs/projects/template/README.md)。
   已有项目的后续工作在原项目里加一步，只有独立的新方向才开新项目。
-- 旧文档只读：还要用的内容在新文档里重写，旧的以后删掉。
 - 新文档用中文；代码标识符、命令、路径保持原样。
 - 不链接、不提及仓库外的私人资料；project 文档只写可以公开的技术内容。
 
