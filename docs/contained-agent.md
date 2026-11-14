@@ -18,4 +18,4 @@
 
 - [261008-contained-agent](archive/projects/261008-contained-agent/README.md)：容器、项目配置和策略、项目 SSH agent、open items。
 - [261017-contained-podman](archive/projects/261017-contained-podman/README.md)：Podman 运行时、Harbor 验收。
-- [261028-agent-browser](archive/projects/261028-agent-browser/README.md)：contained-agent 和 OpenClaw 两边的浏览器、GPU、dashboard。
+- [261007-agent-browser](archive/projects/261007-agent-browser/README.md)：contained-agent 和 OpenClaw 两边的浏览器、GPU、dashboard。
