@@ -58,23 +58,28 @@ as `contained-agent` the first argument names the agent, or is `allow` or
   Where Paseo is app-managed (`%paseo-setup` is `#f`), no broker provides
   that host tier, so Home omits `~/.local/bin/opencode` and the app's
   built-in provider starts `~/.guix-home/profile/bin/opencode` from `PATH`
-  instead.  Keeping the wrapper there would confine the shared server to
-  one project and make every other workspace unreachable.
-  Restart the daemon after a change: it caches the provider version probe.
+  instead; a wrapper there would confine the shared server to one project.
+  `COMMAND --version` is answered without the container, so a cold profile
+  cannot make Paseo's probe time out.  The probe result is cached:
+  restart the daemon after a change.  Paseo kills agents with `tree-kill`,
+  which reaches processes inside the container.
 - Approve a project's own files: `contained-agent allow [DIRECTORY]`.
 - Approve a new worktree as its source checkout (see [Inherited approvals](project-config-guide.md#inherited-approvals)):
   `contained-agent inherit [DIRECTORY]`.
 
 ## What agents cannot do
 
-- Use SSH by default.  The optional central `ssh-agent` clause below grants
-  access to a project's dedicated agent, not the host's normal agent or
-  private key files.  GPG remains unavailable.
+- Use SSH by default.  The optional central `ssh-agent` clause (see
+  [ssh-agent-guide](ssh-agent-guide.md)) grants access to a project's
+  dedicated agent, not the host's normal agent or private key files.  GPG
+  remains unavailable.
 - Use `gh` or HTTPS git credentials by default, or ever with the host's
   login: `~/.config/gh` is not mounted and the host's credential helpers are
-  dropped.  The optional central `github` clause above grants a tier.
-- Reach the Guix daemon by default.  Projects opting into `(guix-daemon)`,
-  including uraj, can build and use nested Guix environments.
+  dropped.  The optional central `github` clause grants a token level, see
+  [Credentials](project-config-guide.md#credentials).
+- Reach the Guix daemon by default.  Projects opting into `(guix-daemon)`
+  (see [guix-daemon-guide](guix-daemon-guide.md)), including uraj, can build
+  and use nested Guix environments.
 - Control the user's Shepherd (`/run/user/UID`) or see host processes
   (separate PID namespace; mounting the host's `/proc` would expose other
   processes' environments).

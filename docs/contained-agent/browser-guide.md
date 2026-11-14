@@ -1,8 +1,7 @@
 # Browser tasks
 
-## Browser tasks
-
-Agents browse with the OpenClaw sandbox's `browser-profile` design: the user
+Agents browse with the same `browser-profile` design as the OpenClaw sandbox
+(see [OpenClaw browser-guide](../openclaw/browser-guide.md)): the user
 keeps one login identity on the host and publishes snapshots of it; agents
 fork tasks from those and can neither log in persistently nor write back.
 
@@ -40,22 +39,15 @@ fork tasks from those and can neither log in persistently nor write back.
   sysfs.
 - Display: as in the OpenClaw sandbox, Chromium runs headed in a private
   cage on wlroots' headless backend, one per browser, which exits with it:
-  headless mode changes what sites see, and Xvfb cannot use the GPU.  The
-  `contained-chromium` wrapper composites with Vulkan on the render node,
-  and WebGL uses ANGLE on Mesa's hardware drivers with software rendering
-  refused, so a broken GPU path shows as missing WebGL.  Without a render
-  node it uses pixman and SwiftShader.  Their stderr goes to
-  `~/.browser-profile/runtime/browser-PID.log`, not to agent-browser, which
-  reads it only after startup: cage's Vulkan logging would fill the pipe
-  and block before Chromium starts.  Fonts are Noto (including CJK and
-  emoji) and Liberation.  Podman runtime sessions get neither the snapshots
-  nor the GPU yet.
+  headless mode changes what sites see, and Xvfb cannot use the GPU.  Without
+  a render node it uses pixman and SwiftShader; a broken GPU path shows as
+  missing WebGL.  Their stderr goes to
+  `~/.browser-profile/runtime/browser-PID.log`.  Fonts are Noto (including
+  CJK and emoji) and Liberation.  Podman runtime sessions get neither the
+  snapshots nor the GPU.
 
 `scripts/contained-agent/try-browser` checks all of this on a desktop host
-with this checkout's code: it publishes a disposable login (a window opens
-briefly), forks it through the real launcher and checks the cookie,
-refused login, unchanged snapshot, a non-headless user agent, hardware WebGL
-and a CJK screenshot.
+with this checkout's code.
 
 ### Operate an agent's browser yourself
 
@@ -80,27 +72,11 @@ The dashboard lists sessions in its own daemon socket directory, so start
 it inside the agent environment, not in an unrelated host terminal.
 Raw `agent-browser` sessions in that same directory also appear.
 
-With headed Chromium, agent-browser 0.38.2 can report a 1280 x 720 viewport
-while streaming a shorter content area. This shifts mouse coordinates even
-though the page is visible. Before handing over, the skill reads
-`browser-profile run TASK eval '[innerWidth, innerHeight]'` and applies those
-values with `browser-profile run TASK set viewport WIDTH HEIGHT` to synchronize
-the dashboard without changing the page's current desktop layout. For a host
-login session, use `browser-profile identity` instead of `run TASK`.
-
-The updated launchers also remove browser launch defaults from the dashboard
-process. In 0.38.2, those defaults can make menu commands such as Fit reopen a
-managed browser without its profile. Restart a dashboard created by the old
-launcher after updating; existing browser sessions can stay open. Once started
-with the corrected environment, the bottom-right dimensions menu's `Fit` also
-repairs the coordinate mismatch by resizing the page to the available area.
-
 `browser-profile dashboard stop` stops the dashboard without closing the
-browsers. On the host, the same commands view the host's login identity and
-tasks, using the host wrapper's separate daemon directory. For an older Guix
-installation, the skill describes starting the native executable with the
-three launch defaults unset; the old launcher would reinsert the executable
-default.
+browsers.  If clicks land at shifted coordinates, choose `Fit` in the
+dimensions menu at the bottom right; the skill also syncs the viewport before
+handing over.  On the host, the same commands view the host's login identity
+and tasks.
 
 Ask the agent to wait while you operate the page; dashboard input does not
 pause its automation. Resume it afterwards. Input keeps the browser's idle

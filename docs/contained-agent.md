@@ -12,7 +12,6 @@
 - [podman-guide](contained-agent/podman-guide.md)：项目专用的 Podman 运行时。
 - [browser-guide](contained-agent/browser-guide.md)：浏览器任务，人接管 agent 的浏览器。
 - [guix-daemon-guide](contained-agent/guix-daemon-guide.md)：可选的 guix-daemon 访问。
-- [pitfalls-guide](contained-agent/pitfalls-guide.md)：已知的坑。
 - [development-guide](contained-agent/development-guide.md)：修改和测试 contained-agent。
 
 ## 历史项目

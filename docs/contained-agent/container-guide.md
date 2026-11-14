@@ -1,7 +1,5 @@
 # The contained-agent container
 
-## The container
-
 - `--container --no-cwd --network --expose=/gnu/store`.  The whole store is
   read-only, so store links in configuration (MCP servers, skills) resolve.
 - `/usr/bin/env` links to the profile's `env` (`--symlink`), as on Guix
@@ -9,19 +7,13 @@
 - The environment is cleared; agent specs and projects list what to keep
   (`--preserve`).  `SSL_CERT_FILE` and friends point at the profile's
   `nss-certs`.
-- Packages: `%agent-tool-packages` in `llm.scm` is shared with Home and
-  currently includes `agent-browser`.  The launcher imports a manifest of
-  these exact package builds, so the CLI matches the Home-installed skill
-  without depending on the runtime Guix channels.  Add shared agent tools
-  to this list.  `%contained-agent-packages` adds the container's base tools,
-  alongside an approved project manifest.  The defaults include Python,
-  Perl, `bc`, `curl`, `wget`, `jq`, `file` and common archive tools, alongside
-  Git, `fd` (so Pi need not download it each session) and shell utilities.
-  `bubblewrap` provides `bwrap`, needed by Codex's
-  own command sandbox and by the overlays below.  Changes to the default package list
-  take effect after Home reconfigure and starting a new agent session.
-- The network is still the host's (`--network`).  An allowlisting proxy is
-  future work; see [Open items](../archive/contained-agent/open-items-design-20261012.md#open-items).
+- Packages: `%agent-tool-packages` (shared with Home, so the CLI matches the
+  Home-installed skill) plus `%contained-agent-packages` (the container's base
+  tools, including `bubblewrap` for Codex's own sandbox and the overlays), both
+  in `llm.scm`, alongside an approved project manifest.  Changes take effect
+  after Home reconfigure and a new agent session.
+- The network is the host's (`--network`): agents reach the Paseo API on
+  port 6767 and the LAN.  There is no egress filtering.
 - All agents can read `~/src` when it exists, including other repositories
   and their uncommitted files.  Common mounts come first; the current work
   tree is then mounted read-write, followed by its Git protections.  Other
@@ -33,8 +25,7 @@
 - All agents can also read `~/.paseo/uploads`, where Paseo stores file
   attachments such as PDFs. Only this subtree is exposed read-only; the
   remaining Paseo state stays private. This includes uploads from other
-  sessions. Activation and daemon startup create the directory before agents
-  launch; new uploads remain visible through the directory mount.
+  sessions.
 - Clone temporary reference code into `/tmp/reference-code/`, or use an
   ignored `.reference-code/` directory in the current work tree to retain it.
   Read access to `~/src` does not grant permission to clone into it.
@@ -43,8 +34,8 @@
 
 Paseo starts `codex app-server` from its own working directory, `$HOME`,
 and tells Codex the session directory over JSON-RPC.  Claude and Pi are
-started with
-the session directory as working directory.  All get `PASEO_AGENT_CWD`.
+started with the session directory as working directory.  All get
+`PASEO_AGENT_CWD`.
 Every process below an agent inherits that variable, so it is trusted only
 when the working directory is `$HOME`.
 
@@ -68,7 +59,9 @@ host-side git run code or read other files:
 A mount point cannot be renamed or removed (`EBUSY`).  The rule that makes
 this hold: every directory from a protected path up to the root of the
 writable share containing it must itself be a mount point.  That is why
-`.git` is a share of its own.  See [Pitfalls](pitfalls-guide.md#pitfalls) for the tests behind it.
+`.git` is a share of its own.  A read-only mount point inside a writable share
+could otherwise be escaped by renaming its parent (`mv .git .git.x`, then
+recreating `.git` with a malicious `config` or hook).
 
 The main work tree of a linked worktree is automatically exposed read-only,
 even outside `~/src`, subject to the usual denied-path rules.  Bare
@@ -100,7 +93,7 @@ session:
 | `git remote add R URL` | `git config --global remote.R.url URL` and `remote.R.fetch '+refs/heads/*:refs/remotes/R/*'` |
 | `git config KEY VALUE` | `git config --global KEY VALUE` |
 
-A `git-hooks` clause (see [Project configuration](project-config-guide.md#project-configuration)) sets `core.hooksPath`
+A `git-hooks` clause (see [project-config-guide](project-config-guide.md)) sets `core.hooksPath`
 in the same file, as hooks cannot be installed in the read-only `hooks/`.
 uraj's host-side hook, which `scripts/coding_style/install-hooks` links
 into the main work tree, is a deliberate exception to the read-only
@@ -136,5 +129,28 @@ The environment loads automatically:
   Both run `direnv export bash` with status messages off; errors, such as
   a blocked `.envrc`, still show.  `sh` does not read `BASH_ENV`.
 
-direnv 2.37 honours `DIRENV_LOG_FORMAT` only when it has a configuration
-file, so the session gets an empty `~/.config/direnv/direnv.toml`.
+The session gets an empty `~/.config/direnv/direnv.toml`, without which direnv
+ignores `DIRENV_LOG_FORMAT`.
+
+### Mount rules
+
+- `guix shell -C` mounts options in command-line order; a later mount covers
+  an earlier one.  User mappings come after `--nesting`'s.
+- `--nesting` shares the host's `~/.cache/guix` read-write; the optional
+  `guix-daemon` clause covers it with a project cache, see
+  [guix-daemon-guide](guix-daemon-guide.md).
+- Mounts follow links, so a link cannot be pinned read-only.
+  `~/.claude/settings.json` is a link: the link itself could be replaced
+  even though its target was read-only.  Hence the overlay for `~/.claude`.
+- An overlay's lower directory must hold no mount points, or the mount fails
+  with `EINVAL` (tmpfs and btrfs alike).  Hence `persist` paths are mounted
+  aside and bound back.
+- A single-file mount cannot be renamed over.  Claude's atomic writes fall
+  back to writing in place; tools without such a fallback fail.
+- SQLite creates and deletes `-wal`, `-shm` or `-journal` files next to the
+  database, so a database must persist with its whole directory: persisting
+  the file alone loses committed data and breaks locking across concurrent
+  sessions.
+- Guix's synthetic home tmpfs can start with mode `1777`, which OpenSSH
+  rejects when it discovers `~/.ssh/config`.  The container bootstrap changes
+  only that directory to `0700`; it does not chmod mounted host data.

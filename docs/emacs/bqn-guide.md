@@ -1,8 +1,7 @@
 # Editing BQN in Emacs
 
 The Emacs overlay installs `museoa/bqn-mode` through straight and enables
-the `BQN-Z` input method automatically in `.bqn` files. Restart Emacs after
-the updated overlay is linked into your Emacs configuration; straight needs
+the `BQN-Z` input method automatically in `.bqn` files. straight needs
 network access on the first start to install the package.
 
 ## Entering symbols
@@ -34,8 +33,8 @@ Press `C-c C-k` in a BQN source buffer, or run
 - Confirm the buffer uses `bqn-mode` and Meow is in insert mode.
 - Run `M-x set-input-method RET BQN-Z RET` to select the input method.
   `C-\` toggles it off and on in the current buffer.
-- If `bqn-mode` is unavailable, check that the updated `post-init.el` is
-  loaded and straight successfully installed the package.
+- If `bqn-mode` is unavailable, check that `post-init.el` is loaded and
+  straight successfully installed the package.
 - If symbols insert but display as boxes, configure a font with BQN glyph
   coverage, such as BQN386. This is separate from input-method setup.
 

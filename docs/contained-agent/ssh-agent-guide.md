@@ -1,7 +1,5 @@
 # Per-project SSH agents
 
-## Per-project SSH agents
-
 Only the central `projects.scm` or host-private `projects.local.scm` may
 declare `ssh-agent`.  Even an approved
 `.guix/contained-agent.scm` cannot request it.  For example (replace these
@@ -107,11 +105,8 @@ suggests `ssh-start` on the host; no partial agent is kept.  To permanently
 disable automatic SSH access, remove the central clause and stop the agent.
 
 The above host lifecycle applies to direct terminal use.  The
-[Paseo broker](../paseo/broker-guide.md) instead keeps a separate shared SSH service outside session
-namespaces.  It unlocks once per project and unchanged policy during a broker
-lifetime; closing a session does not remove those keys.  Broker shutdown clears
-that service.  Its PID records are isolated from direct host `ssh-start` and
-`ssh-stop`, so those commands do not manage the broker's SSH cache.
+[Paseo broker](../paseo/broker-guide.md) instead keeps a separate shared SSH
+service; direct `ssh-start` and `ssh-stop` do not manage its cache.
 
 In the container:
 - `SSH_AUTH_SOCK=/run/contained-agent/ssh.sock` selects only this project.
@@ -153,15 +148,4 @@ host keys automatically.  Hosts are authenticated by keys/certificates,
 not merely by a DNS suffix.  A constraint to `git@github.com` does not limit
 repositories: use a repository-scoped deploy key for that.
 
-### Verification
-
-`python3 test/python/uraj/guix/contained-agent/contained-agent-ssh.py` uses disposable keys, fake HOME,
-temporary repositories and real OpenSSH processes.  It needs Guile 3,
-OpenSSH 8.9+, Git, Bash, bubblewrap and sha256sum on PATH.  It exercises per-project
-isolation, multiple identities/destinations, wildcard CA records, linked
-worktrees, additive public/private configuration, automatic startup/reuse,
-concurrent launches, policy reload,
-encrypted-key failure cleanup, launch arguments, and
-the SSH protocol through a read-only socket bind in a mount namespace.
-Guix argv is captured rather than building a profile; no daemon, external
-network, or real user keys are used.
+Tests: [development-guide](development-guide.md).
