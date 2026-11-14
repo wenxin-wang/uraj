@@ -1,9 +1,14 @@
 # 按需启动 strongSwan
 
-lappie 已声明 `fwd2home`。charon 和各 VPN 的 Shepherd 服务默认关闭，
-Live ISO 不包含这些服务。启动某个连接会按依赖启动 charon；关闭它不会
-断开其他连接。开机和加载配置不会建立连接；手动启动成功后，网络暂时
-中断会自动尝试重连。手动停止后保持关闭。
+lappie 和 hypie 都声明了 `fwd2home`。charon 和各 VPN 的 Shepherd 服务
+默认不随开机启动，Live ISO 不包含这些服务。启动某个连接会按依赖启动
+charon；关闭它不会断开其他连接。手动启动成功后，网络暂时中断会自动尝试
+重连。手动停止后保持关闭。
+
+lappie 的连接只在手动启动时建立，开机和加载配置不会建立连接。hypie 在
+`strongswan-services` 的 `#:at-boot` 里列出 `fwd2home`，开机时自动连接：
+先等服务端域名可解析（最多十分钟，应对需要 portal 登录的网络），首次
+尝试失败后由 charon 继续重试。其他连接仍只在手动启动时建立。
 
 ## 填写密码并部署
 
@@ -13,11 +18,12 @@ Live ISO 不包含这些服务。启动某个连接会按依赖启动 charon；�
 CA 信任和 DNS 插件配置仍由 `src/guix/uraj/services/strongswan.scm` 管理。
 
 域名、认证身份、用户名和密码都放在
-`secrets/hosts/lappie/strongswan.yaml` 的加密 `strongswan.fwd2home` 字符串中。
+`secrets/hosts/<主机>/strongswan.yaml`（lappie、hypie 各有一份）的加密
+`strongswan.fwd2home` 字符串中。
 若密码仍是 `REPLACE_WITH_PASSWORD`，启动会拒绝连接。在仓库根目录使用管理员密钥编辑：
 
 ```sh
-sops secrets/hosts/lappie/strongswan.yaml
+sops secrets/hosts/<主机>/strongswan.yaml
 ```
 
 私密字符串只需保留下面这些字段（占位符需替换为已有真实值）：
@@ -55,12 +61,12 @@ strongswan:
 
 将 `secret` 改为真实密码。它是 swanctl 配置语法：使用双引号，并对密码
 中的反斜杠和双引号进行转义。编辑器应禁用明文备份、交换文件和持久撤销。
-不要在命令行参数里填写密码。SOPS recipients 沿用 `.sops.yaml` 的
-lappie 规则（三把管理员 GPG 子钥和 lappie age key）。
+不要在命令行参数里填写密码。SOPS recipients 沿用 `.sops.yaml` 中该主机的
+规则（三把管理员 GPG 子钥和该主机的 age key）。
+
+按[命令速查](deploy-guide.md#命令速查)部署该主机的 System 配置后：
 
 ```sh
-sudo --preserve-env=GUILE_LOAD_PATH guix time-machine \
-  -C env/guix/channels-lock.scm -- system reconfigure env/guix/os/lappie.scm
 sudo herd start vpn-fwd2home
 sudo swanctl --list-sas --uri unix:///run/strongswan-charon.vici
 sudo herd stop vpn-fwd2home
@@ -84,7 +90,7 @@ sops-guix 在运行时解密到 `/run/secrets/strongswan/fwd2home`，root:root
 1. 用 SOPS 新建同主机下的 YAML，或在现有文件的 `strongswan` 下增加一个
    加密字符串。每个字符串按上面的私密片段提供 `connections` 和
    `secrets`；IKE 和 `eap-名字` 使用对应连接名，CHILD 由公共模板生成。
-2. 在 `env/guix/os/lappie.scm` 的 `%vpn-connections` 增加
+2. 在 `env/guix/os/<主机>.scm` 的 `%vpn-connections` 增加
    `(cons "名字" (sops-secret ...))`，key 指向该字符串，权限保持 root:root
    0400。连接名只允许 ASCII 字母、数字、下划线、连字符，不可重复。
 3. 重新部署后按名称启动。公共模板在加密 include 之后覆盖同名 IKE/CHILD
