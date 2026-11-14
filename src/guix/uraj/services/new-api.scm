@@ -1,6 +1,7 @@
 ;;; new-api LLM gateway with Claude Code trajectory capture, on one macvlan
 ;;; address.  The image is the official release plus the traj_record plugin,
-;;; built elsewhere with podman and loaded into Docker (see docs/new-api.org).
+;;; built elsewhere with podman and loaded into Docker (see
+;;; docs/new-api/deploy-guide.md).
 (define-module (uraj services new-api)
   #:use-module (gnu packages base)
   #:use-module (gnu services)

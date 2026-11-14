@@ -1,0 +1,393 @@
+# Paseo application container and services
+
+## Layout
+
+`(uraj services paseo)` starts two system Shepherd services at boot:
+`paseo-broker` runs outside the container, as the target user, and `paseo`
+runs `paseo daemon run` in `guix shell --container --network --no-cwd`.
+No login is required. There is no guest operating system, guest Shepherd,
+macvlan interface, or dedicated daemon IP.
+
+The daemon has its own persistent `~/.paseo`, read-only store and Home profile,
+project roots at their host paths, and the broker's `connection/` directory.
+It also shares `~/.claude/projects` read-write when present: Paseo replays
+Claude transcripts itself to rebuild a session's timeline after a daemon
+restart, and without them resumed Claude sessions show no earlier history.
+Rewinding a Claude conversation forks its transcript there from the daemon.
+It cannot see the broker's execution records or SSH material, host agent
+credentials, user Shepherd socket, or Guix daemon socket. The host broker
+launches agents through the existing contained-agent policy. Socket peers
+must have the broker's host UID, including across the daemon's user namespace.
+This remains a same-user execution boundary; see [broker limitations](broker-guide.md).
+
+Lappie and foreign-distro desktops run both services in the niri session's
+Home Shepherd. On Guix System, the broker waits for `gnome-keyring-secrets`;
+on foreign distros it uses the host's existing session Secret Service.
+Both host-side launchers explicitly select the QtKeychain-enabled
+`ksshaskpass` and `SSH_ASKPASS_REQUIRE=force`. Encrypted keys are loaded into
+independent agents using the existing keyring; first use may prompt to save
+or unlock the password. Exiting niri stops these Home services.
+
+Hypie explicitly selects `#:paseo-at-boot? #t` in `desktop-base-os`.
+It and storie run system services as wenxin after Home activation, without
+requiring a login. Hypie's desktop Home installs configuration and clients
+but never starts another broker or daemon. Their SSH policies should refer
+to user-provided keys without passphrases, so loading at boot needs no
+keyring. Neither private keys nor passwords belong in the Guix declaration.
+
+The default desktop mode is session startup. The boot option selects both
+the system services and the matching Home configuration together. No
+lingering Home Shepherd or changes to niri session ownership are needed.
+Desktop machines listen at `127.0.0.1:6767`; storie listens on all interfaces.
+All share `~/src`, `~/Projects` and `~/.local/share/paseo/worktrees` when
+present. Create these directories before starting the service; new projects
+inside an already mounted root require no remount.
+
+When migrating lappie, stop the old system `paseo` and `paseo-broker` (and any
+manually started daemon) before starting their Home replacements. Reconfigure
+the system, then log out and back into niri to load the new Home services and
+session environment. Do not run both service owners against the same state.
+
+## Configuration
+
+Home activation maintains ten provider entries in writable
+`~/.paseo/config.json`:
+
+| Provider ID | Label | Broker tier |
+|---|---|---|
+| claude | 日常沙箱 claude | daily |
+| claude-system | 系统沙箱 claude | system |
+| claude-host | 宿主 claude | host |
+| codex | 日常沙箱 codex | daily |
+| codex-system | 系统沙箱 codex | system |
+| codex-host | 宿主 codex | host |
+| pi | 日常沙箱 pi | daily |
+| pi-system | 系统沙箱 pi | system |
+| pi-host | 宿主 pi | host |
+| opencode | 宿主 opencode | host |
+
+The default `claude`/`codex`/`pi` IDs call `paseo-AGENT-daily`. Derived
+providers use `extends: "AGENT"` and call `paseo-AGENT-system/host`.
+OpenCode is host only: Paseo runs a single `opencode serve` from
+`~/.paseo/opencode-home` for all workspaces and passes each session's directory
+over HTTP, so no per-project container can hold it.  The built-in `opencode`
+ID calls `paseo-opencode-host` directly, with full host privileges. Activation
+migrates the former `opencode-host` provider onto this built-in ID. Using only
+one provider avoids Paseo's shared OpenCode server manager retaining the
+built-in client's default command before the derived client is created.
+All commands are absolute paths under `~/.guix-home/profile/bin`, computed
+on the target machine. The clients are also in the daemon profile. Legacy
+`paseo-claude` and `paseo-codex` remain aliases for daily. Terminal
+`~/.local/bin/claude`, `codex`, `pi` and `opencode` remain the existing
+contained-agent overrides.
+Mobile clients >=0.1.45 can select custom providers when creating an agent;
+older clients hide them. This is not a live-session sandbox switch.
+
+System currently uses exactly the daily launcher and project permissions.
+Host runs the Guix package's real binary outside namespaces as the broker user;
+it does not bypass the agent's own permission settings or grant root. See
+[broker execution tiers](broker-guide.md#execution-tiers) for lifetime and authorization limits.
+Host inherits the broker's `TMPDIR` when set, otherwise applications use their
+normal system temporary directory. Its temporary files are not placed in the
+broker's execution records directory or recursively removed on session exit;
+privileged host commands may leave files the broker user cannot remove.
+
+### Public and private configuration
+
+After the built-in defaults/migrations, activation applies two YAML layers:
+
+1. Public: `env/paseo/config.yaml`, selecting `hosts.<runtime hostname>`.
+2. Private: `secrets/hosts/<hostname>/paseo-config.yaml`, decrypted by SOPS
+   to `/run/secrets/paseo/config.yaml` on configured Guix System hosts.
+
+The public file uses one `&shared` anchor for lappie, hypie and storie. It
+contains only the shared relay settings, daily Claude/Codex/Pi commands, and
+worktree root. The derived system/host providers remain seeded by activation.
+Other application settings and providers are not managed by this public layer.
+
+YAML anchors, aliases and `<<` merge keys allow reuse within the public file.
+YAML `<<` is a shallow merge; the selected `overrides` object is then recursively
+merged into the writable JSON. Unknown hostnames are errors, not a fallback to
+another host. Use quotes for string values that YAML might interpret as boolean
+or date. Recursive aliases, executable tags and non-JSON values are rejected.
+
+The private SOPS file contains a structured YAML subtree, not an embedded JSON
+string. Edit with `sops secrets/hosts/lappie/paseo-config.yaml`:
+
+```yaml
+paseo:
+  config.yaml:
+    hostname: lappie
+    overrides:
+      agents:
+        providers:
+          codex:
+            env:
+              EXAMPLE_PRIVATE_SETTING: "private-value"
+    delete: []
+```
+
+Each file has only its own host's age recipient plus the existing administrator
+PGP recipients. The initial declarations contain a hostname and empty overrides;
+no existing user credentials are copied. Decryption extracts `["paseo"]["config.yaml"]`
+as YAML, owned by the main user, mode 0400. A mismatched plaintext hostname fails
+before modifying config.json. Plaintext never enters the Guix store.
+
+System Home activation explicitly depends on `sops-secret-paseo/config.yaml`.
+The reader additionally waits up to 10 seconds for a required private file,
+then fails without applying either layer. Missing or malformed required private
+configuration never falls back to public-only configuration. After changing a
+secret, refresh its SOPS decryption before re-running Home activation; changing
+ciphertext alone does not update the already-decrypted file.
+
+The `paseo-setup` record accepts `public-config` (a Guix YAML file-like object)
+and `private-config` (an explicit runtime path to decrypted per-host YAML).
+`paseo-home-services` also accepts `#:public-config` and `#:private-config`.
+By default the private path is selected at activation time from the hosts that
+have an encrypted declaration. An explicit path replaces that selection, not a
+third layer. Foreign systems must decrypt their SOPS file first and supply its
+path; there is no automatically loaded unencrypted `~/.config/paseo` override.
+Direct `paseo-service activate` accepts `--public-config FILE` and
+`--private-config FILE`. Guix Home supplies these automatically on declared hosts.
+
+The selected public and private mappings use the `overrides`/`delete` format in
+[the shared configuration module](../config/json-config-guide.md). Private wins over public, which wins over
+existing settings/defaults. `worktrees.root` and the first element of each
+provider `command` may use `~/`; activation expands it against the target
+user's Home before writing JSON. Other arguments and environment values remain
+literal. No shell or environment-variable interpolation is performed.
+
+Activation preserves undeclared settings, uses a private `.before-service`
+backup on the first change, and leaves identical contents untouched. Invalid
+JSON, invalid launch settings and managed symlinks fail without replacing the
+configuration. Overriding a default provider away from its daily command emits
+a warning. No daemon password is generated. Activation neither contacts the
+broker nor restarts any service; finish sessions before restarting the broker
+and daemon to load the new wrappers/configuration. Close the desktop app during
+activation because it caches settings. See the shared module's concurrent-write
+limitations as well.
+
+### Startup readiness
+
+System Shepherd waits for the complete user's Home activation to exit
+successfully before starting the system Paseo broker and daemon (hypie/storie).
+The activation wrapper preserves `GUIX_SYSTEM_IS_RUNNING_HOME_ACTIVATE=t`;
+it does not start a user Shepherd before login.
+
+On lappie, niri starts user Shepherd. Only the Paseo broker depends on the
+user `home-ready` service; neither greetd nor the desktop waits for it.
+The wrapper atomically records activation status in
+`~/.local/state/uraj/home-activation.json`. The readiness check requires the
+current boot ID, system store path and selected `~/.guix-home` store path to
+match a successful activation. Old boot/generation records cannot release it.
+Foreign-distro Homes do not install this system-activation dependency.
+
+A matching activation failure stops startup immediately; absent or unfinished
+activation times out after 120 seconds. After fixing the system Home activation,
+run `herd start paseo` against the user Shepherd to retry its dependencies.
+This is startup ordering, not coordination with a running daemon: stop Paseo
+and close the desktop app before reapplying settings that they may also write.
+
+### Worktrees and desktop settings
+
+When no worktree root is configured, Home uses and creates
+`~/.local/share/paseo/worktrees`. It is an authorized broker root and daemon
+mount, but not one of the agents' common mounts: each agent sees only its own
+worktree, and human project directories stay free of agent worktrees. A root
+equal to the previous default `~/Projects/paseo-worktrees` is moved to the
+new one; worktrees already there keep working, since `~/Projects` remains a
+root. Other custom roots are preserved and must also be
+covered by the configured broker roots and daemon mounts. Storie uses the
+same default as desktop machines.
+
+Desktop activation also sets
+`settings.daemon.manageBuiltInDaemon=false` and marks the legacy settings
+migration complete in Electron's `desktop-settings.json`. The default path
+is `~/.config/Paseo/desktop-settings.json`; `XDG_CONFIG_HOME` and
+`PASEO_ELECTRON_USER_DATA_DIR` are respected when present during activation.
+Close the app before activation because it caches settings. Add the
+service daemon as a connection in the app; pairing/connection state is not
+automatically edited.
+
+Restart the service after upgrading its package or Home profile. The config
+path stays stable, but a running container retains its mounted generation.
+System service `(environment '(("NAME" . "VALUE") ...))` supplies explicit
+runtime settings. Do not put secrets in this declaration: it enters the store.
+Connections use relay pairing; the launcher removes `PASEO_PASSWORD` from
+its environment. Legacy `~/.paseo-password` files are ignored.
+
+## Image attachments
+
+File attachments such as PDFs live in `~/.paseo/uploads`. Home activation
+and daemon startup create this directory with mode 0700. Contained agents
+mount only this subtree of Paseo state read-only, at the same absolute path.
+All contained agents can read uploads from other sessions. After updating
+the Home/broker launcher, restart providers to obtain the new mount; existing
+containers retain their old mounts.
+
+Paseo 0.10.3 writes Codex images under its temporary directory and sends
+`localImage` paths to the provider. Home activation and the service launcher
+create `~/.cache/paseo-tmp` with mode 0700. The launcher sets `TMPDIR` to
+that path; the Paseo container mounts it read-write, and contained agents
+expose it read-only at the same absolute path. Uploads made after an agent
+starts are visible without remounting. The host's entire `/tmp` is not shared.
+
+All contained agents can read this directory, including attachments from
+other sessions and other temporary files Paseo creates there. It is not
+automatically cleared; remove stale files only after the sessions using them
+have ended. Do not replace the directory while containers have it mounted.
+
+For the transition while Paseo still runs on the host, stop the old daemon
+and start it with the same launcher in host mode (with the broker running):
+
+```sh
+paseo_service=$(guix build -L src/guix -L src/guile \
+  -e '(@ (uraj home paseo) paseo-service-program)')
+"$paseo_service" run-host
+```
+
+Alternatively, start the existing host daemon with
+`TMPDIR="$HOME/.cache/paseo-tmp" paseo daemon run` after creating that directory
+with mode 0700. Both methods require the updated contained-agent Home/broker
+launcher. Restart providers after the directory exists and the new launcher
+is selected; existing containers retain their old mounts. Resend images that
+were materialized under the old temporary directory. Setting `TMPDIR` only
+on the provider or broker does not change where Paseo writes images.
+
+## Daemon mounts and independent SSH agent
+
+The daemon's host-only policy file is `~/.config/paseo/sandbox.scm`.
+It is read as data, never evaluated, and is not managed or overwritten by
+Home activation. With no file, the existing daemon mounts remain unchanged.
+A host can instead keep its policy encrypted in the repository, as
+`secrets/hosts/HOST/paseo.yaml`, which SOPS decrypts to
+`/run/secrets/paseo/sandbox.scm` (see [docs/secrets/agent-secrets-guide.md](../secrets/agent-secrets-guide.md)).  It then
+replaces the unmanaged file, whose presence fails the start so that it is
+never silently ignored.  The service launcher knows, from build time,
+which hosts have an encrypted policy: there, it waits up to 10 seconds for
+the file, as the daemon may start at boot before SOPS is done, then fails
+rather than start without it.
+With a file, `share`, `expose` and `preserve` use contained-agent's syntax and
+path restrictions. Entries supplement the default mounts; missing paths are
+skipped. This policy belongs to the daemon, independently of each agent's
+project policy. Extra project mounts do not expand the broker's allowed
+roots. Its `preserve` clause covers only the daemon container's own
+environment; variables for provider executions are named separately in
+`~/.config/paseo/broker-sandbox.json` and read by the host broker, as
+described in [the broker policy](broker-guide.md).
+
+```scheme
+;; Writable data, and clone over HTTPS whatever the host's login reaches.
+(share "~/Projects")
+(github "world")
+
+(ssh-agent
+  (known-hosts "~/.ssh/known_hosts")
+  (identity "~/.ssh/paseo-git" (destinations "git@github.com"))
+  (client-config "Host *
+  IdentitiesOnly no
+  ForwardAgent no
+  AddKeysToAgent no
+  StrictHostKeyChecking yes
+"))
+```
+
+The same `contained-ssh` implementation loads keys with `ssh-add -h` destination
+constraints. Private keys remain outside the daemon container. Only the new
+agent's socket, known_hosts snapshot and literal client config are mounted.
+This agent never shares the desktop GPG agent or the broker's project agents.
+The profile includes `ps` (procps), OpenSSH and GitHub CLI.  The policy's
+`github`, `git-credential` and `env` clauses work as in contained-agent,
+mounting token files under `/run/paseo`.  Both policy files are private, so
+either may hold `(env NAME (value VALUE))`.  To clone every repository you can
+reach, private ones included, give the daemon `(github "world")`; the SSH
+agent is then optional.  The daemon has a GitHub CLI configuration of its
+own, built by `(uraj home paseo)` and mounted read-only over `~/.config/gh`:
+it only sets `git_protocol: https`, which Paseo reads
+(`gh config get git_protocol`) to pick `https://github.com/` clone URLs.  Its
+`gh` is the same wrapper as the agents', taking the token from git.  The
+host's `~/.config/gh` holds the host login and is never mounted.  Being
+read-only, the daemon's copy cannot gain a login (`gh auth login`) or
+aliases, which can run shell commands.  Do not preserve the host's
+`GH_TOKEN` either.  The broker forwards no `GH_*` or `GIT_CONFIG_*` variable,
+so agents never receive the daemon's token.  Of the host's Git configuration the
+daemon gets only the identity, `~/.gitconfig.local` exposed read-only as its
+`~/.gitconfig`; the preferences in `~/.config/git/config` and what
+applications write to the host's `~/.gitconfig` stay outside.
+
+The host launcher prepares SSH in an owned PID namespace, then starts the
+daemon beneath the same namespace. Normal shutdown, a crashed launcher, and
+a crashed daemon tear down the SSH agent too. The private state lives under
+`~/.local/state/paseo-sandbox/ssh-RANDOM/`; a daemon has one SSH policy, so
+there is no per-project hash layer. Before a restart, old namespace identities
+are checked before their files are removed. This private state and policy
+cannot be mounted by agent project clauses.
+
+Restart Paseo to apply policy changes. A bad policy or failed key unlock
+prevents this configured daemon from starting; diagnostic output goes to
+`/var/log/paseo/paseo.log` for the system service. Encrypted keys need a usable
+host-side `SSH_ASKPASS` environment at startup; boot does not provide a desktop
+session or keyring. Preparation has a 120-second timeout.
+
+An empty `(ssh-agent)` clause creates an empty independent agent, using the
+default `~/.ssh/known_hosts`. While Paseo is running, its one active socket
+can be found with `find ~/.local/state/paseo-sandbox -name ssh.sock -type s`.
+Use that path as `SSH_AUTH_SOCK` with `ssh-add` for manual loading. Restarting
+the daemon discards manually loaded keys.
+
+The host fallback mode `run-host` rejects a sandbox policy: its mount and
+credential guarantees require the container. An independent SSH agent does
+not provide GitHub API authentication for `gh`.
+
+## Storie
+
+Storie uses the existing `wenxin` account and its existing Guix Home, just like
+the desktop machines. The server Home additionally installs headless agent
+packages, broker clients, Paseo CLI and contained-agent wrappers, and, like
+the desktop Homes, the dotfiles in `env/dotfiles/llm` (contained-agent's
+central `projects.scm`, a Codex config block). It does not install desktop
+applications. The user copies other agent settings/credentials into
+`/home/wenxin` separately.
+
+Both system services run as `wenxin:users`. The broker waits for
+`guix-home-wenxin`; the daemon then waits for the broker. Project roots are
+`/home/wenxin/src`, `/home/wenxin/Projects` and the default worktree root
+`~/.local/share/paseo/worktrees`. State lives in `~/.paseo` in wenxin's Home.
+
+There is no dedicated `paseo` account declaration, separate Home activation,
+old-data migration, or host bind mount for `/home/paseo` or `/workspace`.
+The old `/data/paseo` contents are not read, copied, deleted or chowned.
+
+The daemon listens on **storie's address**, port 6767. The old
+`172.31.0.7` is unused by this service. Pair clients through the relay; the old
+account's connection state is not migrated.
+
+The separate relay service is unchanged at `172.31.0.8:4000`. A macvlan host
+cannot directly reach that child, so the new daemon does not inherit the old
+private relay environment overrides. Configure
+a relay endpoint reachable from the host. Previously issued private-relay
+pairing links are not automatically migrated.
+
+## Verification
+
+`tests` use disposable state, fake providers and no existing credentials:
+
+- `test/python/uraj/guix/contained-agent/paseo-service.py`: fresh/upgrade
+  activation, idempotence, private permissions, invalid config and mounts.
+- `test/python/uraj/guix/contained-agent/paseo-container.py`: built profile
+  client connects across a real Guix namespace, private broker state is hidden,
+  a real Paseo daemon serves its health endpoint on the host network, and
+  its terminal worker executes a shell command using the copied node-pty.
+  Set `PROFILE`, `SUPERVISOR` and optionally `GUIX` to built executable paths.
+- `test/guix/uraj/services/paseo.scm`: actual storie service identity, Home packages, dependency ordering and
+  absence of the old account/mount service.
+- `test/python/uraj/guix/contained-agent/paseo-sandbox.py`: disposable real SSH
+  keys, literal policy parsing, extra mounts, graceful stop and owner death.
+  Set `ARTIFACTS` to a bundle with `sandbox-helper`, `supervisor`, `service` and `profile`
+  (build `test/guix/uraj/services/paseo-sandbox.scm`).
+- Set `SANDBOX_HELPER` for `paseo-container.py` to additionally verify a real
+  daemon container and its independently mounted SSH socket.
+- Existing broker lifecycle and shared-SSH regressions cover execution cleanup.
+
+Authenticated model turns, desktop connection setup, and the first storie
+cutover remain deployment checks; these tests do not modify live services.

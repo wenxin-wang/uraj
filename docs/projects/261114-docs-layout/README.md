@@ -18,16 +18,28 @@ uraj 的文档按模块和日期组织，有术语表、模块登记表和子项
 ## 待定
 
 提案见 [layout-design-20261114.md](layout-design-20261114.md) 的“待定”一节和
-[glossary-design-20261114.md](glossary-design-20261114.md) 的“待人定的统一”，
-汇总如下：
+[glossary-design-20261114.md](glossary-design-20261114.md) 的“待人定的统一”。
+提案 PR #97 未加修改意见合并，以下按提案的建议执行：
 
-1. 是否接受不带日期的用法手册 `<topic>-guide.md` 和 `deploy` 这个 kind。
-2. 子项目交接文件用 `step-<n>-handoff.md`（kebab-case）而不是 `step_<n>_handoff`。
-3. 旧文档转换时不翻译，保持原语言；新文档用中文。
-4. `exp/bqn/uraj/` 改名、`.gitignore` 的 `/output/` 改 `/out/`：迁移后单独的 `layout` PR。
-5. 术语表里 4 处冲突的统一方式。
-6. `paseo-broker.org` 的“Acceptance before enabling the broker”清单是否已全部做完；
-   决定它迁移后是验收记录还是待办。
+1. ~~是否接受不带日期的用法手册 `<topic>-guide.md` 和 `deploy` 这个 kind。~~
+   11/14 定：接受。
+2. ~~子项目交接文件用 `step-<n>-handoff.md` 还是 `step_<n>_handoff`。~~
+   11/14 定：`step-<n>-handoff.md`。
+3. ~~旧文档转换时是否翻译。~~ 11/14 定：不翻译，保持原语言；新文档用中文。
+4. ~~`exp/bqn/uraj/` 改名、`.gitignore` 的 `/output/` 改 `/out/`。~~
+   11/14 定：迁移后单独的 `layout` PR。
+5. ~~术语表里 4 处冲突的统一方式。~~ 11/14 定：按建议，写在
+   [术语表](../../glossary.md#用词约定) 的“用词约定”。
+6. ~~`paseo-broker.org` 的“Acceptance before enabling the broker”清单是否已全部做完。~~
+   11/14 定：已完成，broker 已长期使用。放在
+   `docs/archive/paseo/broker-acceptance-measure-20261016.md`。
+7. ~~拆出的文件首行是否注明来源。~~ 11/14 定：不注明，来源看 git 历史。
+8. ~~旧文档是否在第一行标注。~~ 11/14 定：不标注。
+9. ~~`AGENTS.md` 是否保留“旧文档只读，以后删掉”的规则。~~ 11/14 定：不保留。迁移是一次性的，
+   原 org 文档转换后已删除，没有并存的旧文档；术语表“旧叫法”改为对照现有文档里的旧说法。
+10. ~~过时的过程文档怎么处理。~~ 11/14 定：移到 `docs/archive/<module>/`，模块索引不再列出。
+    共 7 篇：contained-agent 的 open items，Paseo 的 broker 原始设计、broker 验收清单、
+    daemon 首次切换，MAA 的试验迁移和早期验证，OpenClaw 的 profile 快照上线。
 
 ## 文档
 

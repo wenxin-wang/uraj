@@ -1,4 +1,4 @@
-# MaaCore connection to hypie's redroid-maa (see docs/maa.org).
+# MaaCore connection to hypie's redroid-maa (see docs/maa/redroid-guide.md).
 
 [connection]
 # The service puts android-platform-tools' adb on PATH; Guix's own adb

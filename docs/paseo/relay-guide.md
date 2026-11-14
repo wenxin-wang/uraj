@@ -1,0 +1,103 @@
+# Storie Paseo relay
+
+## Layout
+
+Immich keeps 172.31.0.6; the Guix Paseo daemon uses storie's host address
+(see [daemon deployment and pairing](daemon-guide.md)).
+The relay listens at 172.31.0.8:4000 on the shared macvlan network
+`docker_lan`, attached to `enp1s0`, with gateway 172.31.0.1.
+
+`docker-lan` ensures that network exists and validates its configuration.
+It adopts the existing Immich network without disconnecting containers.
+Both Compose projects now treat the network as external, so removing either
+project does not remove the network. Stopping `docker-lan` leaves it intact.
+Its existing automatic allocation range remains 172.31.0.6/32; explicit
+container addresses such as .8 come from the enclosing /24 subnet.
+Reserve .6 and .8 outside the router's DHCP pool before deployment.
+
+The daemon now shares the host network and cannot directly reach this macvlan
+child. Direct LAN/VPN access works; relay use requires an endpoint reachable
+from the host. Existing private-relay pairing links need reconfiguration.
+
+The relay uses the official Dockerfile at commit
+`3fc41c96c8c63f3a7109e832899cc57d473c4531` of
+https://github.com/getpaseo/paseo-relay . Source is pinned; upstream base image
+tags and Debian packages are not pinned to immutable snapshots.
+The build uses host networking because storie disables Docker's default bridge.
+The running container uses only macvlan, with no host port mappings or volumes.
+
+## First deployment
+
+Run these commands on storie from the updated repository checkout.
+First inspect the existing network and confirm the new address is unused:
+
+```sh
+sudo docker network inspect docker_lan
+```
+
+Reconfigure and start the service. If the commit-tagged image is missing,
+Compose fetches the pinned upstream Git tree and builds its official Dockerfile.
+First startup therefore needs network access and may take several minutes.
+
+```sh
+sudo guix time-machine -C env/guix/channels-lock.scm -- \
+  system -L src/guix -L src/guile reconfigure env/guix/os/storie.scm
+sudo herd start paseo-relay
+sudo herd status paseo-relay
+sudo /etc/paseo-relay/compose ps
+```
+
+Shepherd starts the relay only after Docker and the shared network are ready.
+Startup reuses the existing commit-tagged image and builds only when it is
+missing. It never pulls the service image from a registry; building can still
+download base images and dependencies. A failed build fails service startup;
+after fixing the cause, retry with `sudo herd start paseo-relay`.
+Compose waits for an HTTP /ready health check before reporting success.
+The check uses the bundled Erlang runtime, so no custom runtime image is needed.
+Failed startup stops the container. Docker restarts crashes with `on-failure`;
+Shepherd controls startup after reboot. No dependency on Immich, ZFS or SOPS
+is introduced for the relay.
+
+From another machine on the LAN (macvlan does not directly connect its host):
+
+```sh
+curl --fail http://172.31.0.8:4000/health
+curl --fail http://172.31.0.8:4000/ready
+```
+
+## Operation and updates
+
+```sh
+tail -n 100 /var/log/paseo-relay/containers.log   # no sudo for log-readers
+sudo herd stop paseo-relay
+sudo herd start paseo-relay
+```
+
+To update, change the pinned commit, then reconfigure and restart the relay.
+The new image tag triggers a build if it is not already present. To rebuild
+the current tag deliberately, run `sudo /etc/paseo-relay/compose build` before
+restarting. Existing relay connections reconnect after restart. Keep the
+previous image available for rollback.
+
+To try another upstream commit without reconfiguring, pass its full hash;
+a missing image is built first:
+
+```sh
+sudo herd restart paseo-relay 0123456789abcdef0123456789abcdef01234567
+sudo herd status paseo-relay   # the running value names the commit
+```
+
+The commit lasts until the next plain start: a reboot, a dependency restart
+or `sudo herd restart paseo-relay` return to the configured one. A commit
+still applies when the restart is the one that loads a reconfigured
+definition.
+
+The network service refuses incompatible existing settings and never deletes
+the network to repair them. Inspect the mismatch before changing anything.
+After migration, use the current `/etc/immich/compose` wrapper; an old generation's
+Compose file still describes the network as owned by Immich.
+
+This config exposes the relay only on the LAN. Public mobile access still
+requires a reachable hostname and a TLS reverse proxy supporting WebSocket
+upgrades to port 4000. No public DNS or TLS is configured here. The daemon
+advertises this private relay for LAN/VPN pairing; see the daemon document.

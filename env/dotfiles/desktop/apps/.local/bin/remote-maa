@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Operate a host's redroid-maa Android (default hypie) from this desktop.
 #
-# ADB listens only on the host's private redroid bridge (10.203.0.2:5555, see
-# docs/maa.org), so every command runs through a short-lived SSH forward to
-# 127.0.0.1:$REMOTE_MAA_PORT here; the forward is torn down when it finishes.
+# ADB listens only on the host's private redroid bridge (10.203.0.2:5555,
+# see docs/maa/redroid-guide.md), so every command runs through a
+# short-lived SSH forward to 127.0.0.1:$REMOTE_MAA_PORT here; the forward
+# is torn down when it finishes.
 # A forward left by another running remote-maa is reused.
 
 set -euo pipefail

@@ -359,7 +359,7 @@
           (permissions #o400)))))
 
 ;; GitHub tokens and private sandbox policies for contained agents and
-;; Paseo, see secrets/README.org.
+;; Paseo, see docs/secrets/agent-secrets-guide.md.
 (define %agent-secrets
   (let ((user (user-account-name %main-user)))
     (append (github-token-secrets user)
@@ -375,7 +375,8 @@
           (zfs-data-ready-service
            '(("data" . "/data")
              ("data/wenxin" . "/data/wenxin"))))
-    ;; Official Android 13 + HPE Houdini; migrate data before deployment (docs/maa.org).
+    ;; Official Android 13 + HPE Houdini; migrate data before deployment
+    ;; (docs/archive/maa/trial-migration-deploy-20261017.md).
     (list (service containerd-service-type)
           (service docker-service-type %redroid-docker-configuration)
           (service oci-service-type (oci-configuration (runtime 'docker)))

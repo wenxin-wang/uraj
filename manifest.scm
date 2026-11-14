@@ -18,7 +18,8 @@
 	      ;; guix-os/guix-home.
               "nss-certs"
               "sops"
-              ;; Google C/C++ and Python style; see docs/coding-style.org.
+              ;; Google C/C++ and Python style; see
+              ;; docs/coding-style/checks-guide.md.
               "python-wrapper"
               "clang"
               "cpplint"

@@ -347,7 +347,8 @@
     ;; v2026.10.3 with durable progress, readable cards and chat previews.
     (image "sha256:ed5bfc3c5b098cd05e6d88942d27a693094079d6f6e0a29810332679ff7d05dc")
     (image-repository "localhost/openclaw-gateway")
-    ;; Engine built manually; sandbox builds at service start. See docs/openclaw.org.
+    ;; Engine built manually; sandbox builds at service start.
+    ;; See docs/openclaw/images-guide.md.
     (engine-image
      "sha256:e4a6f63d8faab21dfe3d04cf55a8856192125dd17b52ab60ca644feeb7f801cc")
     (render-device "/dev/dri/renderD128")
@@ -462,9 +463,9 @@
                      (network-policy
                        (dns-servers 'host)
                        (public-egress '((tcp 80 443))))))))))
-            ;; Standby for hypie's MAA (docs/maa.org), with its own login and
-            ;; data.  Start redroid-maa by hand; scheduled runs are skipped
-            ;; while it is stopped.
+            ;; Standby for hypie's MAA (docs/maa/redroid-guide.md), with its
+            ;; own login and data.  Start redroid-maa by hand; scheduled runs
+            ;; are skipped while it is stopped.
             (service redroid-service-type
               (redroid-configuration
                 (network
@@ -487,7 +488,8 @@
             (service paseo-service-type
               (paseo-user-configuration %main-user #:listen "0.0.0.0:6767"))
             ;; Image built by traj-record's new-api-plugin/build.sh; see
-            ;; docs/new-api.org.  Bump the tag together with a new build.
+            ;; docs/new-api/deploy-guide.md.  Bump the tag together with a
+            ;; new build.
             (service new-api-service-type
               (new-api-configuration
                (image "localhost/new-api-traj:v1.0.0-rc.41-8482c37b7f25")

@@ -1,6 +1,7 @@
 ;;; Gateway with checked runtime configuration and a nested Podman engine for
 ;;; sandboxed tools; credentials stay out of the store and the engine.  See
-;;; docs/openclaw.org for image preparation and activation.
+;;; docs/openclaw/images-guide.md and docs/openclaw/deploy-guide.md for image
+;;; preparation and activation.
 (define-module (uraj services openclaw)
   #:use-module (gnu packages acl)
   #:use-module (gnu packages admin)
@@ -321,7 +322,7 @@
                              (heartbeat . ((every . "0m") (target . "owner")))
                              ;; Every session runs tools in the engine; the
                              ;; Podman backend needs host paths, see
-                             ;; docs/openclaw.org.
+                             ;; docs/openclaw/sandbox-guide.md.
                              (sandbox
                               . ((mode . "all") (backend . "podman")
                                  (scope . "agent") (workspaceAccess . "rw")
@@ -472,7 +473,8 @@
                         "fetch('http://127.0.0.1:18789/startupz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"))
               (interval . "30s") (timeout . "10s")
               (start_period . "60s") (retries . 5)))))
-          ;; Rootless Podman nested in Docker; see docs/openclaw.org for why
+          ;; Rootless Podman nested in Docker; see
+          ;; docs/openclaw/engine-params-debug-20261024.md for why
           ;; each relaxation is needed.  Only selected sandbox state is shared.
           (engine .
            ((image . ,(openclaw-engine-image config))
