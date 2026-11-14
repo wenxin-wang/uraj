@@ -29,7 +29,8 @@ rename a live Docker bridge; see the topology rules under Lifecycle.
 
 ## Declared networks
 
-Storie declares this network in `env/guix/os/storie.scm`:
+Storie declares these networks in `env/guix/os/storie.scm`.  The first is
+the OpenClaw Gateway's:
 
 | Setting | Value |
 |---|---|
@@ -42,7 +43,25 @@ Storie declares this network in `env/guix/os/storie.scm`:
 | LAN exception | 172.31.0.9 TCP 3000 (new-api) |
 | Host / ingress | No new connections permitted |
 
-This does not start OpenClaw.  An application must require the Shepherd
+The second, `sandboxed-agents`, is OpenClaw's execution-sandbox engine:
+
+| Setting | Value |
+|---|---|
+| Docker network | sandboxed-agents |
+| Linux bridge | br-sbx-agents |
+| Subnet / gateway | 10.204.1.0/24 / 10.204.1.1 |
+| Routed uplink | Any interface selected by host routing (`#t`) |
+| DNS | Host startup snapshot, TCP/UDP 53 |
+| Public egress | TCP 80 and 443 |
+| LAN exception | None |
+| Host / ingress | No new connections permitted |
+
+The third, `redroid` / `br-redroid` (10.203.0.0/24, from `%redroid-network`),
+belongs to the MAA Android instance and is described below.  Hypie declares
+only the `redroid` network.
+
+The OpenClaw Gateway attaches to `static-agent` and the engine to
+`sandboxed-agents`.  An application must require the Shepherd
 `restricted-network` service, attach exclusively to external Docker network
 `static-agent`, and use the generated resolver snapshot described below.
 No Docker restart policy or manually started container may bypass this
@@ -92,8 +111,9 @@ is limited to its declared resolver; it grants no private-network, host or
 inbound exceptions.  Host-initiated ADB and replies remain possible.  Set
 `egress-interfaces` on the embedded record when enabling it.  Docker network
 selection and Docker/Android DNS use the same record; redroid requires an
-explicit IPv4 DNS list for its boot arguments.  Hypie's deployment block
-remains commented out; the service is available without enabling Android.
+explicit IPv4 DNS list for its boot arguments.  Hypie enables it with the
+fwd2home bypass (`env/guix/os/hypie.scm`); storie declares it for the MAA
+standby instance.
 
 ## Configuration and composition
 

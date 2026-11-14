@@ -1,9 +1,13 @@
 # MAA scheduled daily tasks
 
-The installed hypie system includes `%maa-services` from
+The installed hypie and storie systems include `%maa-services` from
 `src/guix/uraj/services/maa.scm`; the live installer does not. Reconfigure
-hypie to activate it. mcron uses hypie's inherited `Asia/Shanghai` timezone
-and runs at minute zero of each configured hour; missed runs are not replayed.
+the host to activate it. mcron uses the base system's `Asia/Shanghai`
+timezone and runs at minute zero of each configured hour (02:00, 05:00,
+11:00, 14:00 and 21:00); missed runs are not replayed.  Each run first tries
+a TCP connection to the Android instance's ADB port and skips the run (exit
+0) unless it connects within 5 s, so a host whose `redroid-maa` is stopped
+does nothing; see the [storie standby](redroid-guide.md#storie-standby).
 
 `env/maa/tasks/daily.toml` holds the daily configuration:
 Official client login, 3/4-star recruitment (leave 5/6-star tags for manual
@@ -44,7 +48,7 @@ Failed, interrupted or lock-skipped runs retain the last successful file
 and its timestamp; before the first successful scan the file is absent.
 The wrapper runs inside the existing lock and timeout. Its parser follows
 the pinned [CLI callback output](https://github.com/MaaAssistantArknights/maa-cli/blob/v0.7.5/crates/maa-cli/src/run/callback/mod.rs) and
-[MaaCore DepotInfo format](https://github.com/MaaAssistantArknights/MaaAssistantArknights/blob/v6.19.0/src/MaaCore/Task/Miscellaneous/DepotRecognitionTask.cpp);
+[MaaCore DepotInfo format](https://github.com/MaaAssistantArknights/MaaAssistantArknights/blob/v6.21.1/src/MaaCore/Task/Miscellaneous/DepotRecognitionTask.cpp);
 recheck these when upgrading. Test locally with
 `python3 test/maa/depot.py`.
 

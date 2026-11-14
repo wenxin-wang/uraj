@@ -5,8 +5,8 @@
 new-api is an LLM API gateway. This instance records Claude Code
 trajectories (every `/v1/messages` request and raw response) for later
 scoring and training. It listens on plain HTTP at 172.31.0.9:3000 on the
-shared macvlan network `docker_lan`; Immich keeps .6, .7 is reserved for a
-Paseo daemon and the relay uses .8. Reserve .9 outside the router's DHCP
+shared macvlan network `docker_lan`; Immich keeps .6, the Paseo relay uses .8
+and .7 is unused. Reserve .9 outside the router's DHCP
 pool before deployment.
 
 Containers (one Compose project, all in the anchor's network namespace):
@@ -44,7 +44,8 @@ holds no credentials.
 The image is the official new-api release plus the `traj_record` plugin.
 Its sources, the wiring patch and the build script live in the traj-record
 repository under `new-api-plugin/`. The image tag pins the upstream tag and
-a hash of the plugin sources, e.g. `localhost/new-api-traj:v1.0.0-rc.41-8fedb70fb555`.
+a hash of the plugin sources, e.g.
+`localhost/new-api-traj:v1.0.0-rc.41-8482c37b7f25`.
 Docker on storie never pulls it: Compose runs with `--pull missing`, so a
 missing image fails startup instead of fetching something else.
 
