@@ -19,4 +19,4 @@ storie 上的飞书 bot：Gateway、引擎容器、执行沙箱和角色插件�
 - [261015-openclaw-feishu-bot](archive/projects/261015-openclaw-feishu-bot/README.md)：上线、提示缓存、图片生成设计、首次部署排查。
 - [261024-openclaw-podman-sandbox](archive/projects/261024-openclaw-podman-sandbox/README.md)：引擎容器、引擎参数验证、UID 迁移。
 - [261027-openclaw-personas](archive/projects/261027-openclaw-personas/README.md)：家庭成员 persona、话题、进度卡片。
-- [261028-agent-browser](archive/projects/261028-agent-browser/README.md)：OpenClaw 沙箱和 contained-agent 两边的浏览器、GPU、dashboard。
+- [261007-agent-browser](archive/projects/261007-agent-browser/README.md)：OpenClaw 沙箱和 contained-agent 两边的浏览器、GPU、dashboard。
