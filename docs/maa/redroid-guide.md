@@ -1,4 +1,6 @@
-# Arknights automation
+# Arknights automation on redroid
+
+> 迁移自 `docs/maa.org` 的 “Deployment with redroid”、“Design”、“Networking”、“Control plane”、“Implementation and first deployment”、“ARM translation”、“Runtime evidence and remaining checks”、“storie standby”、“References”（2026-11-14，内容未改）。
 
 ## Deployment with redroid
 
@@ -98,84 +100,6 @@ private Android IP on port 5555. The game must already be manually logged in.
 Changing the controller to mower later does not require replacing Android
 or its persistent data.
 
-### Scheduled daily tasks
-
-The installed hypie system includes `%maa-services` from
-`src/guix/uraj/services/maa.scm`; the live installer does not. Reconfigure
-hypie to activate it. mcron uses hypie's inherited `Asia/Shanghai` timezone
-and runs at minute zero of each configured hour; missed runs are not replayed.
-
-`env/maa/tasks/daily.toml` restores the previous daily configuration:
-Official client login, 3/4-star recruitment (leave 5/6-star tags for manual
-handling), preset base rotation and clues, friend visits and credit shopping,
-rewards, depot recognition, then close the game. There is no `Fight` task
-and `credit_fight` is false, so this round does not spend sanity. Base rotation uses the game's
-existing preset queues; keep those configured in-game. Drones accelerate
-Pure Gold production (`drones = "PureGold"`).
-
-The dedicated `maa` system account keeps state under `/var/lib/maa`, with
-ADB server port 5038 separate from interactive clients. A nonblocking lock
-prevents overlapping runs, and a two-hour timeout bounds a stuck run.
-Start the ADB server explicitly before MaaCore: in the first live test,
-letting MaaCore spawn it left a communication pipe open in the background
-server and delayed connection by a minute. Prestarting it connected in one
-second. Both startup and MAA run inside the lock and timeout.
-The command's `PATH` includes both ADB and `bash-minimal`: MaaCore's
-PosixIO invokes `sh -c` through `execlp`. An ADB-only `PATH` lets the
-absolute-path server startup succeed but makes subsequent device commands
-fail with `exec failed: No such file or directory`.
-Configuration and the pinned MAA 6.21.1 package are immutable store files;
-resource updates and logs go to the account's writable data/cache/state
-directories. CLI logs are under `/var/lib/maa/state/maa/debug/`; scheduler
-output is in `/var/log/mcron.log`. Inspect upcoming runs with
-`sudo herd schedule mcron 8`.
-
-Each successful daily run atomically replaces
-`/var/lib/maa/state/maa/depot.json` (owned by `maa`, mode 0600).
-It contains `updated_at` (UTC ISO 8601) and `items`, a mapping of MAA item
-IDs to integer quantities. Recognition runs after rewards so it includes
-this round's purchases and collections. This is the scope recognized by
-MAA's Depot task (materials and supported basic currencies), not every
-category in the game's inventory; missing IDs must not be treated as zero.
-The snapshot replaces the previous mapping rather than merging old items.
-
-`env/maa/run-daily.py` reads this invocation's CLI output and requires a
-final `DepotInfo` callback, `Depot Completed` and a successful CLI exit.
-Failed, interrupted or lock-skipped runs retain the last successful file
-and its timestamp; before the first successful scan the file is absent.
-The wrapper runs inside the existing lock and timeout. Its parser follows
-the pinned [CLI callback output](https://github.com/MaaAssistantArknights/maa-cli/blob/v0.7.5/crates/maa-cli/src/run/callback/mod.rs) and
-[MaaCore DepotInfo format](https://github.com/MaaAssistantArknights/MaaAssistantArknights/blob/v6.19.0/src/MaaCore/Task/Miscellaneous/DepotRecognitionTask.cpp);
-recheck these when upgrading. Test locally with
-`python3 test/maa/depot.py`. This persistence path has fixture-based tests.
-The operator also reported a successful manual test on hypie on 2026-10-20,
-using the built command without system reconfiguration.
-
-maa-cli 0.7.5 also performs a mandatory API hot update before task parsing,
-including during `--dry-run`; this needs outbound HTTPS. The optional
-MaaResource Git update warns on failure, but an API update failure aborts
-that run. See the [pinned CLI run implementation](https://github.com/MaaAssistantArknights/maa-cli/blob/v0.7.5/crates/maa-cli/src/run/mod.rs).
-
-The scheduled command sets `SSL_CERT_DIR` to the `nss-certs` store
-directory and clears `SSL_CERT_FILE`. This package contains individual
-certificates, not `etc/ssl/certs/ca-certificates.crt`. The 2026-10-17
-21:00 scheduled run pointed at that nonexistent bundle and aborted with
-`No CA certificates were loaded from the system`. Interactive validation
-does not validate the scheduler's certificate environment; after deploying
-the fix, check the dedicated account's scheduled invocation as well.
-
-Live validation on hypie on 2026-10-17, 16:20–16:25 Asia/Shanghai, used
-the Guix store MAA/ADB binaries and this task/profile/CLI configuration
-against production `10.203.0.2:5555` (game 2.7.81), with temporary writable
-state and ADB port 5038. All six tasks reported `Completed`, followed by
-`AllTasksCompleted` and exit status 0. One recruitment was started; base,
-mall and rewards tasks completed, and the game was closed. No combat task
-was configured. This validates the controller and saved game login; the
-dedicated system account and scheduled invocation still await deployment.
-An earlier attempt failed during the mandatory API update before entering
-the game; the retry succeeded. MaaResource download is MAA recognition
-data, not a reinstall or download of the game's data.
-
 ### Implementation and first deployment
 
 - `src/guix/uraj/services/redroid.scm`: Docker settings, public-only network
@@ -227,40 +151,6 @@ image build inserts it before both explicit `start zygote` and
 the latter path. Init waits for `uraj.houdini.linker.ready` to become `1`.
 A missing/duplicate system section or failed helper leaves zygote blocked
 for diagnosis instead of silently booting without the correction.
-
-### Move from the trials to production
-
-The tested, logged-in instance at `.5` uses
-`redroid-waydroid-houdini-test-data`. Before reconfiguring, copy that stopped
-instance's complete data, including resources and account state, into the
-new production directory. Never open the Android 11 directory with Android
-13. On hypie:
-
-```sh
-sudo sh scripts/redroid/migrate-houdini-data
-sudo herd stop redroid-maa
-# Reconfigure/deploy hypie from this revision using the usual deployment tool.
-sudo herd start redroid-maa
-sudo docker exec redroid-maa getprop sys.boot_completed
-sudo docker exec redroid-maa getprop uraj.houdini.linker.ready
-```
-
-The migration refuses an existing destination and retains the source volume
-on any copy failure. The old Android 11 directory stays intact for rollback.
-After confirming login on `10.203.0.2:5555` and restarting the production
-service once to check the persistent namespace hook, retire the trials:
-
-```sh
-sudo sh scripts/redroid/retire-trials
-```
-
-This checks the migration marker, production data mount, boot completion,
-Houdini selection and namespace readiness before stopping/removing the four
-named trial containers and their named volumes (`.3` through `.6`). It never
-uses `docker prune`, and keeps production and the old Android 11 data.
-The local trial image tags are removed when no container references them;
-shared base image caches remain. These host actions require Docker/root
-access; they are not performed by reconfiguration itself.
 
 ### Runtime evidence and remaining checks
 
@@ -405,61 +295,8 @@ which also restarts openclaw, its only dependent.  The CPU is roughly half
 of hypie's i5-7500, so measure game startup and a full daily round before
 relying on it.
 
-### Validation status
-
-The network implementation now uses the shared restricted-network service;
-see [its tests and migration instructions](restricted-network.md).  The following records describe
-the earlier redroid-specific implementation and are historical, not proof of
-the new policy's deployment on hypie.
-
-The service graph and subnet/network drift checks have automated tests:
-
-```sh
-guix repl -L src/guix -L src/guile test/guix/uraj/services/redroid.scm
-guix repl -L src/guix test/guix/uraj/build/redroid.scm
-```
-
-The nftables rules were also loaded twice in an isolated user/network
-namespace: syntax and repeated application passed, and an unrelated table
-survived.  This does not yet verify forwarding packets or Android networking.
-The static entrypoint compiled with warnings treated as errors.  In an
-isolated user/mount namespace it successfully bind-mounted the modprobe
-sysctl read-only (confirmed in mountinfo) and reached `exec /init`; the test
-namespace intentionally has no Android init.  It preserves procfs mount
-safety flags.  These early validation records predate the current Android 13 deployment;
-see the runtime evidence above for the current scope.
-
-On 2026-10-09, SSH to `wenxin@hypie.home.labbies.wenxinwang.me` confirmed
-Guix System with kernel `7.2.6`, binderfs, and Intel's render device at
-`pci-0000:00:02.0-render -> renderD128`.  The `10.203.0.0/24` subnet does not
-overlap the observed LAN, local or VPN routes.  The host has roughly 205 GiB
-free on the system disk and a running Guix daemon.  `wenxin` needs a sudo
-password, but the configured `guix-deploy` account accepts the same SSH key
-and its documented passwordless Guix/Guile deployment entrypoints work.
-A clean repository snapshot plus only the redroid changes
-is staged at `/tmp/uraj-redroid-20261009` for a build before activation.
-
 ### References
 
 - [redroid deployment and boot parameters](https://github.com/remote-android/redroid-doc)
 - [Docker firewall behavior](https://docs.docker.com/engine/network/packet-filtering-firewalls/)
 - [maa-cli](https://github.com/MaaAssistantArknights/maa-cli)
-
-### Production recipe checks, 2026-10-17
-
-The Guix Houdini package, static BusyBox (including its upstream tests), and
-Docker build context were built successfully. Both Houdini library hashes
-match the earlier runtime-tested payload, and the Android helper retains its
-`/system/bin/sh` interpreter. The static build helper was executed inside an
-empty chroot on the test instance: it removed only the NDK fixtures, inserted
-both startup hooks and removed its own temporary tools. The service suite
-passed 42 checks. Run the helper/retirement checks with:
-
-```sh
-sh test/redroid/houdini-linker.sh
-sh test/redroid/retire-trials.sh
-```
-
-Full Docker build of this Guix-produced recipe, migration, production restart
-and retirement of the trial containers require the host deployment steps
-above. They were not executed from the agent's restricted environment.
