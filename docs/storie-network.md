@@ -1,39 +1,39 @@
-#+title: Storie host macvlan network
+# Storie host macvlan network
 
-* Configuration
+## Configuration
 
-The =host-macvlan= system service creates =host0= on =enp1s0= in macvlan
-bridge mode, with fixed MAC =02:31:00:00:00:02=. It brings both links up,
+The `host-macvlan` system service creates `host0` on `enp1s0` in macvlan
+bridge mode, with fixed MAC `02:31:00:00:00:02`. It brings both links up,
 and remains started until stopped. Stopping removes the child interface.
 An existing interface name is an error; it is never overwritten or adopted.
-Docker's macvlan networks continue using =enp1s0= as their parent.
+Docker's macvlan networks continue using `enp1s0` as their parent.
 
-The interface starts automatically before =networking= (Guix's Shepherd
-name for dhcpcd). dhcpcd runs on =host0=, with =denyinterfaces enp1s0=.
+The interface starts automatically before `networking` (Guix's Shepherd
+name for dhcpcd). dhcpcd runs on `host0`, with `denyinterfaces enp1s0`.
 The interface service remains started; it is not a one-shot service, since
 Shepherd reruns one-shot dependencies on later dependent-service starts.
-IPv4 and IPv6 DHCP therefore use =host0=. No IPv6 sysctl is changed;
+IPv4 and IPv6 DHCP therefore use `host0`. No IPv6 sysctl is changed;
 link-local IPv6 on the physical parent is permitted. With the current
 radvd configuration not advertising autonomous prefixes, the parent should
 not acquire a global SLAAC address either.
 
-Paseo shares the host network and reaches relay =172.31.0.8:4000= through
+Paseo shares the host network and reaches relay `172.31.0.8:4000` through
 its sibling macvlan interface. No dedicated Paseo IP or namespace is needed.
 
-* Deployment
+## Deployment
 
-Prepare the router's DHCP reservation for =02:31:00:00:00:02=, then
+Prepare the router's DHCP reservation for `02:31:00:00:00:02`, then
 reconfigure and reboot to switch the network and discard old leases/addresses
 on the physical interface. Check the server's DHCP client-ID matching rules
 as well as its MAC reservation; the host address is supplied by DHCP.
 
-Do not restart =networking= or =host-macvlan= casually over SSH: Shepherd
+Do not restart `networking` or `host-macvlan` casually over SSH: Shepherd
 can stop dependent services, including SSH and Paseo. Apply network changes with reconfigure followed by reboot. Reconfiguration alone does
 not guarantee that the old running network service has been replaced.
 
 After boot, check:
 
-#+begin_src sh
+```sh
 sudo herd status host-macvlan
 sudo herd status networking
 ip -d link show host0
@@ -41,45 +41,45 @@ ip address show host0
 ip address show enp1s0
 ip route
 curl --max-time 5 http://172.31.0.8:4000/ready
-#+end_src
+```
 
-Expect the host's DHCP addresses and default route on =host0=. The physical
-interface should have no DHCP addresses; a =fe80::= link-local address is
+Expect the host's DHCP addresses and default route on `host0`. The physical
+interface should have no DHCP addresses; a `fe80::` link-local address is
 normal. Pair Paseo through the relay once its log shows
-=relay_control_connected=.
+`relay_control_connected`.
 
-* NFS data shares
+## NFS data shares
 
-The installed system exports =/core-data= and =/media-data= read/write to
-=172.31.0.0/24=. IPv6 clients are not authorized because the home IPv6
+The installed system exports `/core-data` and `/media-data` read/write to
+`172.31.0.0/24`. IPv6 clients are not authorized because the home IPv6
 prefix is dynamically assigned.
 These are client source networks, not the server's subnet. Other source
 addresses are not authorized by the exports. Connect to the host (currently
-=172.31.0.5=), not the former container address =172.31.255.6=.
-=crossmnt= includes mounted child datasets such as =archive= and =backups=,
+`172.31.0.5`), not the former container address `172.31.255.6`.
+`crossmnt` includes mounted child datasets such as `archive` and `backups`,
 including future children. NFS waits for all four expected ZFS mounts;
 the installer does not start NFS.
 
 On a Linux client with NFS utilities installed:
 
-#+begin_src sh
+```sh
 sudo mkdir -p /mnt/storie-core /mnt/storie-media
 sudo mount -t nfs -o vers=4.2,proto=tcp,sec=sys 172.31.0.5:/core-data /mnt/storie-core
 sudo mount -t nfs -o vers=4.2,proto=tcp,sec=sys 172.31.0.5:/media-data /mnt/storie-media
-#+end_src
+```
 
-Use Unix ownership and modes with =sec=sys,root_squash= (explicit Linux
+Use Unix ownership and modes with `sec=sys,root_squash` (explicit Linux
 defaults). Match numeric UIDs/GIDs across clients and the server; identical
 login names alone are insufficient. Client root is mapped to the anonymous
 user, not server root. AUTH_SYS trusts clients to supply other UIDs/GIDs,
 so this is appropriate for trusted machines on the LAN, not isolation from
-their administrators. For untrusted clients, use Kerberos (=sec=krb5p=)
+their administrators. For untrusted clients, use Kerberos (`sec=krb5p`)
 with a separate identity setup. AUTH_SYS does not encrypt file traffic.
 
 Keep existing ZFS ownership intact. At inspection on 2026-10-21,
-=/core-data= and =/core-data/archive= were =0:0= mode 755,
-=/core-data/backups= was =0:100= mode 755, and =/media-data= was
-=105:100= mode 755; =wenxin= was =1000:998=. A read/write export does not
+`/core-data` and `/core-data/archive` were `0:0` mode 755,
+`/core-data/backups` was `0:100` mode 755, and `/media-data` was
+`105:100` mode 755; `wenxin` was `1000:998`. A read/write export does not
 grant that account permission to create files in these top-level directories.
 Permissions within child directories and on existing files are independent;
 these top-level modes do not imply that all existing files are unwritable.
@@ -88,25 +88,25 @@ a common numeric group on all machines, and use mode 2770 with umask 0007.
 Do not recursively chown existing application data (including Immich) or
 disable root squash to solve an ownership mismatch.
 
-Deploy using the commands in =env/guix/os/README.org=. Verify on storie:
+Deploy using the commands in `env/guix/os/README.org`. Verify on storie:
 
-#+begin_src sh
+```sh
 sudo herd status nfs
 sudo exportfs -v
 showmount -e localhost
-#+end_src
+```
 
-Then mount from an allowed client and check =ls -ln= and file creation as
-the intended ordinary user in a directory that user owns. =showmount=
+Then mount from an allowed client and check `ls -ln` and file creation as
+the intended ordinary user in a directory that user owns. `showmount`
 alone verifies export discovery, not NFSv4 mounting or write permissions.
 
-** On-demand mounts on lappie and hypie
+### On-demand mounts on lappie and hypie
 
-Installed lappie and hypie systems use Guix's =autofs= service (not systemd)
-to mount =172.31.0.5:/core-data= at =/core-data= and
-=172.31.0.5:/media-data= at =/media-data=, the same paths as on storie.
-The shares are mounted under =/mnt/storie/= and these paths are symlinks to
-them: Guix writes direct autofs entries into =auto.master= in a form
+Installed lappie and hypie systems use Guix's `autofs` service (not systemd)
+to mount `172.31.0.5:/core-data` at `/core-data` and
+`172.31.0.5:/media-data` at `/media-data`, the same paths as on storie.
+The shares are mounted under `/mnt/storie/` and these paths are symlinks to
+them: Guix writes direct autofs entries into `auto.master` in a form
 automount rejects.
 Reconfigure each client to enable this service; the live installers do not
 include it.
@@ -120,22 +120,22 @@ whose working directory is inside the share can keep it busy.
 
 The mount helper is signalled after 30 seconds and failed lookups are cached
 for 10 seconds; RPC timeouts can still delay failure when the NAS is offline.
-Already mounted shares use =hard= retries: I/O may wait for the server to
-return after a connection loss. =nosuid,nodev= disable remote setuid programs
+Already mounted shares use `hard` retries: I/O may wait for the server to
+return after a connection loss. `nosuid,nodev` disable remote setuid programs
 and device nodes. Unix UID/GID permissions remain the same as on storie.
 Clients must reach the NAS with a source address allowed by its exports;
 being connected through a VPN alone does not guarantee this.
 
 To verify after reconfiguration:
 
-#+begin_src sh
+```sh
 sudo herd status autofs
 # Before accessing either share, expect no corresponding NFS mount.
 findmnt -rn -t nfs,nfs4
 ls /core-data
 ls /media-data
 findmnt -rn -t nfs,nfs4
-#+end_src
+```
 
 Leave both directories and close their files, then check the mount table
 again after the idle timeout. Both NFS mounts should eventually disappear;

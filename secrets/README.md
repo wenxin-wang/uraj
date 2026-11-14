@@ -1,162 +1,162 @@
-* SOPS secrets
+# SOPS secrets
 
-仓库根目录的 =.sops.yaml= 定义收件人；=keys/admin.asc= 只包含公钥。
+仓库根目录的 `.sops.yaml` 定义收件人；`keys/admin.asc` 只包含公钥。
 管理员 GPG recipients 已接入。lappie 和 storie 的系统配置已启用
 sops-guix，从各自的 Ed25519 SSH host key 派生 age identity；需要在
 目标机器 reconfigure 后生效。storie 已声明 Immich 数据库密码，密文位于
-=hosts/storie/immich.yaml=，启动时解密到 =/run/secrets/immich/db-password=
+`hosts/storie/immich.yaml`，启动时解密到 `/run/secrets/immich/db-password`
 （root 0400）；Immich 等待解密完成后启动。
 
-管理员主钥指纹：=8684C377E0C1D6B0EBAD9025619576F03756BFE4=。
+管理员主钥指纹：`8684C377E0C1D6B0EBAD9025619576F03756BFE4`。
 以下三把加密子钥均为全局 recipient，任意一把即可解密：
 
-| 完整子钥指纹                             | 验证状态                         |
-|------------------------------------------+----------------------------------|
-| 26A5DFBA3B06CF2A99D33CAC103496B20BF0307F | 用户已通过当前 YubiKey 解密测试   |
+| 完整子钥指纹 | 验证状态 |
+|---|---|
+| 26A5DFBA3B06CF2A99D33CAC103496B20BF0307F | 用户已通过当前 YubiKey 解密测试 |
 | 87503C3C845B0F82DBA771F3ED48AC445C42128D | 已取得公钥，尚未验证对应私钥解密 |
 | 7F26222A047E9F5EDFA496D00273036A1927C05B | 已取得公钥，尚未验证对应私钥解密 |
 
-配置中指纹末尾的 =!= 用于强制指定子钥，不能省略。签名和认证子钥
+配置中指纹末尾的 `!` 用于强制指定子钥，不能省略。签名和认证子钥
 不作为 SOPS recipient。登记多个子钥不会把私钥复制到当前卡上。
 
-* 布局与权限
+# 布局与权限
 
-OpenClaw 的可选部署使用 =hosts/storie/openclaw.yaml=，同一份密文内
+OpenClaw 的可选部署使用 `hosts/storie/openclaw.yaml`，同一份密文内
 分别保存飞书 App Secret、new-api token 和 Gateway token。服务启用后
 才声明这三个 secret，运行时各自解密；创建流程及挂载权限见
-[[file:../docs/openclaw.org][OpenClaw 部署说明]]。尚未创建飞书应用时可以保持未启用，
+[OpenClaw 部署说明](../docs/openclaw.md)。尚未创建飞书应用时可以保持未启用，
 不需要先提交占位凭据。新建密文只需收件人公钥，编辑已有密文才需要
 可用的解密私钥。
 
-OpenClaw 身份标识另存于 =hosts/storie/openclaw-identities.yaml=：
-=openclaw.feishu-app-id= 是飞书 App ID，=openclaw.command-owners= 是
+OpenClaw 身份标识另存于 `hosts/storie/openclaw-identities.yaml`：
+`openclaw.feishu-app-id` 是飞书 App ID，`openclaw.command-owners` 是
 管理员渠道 ID 的 JSON 数组字符串。它们不是登录凭据，但与个人或应用
 有关，因此不在公开配置中明文保存。运行时解密并注入 Gateway 配置，
 不进入 Guix store。群 ID 留在受保护的运行状态中动态管理。
 无需解密原有凭据文件就能用公钥重建这份身份文件；重建时必须包含所有
 需要保留的管理员。不要重建或覆盖未知明文的 App Secret/token 密文。
 
-- =hosts/lappie/*.yaml=：管理员，以及已登记的 lappie age key。
-- =hosts/storie/*.yaml=：管理员，以及已登记的 storie age key。
-- =shared/*.yaml=：目前仅管理员；共享时为具体文件添加参与机器的规则。
-- =shared/github.yaml=：管理员，以及 lappie、storie、hypie 的 age key；见下文。
-- =keys/hosts/<hostname>.age.pub=：登记各机器的 age 公钥；SOPS 不会自动读取这些文件。
+- `hosts/lappie/*.yaml`：管理员，以及已登记的 lappie age key。
+- `hosts/storie/*.yaml`：管理员，以及已登记的 storie age key。
+- `shared/*.yaml`：目前仅管理员；共享时为具体文件添加参与机器的规则。
+- `shared/github.yaml`：管理员，以及 lappie、storie、hypie 的 age key；见下文。
+- `keys/hosts/<hostname>.age.pub`：登记各机器的 age 公钥；SOPS 不会自动读取这些文件。
 
 SOPS 权限边界是文件：能解密某个文件，就能读取其中全部内容。
 不同机器的专属 secrets 必须分文件。新增主机必须显式添加路径规则；
 没有匹配规则的路径不会默认获得任何 recipient。
 
-* 编辑与验证
+# 编辑与验证
 
-在仓库根目录操作。SOPS 已在 =manifest.scm= 中声明，进入
-项目的 direnv / Guix shell 环境后使用 =sops=。
+在仓库根目录操作。SOPS 已在 `manifest.scm` 中声明，进入
+项目的 direnv / Guix shell 环境后使用 `sops`。
 
-#+begin_src sh
+```sh
 gpg --import secrets/keys/admin.asc
 gpg --card-status
 sops secrets/hosts/lappie/system.yaml
-#+end_src
+```
 
 编辑器退出后 SOPS 保存密文。不要把私钥或明文文件提交到仓库。
-=hosts/lappie/check.yaml= 是无敏感信息的加解密检查文件，未被系统服务引用：
+`hosts/lappie/check.yaml` 是无敏感信息的加解密检查文件，未被系统服务引用：
 
-#+begin_src sh
+```sh
 sops decrypt --extract '["check"]' secrets/hosts/lappie/check.yaml
-#+end_src
+```
 
-预期输出 =uraj-sops-card-check-v1=。该文件可以有多个 recipient，解密成功
+预期输出 `uraj-sops-card-check-v1`。该文件可以有多个 recipient，解密成功
 只证明至少一个可用；要分别验证子钥，需要每次仅以一个 recipient
 创建测试密文，并在对应卡或私钥环境中解密。
 
-* 接入机器
+# 接入机器
 
-两台机器使用 =(uraj system secrets)= 的 =host-sops-services=。
+两台机器使用 `(uraj system secrets)` 的 `host-sops-services`。
 OpenSSH 在系统激活时生成缺失的 host keys；Shepherd 随后启动
-=sops-secrets-host-key=，从 =/etc/ssh/ssh_host_ed25519_key= 派生 age
-identity，保存到 =/var/lib/sops/age/keys.txt=。目录归 root 所有、权限
+`sops-secrets-host-key`，从 `/etc/ssh/ssh_host_ed25519_key` 派生 age
+identity，保存到 `/var/lib/sops/age/keys.txt`。目录归 root 所有、权限
 0700，sops-guix 将私钥文件设为 0400。同一 SSH key 重复派生不会重复
 追加 identity。构建过程不读取目标私钥，Live ISO 不启用这些服务。
 
 在各目标机器的仓库根目录、项目 Guix 环境内运行（storie 替换文件名）：
 
-#+begin_src sh
+```sh
 sudo --preserve-env=GUILE_LOAD_PATH guix time-machine \
   -C env/guix/channels-lock.scm -- system reconfigure env/guix/os/lappie.scm
 sudo herd start sops-secrets-host-key
 sudo test -s /var/lib/sops/age/keys.txt
-#+end_src
+```
 
 派生也会在启动时自动运行。手动 start 可确保 reconfigure 后立即完成。
-如果文件没有生成，检查 =/etc/ssh/ssh_host_ed25519_key= 是否存在及
+如果文件没有生成，检查 `/etc/ssh/ssh_host_ed25519_key` 是否存在及
 Shepherd 日志；不要只凭 one-shot 服务状态判断成功，上游在源 key 缺失
 时可能仅记录消息。
 
 读取当前 SSH host key 对应的 age 公钥不需要读取私钥或使用 sudo：
 
-#+begin_src sh
+```sh
 ssh-to-age -i /etc/ssh/ssh_host_ed25519_key.pub
-#+end_src
+```
 
 核对本机派生文件包含同一公钥（下面只输出公钥）：
 
-#+begin_src sh
+```sh
 sudo age-keygen -y /var/lib/sops/age/keys.txt
-#+end_src
+```
 
-只把公钥登记到 =keys/hosts/=，并在对应主机的 creation rule 中增加
-=age: age1...=；保留 =pgp: *admin=，两者任意一个即可解密。
+只把公钥登记到 `keys/hosts/`，并在对应主机的 creation rule 中增加
+`age: age1...`；保留 `pgp: *admin`，两者任意一个即可解密。
 例如在 lappie 上：
 
-#+begin_src sh
+```sh
 mkdir -p secrets/keys/hosts
 ssh-to-age -i /etc/ssh/ssh_host_ed25519_key.pub > secrets/keys/hosts/lappie.age.pub
-#+end_src
+```
 
-** 将公钥接入 .sops.yaml
+## 将公钥接入 .sops.yaml
 
-添加 =.age.pub= 文件只是记录公钥，尚未授予机器解密权限。需要完成
+添加 `.age.pub` 文件只是记录公钥，尚未授予机器解密权限。需要完成
 “配置 recipient → 更新已有密文 → 用机器私钥验证”这三个步骤。
 
-第一步：读取 =secrets/keys/hosts/lappie.age.pub= 的完整一行，填入仓库
-根目录 =.sops.yaml= 的 lappie 规则。按目前登记的公钥，该条规则应为：
+第一步：读取 `secrets/keys/hosts/lappie.age.pub` 的完整一行，填入仓库
+根目录 `.sops.yaml` 的 lappie 规则。按目前登记的公钥，该条规则应为：
 
-#+begin_src yaml
+```yaml
 creation_rules:
   - path_regex: ^secrets/hosts/lappie/[^/]+\.yaml$
     pgp: *admin
     age: age14xfjfwayact80jcp84ck2kj8ue469kwfsn9ngyxkt6curgm324fsnqcswt
-#+end_src
+```
 
-这是现有 =creation_rules= 内 lappie 条目的修改示例，不要另外添加一个
-=creation_rules=，也不要覆盖已有的管理员 =keys= 定义或 storie/shared
-规则。=age= 与 =pgp= 同级；保留 =pgp: *admin= 后，任意一把管理员
+这是现有 `creation_rules` 内 lappie 条目的修改示例，不要另外添加一个
+`creation_rules`，也不要覆盖已有的管理员 `keys` 定义或 storie/shared
+规则。`age` 与 `pgp` 同级；保留 `pgp: *admin` 后，任意一把管理员
 加密子钥或 lappie 的 age identity 都可以解密这些文件。
-这里填写公钥本身，不能填写 =.age.pub= 的文件路径。
+这里填写公钥本身，不能填写 `.age.pub` 的文件路径。
 
-storie 接入时，在本机导出 =storie.age.pub=，再将其公钥只填入 storie
+storie 接入时，在本机导出 `storie.age.pub`，再将其公钥只填入 storie
 规则。SOPS 使用首条匹配的 creation rule，规则之间不会自动合并。
 
 第二步：更新已有密文。修改规则只影响之后创建的文件，不会自动给
 现有文件添加 recipient。在仓库根目录插入管理员卡，以普通用户执行：
 
-#+begin_src sh
+```sh
 sops updatekeys secrets/hosts/lappie/check.yaml
-#+end_src
+```
 
 确认预览中只新增预期的 lappie age recipient，三把管理员 PGP recipients
 仍被保留，再确认更新。首次添加机器 recipient 时必须用已有的管理员
 私钥解开数据密钥；刚加入的机器 key 尚不能解开旧密文。
-如果以后已有 =system.yaml= 等其他文件，也要逐个执行 =sops updatekeys=。
+如果以后已有 `system.yaml` 等其他文件，也要逐个执行 `sops updatekeys`。
 无需为尚不存在的文件执行该命令。
 
 检查改动：
 
-#+begin_src sh
+```sh
 git diff -- .sops.yaml secrets/hosts/lappie/check.yaml
-#+end_src
+```
 
-密文的 =sops.age= 元数据应出现上述公钥，=sops.pgp= 仍包含三把管理员
-子钥。私钥不会写入密文或 =.sops.yaml=。=updatekeys= 更新数据密钥的
+密文的 `sops.age` 元数据应出现上述公钥，`sops.pgp` 仍包含三把管理员
+子钥。私钥不会写入密文或 `.sops.yaml`。`updatekeys` 更新数据密钥的
 recipient 包装，不修改业务明文。
 
 共享文件为每个用途单独创建规则，放在 shared fallback 之前，明确列出
@@ -165,24 +165,24 @@ recipient 包装，不修改业务明文。
 第三步：在 lappie 上使用机器 identity 验证。下面禁用外部 GPG 调用，
 避免正常的管理员卡解密路径：
 
-#+begin_src sh
+```sh
 sudo env SOPS_AGE_KEY_FILE=/var/lib/sops/age/keys.txt \
   SOPS_GPG_EXEC=/run/current-system/profile/bin/false \
   sops decrypt --extract '["check"]' secrets/hosts/lappie/check.yaml
-#+end_src
+```
 
-预期输出 =uraj-sops-card-check-v1=。如果无法解密，先核对
-=sudo age-keygen -y /var/lib/sops/age/keys.txt= 的公钥是否与密文的
-=sops.age= recipient 一致，并确认已执行 =updatekeys=。
+预期输出 `uraj-sops-card-check-v1`。如果无法解密，先核对
+`sudo age-keygen -y /var/lib/sops/age/keys.txt` 的公钥是否与密文的
+`sops.age` recipient 一致，并确认已执行 `updatekeys`。
 单纯修改 recipient 不需要再次 reconfigure；只有新增或修改系统的
-=sops-secret= 声明时才需要部署新的系统配置。
+`sops-secret` 声明时才需要部署新的系统配置。
 
-** 声明业务 secrets 与换钥匙
+## 声明业务 secrets 与换钥匙
 
-以后把 =sops-secret= 列表传给 =host-sops-services=，由 sops-guix 在
-启动时解密到 =/run/secrets/=。消费服务应声明解密依赖以及适当的
-=owner=、=group= 和 =mode=。
-私钥和明文均不得通过 =local-file= 等方式进入 Guix store。
+以后把 `sops-secret` 列表传给 `host-sops-services`，由 sops-guix 在
+启动时解密到 `/run/secrets/`。消费服务应声明解密依赖以及适当的
+`owner`、`group` 和 `mode`。
+私钥和明文均不得通过 `local-file` 等方式进入 Guix store。
 
 SSH host key 不变时，age identity 丢失可以重新派生。更换 SSH host key
 后公钥也改变，sops-guix 会将新 identity 追加到已有文件，并保留旧的
@@ -191,35 +191,35 @@ identity；仍需由管理员更新公钥登记和密文 recipients。SSH host �
 移除泄露的 recipient 不会撤销其对旧 Git 历史密文的解密能力；若涉及泄露，
 还需要更换相关业务凭据并轮换 SOPS 数据密钥。
 
-* contained agent 与 Paseo 的 GitHub token
+# contained agent 与 Paseo 的 GitHub token
 
-容器内的 agent 和 Paseo daemon 通过 HTTPS 推拉、用 =gh= 提 PR 需要
+容器内的 agent 和 Paseo daemon 通过 HTTPS 推拉、用 `gh` 提 PR 需要
 token。按能访问的仓库分三级，逐级包含：
 
-| 级别     | token                                  | 范围                     |
-|----------+----------------------------------------+--------------------------|
-| public   | fine-grained，勾选你的每个公开仓库     | 你名下的公开仓库         |
-| personal | fine-grained，All repositories         | 你名下的全部仓库         |
-| world    | classic，=repo= 和 =workflow= scope    | 你能访问的全部仓库       |
+| 级别 | token | 范围 |
+|---|---|---|
+| public | fine-grained，勾选你的每个公开仓库 | 你名下的公开仓库 |
+| personal | fine-grained，All repositories | 你名下的全部仓库 |
+| world | classic，`repo` 和 `workflow` scope | 你能访问的全部仓库 |
 
-fine-grained 两级的权限为 =Contents=、=Pull requests=、=Workflows= 写：
+fine-grained 两级的权限为 `Contents`、`Pull requests`、`Workflows` 写：
 可以推送（包括 workflow 文件）、创建和更新 PR，也能合并 PR、直推默认
 分支，重要仓库应在 GitHub 上开分支保护。只有 world 能 fork、向别人的
 仓库提 PR。token 进入有网络的容器后应视为可被外传，保护来自它的范围；
 怀疑泄露时在 GitHub 上吊销并重新申请。
 
-三级都存在 =shared/github.yaml= 的 =github.<级别>= 下，各主机复用。能解密
-该文件就能读到全部级别；需要隔离的项目用自己的 =git-credential= 文件，
+三级都存在 `shared/github.yaml` 的 `github.<级别>` 下，各主机复用。能解密
+该文件就能读到全部级别；需要隔离的项目用自己的 `git-credential` 文件，
 不放进这里。
 
 GitHub 没有创建 token 的 API。在宿主机（不是容器内）的项目 Guix 环境中
 对每个级别运行一次：
 
-#+begin_src sh
+```sh
 scripts/secrets/github_token.py public wenxin-wang
 scripts/secrets/github_token.py personal wenxin-wang
 scripts/secrets/github_token.py world wenxin-wang
-#+end_src
+```
 
 脚本打开已预填的表单：public 和 personal 是 fine-grained 表单，填好了
 名称、有效期和权限，仓库范围要手动选（public 选 Only select
@@ -228,103 +228,102 @@ All repositories）；world 是 classic 表单，填好了 scope，有效期自�
 把 token 粘贴回脚本（不回显），脚本核对 token 类型、所属用户和 classic
 token 的 scope，成功后才写入密文，并打印过期时间。token 不会出现在命令行
 参数里。首次创建文件只需公钥；更新已有文件需要管理员卡或本机 age
-identity。fine-grained 默认有效期 366 天，=--days= 可改；到期后重新运行
+identity。fine-grained 默认有效期 366 天，`--days` 可改；到期后重新运行
 同一命令即轮换。新建公开仓库后，在 GitHub 上编辑 public token 的仓库
 范围即可（据称 token 值不变，未验证）。
 
-=(uraj system secrets)= 的 =github-token-secrets= 把每级解密到
-=/run/secrets/github/<级别>=，归主用户所有、权限 0400；密文文件尚不存在
+`(uraj system secrets)` 的 `github-token-secrets` 把每级解密到
+`/run/secrets/github/<级别>`，归主用户所有、权限 0400；密文文件尚不存在
 时不声明任何 secret。运行 agent 或 Paseo 的 Guix System 主机都要声明。三个级别都写入后再提交并 reconfigure，否则缺少的
 key 会让解密失败。
 
 使用方：
 
-- agent：=env/dotfiles/llm/contained-agent/.config/contained-agent/projects.scm=
-  中项目写 =(github "personal")= 等，见 [[file:../docs/contained-agent.org][docs/contained-agent.org]]。
-- Paseo daemon：=~/.config/paseo/sandbox.scm= 写 =(github "world")=，见
-  [[file:../docs/paseo-daemon.org][docs/paseo-daemon.org]]。
+- agent：`env/dotfiles/llm/contained-agent/.config/contained-agent/projects.scm`
+  中项目写 `(github "personal")` 等，见 [docs/contained-agent.org](../docs/contained-agent.md)。
+- Paseo daemon：`~/.config/paseo/sandbox.scm` 写 `(github "world")`，见
+  [docs/paseo-daemon.org](../docs/paseo-daemon.md)。
 
 launcher 在每次启动时读取 token 文件，不会改用宿主机自己的登录。
 Guix System 上文件缺失时最多等 10 秒（开机时 agent 或 Paseo 可能先于
 sops 解密启动），仍缺失则报错退出；foreign distro 没有 sops-guix 系统
 服务，告警并不带 token 启动。只轮换 token（声明不变）时，
-reconfigure 后还要重新解密：重启机器，或 =sudo herd restart sops-secrets=
+reconfigure 后还要重新解密：重启机器，或 `sudo herd restart sops-secrets`
 （后者尚未在本仓库的主机上验证）。之后新启动的 agent 即可使用；Paseo
 daemon 启动时挂载的是文件本身，sops 原地重写时新值可见，替换文件时需要
 重启 daemon（未验证 sops-guix 采用哪种方式）。
 
-* contained agent 与 Paseo 的私有沙箱策略
+# contained agent 与 Paseo 的私有沙箱策略
 
-=contained-agent= 的中央配置和 Paseo daemon 的策略都是 S 表达式文件。
+`contained-agent` 的中央配置和 Paseo daemon 的策略都是 S 表达式文件。
 不想放进公开仓库、又想随仓库管理的部分，按主机加密保存，整份文件作为
 一个 YAML 字符串值：
 
-| 用途                     | 密文                                   | 解密到                                     |
-|--------------------------+----------------------------------------+--------------------------------------------|
-| contained-agent 中央配置 | =hosts/<主机>/contained-agent.yaml= | =/run/secrets/contained-agent/projects.scm= |
-| Paseo daemon 策略        | =hosts/<主机>/paseo.yaml=           | =/run/secrets/paseo/sandbox.scm=            |
+| 用途 | 密文 | 解密到 |
+|---|---|---|
+| contained-agent 中央配置 | `hosts/<主机>/contained-agent.yaml` | `/run/secrets/contained-agent/projects.scm` |
+| Paseo daemon 策略 | `hosts/<主机>/paseo.yaml` | `/run/secrets/paseo/sandbox.scm` |
 
-#+begin_src sh
+```sh
 sops secrets/hosts/lappie/contained-agent.yaml
-#+end_src
+```
 
-#+begin_src yaml
+```yaml
 contained-agent:
   projects.scm: |
     (project "~/src/foo"
       (ssh-agent
         (identity "~/.ssh/dev-servers" (destinations "dev.example.com"))))
-#+end_src
+```
 
-=paseo.yaml= 同理，键为 =paseo= 下的 =sandbox.scm=。语法分别见
-[[file:../docs/contained-agent.org][docs/contained-agent.org]] 与 [[file:../docs/paseo-daemon.org][docs/paseo-daemon.org]]。
+`paseo.yaml` 同理，键为 `paseo` 下的 `sandbox.scm`。语法分别见
+[docs/contained-agent.org](../docs/contained-agent.md) 与 [docs/paseo-daemon.org](../docs/paseo-daemon.md)。
 
-文件存在即声明：各主机的系统配置用 =sandbox-policy-secrets= 解密到上表
-路径，归主用户所有、权限 0400；=contained-agent= 与 Paseo 服务程序在
+文件存在即声明：各主机的系统配置用 `sandbox-policy-secrets` 解密到上表
+路径，归主用户所有、权限 0400；`contained-agent` 与 Paseo 服务程序在
 构建时记下哪些主机有哪份策略，运行时在这些主机上最多等 10 秒，仍缺失
 则报错退出，不会不带策略启动。新增、删除这些文件都要同时 reconfigure
 system 和 Home。只改内容时 reconfigure system，再重新解密（重启或
-=sudo herd restart sops-secrets=）；agent 下次启动读到新内容，Paseo daemon
+`sudo herd restart sops-secrets`）；agent 下次启动读到新内容，Paseo daemon
 需要重启。
 
-=~/.config/contained-agent/projects.local.scm= 仍可与密文配置并用，子句
+`~/.config/contained-agent/projects.local.scm` 仍可与密文配置并用，子句
 合并生效。Paseo 只用一份策略：某台主机有密文时，本机不能再有
-=~/.config/paseo/sandbox.scm=，否则拒绝启动，以免它被悄悄忽略；其它
+`~/.config/paseo/sandbox.scm`，否则拒绝启动，以免它被悄悄忽略；其它
 主机不受影响，照常使用各自的本地文件。
 
+# Paseo 的 per-host YAML 配置
 
-* Paseo 的 per-host YAML 配置
-
-公开配置集中在 =env/paseo/config.yaml=，以 =hosts.<hostname>= 选择；
+公开配置集中在 `env/paseo/config.yaml`，以 `hosts.<hostname>` 选择；
 lappie、hypie、storie 引用同一个 YAML anchor。私密配置分别保存为
-=hosts/<hostname>/paseo-config.yaml=，使用已有的主机 creation rule，
+`hosts/<hostname>/paseo-config.yaml`，使用已有的主机 creation rule，
 只授权本机 age recipient 和三把管理员 PGP key。
 
-#+begin_src sh
+```sh
 sops secrets/hosts/lappie/paseo-config.yaml
-#+end_src
+```
 
-解密后的结构示例（=config.yaml= 是对象，不是字符串）：
+解密后的结构示例（`config.yaml` 是对象，不是字符串）：
 
-#+begin_src yaml
+```yaml
 paseo:
   config.yaml:
     hostname: lappie
     overrides: {}
     delete: []
-#+end_src
+```
 
-=agent-configuration-secrets= 声明上述子树，以 YAML 格式解密至
-=/run/secrets/paseo/config.yaml=，归主用户所有，权限 0400。主机身份
+`agent-configuration-secrets` 声明上述子树，以 YAML 格式解密至
+`/run/secrets/paseo/config.yaml`，归主用户所有，权限 0400。主机身份
 必须匹配，私密层优先于公开层；明文只在 activation 时读取，不进入 store。
 初始文件只有主机名和空 override，不包含迁移来的凭据。
 
-Home 的系统 Shepherd 服务依赖对应的 =sops-secret-paseo/config.yaml=，
+Home 的系统 Shepherd 服务依赖对应的 `sops-secret-paseo/config.yaml`，
 确保开机先解密再合并。单独执行 Home activation 时也会短暂等待文件，
 缺失、主机不匹配或 YAML 错误都保留已有 config.json 并报错。
 修改密文后先更新 system 声明/解密服务，再运行 Home activation；已有
 解密文件不会因 Git 中的密文变化而自动刷新。配置合并不会自动重启 Paseo。
 foreign distro 需要自行用 SOPS 解密并向 Home 指定该私密 YAML 路径。
 
-合并、删除和路径展开规则见 [[file:../docs/paseo-daemon.org][Paseo 文档]] 与
-[[file:../docs/json-config.org][通用配置模块文档]]。
+合并、删除和路径展开规则见 [Paseo 文档](../docs/paseo-daemon.md) 与
+[通用配置模块文档](../docs/json-config.md)。

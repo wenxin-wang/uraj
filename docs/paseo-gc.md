@@ -1,26 +1,26 @@
-#+title: Paseo local branch GC
+# Paseo local branch GC
 
-* Usage
+## Usage
 
 Run on the host as the Paseo user, with all repositories mounted:
 
-#+begin_src sh
+```sh
 scripts/paseo/branch-gc ~/src/uraj             # preview JSON candidates
 scripts/paseo/branch-gc --apply ~/src/uraj     # delete eligible local refs
-#+end_src
+```
 
-Home also installs =~/.local/bin/paseo-branch-gc=. A linked worktree or
+Home also installs `~/.local/bin/paseo-branch-gc`. A linked worktree or
 repository subdirectory is accepted: Git's worktree inventory identifies
-the main worktree. =--base= selects the local integration branch (default
-=main=). =--registry= overrides =$PASEO_HOME/projects/workspaces.json=;
-=PASEO_HOME= defaults to =~/.paseo=.
+the main worktree. `--base` selects the local integration branch (default
+`main`). `--registry` overrides `$PASEO_HOME/projects/workspaces.json`;
+`PASEO_HOME` defaults to `~/.paseo`.
 
 The script never deletes directories, remote branches, workspace records,
 or stale worktree registrations. It does not archive sessions or fetch.
 A stale local integration branch can delay cleanup, not prove new merges.
 Deleting a branch ref does not remove its branch-specific Git config.
 
-* Eligibility
+## Eligibility
 
 Only branches positively identified by Paseo workspace records as belonging
 to a Paseo-owned worktree of this main repository are considered. All
@@ -29,7 +29,7 @@ across repositories. Missing/malformed registry data prevents cleanup.
 Old branches without ownership metadata are retained.
 
 Every registered worktree protects its branch, including locked, missing,
-and prunable entries. The integration branch and =backup/*= are protected.
+and prunable entries. The integration branch and `backup/*` are protected.
 There is no 30-day requirement. One of these proofs is required:
 
 - The branch tip is an ancestor of the current local integration tip.
@@ -37,7 +37,7 @@ There is no 30-day requirement. One of these proofs is required:
   and tip, targeting the selected integration branch, and its merge commit
   is an ancestor of the current local integration tip.
 
-PR lookup uses the GitHub =origin= repository and =gh= authentication.
+PR lookup uses the GitHub `origin` repository and `gh` authentication.
 Unsupported remotes, missing credentials, API errors, and PRs outside the
 latest 1000 merged results provide no proof; affected branches are retained.
 Patch equivalence and a branch being merely an ancestor of a PR head are
@@ -45,10 +45,10 @@ not sufficient. No GitHub token is requested interactively.
 
 GC instances share a per-repository file lock. Before each deletion, the
 registry bytes, integration tip, and worktree references are checked again.
-=git update-ref= compares the verified old tip before deleting, so a moved
+`git update-ref` compares the verified old tip before deleting, so a moved
 branch is retained. No force-delete fallback is used.
 
-* Broker integration
+## Broker integration
 
 The packaged broker queues GC after the supervisor has exited and namespace
 teardown is complete, after sending the provider's exit result. It waits
@@ -67,9 +67,9 @@ and Git. The script leaves all worktree directories untouched.
 Deploy the updated Home/broker package and restart the broker to enable
 the hook. Existing running services are not modified by editing this repo.
 
-* Validation
+## Validation
 
-=test/python/uraj/guix/contained-agent/paseo-branch-gc.py= uses disposable
+`test/python/uraj/guix/contained-agent/paseo-branch-gc.py` uses disposable
 real Git repositories and mocked PR responses. It covers ordinary and
 squash merges, active/shared references, missing worktrees, absent ownership,
 malformed registry, extra commits, concurrent ref/registry changes, and

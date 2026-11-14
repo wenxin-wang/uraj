@@ -1,83 +1,83 @@
-#+title: Restricted workload networks
+# Restricted workload networks
 
-* Ownership and layout
+## Ownership and layout
 
-=(uraj services restricted-network)= owns =inet restricted_network= and
-=ip restricted_network=.  The first table filters INPUT and FORWARD; the
-second performs IPv4 masquerading.  =table-name= is configurable, with
-=restricted_network= as the default.  Neither table belongs to an application.
+`(uraj services restricted-network)` owns `inet restricted_network` and
+`ip restricted_network`.  The first table filters INPUT and FORWARD; the
+second performs IPv4 masquerading.  `table-name` is configurable, with
+`restricted_network` as the default.  Neither table belongs to an application.
 
-- =src/guix/uraj/network-policy.scm=: records, validation and rule generation.
-- =src/guix/uraj/services/restricted-network.scm=: Guix service composition,
+- `src/guix/uraj/network-policy.scm`: records, validation and rule generation.
+- `src/guix/uraj/services/restricted-network.scm`: Guix service composition,
   sysctl and Shepherd dependencies, and generated executable/configuration.
-- =src/guix/uraj/build/restricted-network.scm=: runtime preflight, topology
+- `src/guix/uraj/build/restricted-network.scm`: runtime preflight, topology
   reservation, serialization and atomic firewall loading.
-- =src/guix/uraj/build/restricted-network-docker.scm=: Docker attachment only.
+- `src/guix/uraj/build/restricted-network-docker.scm`: Docker attachment only.
 
 Only the Docker backend is implemented.  The policy generator does not use
 Docker IDs or chains.  A future contained-agent backend can create a netns,
 connect a veth to its own bridge, enter that namespace and launch
-=guix shell --container --network= as the normal user.  That launcher and
+`guix shell --container --network` as the normal user.  That launcher and
 its privilege boundary are not implemented here; existing contained-agent
 sessions still share the host network.
 
-The former =agents= / =br-agents= network is now named
-=static-agent= / =br-static-agent=.  Reserve =br-agent= for the future
+The former `agents` / `br-agents` network is now named
+`static-agent` / `br-static-agent`.  Reserve `br-agent` for the future
 contained-agent bridge so its permissions can be configured independently.
-The singular spelling keeps =br-static-agent= within Linux's 15-character
-interface-name limit while retaining the =br-= plus network-name convention.
+The singular spelling keeps `br-static-agent` within Linux's 15-character
+interface-name limit while retaining the `br-` plus network-name convention.
 An existing deployment must follow the offline topology migration below;
 changing the declaration does not rename a live Docker bridge.
 
-* Declared networks
+## Declared networks
 
-Storie declares this network in =env/guix/os/storie.scm=:
+Storie declares this network in `env/guix/os/storie.scm`:
 
-| Setting          | Value                                        |
-|------------------+----------------------------------------------|
-| Docker network   | static-agent                                 |
-| Linux bridge     | br-static-agent                              |
-| Subnet / gateway | 10.204.0.0/24 / 10.204.0.1                    |
-| Routed uplink    | Any interface selected by host routing (=#t=) |
-| DNS              | Host startup snapshot, TCP/UDP 53             |
-| Public egress    | TCP 80 and 443                               |
-| LAN exception    | 172.31.0.9 TCP 3000 (new-api)                 |
-| Host / ingress   | No new connections permitted                 |
+| Setting | Value |
+|---|---|
+| Docker network | static-agent |
+| Linux bridge | br-static-agent |
+| Subnet / gateway | 10.204.0.0/24 / 10.204.0.1 |
+| Routed uplink | Any interface selected by host routing (`#t`) |
+| DNS | Host startup snapshot, TCP/UDP 53 |
+| Public egress | TCP 80 and 443 |
+| LAN exception | 172.31.0.9 TCP 3000 (new-api) |
+| Host / ingress | No new connections permitted |
 
 This does not start OpenClaw.  An application must require the Shepherd
-=restricted-network= service, attach exclusively to external Docker network
-=static-agent=, and use the generated resolver snapshot described below.
+`restricted-network` service, attach exclusively to external Docker network
+`static-agent`, and use the generated resolver snapshot described below.
 No Docker restart policy or manually started container may bypass this
 dependency on boot.  Do not attach
-the same workload to =docker_lan= or use host networking.
+the same workload to `docker_lan` or use host networking.
 
-Agents use =(dns-servers 'host)= to inherit the home DNS resolver without
+Agents use `(dns-servers 'host)` to inherit the home DNS resolver without
 hardcoding its address.  At each service start, wait up to approximately 30
 seconds for an IPv4 default route on an allowed uplink and usable nameservers
-in host =/etc/resolv.conf=.  Guix's =networking= provision alone only means
+in host `/etc/resolv.conf`.  Guix's `networking` provision alone only means
 dhcpcd has started, not that DHCP is complete.  This readiness check does not
 prove the resolver file belongs to the latest lease; a valid existing host
 resolver configuration is also accepted.
 
 The accepted DNS list is read once and used for both the atomic firewall
-transaction and =/run/restricted-network/resolv.conf=.  Only TCP/UDP 53 is
+transaction and `/run/restricted-network/resolv.conf`.  Only TCP/UDP 53 is
 granted to those addresses; other gateway services remain blocked. Valid IPv6
-entries, including scoped addresses such as =fe80::1%host0=, are skipped;
+entries, including scoped addresses such as `fe80::1%host0`, are skipped;
 dual-stack hosts contribute only their IPv4 nameservers. Missing, empty or
 IPv6-only resolver files, malformed entries, and loopback or link-local IPv4
 resolvers prevent startup after the timeout. The timeout includes the last
 route or resolver error. This mode requires directly reachable IPv4 upstreams,
-not a local DNS stub. Other host services remain subject to =host-services=.
+not a local DNS stub. Other host services remain subject to `host-services`.
 
 The application should bind-mount this generated file read-only over
-=/etc/resolv.conf=, or have its launcher read the snapshot to populate Docker
-=dns=.  Do not bind-mount the host's live resolver file.  The snapshot includes
+`/etc/resolv.conf`, or have its launcher read the snapshot to populate Docker
+`dns`.  Do not bind-mount the host's live resolver file.  The snapshot includes
 only nameservers, not host search domains or resolver options.  Host DNS
 changes after startup are intentionally ignored.  To refresh, stop dependent
-workloads, restart =restricted-network=, then recreate their containers so
+workloads, restart `restricted-network`, then recreate their containers so
 file mounts or Docker DNS settings use the new snapshot.  A failed nft load
 does not publish a new snapshot or start workloads.  The Shepherd configuration
-action shows the rules template; inspect nft's =host_dns= set for active DNS.
+action shows the rules template; inspect nft's `host_dns` set for active DNS.
 
 Docker's embedded resolver is not a firewall-enforced DNS proxy.  Configure
 explicit non-loopback upstream resolvers from the snapshot on every workload
@@ -86,25 +86,25 @@ this interface-based policy.  Direct TCP/UDP DNS from a workload is allowed
 only to the declared servers (or an explicit forwarding exception).  HTTPS
 egress includes DoH and is not a domain allowlist.
 
-Redroid embeds a =restricted-network= record in =redroid-configuration='s
-=network= field and contributes it directly to the same service.  The default
-=%redroid-network= declares =redroid= / =br-redroid=.  Its policy permits
+Redroid embeds a `restricted-network` record in `redroid-configuration`'s
+`network` field and contributes it directly to the same service.  The default
+`%redroid-network` declares `redroid` / `br-redroid`.  Its policy permits
 public TCP/UDP on all ports, except DNS which
 is limited to its declared resolver; it grants no private-network, host or
 inbound exceptions.  Host-initiated ADB and replies remain possible.  Set
-=egress-interfaces= on the embedded record when enabling it.  Docker network
+`egress-interfaces` on the embedded record when enabling it.  Docker network
 selection and Docker/Android DNS use the same record; redroid requires an
 explicit IPv4 DNS list for its boot arguments.  Hypie's deployment block
 remains commented out; the service is available without enabling Android.
 
-* Configuration and composition
+## Configuration and composition
 
-The base service holds a list of =restricted-network= records.  Other services
-may extend =restricted-network-service-type= with additional records.  All
+The base service holds a list of `restricted-network` records.  Other services
+may extend `restricted-network-service-type` with additional records.  All
 contributions are validated and rendered together, so one source's permit
 cannot skip another registered network's ingress policy.
 
-#+begin_src scheme
+```scheme
 (service restricted-network-service-type
   (restricted-network-configuration
     (table-name "restricted_network")
@@ -121,37 +121,37 @@ cannot skip another registered network's ingress policy.
            (forward-exceptions
             (list (network-access (address "172.31.0.9")
                                   (ports '(3000))))))))))))
-#+end_src
+```
 
 Policy fields:
 
-- =blocked-destinations=: extra IPv4/CIDR destinations excluded from public
+- `blocked-destinations`: extra IPv4/CIDR destinations excluded from public
   egress, in addition to RFC1918, CGNAT, loopback, link-local, reserved/test,
   multicast ranges and all registered network subnets.  Include any public
   LAN/VPN prefixes and public addresses that hairpin back to private services.
-- =dns-servers=: exact IPv4 resolver addresses, TCP/UDP 53, or =host= to
+- `dns-servers`: exact IPv4 resolver addresses, TCP/UDP 53, or `host` to
   take a host resolver snapshot during service startup.
-- =public-egress=: protocol and destination ports, such as =((tcp 80 443))=
-  or =((tcp . all) (udp . all))=.
-- =forward-exceptions=: =network-access= endpoints, explicitly overriding
+- `public-egress`: protocol and destination ports, such as `((tcp 80 443))`
+  or `((tcp . all) (udp . all))`.
+- `forward-exceptions`: `network-access` endpoints, explicitly overriding
   the blocked-destination policy, but still limited to allowed egress
   interfaces and the target network's ingress policy.
-- =host-services=: exact host destination address/CIDR, protocol and ports.
-- =ingress=: allowed source address/CIDR, protocol and destination ports
+- `host-services`: exact host destination address/CIDR, protocol and ports.
+- `ingress`: allowed source address/CIDR, protocol and destination ports
   into this network.  Host-originated connections are outside FORWARD and
   remain allowed; this is an intentional administrator capability.
 
-=egress-interfaces= defaults to the empty list, which denies new forwarded
-outbound connections.  Set it to =#t= to allow any routed interface, or to
-a list such as ='("host0")= to restrict the permitted interfaces.  =#f= is
-invalid.  =#t= does not bypass destination, protocol, port or ingress policy.
-Explicit interfaces must exist at startup; =#t= follows later routing changes.
-When inheriting host DNS, =#t= accepts a default route on any interface.
+`egress-interfaces` defaults to the empty list, which denies new forwarded
+outbound connections.  Set it to `#t` to allow any routed interface, or to
+a list such as `'("host0")` to restrict the permitted interfaces.  `#f` is
+invalid.  `#t` does not bypass destination, protocol, port or ingress policy.
+Explicit interfaces must exist at startup; `#t` follows later routing changes.
+When inheriting host DNS, `#t` accepts a default route on any interface.
 NAT applies only towards interfaces outside the registered bridge set.
 Host services, replies to authorized inbound connections and same-bridge
 layer-2 communication are independent of this outbound interface selector.
 
-=network-access= defaults to TCP.  =ports= is a nonempty list or =all=.
+`network-access` defaults to TCP.  `ports` is a nonempty list or `all`.
 An empty policy denies new traffic.  IPv6 routed/host access is blocked;
 IPv6 support is not yet configurable.  All networks must have distinct
 names, bridge interfaces and non-overlapping canonical IPv4 subnets.
@@ -159,39 +159,38 @@ names, bridge interfaces and non-overlapping canonical IPv4 subnets.
 Each bridge is a single trust domain.  Same-bridge layer-2 traffic is not
 isolated by these inet hooks; use separate bridges for separate trust domains.
 To authorize connections between two bridges, grant source egress (including
-the target bridge as an egress interface, or using =#t=) AND destination ingress.
+the target bridge as an egress interface, or using `#t`) AND destination ingress.
 No NAT is performed between registered bridges.  Packets on unrelated interfaces
 are unaffected by these tables; other host firewall tables may still drop
 traffic permitted here.  Do not globally flush rules during firewall reloads.
 
-* Lifecycle and migration
+## Lifecycle and migration
 
-=restricted-network= waits for =dockerd=, =networking= and =sysctl=; Guix owns
-=net.ipv4.ip_forward=1=.  Docker automatic firewall management remains off.
+`restricted-network` waits for `dockerd`, `networking` and `sysctl`; Guix owns
+`net.ipv4.ip_forward=1`.  Docker automatic firewall management remains off.
 On start, the program checks all IPv4 routing tables for subnet conflicts,
 checks declared uplinks and existing Docker network settings, then validates
 the nft transaction.  It reserves topology on disk, loads both tables in one
 transaction, and only then creates missing Docker bridges.  Finally it checks
 that each subnet resolves through its bridge.
 
-A full-tunnel VPN such as strongSwan's =from all lookup 220= (priority 220)
+A full-tunnel VPN such as strongSwan's `from all lookup 220` (priority 220)
 puts a default route in its own table that captures bridge traffic in both
 directions; that table never names the subnet, so the route-conflict check
-cannot see it.  On such hosts set =vpn-bypass-priority= to a priority ahead
-of the VPN's rule, e.g. =(restricted-network-configuration
-(vpn-bypass-priority 200))=; the service then adds =to SUBNET lookup main= at
+cannot see it.  On such hosts set `vpn-bypass-priority` to a priority ahead
+of the VPN's rule, e.g. `(restricted-network-configuration (vpn-bypass-priority 200))`; the service then adds `to SUBNET lookup main` at
 that priority for each network.  Host traffic still uses the tunnel, and
 masqueraded workload traffic does not match the tunnel's source-address
 policy.  Any other rule at that priority is refused rather than replaced.
-The default =#f= adds no rule; a captured subnet still fails the bridge
+The default `#f` adds no rule; a captured subnet still fails the bridge
 route check.  A failed load
 keeps the old rules.  A failed create can leave a protected network or reserved
 topology for retry; it never deletes an existing network to repair drift.
 
 Stopping the service retains networks and firewall rules.  This is deliberate:
 stopping a supervisor must not remove protection from a still-running process.
-The state directory =/var/lib/restricted-network= is root-owned and private;
-a lock serializes starts, and =topology.scm= records table/name/backend/bridge/
+The state directory `/var/lib/restricted-network` is root-owned and private;
+a lock serializes starts, and `topology.scm` records table/name/backend/bridge/
 subnet/gateway.  Additions and policy updates are allowed.  Removal,
 renumbering, bridge/backend changes and table renaming are refused even if a
 bridge happens to be absent.  For such a change, first stop all dependent
@@ -209,20 +208,20 @@ state.  For immediate full revocation, stop affected workloads and clear their
 specific conntrack entries before resuming them.  NAT mappings also persist
 for the lifetime of existing flows.
 
-When migrating redroid, the old =inet uraj_redroid= and =ip uraj_redroid_nat=
+When migrating redroid, the old `inet uraj_redroid` and `ip uraj_redroid_nat`
 tables are not silently deleted.  Apply the new protection first, then remove
 those exact legacy tables during a stopped-workload maintenance window, or
 reboot into the new system configuration.  Keep unrelated tables intact.
-The shared service manages only =restricted_network=.
+The shared service manages only `restricted_network`.
 
-** Updating only the running Shepherd service
+### Updating only the running Shepherd service
 
 For a runtime-code-only fix, build the service definition and its referenced
 program without building a complete OS generation. From the repository root,
-save this as =/tmp/uraj-restricted-network-service.scm= (change the OS path for
+save this as `/tmp/uraj-restricted-network-service.scm` (change the OS path for
 another host):
 
-#+begin_src scheme
+```scheme
 (use-modules (gnu) (gnu services) (gnu services shepherd)
              (guix gexp) (srfi srfi-1))
 
@@ -244,26 +243,26 @@ another host):
       (use-modules (shepherd service))
       (register-services
        (list (primitive-load #$(shepherd-service-file target))))))
-#+end_src
+```
 
 Build it with the same Guix channels used for the system; if needed, replace
-=guix build= with =guix time-machine -C env/guix/channels-lock.scm -- build=.
+`guix build` with `guix time-machine -C env/guix/channels-lock.scm -- build`.
 The GC root keeps the new code alive while it is used outside a system
 generation:
 
-#+begin_src sh
+```sh
 guix build -L src/guix -L src/guile \
   -f /tmp/uraj-restricted-network-service.scm \
   --root=/tmp/uraj-restricted-network-loader
 sudo herd load root "$(readlink -f /tmp/uraj-restricted-network-loader)"
 sudo herd start restricted-network
 sudo herd status restricted-network
-#+end_src
+```
 
 These commands assume the service is stopped, as after a failed start.
-=load root= replaces a stopped service immediately. If it is running, the
+`load root` replaces a stopped service immediately. If it is running, the
 replacement is deferred until it stops; stop dependent workloads and the
-service before starting the replacement. A plain =herd restart= without
+service before starting the replacement. A plain `herd restart` without
 loading the new definition still runs the old store executable.
 
 This updates only the current Shepherd instance, not the boot generation,
@@ -272,33 +271,33 @@ reconfigure later to persist the fix across reboots, then remove the temporary
 GC root. This shortcut assumes the declared dependencies already exist in
 the running system; it is not a general substitute for system reconfiguration.
 
-* Verification
+## Verification
 
-#+begin_src sh
+```sh
 guix repl -L src/guix -L src/guile test/guix/uraj/network-policy.scm
 guix repl -L src/guix test/guix/uraj/restricted-network-runtime.scm
 guix repl -L src/guix -L src/guile test/guix/uraj/services/restricted-network.scm
 guix repl -L src/guix -L src/guile test/guix/uraj/services/redroid.scm
 guix build -L src/guix -L src/guile -f test/guix/uraj/restricted-network-programs.scm
 python3 test/python/uraj/guix/restricted-network.py
-#+end_src
+```
 
 The runtime test uses fake Docker/nft/ip executables and a temporary state
 directory to check ordering, idempotence, failed preflight/load, retry and
 refused removal without invoking the real tools.
 
 The program test builds and runs both generated entry points in the Guix
-build sandbox with =GUILE_LOAD_PATH= and =GUILE_LOAD_COMPILED_PATH= unset.
+build sandbox with `GUILE_LOAD_PATH` and `GUILE_LOAD_COMPILED_PATH` unset.
 It uses the production gexps' module metadata, loads the real runtime modules
 and replaces only the side-effecting entry functions before executing the
 generated bodies.  It needs no Docker daemon, firewall access or Android
-devices.  Building a =program-file= alone does not test module loading.
-Both entry points use =with-uraj-modules= from =(uraj utils gexp)= to collect
-=uraj= as well as =guix= / =gnu= dependencies. Guix's default closure
+devices.  Building a `program-file` alone does not test module loading.
+Both entry points use `with-uraj-modules` from `(uraj utils gexp)` to collect
+`uraj` as well as `guix` / `gnu` dependencies. Guix's default closure
 selector excludes third-party modules, even the root module. See
-[[file:coding-style.org::*Guix runtime modules][Guix runtime modules]] for the shared convention and its limits.
+[Guix runtime modules](coding-style.md#guix-runtime-modules) for the shared convention and its limits.
 
-The packet test needs =nft=, =ip=, =unshare=, =nsenter=, =sysctl=, Python and
+The packet test needs `nft`, `ip`, `unshare`, `nsenter`, `sysctl`, Python and
 Guix on PATH.  It creates its own user/network namespaces and virtual peers;
 it does not use the host LAN, Docker or Internet.  It tests NAT, public access,
 private/host/IPv6 denial, DNS, narrow exceptions, bidirectional policy
@@ -307,9 +306,9 @@ failure atomicity while preserving an unrelated table.  Namespace/netlink
 access may require sandbox approval.  It does not validate Docker daemon
 startup, embedded DNS behavior, the actual host routing or Android gameplay.
 
-After deployment, inspect =herd status restricted-network=,
-=docker network inspect static-agent=, =nft list table inet restricted_network=
-and =nft list table ip restricted_network=.  Test from a container attached
+After deployment, inspect `herd status restricted-network`,
+`docker network inspect static-agent`, `nft list table inet restricted_network`
+and `nft list table ip restricted_network`.  Test from a container attached
 only to the intended network, using the configured DNS, before attaching
 accounts or data.  The actual subnet is checked against host/VPN routes on
 startup; later routing changes still require operator review.
@@ -323,6 +322,6 @@ was performed.
 
 The VPN bypass has mock runtime tests (added once, refused when a foreign
 rule holds the priority, absent by default, and capture detected with or
-without it).  It was also run with real =ip= in a user/network namespace with
+without it).  It was also run with real `ip` in a user/network namespace with
 a simulated strongSwan table 220: before, the subnet resolved via table 220;
 after two runs, through its bridge.

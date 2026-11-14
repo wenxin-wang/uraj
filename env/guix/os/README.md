@@ -1,136 +1,136 @@
-* 系统日志读取
+# 系统日志读取
 
 共享系统配置以 rsyslog 替换 Shepherd 内置的 system-log 服务。
-=wenxin= 属于 =log-readers=，可读取当前 =/var/log/messages=；
-该文件保持 =root:log-readers 0640=。激活时也会调整已有当前文件的
+`wenxin` 属于 `log-readers`，可读取当前 `/var/log/messages`；
+该文件保持 `root:log-readers 0640`。激活时也会调整已有当前文件的
 属组，历史内容不会清除，因此其中仍可能有迁移前的 auth 消息。
 
-新消息中 =auth=、=authpriv= 写入 =secure=，邮件写入 =maillog=；
-这些文件以及 =debug= 保持 root 组权限。普通消息保留全部级别。
-=guix-daemon.log= 等由 Shepherd 捕获的服务输出不变。
+新消息中 `auth`、`authpriv` 写入 `secure`，邮件写入 `maillog`；
+这些文件以及 `debug` 保持 root 组权限。普通消息保留全部级别。
+`guix-daemon.log` 等由 Shepherd 捕获的服务输出不变。
 
 继续使用 Shepherd 默认的外部日志复制截断轮转和 zstd 压缩。
-当前 =messages= 的属组不因轮转改变；归档可能变为 root 组，仍需
+当前 `messages` 的属组不因轮转改变；归档可能变为 root 组，仍需
 sudo 读取。不增加权限修复任务或压缩回调。
 
-首次切换建议 reconfigure 后重启，使旧的内置 logger 释放 =/dev/log=
-并由 rsyslog 接管。Guix 会安装配置到 =/etc/syslog.conf=，rsyslog 和
-Shepherd 统一使用 =/var/run/syslog.pid=。之后重新登录（以及重启
-agent）让附加组生效。=herd status syslogd= 可检查服务状态；
-=herd reload syslogd= 仅发送 HUP 重新打开日志，不会重新读取 rsyslog
+首次切换建议 reconfigure 后重启，使旧的内置 logger 释放 `/dev/log`
+并由 rsyslog 接管。Guix 会安装配置到 `/etc/syslog.conf`，rsyslog 和
+Shepherd 统一使用 `/var/run/syslog.pid`。之后重新登录（以及重启
+agent）让附加组生效。`herd status syslogd` 可检查服务状态；
+`herd reload syslogd` 仅发送 HUP 重新打开日志，不会重新读取 rsyslog
 配置，配置更新需要重启该服务。
 
 配置回归测试：
-#+begin_src sh
+```sh
 guix time-machine -C env/guix/channels-lock.scm -- \
   repl -L src/guix -L src/guile test/guix/uraj/services/rsyslog.scm
 python3 test/guix/uraj/services/rsyslog-integration.py \
   /gnu/store/…-rsyslog-…/sbin/rsyslogd
-#+end_src
+```
 
 集成测试只使用临时日志和独立 socket，替换测试用户身份并关闭内核
 输入；验证消息分流、权限、轮转后继续写入和文件重建。
 
-* Guix 的 crates 下载镜像
+# Guix 的 crates 下载镜像
 
-共享 =base-services= 为 Guix daemon 设置
-=GUIX=/etc/guix-daemon-command=。该程序只包装 =perform-download=，
+共享 `base-services` 为 Guix daemon 设置
+`GUIX=/etc/guix-daemon-command`。该程序只包装 `perform-download`，
 将 crates.io API 和 static.crates.io 的 crate 地址展开为
-=rsproxy → SJTUG → 原站=；其他命令原样交给系统配置选定的 Guix。
-实现位于 =(uraj services guix-mirrors)= 和 =(uraj build crate-mirrors)=。
+`rsproxy → SJTUG → 原站`；其他命令原样交给系统配置选定的 Guix。
+实现位于 `(uraj services guix-mirrors)` 和 `(uraj build crate-mirrors)`。
 
-这是 daemon 端的策略：普通 =guix build=、=guix time-machine=、
-=maak system-reconfigure= 都沿用原有命令。无需修改 channel、shikanox
+这是 daemon 端的策略：普通 `guix build`、`guix time-machine`、
+`maak system-reconfigure` 都沿用原有命令。无需修改 channel、shikanox
 包或 Cargo 配置。原始 derivation、预期哈希和 store 输出路径不变，
-下载仍由 Guix 的 =url-fetch= 完成。
+下载仍由 Guix 的 `url-fetch` 完成。
 
 文件在系统 reconfigure 的激活阶段生成，不需要重启系统。
-使用顶层路径以避免覆盖 Guix 自己维护的可变目录 =/etc/guix=。
+使用顶层路径以避免覆盖 Guix 自己维护的可变目录 `/etc/guix`。
 若运行中的 daemon 仍使用旧服务定义，待现有构建结束后执行
-=sudo herd restart guix-daemon= 即可。正在运行的旧 daemon 不会因仓库
+`sudo herd restart guix-daemon` 即可。正在运行的旧 daemon 不会因仓库
 文件改动自动启用镜像；首次 reconfigure 的构建阶段也仍使用旧 daemon。
-镜像下载可在构建日志的 =From https://rsproxy.cn/...= 中确认。
+镜像下载可在构建日志的 `From https://rsproxy.cn/...` 中确认。
 
-覆盖范围是本机 daemon 的 =builtin:download=。远程 offload 的构建机
+覆盖范围是本机 daemon 的 `builtin:download`。远程 offload 的构建机
 需独立配置；旧式自行调用下载程序的 builder、Cargo 自行联网不受此
-包装影响。它使用 Guix 已有的 =GUIX= helper 入口和内部 =url-fetch=
+包装影响。它使用 Guix 已有的 `GUIX` helper 入口和内部 `url-fetch`
 绑定，升级系统 Guix 时需重跑测试；不需要维护 Guix fork。
 
-#+begin_src sh
+```sh
 guix time-machine -C env/guix/channels-lock.scm -- \
   repl -L src/guix test/guix/uraj/build/crate-mirrors.scm
-#+end_src
+```
 
-* Live ISO 的内网 substitutes
+# Live ISO 的内网 substitutes
 
-运行 =maak -f env/guix/os/maak.scm build-iso [配置路径]= 时，ISO 会信任
-构建机的 =/etc/guix/signing-key.pub=，并开启 Avahi 自动发现。
+运行 `maak -f env/guix/os/maak.scm build-iso [配置路径]` 时，ISO 会信任
+构建机的 `/etc/guix/signing-key.pub`，并开启 Avahi 自动发现。
 公钥不存在时直接跳过，ISO 仍可正常构建；存在时需要可读。
 私钥不会加入 ISO。
 
 desktop/server 的共享配置发布本机 store：HTTP TCP 8080，并通过
 Avahi 广播。现有机器需要先 reconfigure 到新配置才会启动发布服务。
 如果从其他发行版构建 ISO，需要在那台构建机另外运行 Avahi 和
-=guix publish --advertise=（监听内网地址，端口 8080）。
+`guix publish --advertise`（监听内网地址，端口 8080）。
 
 在同一局域网中放行发布端 TCP 8080，以及双方 UDP 5353/mDNS；启动
-ISO 后，=guix system init= 或 =guix system reconfigure= 就能发现并
+ISO 后，`guix system init` 或 `guix system reconfigure` 就能发现并
 使用构建机现存、路径匹配的 substitutes。构建机须保持在线，且产物
 未被 GC。缺少的产物仍可能需要外网或本地构建。
 
 构建机公钥仅加入 live 系统的信任配置；普通系统配置不会读取或信任
-它。storie 另行显式信任仓库中的 =keys/lappie-signing-key.pub=，并开启
+它。storie 另行显式信任仓库中的 `keys/lappie-signing-key.pub`，并开启
 substitute 自动发现，以便安装后继续使用 lappie 的构建产物。
 
 在 lappie 的仓库根目录构建自定义 Docker（两端使用相同的仓库和 lock）：
 
-#+begin_src sh
+```sh
 guix time-machine -C env/guix/channels-lock.scm -- build -L src/guix \
   -e '(@ (uraj packages docker) docker-full)'
-#+end_src
+```
 
 已有 storie 系统首次启用此配置时，先同步仓库，再在 storie 上执行：
 
-#+begin_src sh
+```sh
 sudo guix archive --authorize < env/guix/os/keys/lappie-signing-key.pub
 # 将下方地址替换为 lappie 当前的内网地址；首次部署显式指定发布端。
 sudo -E guix time-machine -C env/guix/channels-lock.scm -- \
   system reconfigure -L src/guix -L src/guile env/guix/os/storie.scm \
   --substitute-urls='http://172.31.0.133:8080 https://mirror.sjtu.edu.cn/guix-bordeaux https://mirror.sjtu.edu.cn/guix https://bordeaux.guix.gnu.org https://ci.guix.gnu.org https://substitutes.nonguix.org'
-#+end_src
+```
 
 后续通过 Avahi 发现 lappie，无需固定其 IP。若 lappie 重新生成签名密钥，
 需核对并更新仓库中的公钥。
 
-* storie 的 Immich
+# storie 的 Immich
 
-主体是 =(uraj services immich)=，由 =storie.scm= 引用。安装系统启动
+主体是 `(uraj services immich)`，由 `storie.scm` 引用。安装系统启动
 Docker、containerd 和 Immich；live ISO 不启动这些服务。
-Engine 来自 Guix，CLI 使用 shikanox 的 =docker-full=（包含 Compose 5.4）。
-通过 =(uraj packages docker)= 将 Compose 和 Buildx 的 =GOAMD64= 改为
-=v1=：shikanox 默认的 =v3= 需要 AVX/AVX2，storie 的 J6412 不支持，
-会造成插件启动失败并出现误导性的 =unknown flag: --project-name=。
+Engine 来自 Guix，CLI 使用 shikanox 的 `docker-full`（包含 Compose 5.4）。
+通过 `(uraj packages docker)` 将 Compose 和 Buildx 的 `GOAMD64` 改为
+`v1`：shikanox 默认的 `v3` 需要 AVX/AVX2，storie 的 J6412 不支持，
+会造成插件启动失败并出现误导性的 `unknown flag: --project-name`。
 首次构建可能需要编译该 channel 的 Go 依赖；这不是上游二进制打包。
 
-** 存储和启动
+## 存储和启动
 
-- =/data/immich/postgres=：NVMe Btrfs =@data= 上的 PostgreSQL。
-- =/data/immich/model-cache=：模型下载缓存。
-- =/core-data/archive/immich=：映射到 Immich 的 =/data=，由应用组织
+- `/data/immich/postgres`：NVMe Btrfs `@data` 上的 PostgreSQL。
+- `/data/immich/model-cache`：模型下载缓存。
+- `/core-data/archive/immich`：映射到 Immich 的 `/data`，由应用组织
   upload/library/thumbs/encoded-video/profile/backups，不需预建用户目录。
-- =secrets/hosts/storie/immich.yaml=：SOPS 加密的数据库密码；启动时解密到
-  =/run/secrets/immich/db-password=，root 0400，不写入 Guix store。
-- =/etc/immich/compose.json=：Guix 生成的 Compose 文件（JSON 是合法 YAML）。
-- =/etc/immich/compose=：指向本代配置和客户端的操作命令。
+- `secrets/hosts/storie/immich.yaml`：SOPS 加密的数据库密码；启动时解密到
+  `/run/secrets/immich/db-password`，root 0400，不写入 Guix store。
+- `/etc/immich/compose.json`：Guix 生成的 Compose 文件（JSON 是合法 YAML）。
+- `/etc/immich/compose`：指向本代配置和客户端的操作命令。
 
-=immich= 等待 =dockerd=、=zfs-data-ready=、=file-system-/data= 和 =sops-secrets=。
+`immich` 等待 `dockerd`、`zfs-data-ready`、`file-system-/data` 和 `sops-secrets`。
 每次启动还会检查真实的 Btrfs/ZFS 挂载和父网卡，之后才创建数据目录。
 不能把缺失数据盘时根文件系统上的同名空目录当作图库。
-容器使用 =on-failure=，崩溃时重启，daemon 开机时不自行恢复容器，
+容器使用 `on-failure`，崩溃时重启，daemon 开机时不自行恢复容器，
 启动顺序由 Shepherd 负责。每次服务启动重建整组容器，保证共享网络
 命名空间和密码文件挂载一致；数据 bind mounts 保留。
 
-#+begin_src sh
+```sh
 # 在已安装的 storie 上，从仓库环境构建/部署（不是运行在开发机上）：
 guix time-machine -C env/guix/channels-lock.scm -- system build env/guix/os/storie.scm
 sudo -E guix time-machine -C env/guix/channels-lock.scm -- system reconfigure env/guix/os/storie.scm
@@ -139,31 +139,31 @@ sudo /etc/immich/compose ps
 sudo /etc/immich/compose logs --tail 100
 sudo herd stop immich
 sudo herd start immich
-#+end_src
+```
 
 若启动时网络还不能拉取镜像，或数据池缺失，启动会失败并停止已启动的
-容器。修复后 =herd start zfs-data-ready=（如需要），再 =herd start immich=。
-不要用手工 =compose up= 绕过挂载/密钥检查。=herd status immich= 表示
-启动动作成功，不是持续的健康监控；用 =compose ps= 查看容器健康状态。
+容器。修复后 `herd start zfs-data-ready`（如需要），再 `herd start immich`。
+不要用手工 `compose up` 绕过挂载/密钥检查。`herd status immich` 表示
+启动动作成功，不是持续的健康监控；用 `compose ps` 查看容器健康状态。
 
-** 网络
+## 网络
 
-macvlan bridge 模式使用 =enp1s0=，子网 =172.31.0.0/24=，网关
-=172.31.0.1=，唯一分配地址 =172.31.0.6=。部署前确保 .6 无占用且
+macvlan bridge 模式使用 `enp1s0`，子网 `172.31.0.0/24`，网关
+`172.31.0.1`，唯一分配地址 `172.31.0.6`。部署前确保 .6 无占用且
 排除在 DHCP 动态地址池之外；交换机端口需要允许多个 MAC。
-内网从 =http://172.31.0.6:2283= 访问，第一位注册者成为管理员。
+内网从 `http://172.31.0.6:2283` 访问，第一位注册者成为管理员。
 这里没有配置 HTTPS 或反向代理。
 
 一个固定 digest 的 pause 容器持有网络命名空间，其余四个容器通过
-=network_mode: service:network= 加入。只有 Immich Web 对外监听；
+`network_mode: service:network` 加入。只有 Immich Web 对外监听；
 PostgreSQL、Valkey、ML 均监听共享命名空间内的 127.0.0.1。
 anchor 的 hosts 文件把默认 ML 主机名解析到回环地址，避免使用
-=IMMICH_CONFIG_FILE= 而锁住网页管理设置。未添加普通 Docker bridge。
+`IMMICH_CONFIG_FILE` 而锁住网页管理设置。未添加普通 Docker bridge。
 
 此 Docker daemon 禁用默认 bridge、iptables/ip6tables、IP forwarding
-管理和 userland proxy。storie 的 =static-agent= / =br-static-agent= 是显式创建的独立
-bridge，转发、NAT 和防火墙由 Guix 的 =restricted-network= 服务管理，
-见 [[file:../../../docs/restricted-network.org][受限网络说明]]。其他 Compose 项目不能依赖默认 bridge/NAT 自动配置。
+管理和 userland proxy。storie 的 `static-agent` / `br-static-agent` 是显式创建的独立
+bridge，转发、NAT 和防火墙由 Guix 的 `restricted-network` 服务管理，
+见 [受限网络说明](../../../docs/restricted-network.md)。其他 Compose 项目不能依赖默认 bridge/NAT 自动配置。
 此配置不清理历史防火墙规则。
 macvlan 数据流不受主机普通 input/forward 防火墙保护，需要访问隔离时
 应在路由器/VLAN 或容器网络命名空间设计规则。storie 本机无法直接访问
@@ -173,129 +173,129 @@ macvlan 数据流不受主机普通 input/forward 防火墙保护，需要访问
 版本固定在 v3.2.4。升级时同时审阅官方 release Compose 和镜像变更，
 修改 Guix 配置后重启服务。Guix 系统回滚不会回滚数据库迁移或照片数据。
 
-** 密钥与备份边界
+## 密钥与备份边界
 
 服务只把密码文件路径写入 store，启动时复制到 root 0700 的
-=/run/immich= 目录，再只读挂载给数据库和 Immich。运行时副本对容器
+`/run/immich` 目录，再只读挂载给数据库和 Immich。运行时副本对容器
 用户可读，主机普通用户无法穿过父目录。已有数据库而密码文件缺失时
 拒绝生成新密码。不要删除密码文件，也不要把改文件等同于数据库改密。
 
-storie 已通过 =host-sops-services= 声明数据库 secret，并配置：
+storie 已通过 `host-sops-services` 声明数据库 secret，并配置：
 
-#+begin_src scheme
+```scheme
 (immich-configuration
  (database-password-file "/run/secrets/immich/db-password")
  (secret-requirements '(sops-secrets)))
-#+end_src
+```
 
-实际路径由 =sops-secret->secret-file= 推导，和解密服务保持一致。
+实际路径由 `sops-secret->secret-file` 推导，和解密服务保持一致。
 本次在本机生成了新密码，供尚未初始化的数据库使用。如果此前已经运行
 并初始化过数据库，需要改用现有密码，或同步更新 PostgreSQL role；
 重启本身不会改密。
 管理员密码由首次注册设置；SMTP/OAuth 等可选功能启用后才有额外密钥。
-recipients 沿用仓库 =.sops.yaml=；目标私钥由现有 host-sops 服务管理。
+recipients 沿用仓库 `.sops.yaml`；目标私钥由现有 host-sops 服务管理。
 本次不增加额外备份任务。
 
 Immich 自带数据库导出仍按应用默认值运行，输出到媒体目录的 backups。
-原有 ZFS 定时器使用 =--default-exclude=：只有显式设置
-=com.sun:auto-snapshot=true= 的数据集才会被快照。保留策略为每小时
+原有 ZFS 定时器使用 `--default-exclude`：只有显式设置
+`com.sun:auto-snapshot=true` 的数据集才会被快照。保留策略为每小时
 72 份、每天 31 份；本次没有给 archive 设置属性，也没有增加快照任务。
 移动硬盘、冷存储以及恢复演练留待另行设计。
 
 本次不扫描整个 archive 为外部图库。已有照片可另选具体目录只读挂载，
 避免把 Immich 自己的媒体目录再次作为 External Library 导入。
 
-* 用 guix deploy 远程更新
+# 用 guix deploy 远程更新
 
-共享的 =base-os= 创建 =guix-deploy= 用户，桌面和服务器都继承它。
+共享的 `base-os` 创建 `guix-deploy` 用户，桌面和服务器都继承它。
 该账户没有密码登录、没有 wheel 附加组，SSH 复用 wenxin 的公钥，
-并通过 authorized_keys 的 =restrict= 禁用 PTY、转发和用户 rc。
+并通过 authorized_keys 的 `restrict` 禁用 PTY、转发和用户 rc。
 它仍需要正常 shell，以运行 SSH 远程命令。
 
-sudoers 仅允许 root 执行系统 profile 的 =guix repl -t machine=，
-以及路径匹配 store 内 Guile 的 =guile --no-auto-compile ...=。
-这些是锁定 Guix 的部署协议所需入口，不能只允许 =system reconfigure=。
+sudoers 仅允许 root 执行系统 profile 的 `guix repl -t machine`，
+以及路径匹配 store 内 Guile 的 `guile --no-auto-compile ...`。
+这些是锁定 Guix 的部署协议所需入口，不能只允许 `system reconfigure`。
 这只是命令入口白名单：解释器能执行任意 root 代码，部署者仍是等同
 root 的可信管理员。它不是“只能部署”的安全隔离；不要把这个密钥
 交给不可信用户。升级 Guix 后如调用形式改变，应重新审阅规则。
 
-** 首次启用
+## 首次启用
 
 将更新后的仓库同步到目标机，在目标机仓库根目录以 wenxin 执行一次：
 
-#+begin_src sh
+```sh
 unset TO_ISO
 sudo -E guix time-machine -C env/guix/channels-lock.scm -- \
   system reconfigure -L src/guix -L src/guile env/guix/os/storie.scm
-#+end_src
+```
 
 这一步需要现有 sudo 密码；尚未创建的 guix-deploy 不能自举自己。
 其他主机启用时改用各自的系统配置文件。
 
-** 日常部署 storie
+## 日常部署 storie
 
 在开发机仓库根目录执行，不加 sudo：
 
-#+begin_src sh
+```sh
 unset TO_ISO
 guix time-machine -C env/guix/channels-lock.scm -- \
   deploy -L src/guix -L src/guile --dry-run env/guix/os/deploy/storie.scm
 guix time-machine -C env/guix/channels-lock.scm -- \
   deploy -L src/guix -L src/guile env/guix/os/deploy/storie.scm
-#+end_src
+```
 
-也可用 Home 安装的 =uraj-deploy storie=，它经 maak 直接部署，不预演。
-目标后的参数会传给 =guix deploy=，例如 =uraj-deploy storie --dry-run=。
-传入配置文件路径（例如 =uraj-deploy /path/to/worktree/env/guix/os/deploy/storie.scm=）
-时，从文件的真实路径向上查找最近的 =.envrc=，加载该目录的 direnv 环境，
-并使用其中的 =env/guix/os/maak.scm=。=uraj-system-reconfigure= 和
-=uraj-home-reconfigure= 也支持这种方式；未传入配置文件时仍使用
-=~/src/uraj=。环境须已通过 =direnv allow= 授权；找不到环境或加载失败时停止。
+也可用 Home 安装的 `uraj-deploy storie`，它经 maak 直接部署，不预演。
+目标后的参数会传给 `guix deploy`，例如 `uraj-deploy storie --dry-run`。
+传入配置文件路径（例如 `uraj-deploy /path/to/worktree/env/guix/os/deploy/storie.scm`）
+时，从文件的真实路径向上查找最近的 `.envrc`，加载该目录的 direnv 环境，
+并使用其中的 `env/guix/os/maak.scm`。`uraj-system-reconfigure` 和
+`uraj-home-reconfigure` 也支持这种方式；未传入配置文件时仍使用
+`~/src/uraj`。环境须已通过 `direnv allow` 授权；找不到环境或加载失败时停止。
 
 部署尚未合并的工作树时，在该工作树根目录执行以下命令。直接使用仓库
 中的入口，无需先更新本机 Home；显式路径确保使用当前工作树的配置，
-而不是 =uraj-deploy storie= 默认选择的 =~/src/uraj=：
+而不是 `uraj-deploy storie` 默认选择的 `~/src/uraj`：
 
-#+begin_src sh
+```sh
 direnv allow
 ./env/dotfiles/common/shell/.local/bin/uraj-deploy env/guix/os/deploy/storie.scm --dry-run
 ./env/dotfiles/common/shell/.local/bin/uraj-deploy env/guix/os/deploy/storie.scm
-#+end_src
+```
 
-storie 的部署声明已经设置 =(build-locally? #t)=，系统在开发机构建，
+storie 的部署声明已经设置 `(build-locally? #t)`，系统在开发机构建，
 再传输到 storie 激活，不需要在 storie 执行 reconfigure。
 
-=uraj-home-reconfigure= 未传入配置文件时，若存在 =env/guix/os/$(hostname).scm=
-则部署该机器配置中嵌入的 Home（见 [[file:../../../docs/home-only-deployment.org][Home-only deployment]]），否则使用
-=env/guix/os/home.scm=。
+`uraj-home-reconfigure` 未传入配置文件时，若存在 `env/guix/os/$(hostname).scm`
+则部署该机器配置中嵌入的 Home（见 [Home-only deployment](../../../docs/home-only-deployment.md)），否则使用
+`env/guix/os/home.scm`。
 
-=uraj-system-reconfigure= 和 =uraj-home-reconfigure= 会将配置路径后的
+`uraj-system-reconfigure` 和 `uraj-home-reconfigure` 会将配置路径后的
 额外参数原样传给 Guix，例如临时指定 substitute 源：
 
-#+begin_src sh
+```sh
 uraj-system-reconfigure env/guix/os/lappie.scm \
   --substitute-urls="https://mirror.sjtu.edu.cn/guix https://mirror.sjtu.edu.cn/guix-bordeaux https://bordeaux.guix.gnu.org https://substitutes.nonguix.org"
-#+end_src
+```
 
-直接使用 Maak 时，用 =--= 分隔任务参数，避免选项被 Maak 解析：
+直接使用 Maak 时，用 `--` 分隔任务参数，避免选项被 Maak 解析：
 
-#+begin_src sh
+```sh
 maak -f env/guix/os/maak.scm -- system-reconfigure -- \
   env/guix/os/lappie.scm --dry-run
-#+end_src
+```
 
 入口固定 storie 的 Ed25519 主机公钥，使用端口 23333、guix-deploy
-账户和开发机 =$HOME/.ssh/simple= 私钥。本地构建，SSH 传输并激活；
-=authorize? #t= 允许远端导入开发机签名的 store 产物。
+账户和开发机 `$HOME/.ssh/simple` 私钥。本地构建，SSH 传输并激活；
+`authorize? #t` 允许远端导入开发机签名的 store 产物。
 预演可能连接远端，不代表服务启动或重启验证已通过。
 
-部署后用 wenxin 登录检查 =sudo herd status=、=sudo herd status immich=
-和 =sudo /etc/immich/compose ps=。内核及 ZFS/it87 模块更新后安排重启。
+部署后用 wenxin 登录检查 `sudo herd status`、`sudo herd status immich`
+和 `sudo /etc/immich/compose ps`。内核及 ZFS/it87 模块更新后安排重启。
 回滚命令：
 
-#+begin_src sh
+```sh
 guix time-machine -C env/guix/channels-lock.scm -- \
   deploy -L src/guix -L src/guile --roll-back env/guix/os/deploy/storie.scm
-#+end_src
+```
 
 系统代回滚不恢复数据库、照片或 ZFS 数据。

@@ -1,4 +1,4 @@
-* Uraj, the code in public
+# Uraj, the code in public
 
 ...with lots of AI slop. In many, or most, cases, AI knows better than I do,
 and works much harder, so it's fine with me.
