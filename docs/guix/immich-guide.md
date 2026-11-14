@@ -26,6 +26,9 @@ Engine 来自 Guix，CLI 使用 shikanox 的 `docker-full`（包含 Compose 5.4�
 启动顺序由 Shepherd 负责。每次服务启动重建整组容器，保证共享网络
 命名空间和密码文件挂载一致；数据 bind mounts 保留。
 
+部署见 [deploy-guide](deploy-guide.md)：在开发机构建并部署，不在 storie 上
+构建。部署后：
+
 ```sh
 sudo herd status immich
 sudo /etc/immich/compose ps
@@ -90,7 +93,8 @@ recipients 沿用仓库 `.sops.yaml`；目标私钥由现有 host-sops 服务管
 Immich 自带数据库导出仍按应用默认值运行，输出到媒体目录的 backups。
 原有 ZFS 定时器使用 `--default-exclude`：只有显式设置
 `com.sun:auto-snapshot=true` 的数据集才会被快照。保留策略为每小时
-72 份、每天 31 份。
+72 份、每天 31 份。archive 是否被快照取决于它是否设置了该属性（`storie.scm`
+的注释给出了设置命令），不是默认行为。
 移动硬盘、冷存储以及恢复演练留待另行设计。
 
 不要把整个 archive 扫描为外部图库。已有照片可另选具体目录只读挂载，

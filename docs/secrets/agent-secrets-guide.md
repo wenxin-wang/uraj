@@ -25,9 +25,9 @@ GitHub 没有创建 token 的 API。在宿主机（不是容器内）的项目 G
 对每个级别运行一次：
 
 ```sh
-scripts/secrets/github_token.py public wenxin-wang
-scripts/secrets/github_token.py personal wenxin-wang
-scripts/secrets/github_token.py world wenxin-wang
+scripts/secrets/github_token.py public <GitHub 用户名>
+scripts/secrets/github_token.py personal <GitHub 用户名>
+scripts/secrets/github_token.py world <GitHub 用户名>
 ```
 
 脚本打开已预填的表单：public 和 personal 是 fine-grained 表单，填好了

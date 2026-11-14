@@ -16,7 +16,9 @@ ISO 后，`guix system init` 或 `guix system reconfigure` 就能发现并
 未被 GC。缺少的产物仍可能需要外网或本地构建。
 
 构建机公钥仅加入 live 系统的信任配置；普通系统配置不会读取或信任
-它。storie 另行显式信任仓库中的 `keys/lappie-signing-key.pub`，并开启
-substitute 自动发现，以便安装后继续使用 lappie 的构建产物。
+它。storie 另行在系统配置里显式信任 `env/guix/os/keys/lappie-signing-key.pub`，
+并开启 substitute 自动发现，以便安装后继续使用 lappie 的构建产物；
+`uraj-deploy storie` 在开发机本地构建（见 [deploy-guide](deploy-guide.md)），
+无需手工导入公钥。hypie 同样信任 lappie 和 storie 的公钥。
 
 若 lappie 重新生成签名密钥，需核对并更新仓库中的公钥。

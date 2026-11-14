@@ -34,17 +34,10 @@ activating anything:
 uraj-home-reconfigure ~/src/uraj/env/guix/os/lappie.scm --dry-run
 ```
 
-The equivalent direct command is:
-
-```sh
-OS_DEPLOY_TARGET=home guix time-machine \
-  -C env/guix/channels-lock.scm -- \
-  home reconfigure -L src/guix -L src/guile env/guix/os/lappie.scm
-```
-
-Keep the environment assignment local to the command instead of exporting it
-in your shell: a later System deployment must evaluate the default `system`
-target.
+The equivalent direct command is in the
+[command quick reference](deploy-guide.md#命令速查). Keep the environment
+assignment local to the command instead of exporting it in your shell: a later
+System deployment must evaluate the default `system` target.
 
 ## What changes, and what does not
 

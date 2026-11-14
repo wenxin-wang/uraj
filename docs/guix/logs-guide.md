@@ -29,3 +29,14 @@ python3 test/guix/uraj/services/rsyslog-integration.py \
 
 集成测试只使用临时日志和独立 socket，替换测试用户身份并关闭内核
 输入；验证消息分流、权限、轮转后继续写入和文件重建。
+
+## 按服务的日志目录
+
+用 Compose 跑的服务（Immich、new-api、Paseo relay、OpenClaw）通过
+`(uraj services logs)` 的 `service-log` 在 `/var/log/<服务名>/` 下放日志：
+目录归 `root:log-readers`，setgid 2750，`log-readers` 成员免 sudo 读取。
+声明 `(containers? #t)` 的服务，其容器输出经 Compose 的 syslog 驱动和一条
+rsyslog 路由写入 `/var/log/<服务名>/containers.log`，tag 为 `<服务名>/容器名`，
+随系统日志轮转。rsyslog 只在启动时读取路由，首次部署新路由需要
+`sudo herd restart syslogd`。Paseo daemon 的目录只放它自己的 `paseo.log`。
+各服务的日志位置见各自的手册。
