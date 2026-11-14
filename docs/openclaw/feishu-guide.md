@@ -23,9 +23,8 @@
 OpenClaw 的 Claude 请求从第二轮起即命中缓存。
 
 仅有该键仍不够：new-api 后面的 Codex 上游按 `Session-Id` 头路由缓存，
-OpenClaw 不发会话头，部署后 36 次 Astra 请求只命中 4 次。同一 23k token
-提示词追加 6 轮，只带键时几乎不命中，补上 `Session-Id` 后从第二轮起
-每轮命中。OpenClaw 不能按会话设置请求头，所以在 new-api 的 `CodexMT`
+OpenClaw 不发会话头，只带键几乎不命中。
+OpenClaw 不能按会话设置请求头，所以在 new-api 的 `CodexMT`
 渠道（id 3）设置参数覆盖，缺少会话头时用 `prompt_cache_key` 补齐：
 
 ```json
@@ -43,7 +42,7 @@ Astra 的默认 thinking 为 `xhigh`，由 storie 的 `model-thinking` 生成
 `agents.defaults.models["new-api-gpt/gpt-6-astra"].params.thinking`。
 provider 的 `reasoning-efforts` 同时声明该模型支持的强度，生成
 `compat.supportedReasoningEfforts`，避免自定义 provider 把 `xhigh` 降为
-`high`。其他模型沿用上游默认；原先 Astra 没有显式设置时使用 `medium`。
+`high`。其他模型沿用上游默认。
 修改后重新部署并重启 OpenClaw 生效，不需要重建镜像。
 
 已有会话的 `/think` 设置优先于模型默认。单独发送 `/think default` 清除
@@ -102,12 +101,6 @@ v2026.10.3 把飞书富文本（post）消息转成 Markdown 时会转义 `-`：
 绑定私人角色的群里，插件只放行带私人角色运行授权的回复和自身控制命令的
 回复。内置 `/astra-6`、`/model` 仍会切换模型，但确认回复会被拦下，飞书里
 看不到；在这类群里用 `/groupmodel`，它的回复可以送达。
-
-已核对 v2026.10.3 的 Slack 插件：它为带 choices 的原生命令提供通用
-交互参数菜单，但 `/model` 注册的是自由文本参数，没有 choices 或
-专用模型菜单。Discord、Telegram 的专用选择器不能据此推定 Slack
-也支持。参考固定版本的 `extensions/slack/src/monitor/slash.ts` 与
-`src/auto-reply/commands-registry.shared.ts`。
 
 ### 应用配置和配对
 

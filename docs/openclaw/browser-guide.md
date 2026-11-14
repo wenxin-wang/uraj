@@ -7,10 +7,9 @@ Chromium、Mesa Vulkan 和中日韩及 emoji 字体。命令和浏览器在同�
 容器里运行；不使用 OpenClaw 内置的 `browser` 工具，上游 Podman 后端也
 不支持内置浏览器沙箱。
 
-浏览器以有头（headed）模式运行：headless 会改变浏览器特征，部署后
-小红书、京东和百度同时出现风控页，此前 Xvfb 有头模式下小红书可以正常
-搜索和扫码登录。Xvfb 无法使用硬件加速，因此启动包装器 `sandbox-chromium`
-为每个 Chromium 启动私有的 cage（wlroots 无头后端），Chromium 以
+浏览器以有头（headed）模式运行：headless 会改变浏览器特征，
+小红书、京东和百度会出风控页。Xvfb 无法使用硬件加速，因此启动包装器
+`sandbox-chromium` 为每个 Chromium 启动私有的 cage（wlroots 无头后端），Chromium 以
 `--ozone-platform=wayland` 连接；cage 随 Chromium 退出，同一沙箱的多个
 浏览器各用一个 Wayland socket。cage 用 render node 的 Vulkan 渲染器合成；
 没有 render node 时改用 pixman。WebGL 由 Chromium 的 GPU 进程直接使用
@@ -25,7 +24,6 @@ CLI 的 `skills get` 正文来自镜像中同版本源码包的 `skills`、`skil
 登录状态按角色保存；新镜像的 `browser-profile` 将主登录目录与任务副本分开。
 `login URL` 打开主登录浏览器，`identity screenshot /workspace/login.png`
 可截图扫码。确认登录成功后 `publish` 正常关闭浏览器、检查进程退出并发布快照。
-首次使用会把已关闭的旧 `.agent-browser/profile` 迁移到 `identity`，不丢弃登录。
 重建沙箱会换主机名，旧沙箱里被杀死的浏览器留下的 `SingletonLock` 指向旧主机，
 Chromium 会一直报资料被占用；`browser-profile` 启动前检查没有本地进程使用该目录后
 清除这种锁。每个 workspace 只有一个沙箱，同主机的锁仍由 Chromium 自己判断。
@@ -82,37 +80,6 @@ agent-browser 0.38.2 在 headed Chromium 下可能把页面尺寸误报为
 会用 `browser-profile identity eval '[innerWidth, innerHeight]'` 读取尺寸，
 再执行 `browser-profile identity set viewport WIDTH HEIGHT` 同步 dashboard，
 保留当前桌面页面的尺寸。任务副本则将 `identity` 换成 `run TASK`。
-
-新版包装器和转发脚本还会移除 dashboard 进程继承的浏览器启动参数，避免
-0.38.2 在执行 Fit、导航等菜单命令时用缺少 profile 的参数重启浏览器。
-已运行的旧 dashboard 需要先在沙箱内执行 `agent-browser dashboard stop`，
-再用新版脚本启动；浏览器会话可以保持运行。启动环境修正后，也可以点右下角
-尺寸菜单选择 `Fit`，通过调整页面大小修正点击坐标。
-
-这项修复随系统部署分发两部分：
-
-- `env/docker/openclaw-sandbox/browser-profile` 随构建上下文进入
-  `/etc/openclaw/sandbox-build`，服务启动时构建进新沙箱镜像。包装器也将
-  旧式 `identity dashboard`、`run TASK dashboard` 转到安全启动路径。
-- `scripts/openclaw/skills/agent-browser/` 生成 `/etc/openclaw/skills`，
-  挂入 Gateway 后由 OpenClaw 分发到沙箱；其中要求同步 viewport、收到实际
-  `frame` 后再交接，并回报端口和连接命令。
-
-部署包含修复的版本后，还需让旧沙箱换用新镜像。在 storie 执行以下步骤，
-先停止服务并移除旧沙箱，再由服务启动流程构建镜像、加载新 skill；下次
-agent 使用沙箱时会重新创建。重建会关闭当前浏览器和 dashboard，保留
-workspace 及其中的 profile。先结束手动操作，再执行：
-
-```sh
-sudo herd stop openclaw
-sudo /etc/openclaw/compose up -d --pull never --no-build --wait engine
-sudo /etc/openclaw/compose run --rm --no-deps --pull never \
-  --entrypoint node gateway /app/openclaw.mjs sandbox recreate --all
-sudo herd start openclaw
-```
-
-确认重建命令成功后再启动服务。随后让 agent 重新读取 browser skill，
-启动 dashboard 并按交接流程验证画面，再使用它新报出的沙箱和端口连接。
 
 OpenClaw 沙箱在 Docker engine 里的 rootless Podman 中，dashboard 只监听
 沙箱的 loopback，不能直接从宿主访问。仓库提供转发脚本，在本机运行：

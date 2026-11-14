@@ -13,8 +13,7 @@ Shepherd 启动时先停止旧 Gateway，再运行 reconcile：对齐基础字�
 这是服务启动阶段的对齐，不是在运行中的 Guix activation 直接覆盖文件。
 默认模型只在用户改过时保留：每次对齐后把本次 Guix 默认写入
 `openclaw.json.guix-model`，下次启动时若运行配置仍等于这个旧默认，就跟随
-新的 Guix 声明。没有该记录（首次部署此逻辑）时同样采用 Guix 默认，因为
-无法区分旧默认和用户选择；此前用户自选的默认模型需要重新设置一次。
+新的 Guix 声明。没有该记录时采用 Guix 默认。
 基础配置显式声明 `agents.defaults.systemAgent.agentId="main"`，与多 agent
 启动时 Doctor 的规范化保持一致；否则重启后新增的该字段会被不变量校验
 视为漂移，导致私人角色绑定等配置写入失败。
@@ -71,12 +70,9 @@ workspace 写入 `.openclaw-cli-capability`（0600）。客户端自动读取并
 或复制给其他角色。它依赖已有 workspace 隔离，属于家庭共用的隔离边界。
 配置和角色登记不是跨文件事务；若登记写入失败会报错，重试可完成同步。
 
-部署后重启 Gateway，并重建已有工具沙箱以取得新增挂载；无需重建镜像，
-工作区和记忆无需清除。代理目录只包含客户端和 socket，engine 不挂载
-Gateway 的完整 state 目录。因代理位于各 agent 工作区之外，Guix 显式设置
+代理目录只包含客户端和 socket，engine 不挂载 Gateway 的完整 state 目录。因代理位于各 agent 工作区之外，Guix 显式设置
 `dangerouslyAllowExternalBindSources=true`；挂载列表仍不可由 agent 修改，
-原生系统路径禁挂规则仍生效。config 代理及身份同步已在线验证，日志确认 identity/name 热加载成功；
-跨角色拒绝等边界由本地测试覆盖。
+原生系统路径禁挂规则仍生效。
 
 管理员也可以在 Gateway 容器内直接使用以下入口（值必须为 JSON）：
 
@@ -127,9 +123,3 @@ Gateway 必须在线。批量变更可替换整个 `agents.entries` 或 `binding
 `NO_REPLY` 协议结束。私聊、明确 @和授权命令仍要求回应。
 这与消息准入是两个独立设置，不会替其他群关闭 @要求；只影响飞书群聊。
 判断是否回复仍需模型调用，但允许静默后不会仅因缺少可见回复强制补答。
-`OPENCLAW_CONFIG_READONLY` 不再设置。
-
-部署验收需要用固定镜像检查：首次初始化、重启保留 agent/binding、
-校验工具合法修改模型成功、exec 中的原生命令被拒绝并提示工具、
-受管字段/agent 权限覆盖被拒绝、两个并发写入冲突，
-以及修改后的 Gateway 加载结果。仓库单元测试不代替真实镜像验收。
