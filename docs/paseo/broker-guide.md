@@ -10,8 +10,8 @@
 | `test/python/uraj/guix/contained-agent/paseo-broker.py` | Real-process integration tests with fake providers |
 
 The broker accepts only same-UID peers.  It permits project cwd under
-\~/src, \~/Projects and \~/.local/share/paseo/worktrees by default, plus a
-no-project home cwd for probes.
+\~/src, \~/Projects, \~/spaces and \~/.local/share/paseo/worktrees by default,
+plus a no-project home cwd for probes.
 Storie uses the same roots under /home/wenxin.  `--root` on the
 server changes the roots.  Cwd is canonicalized, but concurrent host-path
 rename/symlink attacks are not fully hardened; do not treat this as an
@@ -109,8 +109,9 @@ broker
   +-- supervisor -- session B -- Guix -- provider
 ```
 
-The shared service reads central project policy, resolves linked worktrees to
-the main repository, and serializes preparation requests.  Unchanged policy
+The shared service reads central project policy, keys SSH agents by worktree
+top level (a linked worktree gets its own agent), and serializes preparation
+requests.  Unchanged policy
 reuses loaded keys; policy or known_hosts changes reload them with the existing
 destination restrictions.  Session launchers check the prepared policy and
 mount only their project's socket and snapshots.  They never interpret PIDs
@@ -146,7 +147,8 @@ the unlock.  A rejected unlock fails that request without stopping the service.
 The service's stderr goes to the broker log/terminal, never provider stdout.
 
 Regression coverage is in `paseo-broker-shared-ssh.py` (real encrypted test
-keys, SSH agents and PID namespaces; no user credentials).
+keys, SSH agents and PID namespaces; no user credentials), including separate
+keys for a linked worktree and another project.
 
 ## Execution tiers
 

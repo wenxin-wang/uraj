@@ -3,7 +3,7 @@
 ## Layout
 
 Immich keeps 172.31.0.6; the Guix Paseo daemon uses storie's host address
-(see [daemon deployment and pairing](daemon-guide.md)).
+(see [daemon-guide](daemon-guide.md)).
 The relay listens at 172.31.0.8:4000 on the shared macvlan network
 `docker_lan`, attached to `enp1s0`, with gateway 172.31.0.1.
 
@@ -15,9 +15,9 @@ Its existing automatic allocation range remains 172.31.0.6/32; explicit
 container addresses such as .8 come from the enclosing /24 subnet.
 Reserve .6 and .8 outside the router's DHCP pool before deployment.
 
-The daemon now shares the host network and cannot directly reach this macvlan
-child. Direct LAN/VPN access works; relay use requires an endpoint reachable
-from the host. Existing private-relay pairing links need reconfiguration.
+The daemon shares the host network and reaches the relay through the host's
+sibling macvlan interface `host0`; see the
+[storie network guide](../guix/storie-network-guide.md).
 
 The relay uses the official Dockerfile at commit
 `3fc41c96c8c63f3a7109e832899cc57d473c4531` of
@@ -58,7 +58,7 @@ Failed startup stops the container. Docker restarts crashes with `on-failure`;
 Shepherd controls startup after reboot. No dependency on Immich, ZFS or SOPS
 is introduced for the relay.
 
-From another machine on the LAN (macvlan does not directly connect its host):
+From any machine on the LAN, or from storie itself through `host0`:
 
 ```sh
 curl --fail http://172.31.0.8:4000/health
@@ -98,4 +98,4 @@ the network to repair them. Inspect the mismatch before changing anything.
 This config exposes the relay only on the LAN. Public mobile access still
 requires a reachable hostname and a TLS reverse proxy supporting WebSocket
 upgrades to port 4000. No public DNS or TLS is configured here. The daemon
-advertises this private relay for LAN/VPN pairing; see the daemon document.
+advertises this private relay for LAN/VPN pairing; see [daemon-guide](daemon-guide.md).

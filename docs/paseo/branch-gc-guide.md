@@ -2,7 +2,7 @@
 
 ## Usage
 
-Run on the host as the Paseo user, with all repositories mounted:
+Run on the host as the main user, with all repositories mounted:
 
 ```sh
 scripts/paseo/branch-gc ~/src/uraj             # preview JSON candidates

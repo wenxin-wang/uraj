@@ -1,4 +1,4 @@
-# Paseo application container and services
+# Paseo daemon container and services
 
 ## Layout
 
@@ -39,8 +39,8 @@ The default desktop mode is session startup. The boot option selects both
 the system services and the matching Home configuration together. No
 lingering Home Shepherd or changes to niri session ownership are needed.
 Desktop machines listen at `127.0.0.1:6767`; storie listens on all interfaces.
-All share `~/src`, `~/Projects` and `~/.local/share/paseo/worktrees` when
-present. Create these directories before starting the service; new projects
+All share `~/src`, `~/Projects`, `~/spaces` and
+`~/.local/share/paseo/worktrees` when present. Create these directories before starting the service; new projects
 inside an already mounted root require no remount.
 
 ## Configuration
@@ -219,7 +219,7 @@ All contained agents can read uploads from other sessions. After updating
 the Home/broker launcher, restart providers to obtain the new mount; existing
 containers retain their old mounts.
 
-Paseo 0.10.3 writes Codex images under its temporary directory and sends
+Paseo writes Codex images under its temporary directory and sends
 `localImage` paths to the provider. Home activation and the service launcher
 create `~/.cache/paseo-tmp` with mode 0700. The launcher sets `TMPDIR` to
 that path; the Paseo container mounts it read-write, and contained agents
@@ -328,11 +328,14 @@ applications. The user copies other agent settings/credentials into
 
 Both system services run as `wenxin:users`. The broker waits for
 `guix-home-wenxin`; the daemon then waits for the broker. Project roots are
-`/home/wenxin/src`, `/home/wenxin/Projects` and the default worktree root
-`~/.local/share/paseo/worktrees`. State lives in `~/.paseo` in wenxin's Home.
+`/home/wenxin/src`, `/home/wenxin/Projects`, `/home/wenxin/spaces` and the
+default worktree root `~/.local/share/paseo/worktrees`. State lives in `~/.paseo` in wenxin's Home.
 
 The daemon listens on **storie's address**, port 6767. Pair clients through
-the relay (see [relay-guide](relay-guide.md)).
+the relay (see [relay-guide](relay-guide.md)). Every host, storie included, uses
+the relay at `172.31.0.8:4000` (`env/paseo/config.yaml`); storie reaches it
+through its `host0` macvlan interface, see
+[storie-network-guide](../guix/storie-network-guide.md).
 
 ## Verification
 
