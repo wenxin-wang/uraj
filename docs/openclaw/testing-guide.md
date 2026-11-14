@@ -1,7 +1,5 @@
 # OpenClaw 验证
 
-## 验证
-
 ```sh
 guix repl -L src/guix -L src/guile test/guix/uraj/services/openclaw.scm
 guix repl -L src/guix test/guix/uraj/openclaw-runtime.scm
@@ -10,6 +8,7 @@ guix build -L src/guix -L src/guile -f test/guix/uraj/openclaw-program.scm
 python3 test/python/uraj/container/seccomp.py
 python3 test/openclaw/browser-profile.py
 python3 test/openclaw/browser-dashboard.py
+python3 test/python/uraj/openclaw/engine-probe.py
 ```
 
 进度卡片和卡片样式的测试使用从固定部署镜像提取的原始 dispatcher、CardKit
@@ -42,7 +41,7 @@ Guile 搜索路径，验证生成的准备程序能加载运行时模块。还�
 7. 让 agent 执行 `id; ls /run/secrets; ls /data/openclaw/home`，以及访问
    new-api、Gateway 18789 端口和一个公网 HTTPS 站点：应为 UID 2010，
    凭据与 state 不可见，内部地址不通，公网可达。
-8. agent 在 workspace 写的文件在宿主上属于 `openclaw:log-readers`，
+8. agent 在 workspace 写的文件在主机上属于 `openclaw:log-readers`，
    管理员不用 sudo 即可读取；`sandbox list` 显示引擎 socket，重启 Gateway
    后沙箱复用，重启引擎后自动重建。
 9. 用 `openclaw_config_set` 和沙箱中的 `openclaw config set` 修改默认模型成功；

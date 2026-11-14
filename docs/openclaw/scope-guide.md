@@ -1,4 +1,4 @@
-# Storie OpenClaw / 飞书：范围
+# storie OpenClaw / 飞书：范围
 
 ## 当前范围
 
@@ -17,13 +17,13 @@
 `topic_group`，整个话题统一按 `thread_id` 分会话；普通群不变，查询失败时
 记录日志并沿用原逻辑。回复锚点仍取 `root_id` 或消息本身。上游
 [#160330](https://github.com/openclaw/openclaw/issues/160330) 和 PR #160332
-尚未合并。补丁同时修正入站上下文的 `conversation.threadId` 和
+截至 2026-11-14 未合并。补丁同时修正入站上下文的 `conversation.threadId` 和
 `reply.messageThreadId`：话题首条消息没有 `root_id`，使用其自身的
 `message_id`，后续引用回复使用 `root_id`。这样首次后台命令完成后的
 回复和 message 工具也能保留话题锚点，不会在群里另开话题。
 升级到包含修复的版本后删除此补丁。
-TODO：启用 cron 前处理没有入站消息的主动发送；新建的 cron 会话没有回复
-锚点，会以顶层消息发出，在话题群里成为新话题。届时采用上游修复或补上该部分。
+限制：cron 未启用；新建的 cron 会话没有回复锚点，会以顶层消息发出，在话题群里
+成为新话题，启用前须采用上游修复或补上该部分。
 插件还按群串行处理消息：一轮 agent 运行结束前，同一群的下一条消息不进入
 会话路由。话题群里各话题共用一个群 ID，一个话题的长任务会挂起其他话题。
 同一补丁层把串行队列的键改为群加 `thread_id`（无 `thread_id` 时不变），
@@ -39,19 +39,16 @@ TODO：启用 cron 前处理没有入站消息的主动发送；新建的 cron �
 真能识别图片内容。
 `message` 工具在 Gateway 执行，同样列入 `alsoAllow`；跨平台发送关闭
 （`tools.message.crossContext.allowAcrossProviders`），角色插件再把它限制为
-仅 `send`、仅当前会话或本轮请求人的私聊（见「群聊角色与私人身份」）。
+仅 `send`、仅当前会话或本轮请求人的私聊（见 [persona-guide](persona-guide.md)）。
 浏览器工具和飞书文档工具保持关闭。
 执行策略使用 `tools.exec.mode="full"`；不要同时声明旧的 `security/ask`。
 Doctor 会把旧的 `security/ask` 迁移成 `mode="full"`，混用旧模板会导致
 不变量检查报差异。
 
-`env/guix/os/storie.scm` 已声明 OpenClaw，包含固定 image ID、飞书
-GPT/Claude 两组 provider，默认模型为 `new-api-gpt/gpt-6-astra`（`/astra-6`）。
+`env/guix/os/storie.scm` 声明 OpenClaw，包含固定 image ID、GPT 和 Claude
+两组 provider，默认模型为 `new-api-gpt/gpt-6-astra`（`/astra-6`）。
 飞书 App ID、命令管理员名单和三个凭据均以 SOPS 密文保存。
-DeepSeek 尚未配置。Live ISO 不声明 OpenClaw。
-
-这些是部署声明，不代表主机已运行该服务。首次部署仍需在 storie
-确认镜像已加载，再进行 reconfigure、飞书配对及模型调用验收。
+Live ISO 不声明 OpenClaw。
 
 ## 参考
 

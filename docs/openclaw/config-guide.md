@@ -1,7 +1,5 @@
 # OpenClaw 可写配置、不变量与命令执行
 
-## 可写配置、不变量与命令执行
-
 信任固定镜像中的 Gateway 及批准的插件会保留部署不变量；它们仍可使用
 原生写入路径。这里不修改 OpenClaw 源码，也不使用 `$include`。
 
@@ -57,7 +55,7 @@ openclaw agents set-identity --from-identity --json
 `/persona` 登记表，不更改角色所有人、共享范围、绑定或记忆。
 `IDENTITY.md` 和 `SOUL.md` 仍由 agent 的文件工具维护。
 
-`--workspace` 只能是 `/workspace` 或该 agent 已登记的宿主机路径；
+`--workspace` 只能是 `/workspace` 或该 agent 已登记的主机路径；
 不支持任意 `--identity-file`。身份文件限 64 KiB，不允许符号链接或硬链接。
 头像只接受当前工作区内不超过 2 MiB 的本地文件，不支持 URL/data URI。
 其他 agents 子命令、`--bindings` 和应用推荐命令仍未开放。
@@ -92,7 +90,7 @@ agent 条目只允许
 插件等覆盖。模型必须来自 Guix provider 列表。workspace 必须是 Guix
 声明的 main workspace 父目录（`/data/openclaw/workspaces/`）下规范化的
 绝对路径，`agentDir` 必须位于 `/data/openclaw/home/.openclaw/agents/` 下。
-路径保持宿主机原值，因为 Podman 后端把 Gateway 路径直接作为沙箱 bind
+路径保持主机原值，因为 Podman 后端把 Gateway 路径直接作为沙箱 bind
 源。这些是路径字符串检查；隔离由沙箱只挂载 workspace 提供。
 其他顶层配置及默认设置由 Guix 固定；meta、wizard 留给原生维护流程。
 Doctor 会将不可用的 skill 写入 `skills.entries`。对 Guix 未声明的条目，
