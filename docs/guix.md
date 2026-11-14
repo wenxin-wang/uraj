@@ -17,3 +17,10 @@ System/Home 骨架、主机配置、部署和主机上的基础服务。
 ## 过程文档
 
 - [known-problems-debug-20261004](guix/known-problems-debug-20261004.md)：Guix System 已知问题（以 lappie 为主）。
+
+## 历史项目
+
+- [260921-storie-server](archive/projects/260921-storie-server/README.md)：storie 上线、Immich、首次 `guix deploy`。
+- [261003-strongswan-vpn](archive/projects/261003-strongswan-vpn/README.md)：strongSwan 的 fwd2home 和开机连接。
+- [261007-hypie-onboard](archive/projects/261007-hypie-onboard/README.md)：hypie 的 ZFS、NVIDIA 和部署。
+- [261021-nfs-lan-shares](archive/projects/261021-nfs-lan-shares/README.md)：NFS 共享和客户端自动挂载。
