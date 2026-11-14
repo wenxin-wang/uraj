@@ -67,7 +67,8 @@ sudo herd status openclaw
 sudo /etc/openclaw/compose exec gateway node openclaw.mjs channels status --probe
 ```
 
-已运行时 `herd start` 不会重建容器；修改配置或轮换凭据后使用
+显式重启 SOPS 是为了在已经运行的主机上解密新增条目；失败时先解决
+解密问题，不继续启动。已运行时 `herd start` 不会重建容器；修改配置或轮换凭据后使用
 `herd restart openclaw`。
 
 完成首次私聊配对，再分别用 GPT 和 Claude 模型发送一条消息，确认
