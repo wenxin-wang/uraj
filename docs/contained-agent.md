@@ -14,6 +14,10 @@
 - [guix-daemon-guide](contained-agent/guix-daemon-guide.md)：可选的 guix-daemon 访问。
 - [development-guide](contained-agent/development-guide.md)：修改和测试 contained-agent。
 
+## 进行中的项目
+
+- [261115-contained-agent-v2](projects/261115-contained-agent-v2/README.md)：agent 和 Podman 放进同一个盒子；现有 contained-agent 不再为它改动。
+
 ## 历史项目
 
 - [261008-contained-agent](archive/projects/261008-contained-agent/README.md)：容器、项目配置和策略、项目 SSH agent、open items。

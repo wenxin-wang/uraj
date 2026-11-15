@@ -13,7 +13,8 @@ Emacs 配置。主要由 agent 开发，人在 GitHub 上审阅和合并。
 - [OpenClaw](docs/openclaw.md)：storie 上的飞书 bot。
 - [guix](docs/guix.md)：主机配置、部署、已知问题。
 - [secrets](docs/secrets.md)：SOPS 布局和接入新机器。
-- 进行中：目前没有。完成的子项目在 `docs/archive/projects/`。
+- 进行中：[contained-agent-v2](docs/projects/261115-contained-agent-v2/README.md)，
+  agent 和 Podman 放进同一个盒子。完成的子项目在 `docs/archive/projects/`。
 
 ## 目录
 

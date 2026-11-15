@@ -51,6 +51,7 @@
 | 项目 SSH agent | 每个项目一个、带目标限制的主机 `ssh-agent` | `src/guile/uraj/bin/contained-ssh.scm`；`ssh-start` 等子命令 |
 | Podman 运行时 | 项目专用的 rootless Podman API 容器，经 `CONTAINER_HOST` 访问 | `src/python/uraj/contained_podman.py`；Shepherd 服务 `contained-podman` |
 | 版本探测 | Paseo 运行 `COMMAND --version`，不进容器 | `--version` 特判 |
+| 盒子（box） | contained-agent-v2 里每个项目一个的长期容器，coding agent 和它用的 Podman 都在里面 | 未实现；原型 `exp/contained-agent-v2-box_20261115/` |
 
 ## worktree
 
