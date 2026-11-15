@@ -50,7 +50,7 @@ done
 # Enter through the outer (rootless Podman) user namespace: the host user
 # owns it, and it is an ancestor of whichever user namespace owns the netns.
 NFT="$T/bin/nsenter --user=/proc/$outer_pid/ns/user \
-  --net=/proc/$box_pid/ns/net -- $T/bin/nft"
+  --net=/proc/$box_pid/ns/net -- $T/sbin/nft"
 
 # probe LABEL URL: classify by curl's exit code.
 probe() {
@@ -100,10 +100,11 @@ probes with-rules
 
 step "(c) the agent in the box against the rules"
 for c in "nft list ruleset" "nft flush ruleset" \
+         "nsenter --net=/proc/1/ns/net nft flush ruleset" \
          "unshare -Urn nft list ruleset" \
          "unshare -Ur nsenter --net=/proc/1/ns/net nft flush ruleset"; do
   # shellcheck disable=SC2086
-  if out=$($IN sh -c "PATH=$T/bin:\$PATH; $c" 2>&1); then
+  if out=$($IN sh -c "PATH=$T/bin:$T/sbin:\$PATH; $c" 2>&1); then
     result "agent:$c" "succeeded"
   else
     result "agent:$c" "failed"
@@ -145,12 +146,12 @@ fi
 $IN grep " $dst " /proc/self/mountinfo | head -2
 
 step "(c) the agent in the box against mounts"
-if $IN sh -c "PATH=$T/bin:\$PATH; umount $dst" 2>/dev/null; then
+if $IN sh -c "PATH=$T/bin:$T/sbin:\$PATH; umount $dst" 2>/dev/null; then
   result agent:umount succeeded
 else
   result agent:umount failed
 fi
-if $IN sh -c "PATH=$T/bin:\$PATH; mount --bind /tmp /home/podman" \
+if $IN sh -c "PATH=$T/bin:$T/sbin:\$PATH; mount --bind /tmp /home/podman" \
      2>/dev/null; then
   result agent:bind-mount succeeded
 else
