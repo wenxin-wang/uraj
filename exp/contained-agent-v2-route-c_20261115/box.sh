@@ -56,6 +56,10 @@ podman:x:1000:
 EOF
 
 step "start box"
+# Paseo's PID lock counts as live when written this boot and its PID exists.
+# A recreated box reuses the same PIDs, so the old lock would make the new
+# daemon think it is already running.  server-id stays: the host pinned it.
+rm -f "$W/home/.paseo/paseo.pid"
 serve='set -e
 socat UNIX-LISTEN:/run/box/paseo.sock,fork,mode=600 TCP:127.0.0.1:6767 &
 exec paseo daemon run'
@@ -78,7 +82,14 @@ $OUT run --detach --name="$name" \
   --volume="$W/sock:/run/box:rw" \
   "$R" "$P/bin/catatonit" -- /bin/sh -c "$serve" >/dev/null
 for _ in $(seq 60); do [ -S "$W/sock/paseo.sock" ] && break; sleep 1; done
-[ -S "$W/sock/paseo.sock" ] || { $OUT logs "$name" | tail -30; exit 1; }
+sleep 5
+if ! $OUT exec "$name" true 2>/dev/null; then
+  echo "box exited:"
+  $OUT ps -a --filter "name=$name" --format '{{.Status}}'
+  $OUT logs "$name" | tail -20
+  tail -20 "$W/home/.paseo/daemon.log" 2>/dev/null | cut -c1-300
+  exit 1
+fi
 $OUT top "$name" pid ppid args || true
 
 step "a demo repo inside the box (git runs in the box, not on the host)"
