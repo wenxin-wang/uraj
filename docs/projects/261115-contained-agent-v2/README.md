@@ -111,14 +111,15 @@ Guix profile 提供，嵌套 Podman 跑得起 Postgres，盒子里访问发布�
   - 语法：YAML 最小子集，只有字符串、字符串列表和固定的键，一律按字符串解析；
     严格校验，未知键或类型不对就报错，同步时校验不过保留上一版；khalis 里加 CI 跑
     同一个校验，PR 上直接看到对错。手机上主要是审 agent 提的 diff，不是手写。
-  - 策略改动可能夹在 khalis 的大 PR 里：同步程序发现 `.agent/policy/` 变了就推通知，写明
-    哪个权限集多了什么；是否再要求“改 `.agent/policy/` 的 PR 只改 `.agent/policy/`”待定。
+  - 策略改动可能夹在 khalis 的大 PR 里：同步程序发现 `.agent/policy/` 变了就推通知，
+    写明哪个权限集多了什么；并且只让“只改 `.agent/policy/`”的 PR 生效，同步程序检查
+    生效的提交，不满足就保留上一版并报错。
 - ~~topic 和 workspace 怎么对应？~~ 11/15 定：workspace 名用 topic 的 slug 起头；
   topic 里加属性列出它的 workspace 名；创建请求带 topic id，确认卡片显示所属 topic。
   同一个目录可以有多个 workspace，各自是独立的 reflink 副本和权限集。Paseo 有没有
   打开某个 workspace 的深链接没查过。
-- 策略目录和 khalis 里“机器人账号加私有明文策略仓库”简报的关系：简报是给 v1 写的，
-  v1 已冻结。建议只在 v2 实现，v1 继续用现有三处来源；机器人账号那一半两边都要。等人定。
+- ~~策略目录和 khalis 里“机器人账号加私有明文策略仓库”简报的关系？~~ 11/15 定：
+  只在 v2 实现，v1 不动，继续用现有三处来源。
 - 盒子用容器还是 microVM？容器复用 `contained-podman` 服务、不需要 `/dev/kvm`、
   浏览器 GPU 照旧透传；microVM 隔离更强，但 virtiofs、GPU、Guix store 共享都要重做。
   建议先做容器，以后按需换实现。

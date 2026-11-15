@@ -1,7 +1,7 @@
 # contained-agent-v2 进度
 
 当前：第 5 步，继续讨论设计，见 [step-5-handoff](step-5-handoff.md)。下一步要人定：
-策略目录和 v1 简报的关系、agent 创建 workspace 的细节，见 README 的待定项。
+agent 创建 workspace 的细节，见 README 的待定项。
 
 1. ~~盒子 rootfs 原型：Guix profile 代替 Fedora 镜像，嵌套 Podman 可用~~
    已完成。结论：只读挂 `/gnu/store` 加一个 profile 即可；`newuidmap`
