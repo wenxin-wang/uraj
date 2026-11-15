@@ -1,8 +1,9 @@
 #!/bin/sh
 # Device grants on a running box (contained-agent-v2 TODO step 9).
 #
-# Starts a small box of its own (catatonit, uid 1000, --group-add
-# keep-groups so box processes keep the host user's supplementary groups),
+# Starts a small box of its own (catatonit, uid 1000, crun's
+# keep_original_groups annotation, the remote-API form of --group-add
+# keep-groups, so box processes keep the host user's supplementary groups),
 # then as the host user, with no root:
 #   - attaches /dev/kvm and the first GPU render node with nsmount.py;
 #   - in the box, devprobe.py opens each and issues one ioctl (KVM: create
@@ -37,6 +38,7 @@ cleanup() {
 step "host side"
 ls -l /dev/kvm /dev/dri/renderD* 2>&1
 id
+[ -r /dev/kvm ] && [ -w /dev/kvm ] && echo "host user can open /dev/kvm" || echo "host user cannot open /dev/kvm"
 render=$(ls /dev/dri/renderD* 2>/dev/null | head -1)
 
 step "tools profile at $W/tools"
@@ -61,7 +63,7 @@ if ! $OUT run --detach --name="$name" \
      --rootfs \
      --userns=keep-id:uid=1000,gid=1000 \
      --user=1000:1000 \
-     --group-add=keep-groups \
+     --annotation=run.oci.keep_original_groups=1 \
      --security-opt=label=disable \
      --env=PATH="$T/bin:$T/sbin" \
      --volume=/gnu/store:/gnu/store:ro \
