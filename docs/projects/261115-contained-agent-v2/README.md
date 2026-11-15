@@ -97,18 +97,22 @@ Guix profile 提供，嵌套 Podman 跑得起 Postgres，盒子里访问发布�
   - 盒子有内存和 CPU 上限，沿用 `contained-podman` 的 cgroup 委托。
   - 调试 MAA 是 adb 连 storie 上的 redroid，不用本机设备，算网络授权。真实 USB 设备
     现在不设计。
-  - 可行性要实测（TODO 第 9 步）。
+  - 实测（[devices-measure-20261115](devices-measure-20261115.md)）：render node
+    运行中挂进盒子可用，附加组能带进盒子；`/dev/kvm` 挂上了但用户不在 `kvm` 组，
+    打不开。要在盒子里用 KVM，先在主机配置里把用户加进 `kvm` 组（人定）。
 - ~~策略放哪、怎么写？~~ 11/15 定：
-  - 不单独建仓库，放在各暴露范围已有的 space 仓库的 `policy/` 下（策略目录）：个人
+  - 不单独建仓库，放在各暴露范围已有的 space 仓库的 `.agent/policy/` 下（策略目录）：个人
     机器在 khalis，单位电脑在单位的 space 仓库（只在单位电脑上 clone）。每台主机的
     同步程序只读它该读的仓库；权限集写明适用的主机。
-  - 结构：`policy/grants/<权限集>.yaml` 一个权限集一个文件；`policy/hosts/<主机>.yaml`
+  - 只和 agent 有关的东西（策略目录等）在 space 仓库里集中放到一个隐藏的顶层目录
+    `.agent/` 下，不和人的内容混在一起。
+  - 结构：`.agent/policy/grants/<权限集>.yaml` 一个权限集一个文件；`.agent/policy/hosts/<主机>.yaml`
     写这台主机提供的设备路径、默认网络规则等。workspace 列表不进仓库。
   - 语法：YAML 最小子集，只有字符串、字符串列表和固定的键，一律按字符串解析；
     严格校验，未知键或类型不对就报错，同步时校验不过保留上一版；khalis 里加 CI 跑
     同一个校验，PR 上直接看到对错。手机上主要是审 agent 提的 diff，不是手写。
-  - 策略改动可能夹在 khalis 的大 PR 里：同步程序发现 `policy/` 变了就推通知，写明
-    哪个权限集多了什么；是否再要求“改 `policy/` 的 PR 只改 `policy/`”待定。
+  - 策略改动可能夹在 khalis 的大 PR 里：同步程序发现 `.agent/policy/` 变了就推通知，写明
+    哪个权限集多了什么；是否再要求“改 `.agent/policy/` 的 PR 只改 `.agent/policy/`”待定。
 - ~~topic 和 workspace 怎么对应？~~ 11/15 定：workspace 名用 topic 的 slug 起头；
   topic 里加属性列出它的 workspace 名；创建请求带 topic id，确认卡片显示所属 topic。
   同一个目录可以有多个 workspace，各自是独立的 reflink 副本和权限集。Paseo 有没有
@@ -136,6 +140,8 @@ Guix profile 提供，嵌套 Podman 跑得起 Postgres，盒子里访问发布�
   可达性和 reflink 代价实测。
 - [grants-measure-20261115](grants-measure-20261115.md)：不用 root 在运行中的盒子里
   改 nftables、增减挂载，agent 绕不过去。
+- [devices-measure-20261115](devices-measure-20261115.md)：运行中给盒子加、撤
+  GPU render node 和 `/dev/kvm`。
 - [pasta-zombie-debug-20261115](pasta-zombie-debug-20261115.md)：运行时留下
   zombie pasta 的原因；盒子的 PID 1 要用会回收孤儿的 init。
 - [route-c-measure-20261115](route-c-measure-20261115.md)：路线 C 原型实测，

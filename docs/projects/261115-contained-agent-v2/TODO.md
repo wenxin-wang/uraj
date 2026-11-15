@@ -32,5 +32,8 @@
    agent 都做不到。撤挂载收不回已打开的 fd。产物：
    `exp/contained-agent-v2-grants_20261115/`，
    [grants-measure-20261115](grants-measure-20261115.md)。
-9. 设备授权实测：往运行中的盒子挂 `/dev/kvm`（和 GPU 渲染节点），带上 `kvm`、`render`
-   组，在盒子里用 QEMU 起一个最小虚拟机；确认 agent 自己加不了设备。
+9. ~~设备授权实测~~ 已完成。结论：render node 和 `/dev/kvm` 都能在运行中挂进、撤出，
+   不用 root，agent 自己 `mknod` 失败；附加组经 crun 的 `keep_original_groups`
+   带进盒子，render node 可用；用户不在 `kvm` 组，KVM 打不开，真正起虚拟机没测。
+   产物：`exp/contained-agent-v2-grants_20261115/devices.sh`，
+   [devices-measure-20261115](devices-measure-20261115.md)。

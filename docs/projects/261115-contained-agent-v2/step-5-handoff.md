@@ -20,7 +20,7 @@
 | zombie pasta | 查清：运行时的 inner podman 是 PID 1，不回收孤儿；盒子要用 init | 同上 |
 | 路线 C 原型 | 桌面 app 经测试主机 daemon 用盒子里的 workspace、终端、文件、diff；建 agent 未做 | `exp/contained-agent-v2-route-c_20261115/` |
 | 动态授权（不用 root） | 实测通过：nftables、运行中加撤挂载，agent 绕不过 | `exp/contained-agent-v2-grants_20261115/` |
-| 设备授权 | 已定方向，TODO 第 9 步待实测 | |
+| 设备授权 | 实测：render node 运行中可加可用；KVM 要用户先进 `kvm` 组 | `exp/contained-agent-v2-grants_20261115/devices.sh` |
 | 正式代码 | 未开始；现有 contained-agent 不为 v2 改动 | |
 
 #106 是 #107 的 base，都还没合并。
@@ -32,14 +32,11 @@
 1. **agent 创建 workspace 的细节**。README 里有建议的接口、请求内容和执行者；确认
    卡片的内容和删除流程还没讨论完。
 2. **策略目录和 v1 简报的关系**。策略放哪、结构、语法已定（见 README）；还没定的是
-   khalis 里那份简报（原本给 v1 写）是不是只在 v2 实现，以及“改 `policy/` 的 PR
-   只改 `policy/`”要不要做成检查。
+   khalis 里那份简报（原本给 v1 写）是不是只在 v2 实现，以及“改 `.agent/policy/` 的 PR
+   只改 `.agent/policy/`”要不要做成检查。
 
 可以并行做的：
 
-- TODO 第 9 步：设备授权实测。挂载可以照搬 `exp/contained-agent-v2-grants_20261115/nsmount.py`
-  （设备节点也是 bind mount），组权限参考 v1 浏览器 GPU
-  （`docs/contained-agent/browser-guide.md`）。
 - 第 5 步本身：列出现在 agent 容器的挂载、synthetic HOME、凭据和设备
   （`src/guile/uraj/bin/contained-agent.scm`、`docs/contained-agent/container-guide.md`），
   逐项决定在盒子里怎么实现。
