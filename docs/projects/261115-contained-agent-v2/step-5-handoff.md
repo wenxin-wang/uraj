@@ -27,15 +27,11 @@
 
 ## 下一步：要和人讨论的设计
 
-11/15 这一轮又定了 workspace 的含义和文件布局、设备授权的方向，见 README。还剩：
+11/15 这一轮又定了 workspace 的含义和文件布局、共享路径、设备授权的方向、网络用 pasta 加 nftables，见 README。还剩：
 
-1. **pasta 还是 bridge**。第 8 步实测后建议 pasta 加盒子 netns 里的 nftables，不做
-   bridge；人原先倾向 bridge（不强烈），等人定。
-2. **共享路径**。README 里有建议（声明的子目录直接挂主机原目录，比如 traj-record 的
-   `instances`、`out`），等人确认。
-3. **agent 创建 workspace 的细节**。README 里有建议的接口、请求内容和执行者；确认
+1. **agent 创建 workspace 的细节**。README 里有建议的接口、请求内容和执行者；确认
    卡片的内容和删除流程还没讨论完。
-4. **策略仓库**。khalis 里有一份“机器人账号加私有明文策略仓库”的简报，还没在 uraj
+2. **策略仓库**。khalis 里有一份“机器人账号加私有明文策略仓库”的简报，还没在 uraj
    实现。要讨论：v2 的权限集、workspace 请求放不放在同一个仓库；目录结构和语法；
    v1 的 `projects.scm` 条目怎么迁过去，还是 v1、v2 各用各的。
 

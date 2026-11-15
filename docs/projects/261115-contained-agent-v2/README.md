@@ -43,12 +43,9 @@ Guix profile 提供，嵌套 Podman 跑得起 Postgres，盒子里访问发布�
 - ~~网络？~~ 11/15 定：盒子不能访问主机回环；访问内网的限制以后再做。实测见
   [box-network-measure-20261115](box-network-measure-20261115.md)：默认 pasta 下
   主机回环连不到，但主机上监听所有地址的服务经 `169.254.1.2` 能连到，局域网也通。
-- 盒子网络用 pasta 还是 bridge？pasta 不需要 root，但自己不能按目的地址过滤；bridge
-  接受限网络能禁主机和内网，代价是 root 侧把 veth 接进盒子的 netns。人倾向 bridge
-  （不是强烈意见）。实测（[grants-measure-20261115](grants-measure-20261115.md)）：
-  盒子管理服务不用 root 就能在盒子的 netns 里设 nftables，禁掉主机和内网、放行公网
-  和 relay，运行中可改，agent 改不了。建议：pasta 加盒子 netns 里的 nftables，
-  不做 bridge。等人定。
+- ~~盒子网络用 pasta 还是 bridge？~~ 11/15 定：pasta，加盒子 netns 里的 nftables
+  （由盒子管理服务设，禁主机和内网、放行公网和 relay，运行中可改），不做 bridge。
+  依据见 [grants-measure-20261115](grants-measure-20261115.md)。
 - ~~审批卡片显示什么？~~ 11/15 定：事实（请求者、命令或摘要、内容 hash）加
   “agent 自述”；长脚本另开 PR，执行器只执行快照。
 - ~~编排机制？~~ 11/15 定：这次不设计。
@@ -73,7 +70,7 @@ Guix profile 提供，嵌套 Podman 跑得起 Postgres，盒子里访问发布�
     （合成 HOME，只放 workspace 和声明过的东西）。
   - 内容是 workspace 根目录的递归 reflink 副本，`.git` 随便写，主机不受影响；主机上
     看不到盒子里的改动，靠 push/fetch 交换。
-- 共享路径（建议，等人确认）：workspace 可以声明一些子目录不拷贝，直接把主机原目录挂到
+- ~~共享路径？~~ 11/15 定：workspace 可以声明一些子目录不拷贝，直接把主机原目录挂到
   同一路径，例如 traj-record 的 `instances`、`out`。要求下面没有 `.git`（创建时检查）；
   写在创建请求里，确认卡片单独列出；仓库里可以放默认清单，但只是建议；运行中追加走同样
   的挂载方式和确认。同一仓库的多个 workspace 共享同一份，要按 session 分子目录。
