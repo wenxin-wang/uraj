@@ -1,6 +1,6 @@
 # 文档布局和协作约定 进度
 
-当前：第 4 步，paseo 试用批次等审阅。
+当前：第 4 步的收尾 PR 等审阅；之后本项目完成。
 
 1. ~~提案：目录和 docs 布局、术语表初版、模块登记表初版、三件套模板、
    `AGENTS.md` 新结构、现有文档去向表~~ 已完成。PR #97 合并，待定项按建议执行。
@@ -21,15 +21,21 @@
      下次部署会重建，内容只差注释。
 3. ~~目录收敛：`exp/bqn/uraj/` 改名为 `exp/bqn_20261014/`，`.gitignore` 的
    `/output/` 改 `/out/`。~~ PR #99 已合并。
-4. 修过时内容和整理手册：按模块分 PR，改迁移后的手册。做法和历史项目清单见
-   [cleanup-design-20261114.md](cleanup-design-20261114.md)。
-   - paseo（试用批次）：历史项目 `261004-paseo-daemon-container`、`261008-paseo-broker`，
-     手册去掉试用、切换和迁移步骤，修 relay 可达性、`~/spaces`、按 worktree 分 SSH agent。
-   - 待做：guix 和 secrets、contained-agent 和 desktop、openclaw、maa 和 restricted-network、new-api。
-   - 逐条处理 [发现的过时内容](migration-design-20261114.md#发现的过时内容)。
-   - 把夹在手册里的带日期记录拆成过程文档：`maa/daily-tasks-guide.md` 的
-     CA bundle 排查和 depot 测试，`guix/storie-network-guide.md` 的 NFS 检查，
-     `restricted-network/networks-guide.md` 的旧表迁移，`paseo/broker-guide.md` 的
-     2026-10-09 试运行验证，`openclaw/persona-guide.md` 的进度卡片验证，
-     `openclaw/testing-guide.md` 的验证计数。
-   - 部署命令统一到 `guix/deploy-guide.md` 的写法。
+4. ~~修过时内容和整理手册：按模块分 PR，改迁移后的手册。~~ 做法和历史项目清单见
+   [cleanup-design-20261114.md](cleanup-design-20261114.md)。调研和改写由每个模块一个
+   便宜模型的 agent 做，本 session 对照代码审查。结论：
+   - PR #100（paseo，试用批次）、#101（maa、restricted-network、new-api）、#102（openclaw）、
+     #103（contained-agent、desktop、coding-style、config、emacs、playbooks）、
+     #104（guix、secrets），全部合并；收尾 PR 统一剩下两处部署命令、术语表链到命令速查。
+   - 建了 16 个历史项目，放 `docs/archive/projects/`；`docs/archive/<module>/` 已清空，
+     各模块索引末尾有“历史项目”一节。日期取第一个相关提交，和计划里有三处不同：
+     `261007-agent-browser`、`261014-restricted-network`、`261015-openclaw-feishu-bot`。
+   - `contained-agent/pitfalls-guide.md` 拆掉，仍有效的坑并入对应手册（README 待定 13）。
+   - 部署命令以 `guix/deploy-guide.md` 的“命令速查”为准，其他手册链过去。
+   - 审查中发现便宜模型的主要问题是删多了：几处排查提示和理由被当成过程删掉，
+     审查时恢复。核对过程和档案搬迁基本准确。
+   - 没做、留给以后：
+     - 长手册的拆分（`paseo/daemon-guide.md`、`contained-agent/project-config-guide.md`、
+       `openclaw/feishu-guide.md`）和几处跨手册的重复说明；手册仍保持原语言。
+     - 不属于文档的问题：`scripts/redroid/migrate-houdini-data`、`retire-trials` 从未进仓库，
+       `test/redroid/retire-trials.sh` 仍引用；`secrets/keys/hosts/` 没有 `storie.age.pub`。

@@ -35,13 +35,12 @@ First inspect the existing network and confirm the new address is unused:
 sudo docker network inspect docker_lan
 ```
 
-Reconfigure and start the service. If the commit-tagged image is missing,
-Compose fetches the pinned upstream Git tree and builds its official Dockerfile.
+Deploy storie with the commands in the
+[deploy guide](../guix/deploy-guide.md#命令速查), then start the service.
+If the commit-tagged image is missing, Compose fetches the pinned upstream Git tree and builds its official Dockerfile.
 First startup therefore needs network access and may take several minutes.
 
 ```sh
-sudo guix time-machine -C env/guix/channels-lock.scm -- \
-  system -L src/guix -L src/guile reconfigure env/guix/os/storie.scm
 sudo herd start paseo-relay
 sudo herd status paseo-relay
 sudo /etc/paseo-relay/compose ps

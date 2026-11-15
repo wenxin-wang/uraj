@@ -25,7 +25,7 @@
 | lappie | 笔记本，日常开发和构建，Guix publish 的来源 | `env/guix/os/lappie.scm` |
 | hypie | 台式机，跑 redroid 和 MAA，开机连 fwd2home | `env/guix/os/hypie.scm` |
 | storie | 家用服务器和 NAS：Immich、new-api、OpenClaw、NFS、Paseo relay、MAA 备用 | `env/guix/os/storie.scm` |
-| System 部署 | 按主机配置激活整个操作系统，本机用 `uraj-system-reconfigure`，远程用 `uraj-deploy` | `maak` 任务 `system-reconfigure`、`deploy`；`env/guix/os/deploy/` |
+| System 部署 | 按主机配置激活整个操作系统，本机用 `uraj-system-reconfigure`，远程用 `uraj-deploy`，见[命令速查](guix/deploy-guide.md#命令速查) | `maak` 任务 `system-reconfigure`、`deploy`；`env/guix/os/deploy/` |
 | Home-only 部署 | 只激活主机配置里内嵌的 Guix Home | `OS_DEPLOY_TARGET=home`；`uraj-home-reconfigure` |
 | Guix Home（Home） | Guix 管理的用户环境。首字母大写，与 `$HOME` 区分 | `src/guix/uraj/home/` |
 | Live ISO | 用主机配置构建的安装镜像；与之相对的是“已安装系统” | `TO_ISO`；`src/guix/uraj/system/iso.scm` |
