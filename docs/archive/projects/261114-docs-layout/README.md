@@ -29,7 +29,7 @@ uraj 的文档按模块和日期组织，有术语表、模块登记表和子项
 4. ~~`exp/bqn/uraj/` 改名、`.gitignore` 的 `/output/` 改 `/out/`。~~
    11/14 定：迁移后单独的 `layout` PR。
 5. ~~术语表里 4 处冲突的统一方式。~~ 11/14 定：按建议，写在
-   [术语表](../../glossary.md#用词约定) 的“用词约定”。
+   [术语表](../../../glossary.md#用词约定) 的“用词约定”。
 6. ~~`paseo-broker.org` 的“Acceptance before enabling the broker”清单是否已全部做完。~~
    11/14 定：已完成，broker 已长期使用。放在
    `docs/archive/projects/261008-paseo-broker/broker-acceptance-measure-20261016.md`。
@@ -57,3 +57,5 @@ uraj 的文档按模块和日期组织，有术语表、模块登记表和子项
 13. ~~`contained-agent/pitfalls-guide.md` 怎么处理。~~ 11/14 定：仍有效的坑并入对应手册，
     历史进归档，删掉这篇。
 14. ~~`pylon`、`voyage`、`traj-record` 是否从文档里删掉。~~ 11/14 定：不算私人信息，保留。
+15. ~~项目完成后怎么处理。~~ 11/15 定：在收尾 PR 里移到 `docs/archive/projects/`，
+    `AGENTS.md` 入口去掉“进行中”，文档规则加上完成后归档这一条。
