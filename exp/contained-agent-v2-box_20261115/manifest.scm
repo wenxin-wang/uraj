@@ -2,4 +2,4 @@
 (specifications->manifest
  '("podman" "crun" "conmon" "catatonit" "fuse-overlayfs" "passt"
    "netavark" "aardvark-dns" "shadow" "util-linux" "bash" "coreutils"
-   "grep" "sed" "findutils" "procps" "curl" "nss-certs" "libcap" "iproute"))
+   "grep" "sed" "findutils" "procps" "curl" "nss-certs" "libcap" "iproute2"))

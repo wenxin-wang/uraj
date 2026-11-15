@@ -40,8 +40,13 @@ Guix profile 提供，嵌套 Podman 跑得起 Postgres，盒子里访问发布�
 - ~~盒子里有什么？~~ 11/15 定：默认有 Podman 和主机的 Guix daemon，接受 Guix daemon
   绕过盒子网络策略的风险，不做单独的 store。agent 在盒子里装包、重新加载 manifest
   不需要 `contained-agent allow`。
-- ~~网络？~~ 11/15 定：盒子不能访问主机回环；访问内网的限制以后再做。现状见
-  第 2 步的实测。
+- ~~网络？~~ 11/15 定：盒子不能访问主机回环；访问内网的限制以后再做。实测见
+  [box-network-measure-20261115](box-network-measure-20261115.md)：默认 pasta 下
+  主机回环连不到，但主机上监听所有地址的服务经 `169.254.1.2` 能连到，局域网也通。
+- 盒子网络用 pasta 还是 bridge？pasta 不需要 root，但不能按目的地址过滤；bridge
+  接受限网络能禁主机和内网，代价是 root 侧把 veth 接进盒子的 netns。人倾向于
+  bridge（实现不麻烦的话，不是强烈意见）。建议先用 pasta 并关掉 `169.254.1.2`
+  的映射，做内网限制时换 bridge。
 - ~~审批卡片显示什么？~~ 11/15 定：事实（请求者、命令或摘要、内容 hash）加
   “agent 自述”；长脚本另开 PR，执行器只执行快照。
 - ~~编排机制？~~ 11/15 定：这次不设计。
@@ -66,3 +71,5 @@ Guix profile 提供，嵌套 Podman 跑得起 Postgres，盒子里访问发布�
   的盒子原型方案和实测结果。
 - [paseo-route-design-20261115](paseo-route-design-20261115.md)：Paseo 接盒子的
   路线 A、B、C 调研和建议。
+- [box-network-measure-20261115](box-network-measure-20261115.md)：盒子的网络
+  可达性和 reflink 代价实测。

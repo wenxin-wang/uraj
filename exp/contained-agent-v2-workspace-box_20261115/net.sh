@@ -25,13 +25,16 @@ bx() { $OUT exec --user 1000 "$name" "$@"; }
 step() { printf '\n=== %s\n' "$*"; }
 # probe LABEL HOST:PORT: TCP connect from the box, then an HTTP GET.
 probe() {
-  if bx bash -c "exec 3<>/dev/tcp/${2%:*}/${2##*:}" 2>/dev/null; then
-    code=$(bx curl -s -o /dev/null -w '%{http_code}' -m 4 "http://$2/" \
-           || true)
-    printf 'RESULT %-34s open (http %s)\n' "$1" "$code"
-  else
-    printf 'RESULT %-34s closed\n' "$1"
-  fi
+  rc=0
+  bx timeout 5 bash -c "exec 3<>/dev/tcp/${2%:*}/${2##*:}" 2>/dev/null || rc=$?
+  case $rc in
+    0)
+      code=$(bx curl -s -o /dev/null -w '%{http_code}' -m 4 "http://$2/" \
+             || true)
+      printf 'RESULT %-34s open (http %s)\n' "$1" "$code" ;;
+    124) printf 'RESULT %-34s no answer in 5 s\n' "$1" ;;
+    *) printf 'RESULT %-34s refused or unreachable\n' "$1" ;;
+  esac
 }
 
 $OUT container exists "$name" || {
