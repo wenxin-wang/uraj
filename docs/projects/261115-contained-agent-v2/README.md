@@ -53,9 +53,15 @@ Guix profile 提供，嵌套 Podman 跑得起 Postgres，盒子里访问发布�
 - Paseo 怎么接盒子：路线 A（daemon 留主机，`podman exec`）、B（每盒一个 daemon，
   自写代理）、C（每盒一个 daemon，主机 daemon 用原生 connected hosts）。调研见
   [paseo-route-design-20261115](paseo-route-design-20261115.md)，建议 C。
-- 走 C 的话，盒子在 app 里是单独的 host，新建 workspace 时要在 picker 里选。这和
-  “不做人选 host”是否冲突？可选：接受（host 由主机侧按约定创建和登记，人只选不配）；
-  不接受则在 C 之上给 app 加一层或回到 B。建议接受。
+- ~~走 C 的话，盒子在 app 里是单独的 host，新建 workspace 时要在 picker 里选，
+  是否违背“不做人选 host”？~~ 11/15 定：可以接受。workspace 是动态创建的，名字有
+  意义（对应任务或项目）且不重复，盒子 host 用同一个名字，人实际上不用“选”。
+- 怎么创建 workspace？现在人没法自己加；有的 workspace 是单仓库，有的是多仓库。
+  可选：agent 代加，或者做一个方便的界面。人倾向 agent 代加。建议：workspace
+  定义（名字、仓库列表、凭据和授权）写进策略仓库，agent 用机器人账号提 PR，人批准
+  合并后，主机侧同步程序建盒子、拷仓库、起盒子 daemon 并 `host add`；不带额外授权
+  的 workspace 可以走快速通道（agent 发请求，人在手机上确认）。和策略仓库的简报一起
+  定。
 - 盒子用容器还是 microVM？容器复用 `contained-podman` 服务、不需要 `/dev/kvm`、
   浏览器 GPU 照旧透传；microVM 隔离更强，但 virtiofs、GPU、Guix store 共享都要重做。
   建议先做容器，以后按需换实现。
@@ -73,3 +79,13 @@ Guix profile 提供，嵌套 Podman 跑得起 Postgres，盒子里访问发布�
   路线 A、B、C 调研和建议。
 - [box-network-measure-20261115](box-network-measure-20261115.md)：盒子的网络
   可达性和 reflink 代价实测。
+- Paseo 0.15.4 源码调研，[paseo-route-design-20261115](paseo-route-design-20261115.md)
+  的依据：
+  - [paseo-protocol-review-20261115](paseo-protocol-review-20261115.md)：app 和
+    daemon 之间的全部消息、路由分类、0.11 到 0.15 的变化。
+  - [paseo-relay-review-20261115](paseo-relay-review-20261115.md)：daemon 身份、
+    relay 配对、端到端加密、推送。
+  - [paseo-host-exec-review-20261115](paseo-host-exec-review-20261115.md)：daemon
+    在主机上执行的 git、终端、脚本，路线 A 要包装什么。
+  - [paseo-connected-hosts-review-20261115](paseo-connected-hosts-review-20261115.md)：
+    connected hosts 的发现、权限、隔离和缺口。

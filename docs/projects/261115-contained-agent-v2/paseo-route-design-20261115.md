@@ -2,7 +2,7 @@
 
 基于 Paseo 0.15.4 源码（`getpaseo/paseo` 的 `v0.15.4` tag），只读源码，没有跑
 daemon。下文路径相对上游仓库。盒子以 Paseo workspace 为单位，见
-[README](README.md) 的待定项。
+[README](README.md) 的待定项。详细调研见 README 文档列表里的四份 `paseo-*-review`。
 
 ## 三条路线
 

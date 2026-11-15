@@ -1,7 +1,7 @@
 # contained-agent-v2 进度
 
-当前：等人选路线。下一步要人定：Paseo 走哪条路线，以及盒子在 app 里显示为单独
-host 能否接受，见 README 的待定项。
+当前：等人选路线；同时排查 `contained-podman` 服务留下的 zombie pasta。下一步要人定：
+Paseo 走哪条路线、workspace 怎么创建，见 README 的待定项。
 
 1. ~~盒子 rootfs 原型：Guix profile 代替 Fedora 镜像，嵌套 Podman 可用~~
    已完成。结论：只读挂 `/gnu/store` 加一个 profile 即可；`newuidmap`
@@ -21,3 +21,6 @@ host 能否接受，见 README 的待定项。
 5. 盒子边界清单：列出现在 agent 容器的挂载、synthetic HOME、凭据和设备，
    决定在盒子里怎么实现。
 6. agent 进盒子：按选定路线启动 agent。
+7. zombie pasta：主机上 `contained-podman` 服务留下 `<defunct>` 的 pasta 进程，查清
+   父进程和触发条件，v2 的盒子服务要避免。诊断脚本：
+   `exp/contained-agent-v2-workspace-box_20261115/zombies.sh`，等在主机上运行。
