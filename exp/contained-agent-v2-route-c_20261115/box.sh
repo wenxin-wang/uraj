@@ -28,7 +28,8 @@ $OUT rm -f -t 0 "$name" >/dev/null 2>&1 || true
 
 step "build Guix profile (GC root at $W/profile)"
 mkdir -p "$W"
-guix package -L "$here/../../src/guix" -p "$W/profile" \
+guix package -L "$here/../../src/guix" -L "$here/../../src/guile" \
+  -p "$W/profile" \
   -m "$here/manifest.scm" >/dev/null
 P=$(readlink -f "$W/profile")
 echo "$P"
