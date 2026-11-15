@@ -206,6 +206,11 @@ automatically edited.
 
 Restart the service after upgrading its package or Home profile. The config
 path stays stable, but a running container retains its mounted generation.
+The desktop app needs the same: it is a single-instance Electron app, so
+launching `paseo-desktop` after an upgrade only raises the window of the old
+process, which keeps running the previous store path. Quit it fully (closing
+the window can leave it running) and check that no
+`paseo-<old version>/share/paseo/Paseo.bin` process remains before relaunching.
 System service `(environment '(("NAME" . "VALUE") ...))` supplies explicit
 runtime settings. Do not put secrets in this declaration: it enters the store.
 Connections use relay pairing; the launcher removes `PASEO_PASSWORD` from
