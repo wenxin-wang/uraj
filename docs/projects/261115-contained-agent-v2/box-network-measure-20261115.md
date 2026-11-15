@@ -54,5 +54,6 @@
 
 ## 顺带看到的
 
-主机上有 36 个 `pasta.avx2` 进程是 `<defunct>`，看起来 `contained-podman` 服务没有
-回收它们。和本次实测无关，没有追查。
+主机上有 36 个 `pasta.avx2` 进程是 `<defunct>`。后来查明来自项目 Podman 运行时里的
+inner podman 服务，不是主机服务，见
+[pasta-zombie-debug-20261115](pasta-zombie-debug-20261115.md)。

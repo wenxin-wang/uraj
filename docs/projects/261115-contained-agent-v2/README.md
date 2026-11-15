@@ -50,9 +50,9 @@ Guix profile 提供，嵌套 Podman 跑得起 Postgres，盒子里访问发布�
 - ~~审批卡片显示什么？~~ 11/15 定：事实（请求者、命令或摘要、内容 hash）加
   “agent 自述”；长脚本另开 PR，执行器只执行快照。
 - ~~编排机制？~~ 11/15 定：这次不设计。
-- Paseo 怎么接盒子：路线 A（daemon 留主机，`podman exec`）、B（每盒一个 daemon，
-  自写代理）、C（每盒一个 daemon，主机 daemon 用原生 connected hosts）。调研见
-  [paseo-route-design-20261115](paseo-route-design-20261115.md)，建议 C。
+- ~~Paseo 怎么接盒子：路线 A（daemon 留主机，`podman exec`）、B（每盒一个 daemon，
+  自写代理）、C（每盒一个 daemon，主机 daemon 用原生 connected hosts）？~~
+  11/15 定：C。调研见 [paseo-route-design-20261115](paseo-route-design-20261115.md)。
 - ~~走 C 的话，盒子在 app 里是单独的 host，新建 workspace 时要在 picker 里选，
   是否违背“不做人选 host”？~~ 11/15 定：可以接受。workspace 是动态创建的，名字有
   意义（对应任务或项目）且不重复，盒子 host 用同一个名字，人实际上不用“选”。
@@ -79,6 +79,8 @@ Guix profile 提供，嵌套 Podman 跑得起 Postgres，盒子里访问发布�
   路线 A、B、C 调研和建议。
 - [box-network-measure-20261115](box-network-measure-20261115.md)：盒子的网络
   可达性和 reflink 代价实测。
+- [pasta-zombie-debug-20261115](pasta-zombie-debug-20261115.md)：运行时留下
+  zombie pasta 的原因；盒子的 PID 1 要用会回收孤儿的 init。
 - Paseo 0.15.4 源码调研，[paseo-route-design-20261115](paseo-route-design-20261115.md)
   的依据：
   - [paseo-protocol-review-20261115](paseo-protocol-review-20261115.md)：app 和
