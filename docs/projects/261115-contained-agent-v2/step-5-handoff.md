@@ -8,6 +8,7 @@
 4. [route-c-measure-20261115](route-c-measure-20261115.md)：路线 C 原型实测。
 5. [box-prototype-design-20261115](box-prototype-design-20261115.md)：盒子的
    Guix rootfs 和嵌套 Podman。
+6. [grants-measure-20261115](grants-measure-20261115.md)：不用 root 的动态授权实测。
 
 ## 现在在哪
 
@@ -18,35 +19,31 @@
 | 盒子网络、reflink | 实测完，#107 draft | `exp/contained-agent-v2-workspace-box_20261115/` |
 | zombie pasta | 查清：运行时的 inner podman 是 PID 1，不回收孤儿；盒子要用 init | 同上 |
 | 路线 C 原型 | 桌面 app 经测试主机 daemon 用盒子里的 workspace、终端、文件、diff；建 agent 未做 | `exp/contained-agent-v2-route-c_20261115/` |
-| 动态授权（不用 root） | 只有设计，TODO 第 8 步待实测 | |
+| 动态授权（不用 root） | 实测通过：nftables、运行中加撤挂载，agent 绕不过 | `exp/contained-agent-v2-grants_20261115/` |
+| 设备授权 | 已定方向，TODO 第 9 步待实测 | |
 | 正式代码 | 未开始；现有 contained-agent 不为 v2 改动 | |
 
 #106 是 #107 的 base，都还没合并。
 
 ## 下一步：要和人讨论的设计
 
-按 README 待定项的顺序，人点名的有三块：
+11/15 这一轮又定了 workspace 的含义和文件布局、设备授权的方向，见 README。还剩：
 
-1. **agent 怎么创建 workspace**。人已同意大方向：授权声明式（权限集在策略仓库，改动
-   走 PR），workspace 命令式（agent 发请求，人在手机上确认，之后一直存在，显式删除）；
-   运行中改授权由用户级的盒子管理服务负责。没讨论的细节：agent 发请求的接口
-   （盒子里一个 socket？Paseo plugin？）；请求里写什么（名字、仓库及来源、引用的
-   权限集、一句目的说明）；确认渠道和卡片内容（参考 README 里已定的审批卡片规则）；
-   人确认后由谁建盒子、拷仓库、起盒子 daemon、`host add`；删除时怎么检查未推送的
-   提交。
-2. **设备，比如调试 MAA 要 GPU**。现有 contained-agent 的浏览器 GPU 透传可以参考
-   （`docs/contained-agent/browser-guide.md`）。要讨论：设备是不是一种权限集；
-   只能在创建盒子时给，还是运行中也能加；adb 这类网络或 USB 访问怎么算。
-3. **策略仓库**。khalis 里有一份“机器人账号加私有明文策略仓库”的简报，还没在 uraj
+1. **pasta 还是 bridge**。第 8 步实测后建议 pasta 加盒子 netns 里的 nftables，不做
+   bridge；人原先倾向 bridge（不强烈），等人定。
+2. **共享路径**。README 里有建议（声明的子目录直接挂主机原目录，比如 traj-record 的
+   `instances`、`out`），等人确认。
+3. **agent 创建 workspace 的细节**。README 里有建议的接口、请求内容和执行者；确认
+   卡片的内容和删除流程还没讨论完。
+4. **策略仓库**。khalis 里有一份“机器人账号加私有明文策略仓库”的简报，还没在 uraj
    实现。要讨论：v2 的权限集、workspace 请求放不放在同一个仓库；目录结构和语法；
    v1 的 `projects.scm` 条目怎么迁过去，还是 v1、v2 各用各的。
 
-另外两件可以并行：
+可以并行做的：
 
-- TODO 第 8 步的实测：盒子管理服务以用户身份进入盒子的 netns 设 nftables、往运行中
-  的盒子加撤挂载，并确认盒子里的 agent 做不到。结果决定还要不要 bridge。脚本可以从
-  `exp/contained-agent-v2-route-c_20261115/box.sh` 起盒子，主机侧用
-  `podman inspect --format '{{.State.Pid}}'` 拿 PID 再 `nsenter`。
+- TODO 第 9 步：设备授权实测。挂载可以照搬 `exp/contained-agent-v2-grants_20261115/nsmount.py`
+  （设备节点也是 bind mount），组权限参考 v1 浏览器 GPU
+  （`docs/contained-agent/browser-guide.md`）。
 - 第 5 步本身：列出现在 agent 容器的挂载、synthetic HOME、凭据和设备
   （`src/guile/uraj/bin/contained-agent.scm`、`docs/contained-agent/container-guide.md`），
   逐项决定在盒子里怎么实现。

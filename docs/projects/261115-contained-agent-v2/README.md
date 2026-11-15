@@ -45,9 +45,10 @@ Guix profile 提供，嵌套 Podman 跑得起 Postgres，盒子里访问发布�
   主机回环连不到，但主机上监听所有地址的服务经 `169.254.1.2` 能连到，局域网也通。
 - 盒子网络用 pasta 还是 bridge？pasta 不需要 root，但自己不能按目的地址过滤；bridge
   接受限网络能禁主机和内网，代价是 root 侧把 veth 接进盒子的 netns。人倾向 bridge
-  （不是强烈意见）。新的备选：盒子的 user namespace 归用户所有，盒子管理服务可以
-  不用 root、在盒子自己的 netns 里设 nftables，能禁主机和内网，也能运行中修改。
-  建议先实测这个（TODO 第 8 步），可行就不需要 bridge。
+  （不是强烈意见）。实测（[grants-measure-20261115](grants-measure-20261115.md)）：
+  盒子管理服务不用 root 就能在盒子的 netns 里设 nftables，禁掉主机和内网、放行公网
+  和 relay，运行中可改，agent 改不了。建议：pasta 加盒子 netns 里的 nftables，
+  不做 bridge。等人定。
 - ~~审批卡片显示什么？~~ 11/15 定：事实（请求者、命令或摘要、内容 hash）加
   “agent 自述”；长脚本另开 PR，执行器只执行快照。
 - ~~编排机制？~~ 11/15 定：这次不设计。
@@ -65,20 +66,41 @@ Guix profile 提供，嵌套 Podman 跑得起 Postgres，盒子里访问发布�
     以后可以给最低权限的 workspace 开免确认。
   - 不把 workspace 列表做成声明式：盒子里有未推送的提交、Podman 卷等状态，按声明
     对账容易误删；workspace 多且短命，每个都走 PR 太重。
-- agent 创建 workspace 的流程细节：发请求的接口、请求里写什么、人确认后谁来建盒子、
-  删除时怎么检查未推送的提交。还没讨论。
+- ~~workspace 是什么、文件怎么进盒子？~~ 11/15 定：
+  - 创建 workspace 只考虑 Paseo；不用 Paseo、直接进盒子时，当前目录就是 workspace 根。
+  - workspace 就是一个主机目录，默认取当前目录；单仓库、多仓库不用区分。
+  - 盒子里沿用主机 layout：workspace 挂在和主机相同的绝对路径，HOME 也和主机一致
+    （合成 HOME，只放 workspace 和声明过的东西）。
+  - 内容是 workspace 根目录的递归 reflink 副本，`.git` 随便写，主机不受影响；主机上
+    看不到盒子里的改动，靠 push/fetch 交换。
+- 共享路径（建议，等人确认）：workspace 可以声明一些子目录不拷贝，直接把主机原目录挂到
+  同一路径，例如 traj-record 的 `instances`、`out`。要求下面没有 `.git`（创建时检查）；
+  写在创建请求里，确认卡片单独列出；仓库里可以放默认清单，但只是建议；运行中追加走同样
+  的挂载方式和确认。同一仓库的多个 workspace 共享同一份，要按 session 分子目录。
+- agent 创建 workspace 的流程细节：发请求的接口（Paseo 里 agent 能调用的工具，背后是
+  盒子管理服务的 socket）、请求内容（名字、主机路径、共享路径、引用的权限集、一句
+  目的说明）、确认卡片、确认后由盒子管理服务建盒子、拷贝、起盒子 daemon、
+  `host add`，删除前检查未推送的提交和 stash。这是建议，细节还没讨论完。
 - ~~运行中怎么改授权？~~ 11/15 定：由用户级的盒子管理服务负责，不用 root：盒子创建时只挂声明
   过的东西；运行中增减挂载由它进入盒子的 mount namespace 完成（新 mount API），网络
   规则在盒子的 netns 里改，凭据走 socket、调用时查策略。agent 在盒子的 user
-  namespace 里没有特权，所以自己改不了。可行性要实测（TODO 第 8 步）；撤销挂载后已打开的
-  文件描述符仍可用。需要 root 的操作（sudo 加手机审批、部署）交给特权执行器，不由
+  namespace 里没有特权，所以自己改不了。已实测可行
+  （[grants-measure-20261115](grants-measure-20261115.md)）；撤销挂载后已打开的
+  文件描述符仍可用，彻底收回要杀进程或重建盒子。需要 root 的操作（sudo 加手机审批、部署）交给特权执行器，不由
   盒子管理服务做。
 - ~~不用 Paseo 时怎么用？~~ 11/15 定：不单独保留旧体验。盒子是带 shell 的开发机，
   Paseo daemon 只是其中一个服务；提供一个进入盒子的入口（开 shell 或直接跑某个
   coding agent），背后是 `podman exec`。盒子分三层：盒子本身（生命周期和授权）、
   进入入口、Paseo daemon。v1 在 v2 稳定前照常可用。
-- 设备怎么给？比如调试 MAA 要 GPU（和 adb 等）。还没讨论；可能作为一种权限集，
-  创建盒子时透传设备，运行中增加设备的难度和挂载类似。
+- ~~设备怎么给？~~ 11/15 定：
+  - 设备（GPU 渲染节点、`/dev/kvm` 等）是一种权限集，走策略仓库，确认卡片列出。
+  - 运行中能加，做法和加挂载一样；撤销同样收不回已打开的 fd。
+  - 进程要带上主机的 `kvm`、`render` 等附加组（crun 的 `keep-groups`），参考 v1 浏览器
+    GPU 的做法。
+  - 盒子有内存和 CPU 上限，沿用 `contained-podman` 的 cgroup 委托。
+  - 调试 MAA 是 adb 连 storie 上的 redroid，不用本机设备，算网络授权。真实 USB 设备
+    现在不设计。
+  - 可行性要实测（TODO 第 9 步）。
 - 策略仓库怎么设计？目录结构、权限集的语法、workspace 请求的格式、和 khalis 里策略
   仓库简报的关系。还没讨论。
 - 盒子用容器还是 microVM？容器复用 `contained-podman` 服务、不需要 `/dev/kvm`、
@@ -100,6 +122,8 @@ Guix profile 提供，嵌套 Podman 跑得起 Postgres，盒子里访问发布�
   路线 A、B、C 调研和建议。
 - [box-network-measure-20261115](box-network-measure-20261115.md)：盒子的网络
   可达性和 reflink 代价实测。
+- [grants-measure-20261115](grants-measure-20261115.md)：不用 root 在运行中的盒子里
+  改 nftables、增减挂载，agent 绕不过去。
 - [pasta-zombie-debug-20261115](pasta-zombie-debug-20261115.md)：运行时留下
   zombie pasta 的原因；盒子的 PID 1 要用会回收孤儿的 init。
 - [route-c-measure-20261115](route-c-measure-20261115.md)：路线 C 原型实测，
