@@ -27,13 +27,13 @@
 
 ## 下一步：要和人讨论的设计
 
-11/15 这一轮又定了 workspace 的含义和文件布局、共享路径、设备授权的方向、网络用 pasta 加 nftables，见 README。还剩：
+11/15 这一轮又定了 workspace 的含义和文件布局、共享路径、设备授权的方向、网络用 pasta 加 nftables、策略目录（放 space 仓库、YAML 最小子集）、topic 和 workspace 的对应，见 README。还剩：
 
 1. **agent 创建 workspace 的细节**。README 里有建议的接口、请求内容和执行者；确认
    卡片的内容和删除流程还没讨论完。
-2. **策略仓库**。khalis 里有一份“机器人账号加私有明文策略仓库”的简报，还没在 uraj
-   实现。要讨论：v2 的权限集、workspace 请求放不放在同一个仓库；目录结构和语法；
-   v1 的 `projects.scm` 条目怎么迁过去，还是 v1、v2 各用各的。
+2. **策略目录和 v1 简报的关系**。策略放哪、结构、语法已定（见 README）；还没定的是
+   khalis 里那份简报（原本给 v1 写）是不是只在 v2 实现，以及“改 `policy/` 的 PR
+   只改 `policy/`”要不要做成检查。
 
 可以并行做的：
 

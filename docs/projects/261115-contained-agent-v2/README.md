@@ -57,7 +57,7 @@ Guix profile 提供，嵌套 Podman 跑得起 Postgres，盒子里访问发布�
   意义（对应任务或项目）且不重复，盒子 host 用同一个名字，人实际上不用“选”。
 - ~~怎么创建 workspace？~~ 11/15 定：agent 代加；授权声明式，生命周期命令式。
   - 授权写成有名字的权限集（能 SSH 到哪、GitHub token 档位、额外挂载、设备），放在
-    策略仓库；新增或修改权限集要 agent 用机器人账号提 PR，人批准合并。
+    策略目录；新增或修改权限集要 agent 用机器人账号提 PR，人批准合并。
   - workspace 只记录名字、仓库列表和引用的权限集，存在主机侧状态里，创建后一直存在，
     删除要显式执行（删前检查未推送的提交）。创建时 agent 发请求，人在手机上确认；
     以后可以给最低权限的 workspace 开免确认。
@@ -90,7 +90,7 @@ Guix profile 提供，嵌套 Podman 跑得起 Postgres，盒子里访问发布�
   coding agent），背后是 `podman exec`。盒子分三层：盒子本身（生命周期和授权）、
   进入入口、Paseo daemon。v1 在 v2 稳定前照常可用。
 - ~~设备怎么给？~~ 11/15 定：
-  - 设备（GPU 渲染节点、`/dev/kvm` 等）是一种权限集，走策略仓库，确认卡片列出。
+  - 设备（GPU 渲染节点、`/dev/kvm` 等）是一种权限集，走策略目录，确认卡片列出。
   - 运行中能加，做法和加挂载一样；撤销同样收不回已打开的 fd。
   - 进程要带上主机的 `kvm`、`render` 等附加组（crun 的 `keep-groups`），参考 v1 浏览器
     GPU 的做法。
@@ -98,8 +98,23 @@ Guix profile 提供，嵌套 Podman 跑得起 Postgres，盒子里访问发布�
   - 调试 MAA 是 adb 连 storie 上的 redroid，不用本机设备，算网络授权。真实 USB 设备
     现在不设计。
   - 可行性要实测（TODO 第 9 步）。
-- 策略仓库怎么设计？目录结构、权限集的语法、workspace 请求的格式、和 khalis 里策略
-  仓库简报的关系。还没讨论。
+- ~~策略放哪、怎么写？~~ 11/15 定：
+  - 不单独建仓库，放在各暴露范围已有的 space 仓库的 `policy/` 下（策略目录）：个人
+    机器在 khalis，单位电脑在单位的 space 仓库（只在单位电脑上 clone）。每台主机的
+    同步程序只读它该读的仓库；权限集写明适用的主机。
+  - 结构：`policy/grants/<权限集>.yaml` 一个权限集一个文件；`policy/hosts/<主机>.yaml`
+    写这台主机提供的设备路径、默认网络规则等。workspace 列表不进仓库。
+  - 语法：YAML 最小子集，只有字符串、字符串列表和固定的键，一律按字符串解析；
+    严格校验，未知键或类型不对就报错，同步时校验不过保留上一版；khalis 里加 CI 跑
+    同一个校验，PR 上直接看到对错。手机上主要是审 agent 提的 diff，不是手写。
+  - 策略改动可能夹在 khalis 的大 PR 里：同步程序发现 `policy/` 变了就推通知，写明
+    哪个权限集多了什么；是否再要求“改 `policy/` 的 PR 只改 `policy/`”待定。
+- ~~topic 和 workspace 怎么对应？~~ 11/15 定：workspace 名用 topic 的 slug 起头；
+  topic 里加属性列出它的 workspace 名；创建请求带 topic id，确认卡片显示所属 topic。
+  同一个目录可以有多个 workspace，各自是独立的 reflink 副本和权限集。Paseo 有没有
+  打开某个 workspace 的深链接没查过。
+- 策略目录和 khalis 里“机器人账号加私有明文策略仓库”简报的关系：简报是给 v1 写的，
+  v1 已冻结。建议只在 v2 实现，v1 继续用现有三处来源；机器人账号那一半两边都要。等人定。
 - 盒子用容器还是 microVM？容器复用 `contained-podman` 服务、不需要 `/dev/kvm`、
   浏览器 GPU 照旧透传；microVM 隔离更强，但 virtiofs、GPU、Guix store 共享都要重做。
   建议先做容器，以后按需换实现。
