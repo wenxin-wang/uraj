@@ -87,7 +87,8 @@ $OUT exec "$name" sh -c 'cd /home/podman/work && rm -rf demo && mkdir demo &&
   commit -q --allow-empty -m init && git log --oneline'
 
 step "box daemon: CLI inside the box (as an agent there would use it)"
-IN_BOX="$OUT exec --env=PASEO_HOST=127.0.0.1:6767 $name paseo"
+# The box sets PASEO_HOME; PASEO_HOST on top is rejected, so pass --host.
+IN_BOX="$OUT exec $name paseo --host 127.0.0.1:6767"
 for _ in $(seq 30); do $IN_BOX workspace ls >/dev/null 2>&1 && break; sleep 1; done
 $IN_BOX workspace create --isolation local --path /home/podman/work/demo \
   --title route-c-demo || true

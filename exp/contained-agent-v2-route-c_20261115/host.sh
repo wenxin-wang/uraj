@@ -61,11 +61,11 @@ if [ -n "${RELAY:-}" ]; then
 
 In the app, after pairing with this test host:
   1. Does a host labelled after the box appear without adding it by hand?
-  2. Is the workspace "route-c-demo" and its mock agent listed?
-  3. Open the agent, send a message; does the mock reply stream?
-  4. Open a terminal in the workspace; run: hostname; id; pwd; ls /run/box
-  5. Browse files and the git diff of /home/podman/work/demo.
-  6. Create a new agent there with the mock provider.
+  2. Is the workspace "route-c-demo" listed under it?
+  3. Open a terminal in the workspace; run: hostname; id; pwd; ls /run/box
+  4. Browse files and the git diff of /home/podman/work/demo.
+  5. Try to create an agent there; no provider has credentials, so note
+     the error rather than expecting a reply.
 Note what works, what is missing, and anything that looks wrong.
 EOF
 fi
