@@ -7,7 +7,9 @@ OUTER_PID is a process in the rootless Podman user and mount namespaces
 (the box's conmon); the host user owns that user namespace.  BOX_PID is the
 box's init.  attach clones SRC with open_tree() in the outer mount namespace
 (host paths are visible there), then joins the box's namespaces and attaches
-the clone at DST with move_mount().  detach runs umount2(MNT_DETACH) at DST.
+the clone at DST with move_mount(), creating DST (a directory, or an empty
+file when SRC is a file such as a device node) if missing.  detach runs
+umount2(MNT_DETACH) at DST.
 """
 
 import ctypes
@@ -51,6 +53,7 @@ def main():
     enter(outer, "outer")
     if op == "attach":
         src, dst = sys.argv[4], sys.argv[5]
+        is_dir = os.path.isdir(src)
         tree = check(
             libc.syscall(
                 SYS_OPEN_TREE,
@@ -61,6 +64,12 @@ def main():
             "open_tree",
         )
         enter(box, "box")
+        if not os.path.lexists(dst):
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            if is_dir:
+                os.mkdir(dst)
+            else:
+                open(dst, "w").close()
         check(
             libc.syscall(
                 SYS_MOVE_MOUNT,
