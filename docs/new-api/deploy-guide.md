@@ -64,14 +64,18 @@ The script prints the image name. Put it in the `image` field of
 ```sh
 sudo docker network inspect docker_lan   # confirm .9 is unused
 sudo docker image ls localhost/new-api-traj
-sudo guix time-machine -C env/guix/channels-lock.scm -- \
-  system -L src/guix -L src/guile reconfigure env/guix/os/storie.scm
+```
+
+Deploy storie with the commands in the
+[deploy guide](../guix/deploy-guide.md#命令速查), then:
+
+```sh
 sudo herd start new-api
 sudo herd status new-api
 sudo /etc/new-api/compose ps
 ```
 
-From another machine on the LAN (macvlan does not connect its own host):
+From any machine on the LAN, or from storie itself through `host0`:
 
 ```sh
 curl --fail http://172.31.0.9:3000/api/status
