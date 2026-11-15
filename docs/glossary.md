@@ -51,7 +51,7 @@
 | 项目 SSH agent | 每个项目一个、带目标限制的主机 `ssh-agent` | `src/guile/uraj/bin/contained-ssh.scm`；`ssh-start` 等子命令 |
 | Podman 运行时 | 项目专用的 rootless Podman API 容器，经 `CONTAINER_HOST` 访问 | `src/python/uraj/contained_podman.py`；Shepherd 服务 `contained-podman` |
 | 版本探测 | Paseo 运行 `COMMAND --version`，不进容器 | `--version` 特判 |
-| 盒子（box） | contained-agent-v2 里每个项目一个的长期容器，coding agent 和它用的 Podman 都在里面 | 未实现；原型 `exp/contained-agent-v2-box_20261115/` |
+| 盒子（box） | contained-agent-v2 里每个 Paseo workspace 一个的长期容器，coding agent 和它用的 Podman 都在里面 | 未实现；原型 `exp/contained-agent-v2-box_20261115/` |
 
 ## worktree
 
@@ -87,6 +87,8 @@
 | 公共层 / 私有层 | Paseo 配置的两层 YAML：仓库里的 `env/paseo/config.yaml` 和 SOPS 解密的主机层 | `public_layer`、`private_layer` |
 | 分支清理（branch GC） | 删除 Paseo 留下的已合并本地分支 | `src/python/uraj/paseo/branch_gc.py`；`paseo-branch-gc` |
 | Paseo relay | storie 上的私有 relay | `src/guix/uraj/services/paseo-relay.scm` |
+| connected hosts | Paseo 0.13 起的功能：一个 daemon 登记另一个 daemon，把它的会话路由给 app | 上游 `docs/connected-hosts.md`；`paseo host add` |
+| 盒子 daemon | contained-agent-v2 路线 B、C 里跑在盒子里的 Paseo daemon；与之相对的是主机 daemon | 未实现 |
 
 ## OpenClaw
 
