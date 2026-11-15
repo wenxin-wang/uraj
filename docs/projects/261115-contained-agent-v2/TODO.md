@@ -1,6 +1,7 @@
 # contained-agent-v2 进度
 
-当前：第 5 步，盒子边界清单。下一步要人定：workspace 怎么创建，见 README 的待定项。
+当前：第 5 步，继续讨论设计，见 [step-5-handoff](step-5-handoff.md)。下一步要人定：
+workspace 怎么创建、设备怎么给、策略仓库怎么设计，见 README 的待定项。
 
 1. ~~盒子 rootfs 原型：Guix profile 代替 Fedora 镜像，嵌套 Podman 可用~~
    已完成。结论：只读挂 `/gnu/store` 加一个 profile 即可；`newuidmap`
@@ -21,8 +22,12 @@
    产物：`exp/contained-agent-v2-route-c_20261115/`，
    [route-c-measure-20261115](route-c-measure-20261115.md)。
 5. 盒子边界清单：列出现在 agent 容器的挂载、synthetic HOME、凭据和设备，
-   决定在盒子里怎么实现。
+   决定在盒子里怎么实现。进行中，先讨论 README 里剩下的待定项。
 6. agent 进盒子：按选定路线启动 agent。
 7. ~~zombie pasta：查清父进程和触发条件~~ 已完成。结论：项目 Podman 运行时里的
    inner podman 服务是容器 PID 1，不回收后台化的 pasta；主机服务没有泄漏。盒子要用
    `--init` 或自己回收。产物：[pasta-zombie-debug-20261115](pasta-zombie-debug-20261115.md)。
+8. 不用 root 的动态授权实测：盒子管理服务以用户身份进入盒子的命名空间，(a) 在盒子
+   netns 里设 nftables，禁主机（含 `169.254.1.2`）和内网、放行公网和 relay，运行中
+   修改；(b) 往运行中的盒子加、撤一个挂载；(c) 确认盒子里的 agent 做不到这两件事。
+   结果决定还要不要 bridge。

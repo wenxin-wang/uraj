@@ -52,6 +52,8 @@
 | Podman 运行时 | 项目专用的 rootless Podman API 容器，经 `CONTAINER_HOST` 访问 | `src/python/uraj/contained_podman.py`；Shepherd 服务 `contained-podman` |
 | 版本探测 | Paseo 运行 `COMMAND --version`，不进容器 | `--version` 特判 |
 | 盒子（box） | contained-agent-v2 里每个 Paseo workspace 一个的长期容器，coding agent 和它用的 Podman 都在里面 | 未实现；原型 `exp/contained-agent-v2-box_20261115/` |
+| 盒子管理服务 | contained-agent-v2 里以用户身份运行的主机服务，建、删盒子，运行中按策略增减盒子的挂载、网络规则和凭据 | 未实现 |
+| 权限集 | contained-agent-v2 里有名字的一组授权（SSH 目标、GitHub token 档位、额外挂载、设备），定义在策略仓库，workspace 按名字引用 | 未实现 |
 
 ## worktree
 
