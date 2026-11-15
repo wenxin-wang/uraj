@@ -13,8 +13,7 @@ Emacs 配置。主要由 agent 开发，人在 GitHub 上审阅和合并。
 - [OpenClaw](docs/openclaw.md)：storie 上的飞书 bot。
 - [guix](docs/guix.md)：主机配置、部署、已知问题。
 - [secrets](docs/secrets.md)：SOPS 布局和接入新机器。
-- 进行中：[261114-docs-layout](docs/projects/261114-docs-layout/TODO.md)，
-  文档布局和协作约定的迁移和后续整理。
+- 进行中：目前没有。完成的子项目在 `docs/archive/projects/`。
 
 ## 目录
 
@@ -75,6 +74,7 @@ Guix 代码按 Guix 的层次分目录（`packages/`、`services/`、`home/`、`
   `TODO.md`（进度的唯一来源）、`step-<n>-handoff.md`（交接）三件套，加上带日期的
   过程文档。模板在 [`docs/projects/template/`](docs/projects/template/README.md)。
   已有项目的后续工作在原项目里加一步，只有独立的新方向才开新项目。
+  项目完成后整个目录移到 `docs/archive/projects/`，并从“入口”去掉。
 - 新文档用中文；代码标识符、命令、路径保持原样。
 - 不链接、不提及仓库外的私人资料；project 文档只写可以公开的技术内容。
 
