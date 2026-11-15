@@ -1,6 +1,6 @@
 # contained-agent-v2 进度
 
-当前：第 4 步，路线 C 的原型。下一步要人定：workspace 怎么创建，见 README 的待定项。
+当前：第 5 步，盒子边界清单。下一步要人定：workspace 怎么创建，见 README 的待定项。
 
 1. ~~盒子 rootfs 原型：Guix profile 代替 Fedora 镜像，嵌套 Podman 可用~~
    已完成。结论：只读挂 `/gnu/store` 加一个 profile 即可；`newuidmap`
@@ -15,9 +15,11 @@
    连不到；主机上监听所有地址的服务经 `169.254.1.2` 能连到；局域网、relay、公网都通。
    uraj 的 reflink 拷贝 0.04 s、不占新空间。产物：
    [box-network-measure-20261115](box-network-measure-20261115.md)。
-4. 路线 C 原型：一个盒子、一个盒子 daemon，测试用的主机 daemon 登记它，app 经主机
-   daemon 能列 workspace、建 agent、收发消息、开终端；记录不能用的功能。盒子的 PID 1
-   用会回收孤儿的 init。进行中。
+4. ~~路线 C 原型~~ 已完成。结论：盒子 daemon 经 unix socket 登记到主机 daemon 后，
+   桌面 app 0.15.4 自动出现盒子 host，workspace、终端、文件、git diff 都通过；盒子
+   重建后自动重连同一身份。建 agent 要等第 6 步（盒子里没有 coding agent 和凭据）。
+   产物：`exp/contained-agent-v2-route-c_20261115/`，
+   [route-c-measure-20261115](route-c-measure-20261115.md)。
 5. 盒子边界清单：列出现在 agent 容器的挂载、synthetic HOME、凭据和设备，
    决定在盒子里怎么实现。
 6. agent 进盒子：按选定路线启动 agent。

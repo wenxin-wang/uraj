@@ -81,6 +81,8 @@ Guix profile 提供，嵌套 Podman 跑得起 Postgres，盒子里访问发布�
   可达性和 reflink 代价实测。
 - [pasta-zombie-debug-20261115](pasta-zombie-debug-20261115.md)：运行时留下
   zombie pasta 的原因；盒子的 PID 1 要用会回收孤儿的 init。
+- [route-c-measure-20261115](route-c-measure-20261115.md)：路线 C 原型实测，
+  app 经主机 daemon 用盒子里的 workspace、终端、文件。
 - Paseo 0.15.4 源码调研，[paseo-route-design-20261115](paseo-route-design-20261115.md)
   的依据：
   - [paseo-protocol-review-20261115](paseo-protocol-review-20261115.md)：app 和
