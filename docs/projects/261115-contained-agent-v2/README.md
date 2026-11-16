@@ -2,7 +2,7 @@
 
 ## 目标
 
-每个 Paseo workspace 一个盒子：coding agent 和它用的 Podman 在同一个容器里，
+每个 area 一个盒子：coding agent 和它用的 Podman 在同一个容器里，
 权限只描述盒子的边界（挂载、网络、设备、凭据 socket）。agent 看到的是一台普通
 开发机，不需要知道 Podman 运行时在哪、端口怎么转。
 
@@ -29,9 +29,17 @@ Guix profile 提供，嵌套 Podman 跑得起 Postgres，盒子里访问发布�
 
 ## 待定
 
-- ~~盒子的单位？~~ 11/15 定：Paseo workspace。workspace 可以是非 git 的顶层目录，
-  下面放多个仓库；同一 workspace 的 agent 共用一个盒子，彼此不设防；不同 workspace
-  和不同 space 用不同盒子。按目的授权就是按 workspace 授权。
+- ~~盒子的单位？~~ 11/16 改定：area（space 里 PARA 的 area，持续维护的长期事务），
+  不再是 Paseo workspace（11/15 的决定作废）。一个盒子长期存在，盒子 daemon 里可以有
+  多个 Paseo workspace，一个 project 或任务一个；同一盒子里的 agent 彼此不设防，
+  不同 area 和不同 space 用不同盒子。权限集按盒子（area）授权：
+  - 要人确认的只有：新建盒子（新 area）、给盒子加权限集或共享路径、把新的主机目录
+    拷进盒子。在已有盒子里新建 workspace 用同一套权限，agent 自己建，不用确认。
+  - 生命周期长了，要另外设计：升级盒子里的 profile 和 Paseo（重建盒子、保住状态和
+    serverId）、开机自动起盒子（主机侧 Shepherd 服务）、worktree 和 Podman 镜像卷的
+    空间回收。删除流程照旧，只是少用。
+  - 下面各条里写“创建 workspace”“workspace 的权限”的地方，凡涉及确认、拷贝和授权的，
+    按“盒子”理解；还没逐条改写。
 - ~~仓库怎么进盒子？~~ 11/15 定：`.git` 可写，仓库用 reflink（不支持时完整拷贝）
   放进盒子；submodule、worktree 由盒子里的 agent 处理，和外界只经远端 push/fetch
   交换。主机不在盒子里的仓库上运行 git。
@@ -132,12 +140,20 @@ Guix profile 提供，嵌套 Podman 跑得起 Postgres，盒子里访问发布�
   - 策略改动可能夹在 khalis 的大 PR 里：同步程序发现 `.agent/policy/` 变了就推通知，
     写明哪个权限集多了什么；并且只让“只改 `.agent/policy/`”的 PR 生效，同步程序检查
     生效的提交，不满足就保留上一版并报错。
-- ~~topic 和 workspace 怎么对应？~~ 11/15 定：workspace 名用 topic 的 slug 起头；
-  topic 里加属性列出它的 workspace 名；创建请求带 topic id，确认卡片显示所属 topic。
-  同一个目录可以有多个 workspace，各自是独立的 reflink 副本和权限集。Paseo 有没有
+- ~~topic 和 workspace 怎么对应？~~ 11/16 改定：盒子用 area 的名字，area 文档里加
+  属性写它的盒子；盒子里的 Paseo workspace 用 project 或任务的名字，project 文档里加
+  属性写它的 workspace。新建盒子的请求带 area 的 id，确认卡片显示 area。同一个主机
+  目录可以拷进多个盒子，各自是独立的 reflink 副本，权限跟着盒子。Paseo 有没有
   打开某个 workspace 的深链接没查过。
 - ~~策略目录和 khalis 里“机器人账号加私有明文策略仓库”简报的关系？~~ 11/15 定：
   只在 v2 实现，v1 不动，继续用现有三处来源。
+- ~~怎么访问盒子里的服务？~~ 11/16 定：按需转发。盒子里用 socat 把端口转成
+  `/run/box/` 下的 unix socket（同路线 C 暴露 `paseo.sock`），盒子管理服务在主机
+  上把它接到 `127.0.0.1:<端口>`，端口号尽量和盒子里相同，冲突时另分；只在主机回环上，
+  不算权限集，agent 可以自己开。HTTP 以后可加按 `*.localhost` 分发的反向代理；
+  从别的机器访问以后再说。pasta 新版本带 `pesto`，能经控制 socket 运行中增删转发，
+  但 Guix 的 passt 是 2024_12_11、没有它，Podman 也不暴露这个 socket，所以现在不用；
+  创建时 `-p` 发布和 `-t auto` 不采用（不能运行中加、多盒子端口冲突）。
 - 盒子用容器还是 microVM？容器复用 `contained-podman` 服务、不需要 `/dev/kvm`、
   浏览器 GPU 照旧透传；microVM 隔离更强，但 virtiofs、GPU、Guix store 共享都要重做。
   建议先做容器，以后按需换实现。

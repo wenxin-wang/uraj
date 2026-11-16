@@ -27,6 +27,8 @@
 
 ## 下一步：要和人讨论的设计
 
+11/16 改定：盒子按 area 而不是 Paseo workspace，一个盒子里有多个 workspace；访问盒子里的服务用按需转发。README 里受影响的条目只在“盒子的单位”下统一说明，没逐条改写，下一个 session 要顺手收拾。
+
 11/15 这一轮又定了 workspace 的含义和文件布局、共享路径、设备授权的方向、网络用 pasta 加 nftables、策略目录（space 仓库的 `.agent/policy/`、YAML 最小子集、只在 v2 实现）、topic 和 workspace 的对应，见 README。还剩：
 
 1. **agent 创建 workspace 的细节**。README 里已写了请求、卡片、执行、删除的建议；
