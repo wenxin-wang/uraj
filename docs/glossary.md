@@ -51,6 +51,12 @@
 | 项目 SSH agent | 每个项目一个、带目标限制的主机 `ssh-agent` | `src/guile/uraj/bin/contained-ssh.scm`；`ssh-start` 等子命令 |
 | Podman 运行时 | 项目专用的 rootless Podman API 容器，经 `CONTAINER_HOST` 访问 | `src/python/uraj/contained_podman.py`；Shepherd 服务 `contained-podman` |
 | 版本探测 | Paseo 运行 `COMMAND --version`，不进容器 | `--version` 特判 |
+| 盒子（box） | contained-agent-v2 里每个 area 一个的长期容器，coding agent、它用的 Podman 和盒子 daemon 都在里面；盒子 daemon 里可以有多个 Paseo workspace | 未实现；原型 `exp/contained-agent-v2-box_20261115/` |
+| 盒子策略 | contained-agent-v2 里一个盒子的授权（SSH 目标、GitHub token 档位、设备、网络放行、共享路径），写在 area 文档里带 `:box <盒子名>` 参数的 yaml 代码块；YAML 最小子集，人批准的 PR 合并后由主机同步生效。不叫“权限集”“策略目录” | 未实现 |
+| 策略同步 | contained-agent-v2 里每台主机上的程序：从 space 仓库的 `main` 取人批准过的提交，提取并校验盒子策略，原子替换主机上的生效副本，有变化就通知。不叫“同步程序” | 未实现 |
+| 盒子管理服务 | contained-agent-v2 里以用户身份运行的主机服务，建、删盒子，运行中按策略增减盒子的挂载、网络规则和凭据 | 未实现 |
+| space | 人的私有仓库，存想法、计划和状态描述，按暴露范围一个范围一个（个人技术是 khalis，单位另有一个）。uraj 是代码，不是 space | 仓库外 |
+| area | space 里按 PARA 带 `:area:` 标签的文档或 heading，持续维护的长期事务；有终点的叫 project。contained-agent-v2 一个 area 一个盒子 | 仓库外（space） |
 
 ## worktree
 
@@ -86,6 +92,8 @@
 | 公共层 / 私有层 | Paseo 配置的两层 YAML：仓库里的 `env/paseo/config.yaml` 和 SOPS 解密的主机层 | `public_layer`、`private_layer` |
 | 分支清理（branch GC） | 删除 Paseo 留下的已合并本地分支 | `src/python/uraj/paseo/branch_gc.py`；`paseo-branch-gc` |
 | Paseo relay | storie 上的私有 relay | `src/guix/uraj/services/paseo-relay.scm` |
+| connected hosts | Paseo 0.13 起的功能：一个 daemon 登记另一个 daemon，把它的会话路由给 app | 上游 `docs/connected-hosts.md`；`paseo host add` |
+| 盒子 daemon | contained-agent-v2 路线 B、C 里跑在盒子里的 Paseo daemon；与之相对的是主机 daemon | 未实现 |
 
 ## OpenClaw
 
