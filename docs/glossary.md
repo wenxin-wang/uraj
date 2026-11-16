@@ -57,6 +57,8 @@
 | 盒子管理服务 | contained-agent-v2 里以用户身份运行的主机服务，建、删盒子，运行中按策略增减盒子的挂载、网络规则和凭据 | 未实现 |
 | 特权执行器 | 替 agent 执行要 root 的操作（部署、sudo 一类）的主机程序：agent 提请求，人经审批通道批准后执行请求的快照，凭据不进盒子。分级和审批通道在 sudo-tiers 子项目里设计 | 未实现 |
 | 审批通道 | 人批准特权执行器和盒子管理服务请求的途径，在盒子外面；方向是“批准即对请求内容 hash 的签名”。不叫“确认通道” | 未实现 |
+| arbiter | 审批通道的静态页，单独的公开仓库 `arbiter`，域名 `arbiter.wenxinwang.me`；读 URL fragment 里的请求，用 passkey 签名后发到 ntfy | 仓库外（`wenxin-wang/arbiter`） |
+| agent 的 GitHub 身份 | contained-agent-v2 里 agent 用的 GitHub App（替代 `public`、`personal`）和机器账号（替代 `world`），与人的账号分开 | 未实现 |
 | space | 人的私有仓库，存想法、计划和状态描述，按暴露范围一个范围一个（个人技术是 khalis，单位另有一个）。uraj 是代码，不是 space | 仓库外 |
 | area | space 里按 PARA 带 `:area:` 标签的文档或 heading，持续维护的长期事务；有终点的叫 project。contained-agent-v2 一个 area 一个盒子 | 仓库外（space） |
 

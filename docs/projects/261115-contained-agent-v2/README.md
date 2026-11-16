@@ -65,7 +65,7 @@ Guix profile 提供，嵌套 Podman 跑得起 Postgres，盒子里访问发布�
   意义（对应任务或项目）且不重复，盒子 host 用同一个名字，人实际上不用“选”。
 - ~~怎么创建 workspace？~~ 11/15 定：agent 代加；授权声明式，生命周期命令式。
   - 授权写成声明式（能 SSH 到哪、GitHub token 档位、额外挂载、设备；11/16 起是 area
-    文档里的盒子策略）；改动要 agent 用机器人账号提 PR，人批准合并。
+    文档里的盒子策略）；改动要 agent 用自己的 GitHub 身份提 PR，人批准合并（见“agent 的 GitHub 身份”）。
   - workspace 只记录名字、仓库列表和引用的授权，存在主机侧状态里，创建后一直存在，
     删除要显式执行（删前检查未推送的提交）。创建时 agent 发请求，人在手机上确认；
     以后可以给最低权限的 workspace 开免确认。
@@ -164,6 +164,22 @@ Guix profile 提供，嵌套 Podman 跑得起 Postgres，盒子里访问发布�
   从别的机器访问以后再说。pasta 新版本带 `pesto`，能经控制 socket 运行中增删转发，
   但 Guix 的 passt 是 2024_12_11、没有它，Podman 也不暴露这个 socket，所以现在不用；
   创建时 `-p` 发布和 `-t auto` 不采用（不能运行中加、多盒子端口冲突）。
+- ~~agent 的 GitHub 身份？~~ 11/16 定：agent 不再用人的 token，换独立身份；改
+  secrets 只在 v2 里做，v1 的三级 token 不动。
+  - 现在 agent 和人同一个 GitHub 账号：分支保护分不出是谁合的；`world` 是带 `repo`
+    scope 的 classic token，能改掉分支保护。所以“禁止 agent 合 PR”和策略同步的
+    “最新提交来自人批准的 PR”在 v1 下都核实不了。
+  - `public`、`personal` 两级换成 GitHub App：装在人的账号上，只勾 agent 用的仓库，
+    权限 Contents、Pull requests、Workflows 写；私钥进 SOPS，盒子管理服务按盒子策略
+    现签一小时的 installation token，签时可再缩小仓库范围，经凭据 socket 给盒子。
+  - `world`（fork、给别人的仓库提 PR）换成机器账号的 classic token：App 做不了用户
+    身份的操作。
+  - 人的仓库 `main` 开 ruleset：必须 PR、1 个批准，绕过名单只有人。agent 能推分支、
+    开 PR、合到非 `main` 分支（堆叠 PR），合不进 `main`。以后要开放，可以另建组织把
+    App 装进去给管理权限，或者单独加一个特权级别，盒子策略里写明哪个盒子能用。
+  - App 不装到审批页的 `arbiter` 仓库（见 [sudo-tiers](../261116-sudo-tiers/README.md)）。
+  - 没实测：机器账号的 fine-grained token 能否访问人的仓库（预计不能）；ruleset 的
+    绕过名单对 App 和 token 的实际效果。
 - 盒子用容器还是 microVM？容器复用 `contained-podman` 服务、不需要 `/dev/kvm`、
   浏览器 GPU 照旧透传；microVM 隔离更强，但 virtiofs、GPU、Guix store 共享都要重做。
   建议先做容器，以后按需换实现。

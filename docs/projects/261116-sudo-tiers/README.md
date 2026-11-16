@@ -38,14 +38,12 @@
 - 手机审批通道，不自建 server 的候选：
   1. **passkey + 静态页 + ntfy**：GitHub Pages 上放一个静态页，请求内容放在 URL
      fragment 里；页面显示内容、算 hash，用手机 passkey（WebAuthn，`rpId` 是
-     `<user>.github.io`）对 hash 签名，再把签名 POST 到 ntfy.sh 的一个 topic；
+     页面的域名）对 hash 签名，再把签名 POST 到 ntfy.sh 的一个 topic；
      主机订阅 topic，用登记过的公钥验签并核对 origin 和 hash。通知用 ntfy app
      （带“打开链接”按钮），也可以经 Paseo 或 Slack 发同一个链接。好处：签名在
      手机安全芯片里，ntfy、GitHub、通知通道都不需要可信；页面显示什么就签什么。
      代价：要写静态页和验签（有现成库）；ntfy.sh 能看到消息（11/16 定：可以接受）；
-     页面代码被改就能骗签，页面仓库的写权限要和 agent 隔开。注意 `rpId` 和 origin
-     是整个 `<user>.github.io`：同一账号下别的仓库开了 Pages，也能用同一个 passkey
-     骗签，要么别的仓库不开 Pages，要么以后换自定义域名。
+     页面代码被改就能骗签，页面仓库的写权限要和 agent 隔开。
      11/16 定用这个，原型见 TODO 第 3 步。
   2. **Duo**（`pam_duo`）：现成的 PAM 模块和 app，push 可带命令信息，批准由手机上的
      设备密钥签名。免费档用户数有限（待查证）；第三方云服务；Guix 没有包，要自己打。
@@ -54,11 +52,17 @@
      核实点按钮的用户。信任的是 Slack 账号本身；通知偶尔不到；不是签名。
   4. Telegram bot（长轮询）：和 Slack 类似，在国内要代理。
   5. Pushover 紧急通知的回执：只有“确认”没有“拒绝”，不够用。
-  - 静态页的部署（11/16 讨论）：WebAuthn 要求 https 页面和域名，`file:`、`data:`
-    都不行，所以页面必须托管，但只部署一次：页面是一个不需要构建的 HTML 加 JS，
-    放在本仓库里，由 GitHub Actions 只从 `main` 发布到 Pages，push 后一两分钟生效，
-    之后很少改。`main` 只有人能合并，agent 改页面要走 PR，正好满足“页面写权限和
-    agent 隔开”，不需要单独的仓库。
+  - ~~静态页放哪？~~ 11/16 定：单开仓库 `arbiter`，自定义域名
+    `arbiter.wenxinwang.me`，不放 uraj。WebAuthn 要求 https 页面和域名，页面必须
+    托管，但只部署一次：一个不需要构建的 HTML 加 JS，Pages 直接从 `main` 分支发布。
+    - 不用 `<user>.github.io/<仓库>`：passkey 绑定整个域名，同一账号的主站和别的
+      仓库的 Pages 都在这个域名下，都能用同一个 passkey 骗签。自定义子域名单独成
+      一个域名；也不绑到上一级的 `wenxinwang.me`。域名定了不再改，改了要在手机上
+      重新登记。
+    - 在 GitHub 账号设置里验证域名，防止被别人接管。
+    - 页面的安全取决于谁能推 `arbiter`：agent 不在这个仓库里跑，agent 的 GitHub
+      身份不装到这个仓库（见 contained-agent-v2 的“agent 的 GitHub 身份”）。在那
+      之前，agent 和人共用一个 GitHub 账号，技术上仍能推。
   - 页面是通用的，不带任何请求：请求内容（命令、脚本、cwd、有效期、请求 id）
     在 URL 的 `#` 后面，浏览器不会把它发给 GitHub。页面解码、显示、自己算 hash
     再签名，主机只执行 hash 对得上的快照。sudo 脚本也照此审：几 KB 的脚本压缩后
