@@ -27,14 +27,17 @@
 
 ## 下一步：要和人讨论的设计
 
-11/16 改定：盒子按 area 而不是 Paseo workspace，一个盒子里有多个 workspace；访问盒子里的服务用按需转发。README 里受影响的条目只在“盒子的单位”下统一说明，没逐条改写，下一个 session 要顺手收拾。
+11/16 改定：盒子按 area 而不是 Paseo workspace，盒子策略写在 area 文档里，不建 `.agent/` 目录；一个盒子里有多个 workspace；访问盒子里的服务用按需转发。README 里受影响的条目只在“盒子的单位”下统一说明，没逐条改写，下一个 session 要顺手收拾。
 
-11/15 这一轮又定了 workspace 的含义和文件布局、共享路径、设备授权的方向、网络用 pasta 加 nftables、策略目录（space 仓库的 `.agent/policy/`、YAML 最小子集、只在 v2 实现）、topic 和 workspace 的对应，见 README。还剩：
+11/15 这一轮又定了 workspace 的含义和文件布局、共享路径、设备授权的方向、网络用 pasta 加 nftables、盒子策略（area 文档里的 yaml 代码块、YAML 最小子集、只在 v2 实现）、topic 和 workspace 的对应，见 README。还剩：
 
 1. **agent 创建 workspace 的细节**。README 里已写了请求、卡片、执行、删除的建议；
    已定：审批通道和特权执行器共用、先用主机终端确认；删除进回收站一个月；agent 只能删
    自己所在的 workspace。还没定：卡片内容、收尾（app 残留要改上游 Paseo，是否提上游
    要人定；topic 属性由 agent 删除前提 PR）。人对审批通道还有别的想法，不急。
+
+2. **盒子策略的变更怎么把关**。建议去掉“只让只改策略的 PR 生效”，改为 khalis 的
+   CI 在 PR 上标出策略变化，加上生效时的通知。等人定。
 
 可以并行做的：
 
