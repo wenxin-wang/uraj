@@ -74,10 +74,28 @@ Guix profile 提供，嵌套 Podman 跑得起 Postgres，盒子里访问发布�
   同一路径，例如 traj-record 的 `instances`、`out`。要求下面没有 `.git`（创建时检查）；
   写在创建请求里，确认卡片单独列出；仓库里可以放默认清单，但只是建议；运行中追加走同样
   的挂载方式和确认。同一仓库的多个 workspace 共享同一份，要按 session 分子目录。
-- agent 创建 workspace 的流程细节：发请求的接口（Paseo 里 agent 能调用的工具，背后是
-  盒子管理服务的 socket）、请求内容（名字、主机路径、共享路径、引用的权限集、一句
-  目的说明）、确认卡片、确认后由盒子管理服务建盒子、拷贝、起盒子 daemon、
-  `host add`，删除前检查未推送的提交和 stash。这是建议，细节还没讨论完。
+- agent 创建 workspace 的流程细节（建议，部分已定）：
+  - 确认必须走盒子外面的通道：盒子里的 Paseo 确认框 agent 能伪造。11/15 定：和特权
+    执行器共用一个审批通道，这个通道人还有别的想法，合在一起慢慢排；做好之前先用主机
+    终端命令确认。
+  - 请求经盒子里盒子管理服务的 socket 发出，来源 workspace 由 socket 决定；内容是
+    新 workspace 名、topic id、主机路径（默认发请求的 workspace 根）、共享路径、权限集、
+    一句目的说明；每个盒子待确认的请求有上限。
+  - 卡片分两部分：盒子管理服务核实过的事实（来源 workspace 和 topic、名字、路径的文件数
+    和大小及各仓库分支和未提交改动、共享路径及其下没有 `.git`、权限集按当前生效策略展开
+    成实际授权并标出 commit、请求 id 和有效期），和标明未核实的“agent 自述”。只有批准
+    和拒绝，要改就重新请求。
+  - 批准后盒子管理服务依次：reflink 拷贝（跳过共享路径）、起盒子、设 nftables 和挂载、
+    起盒子 daemon、`host add`（`sourceKey` 用 workspace 名），把结果回给发请求的 agent。
+    人在主机终端里 `new` 不需要手机确认。运行中追加权限集或共享路径走同样的请求和卡片。
+  - 11/15 定：删除先进回收站，停盒子、`host rm`，状态目录保留一个月再删，期间可恢复；
+    检查干净（盒子里跑 git：未推送提交、stash、未提交改动、未跟踪文件；非空 Podman
+    卷；运行中的 agent）就一键确认，不干净就在卡片上列出，照样可删。
+  - 11/15 定：盒子里的 agent 只能请求删除自己所在的 workspace，删别的只能人在主机上做。
+  - 收尾：app 里残留的盒子 host 在 Paseo 0.15.4 上清不掉，app 只增不删经中转的连接
+    （`packages/app/src/runtime/host-runtime.ts` 的 `syncHostDiscovery`），要改上游。
+    topic 里的 workspace 属性建议由 agent 在发删除请求前提 PR 去掉，卡片显示 PR 链接；
+    人在主机上删的，由盒子管理服务在通知里提醒去掉哪个 topic 的属性。
 - ~~运行中怎么改授权？~~ 11/15 定：由用户级的盒子管理服务负责，不用 root：盒子创建时只挂声明
   过的东西；运行中增减挂载由它进入盒子的 mount namespace 完成（新 mount API），网络
   规则在盒子的 netns 里改，凭据走 socket、调用时查策略。agent 在盒子的 user

@@ -29,8 +29,10 @@
 
 11/15 这一轮又定了 workspace 的含义和文件布局、共享路径、设备授权的方向、网络用 pasta 加 nftables、策略目录（space 仓库的 `.agent/policy/`、YAML 最小子集、只在 v2 实现）、topic 和 workspace 的对应，见 README。还剩：
 
-1. **agent 创建 workspace 的细节**。README 里有建议的接口、请求内容和执行者；确认
-   卡片的内容和删除流程还没讨论完。
+1. **agent 创建 workspace 的细节**。README 里已写了请求、卡片、执行、删除的建议；
+   已定：审批通道和特权执行器共用、先用主机终端确认；删除进回收站一个月；agent 只能删
+   自己所在的 workspace。还没定：卡片内容、收尾（app 残留要改上游 Paseo，是否提上游
+   要人定；topic 属性由 agent 删除前提 PR）。人对审批通道还有别的想法，不急。
 
 可以并行做的：
 
