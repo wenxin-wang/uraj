@@ -53,6 +53,7 @@
 | 版本探测 | Paseo 运行 `COMMAND --version`，不进容器 | `--version` 特判 |
 | 盒子（box） | contained-agent-v2 里每个 area 一个的长期容器，coding agent、它用的 Podman 和盒子 daemon 都在里面；盒子 daemon 里可以有多个 Paseo workspace | 未实现；原型 `exp/contained-agent-v2-box_20261115/` |
 | 盒子策略 | contained-agent-v2 里一个盒子的授权（SSH 目标、GitHub token 档位、设备、网络放行、共享路径），写在 area 文档里带 `:box <盒子名>` 参数的 yaml 代码块；YAML 最小子集，人批准的 PR 合并后由主机同步生效。不叫“权限集”“策略目录” | 未实现 |
+| 策略同步 | contained-agent-v2 里每台主机上的程序：从 space 仓库的 `main` 取人批准过的提交，提取并校验盒子策略，原子替换主机上的生效副本，有变化就通知。不叫“同步程序” | 未实现 |
 | 盒子管理服务 | contained-agent-v2 里以用户身份运行的主机服务，建、删盒子，运行中按策略增减盒子的挂载、网络规则和凭据 | 未实现 |
 | space | 人的私有仓库，存想法、计划和状态描述，按暴露范围一个范围一个（个人技术是 khalis，单位另有一个）。uraj 是代码，不是 space | 仓库外 |
 | area | space 里按 PARA 带 `:area:` 标签的文档或 heading，持续维护的长期事务；有终点的叫 project。contained-agent-v2 一个 area 一个盒子 | 仓库外（space） |
