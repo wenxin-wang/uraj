@@ -86,6 +86,9 @@ Guix profile 提供，嵌套 Podman 跑得起 Postgres，盒子里访问发布�
   - 确认必须走盒子外面的通道：盒子里的 Paseo 确认框 agent 能伪造。11/15 定：和特权
     执行器共用一个审批通道，这个通道人还有别的想法，合在一起慢慢排；做好之前先用主机
     终端命令确认。
+    11/16：审批通道和 sudo 分级一起在 [sudo-tiers](../261116-sudo-tiers/README.md)
+    里讨论；方向是批准即签名，只靠 Paseo 权限框不够安全，但 agent 的请求经 Paseo
+    推送通知是合理的。
   - 请求经盒子里盒子管理服务的 socket 发出，来源 workspace 由 socket 决定；内容是
     新 workspace 名、topic id、主机路径（默认发请求的 workspace 根）、共享路径、授权、
     一句目的说明；每个盒子待确认的请求有上限。
