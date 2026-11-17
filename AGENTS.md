@@ -14,7 +14,10 @@ Emacs 配置。主要由 agent 开发，人在 GitHub 上审阅和合并。
 - [guix](docs/guix.md)：主机配置、部署、已知问题。
 - [secrets](docs/secrets.md)：SOPS 布局和接入新机器。
 - 进行中：[contained-agent-v2](docs/projects/261115-contained-agent-v2/README.md)，
-  agent 和 Podman 放进同一个盒子。完成的子项目在 `docs/archive/projects/`。
+  agent 和 Podman 放进同一个盒子。
+- 进行中：[sudo-tiers](docs/projects/261116-sudo-tiers/README.md)，root 操作分级，
+  和 contained-agent-v2 共用的手机审批通道。
+- 完成的子项目在 `docs/archive/projects/`。
 
 ## 目录
 
