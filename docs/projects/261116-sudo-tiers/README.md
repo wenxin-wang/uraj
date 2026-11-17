@@ -27,8 +27,8 @@
   - 免口令：只读（`herd status`、`journalctl`、`swanctl --list-sas` 等）和服务启停
     （`herd start/stop/restart <服务>`）。
   - 手机签名：System 部署、任意 shell、改 `/etc` 等其余一切。
-  - 还要逐条列现在实际用到的 sudo 命令（各 guide 里有一批），定每条归哪级，见第 2 步
-    （盘点 sudo 用法）。注意白名单命令能不能间接执行任意代码（参考
+  - 现有命令的归类见 [sudo-inventory-review](sudo-inventory-review-20261117.md)（第 2 步，
+    盘点 sudo 用法）。注意白名单命令能不能间接执行任意代码（参考
     `%deploy-sudoers` 的注释）。
 - ~~本地因素用什么？~~ 11/16 定：不用口令、电脑上的指纹（采集不了）和硬件 key
   （怕丢）。只剩两种：免口令，或者手机签名（手机上按指纹）。手机签名一级可以配合
@@ -98,3 +98,5 @@
 
 - [TODO](TODO.md)：进度。
 - [step-1-handoff](step-1-handoff.md)：第 1 步的交接。
+- [sudo-inventory-review](sudo-inventory-review-20261117.md)：现有 sudo 命令按两级归类，
+  标出能间接执行任意代码的（11/17）。
