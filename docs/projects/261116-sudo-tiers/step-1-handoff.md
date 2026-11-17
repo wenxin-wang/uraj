@@ -72,6 +72,9 @@
 - 页面一开始没传 `allowCredentials`，手机 Firefox 报“没有发现任何通行密钥”；现在
   请求里带登记过的 credential id。
 - ntfy 默认优先级的消息只进通知栏、不弹出；请求用优先级 4。
+- 11/17 人的手机上，ntfy 在后台收不到消息：杀掉 app 后 instant delivery 的常驻通知
+  消失、不再重连，打开 app 才补收；已关电池限制、给全通知权限。疑似 ROM 杀后台，
+  和人说的 Slack、Paseo 通知偶尔不到可能同因。终端打印的链接可以手动打开作为兜底。
 
 - 不对主机执行部署；改 sudoers 和 PAM 的验证要人在主机上做，改坏了可能锁住 sudo，
   验证时保留一个已开的 root shell。
