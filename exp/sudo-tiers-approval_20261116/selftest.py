@@ -7,15 +7,16 @@ import approve
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.asymmetric import ed25519
 
-PAGE = "https://example.github.io/uraj/"
+PAGE = "https://arbiter.example/"
 
 
 def assertion(
     key,
     raw,
-    origin="https://example.github.io",
-    rp_id="example.github.io",
+    origin="https://arbiter.example",
+    rp_id="arbiter.example",
     flags=0x05,
 ):
     client = json.dumps(
@@ -44,6 +45,14 @@ def main():
         serialization.PublicFormat.SubjectPublicKeyInfo,
     )
     keys = {"c1": approve.b64url(spki)}
+    ed_spki = (
+        ed25519.Ed25519PrivateKey.generate()
+        .public_key()
+        .public_bytes(
+            serialization.Encoding.DER,
+            serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+    )
     raw = b'{"id":"x","argv":["true"]}'
     cases = {
         "valid": (assertion(key, raw), raw, None),
@@ -60,9 +69,31 @@ def main():
             raw,
             "signature",
         ),
+        "missing fields": ({"credentialId": "c1"}, raw, "malformed"),
+        "clientData not JSON": (
+            dict(assertion(key, raw), clientDataJSON=approve.b64url(b"x")),
+            raw,
+            "malformed",
+        ),
+        "short authenticatorData": (
+            dict(assertion(key, raw), authenticatorData=approve.b64url(b"x")),
+            raw,
+            "too short",
+        ),
+        "bad base64": (
+            dict(assertion(key, raw), signature="!!!"),
+            raw,
+            "signature",
+        ),
+        "non-P-256 key": (
+            assertion(key, raw),
+            raw,
+            "malformed",
+            {"c1": approve.b64url(ed_spki)},
+        ),
     }
-    for name, (msg, data, want) in cases.items():
-        got = approve.verify(msg, data, keys, PAGE)
+    for name, (msg, data, want, *case_keys) in cases.items():
+        got = approve.verify(msg, data, (case_keys or [keys])[0], PAGE)
         ok = got is None if want is None else (got and want in got)
         print(f"{'ok  ' if ok else 'FAIL'} {name}: {got}")
         assert ok

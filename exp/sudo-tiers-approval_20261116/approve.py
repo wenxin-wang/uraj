@@ -69,16 +69,18 @@ def messages(topic: str, since: int, deadline: float):
         try:
             with urllib.request.urlopen(url, timeout=60) as resp:
                 for line in resp:
+                    if time.time() >= deadline:
+                        return
                     event = json.loads(line)
                     if event.get("event") != "message":
-                        if time.time() >= deadline:
-                            return
                         continue
                     since = event["id"]
                     try:
-                        yield json.loads(event["message"])
+                        body = json.loads(event["message"])
                     except (KeyError, ValueError):
                         continue
+                    if isinstance(body, dict):
+                        yield body
         except (OSError, ValueError) as err:
             print(f"ntfy: {err}; retrying", file=sys.stderr)
             time.sleep(3)
@@ -89,15 +91,36 @@ def page_origin(page: str) -> tuple[str, str]:
     return f"{url.scheme}://{url.netloc}", url.hostname
 
 
+def p256_key(spki: bytes) -> ec.EllipticCurvePublicKey:
+    """Parses an SPKI public key, accepting only P-256 (ES256)."""
+    key = load_der_public_key(spki)
+    if not isinstance(key, ec.EllipticCurvePublicKey) or not isinstance(
+        key.curve, ec.SECP256R1
+    ):
+        raise ValueError("not a P-256 key")
+    return key
+
+
 def verify(msg: dict, raw: bytes, keys: dict, page: str) -> str | None:
     """Returns None if msg is a valid assertion over raw, else a reason."""
+    try:
+        return _verify(msg, raw, keys, page)
+    except (KeyError, TypeError, ValueError) as err:
+        return f"malformed reply: {err!r}"
+
+
+def _verify(msg: dict, raw: bytes, keys: dict, page: str) -> str | None:
     spki = keys.get(msg.get("credentialId", ""))
     if spki is None:
         return "unknown credential"
     origin, rp_id = page_origin(page)
     auth_data = unb64url(msg["authenticatorData"])
+    if len(auth_data) < 37:
+        return "authenticatorData too short"
     client_json = unb64url(msg["clientDataJSON"])
     client = json.loads(client_json)
+    if not isinstance(client, dict):
+        return "clientDataJSON is not an object"
     if client.get("type") != "webauthn.get":
         return "wrong clientData type"
     if client.get("origin") != origin:
@@ -108,7 +131,7 @@ def verify(msg: dict, raw: bytes, keys: dict, page: str) -> str | None:
         return "wrong rpId"
     if auth_data[32] & 0x05 != 0x05:
         return "user presence or verification missing"
-    key = load_der_public_key(unb64url(spki))
+    key = p256_key(unb64url(spki))
     try:
         key.verify(
             unb64url(msg["signature"]),
@@ -135,8 +158,14 @@ def cmd_register(args) -> int:
     for msg in messages(args.reply, since, time.time() + args.timeout):
         if msg.get("type") != "register":
             continue
-        spki = unb64url(msg["publicKey"])
-        load_der_public_key(spki)
+        try:
+            spki = unb64url(msg["publicKey"])
+            p256_key(spki)
+            if not isinstance(msg["credentialId"], str):
+                raise TypeError("credentialId is not a string")
+        except (KeyError, TypeError, ValueError) as err:
+            print(f"Ignored malformed key: {err!r}", file=sys.stderr)
+            continue
         print(f"Received key, fingerprint {fingerprint(spki)}")
         if input("Same as on the phone? [y/N] ").strip().lower() != "y":
             print("Ignored.")
