@@ -12,7 +12,7 @@
 | 环节 | 状态 | 代码 |
 |---|---|---|
 | 分级 | 只有草案 | `src/guix/uraj/system/base.scm`（现有 sudoers） |
-| 审批通道 | 定为 passkey + 静态页 + ntfy；`arbiter` 已上线，ntfy 通知和打开页面在手机上通过；passkey 已登记（11/17），签名没试 | `exp/sudo-tiers-approval_20261116/`；`wenxin-wang/arbiter` |
+| 审批通道 | 定为 passkey + 静态页 + ntfy；`arbiter` 已上线，ntfy 通知和打开页面在手机上通过；passkey 已登记，Firefox 上批准、验签、执行通过（11/17） | `exp/sudo-tiers-approval_20261116/`；`wenxin-wang/arbiter` |
 
 ## 下一步
 
@@ -68,6 +68,10 @@
 然后继续讨论 README 的待定项：回退到口令的 PAM 做法、`guix-deploy` 旁路。
 
 ## 已知的坑
+
+- 页面一开始没传 `allowCredentials`，手机 Firefox 报“没有发现任何通行密钥”；现在
+  请求里带登记过的 credential id。
+- ntfy 默认优先级的消息只进通知栏、不弹出；请求用优先级 4。
 
 - 不对主机执行部署；改 sudoers 和 PAM 的验证要人在主机上做，改坏了可能锁住 sudo，
   验证时保留一个已开的 root shell。

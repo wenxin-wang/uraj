@@ -194,6 +194,9 @@ def cmd_request(args) -> int:
             "topic": args.notify,
             "title": args.title,
             "message": " ".join(args.argv),
+            # High priority pops over on Android; default only lands in the
+            # shade.
+            "priority": 4,
             "click": url,
             "actions": [{"action": "view", "label": "Review", "url": url}],
         }
