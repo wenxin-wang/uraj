@@ -174,6 +174,7 @@ def cmd_request(args) -> int:
         "created": now,
         "expires": now + args.timeout,
         "reply": f"{NTFY}/{args.reply}",
+        "credentials": sorted(keys),
     }
     if args.script:
         with open(args.script) as f:
