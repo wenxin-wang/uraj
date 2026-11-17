@@ -3,7 +3,7 @@
 sudo-tiers 第 2 步（盘点 sudo 用法）的结果：列出 `docs/` 各 guide、主机配置注释和
 脚本里出现的 sudo 命令，按两级（免口令、手机签名）归类，并标出看上去只读或只是
 启停服务、实际能间接执行任意代码的命令。人的 shell 历史没有盘点：本 session 在
-Paseo 沙箱里，看不到主机的历史文件，见文末“待人补充”。
+Paseo 沙箱里看不到主机的历史文件，人贴回了统计结果，见“日常用法”一节。
 
 ## 免口令一级能被谁用
 
@@ -76,7 +76,7 @@ Paseo 沙箱里，看不到主机的历史文件，见文末“待人补充”�
     经上游仓库的地址按 SHA 取到（没验证），那就等于任何人都能让 storie 构建他写的
     Dockerfile。即使不是这样，也能换回带漏洞的旧版本。
 - 停服务只是 DoS，但远程主机上停 `ssh-daemon`、`networking`、strongSwan 会把人
-  锁在外面。要不要另行排除，待人定。
+  锁在外面。11/17 定：远程主机上这几个不放免口令一级。
 
 ### `/etc/<服务>/compose`
 
@@ -107,7 +107,7 @@ Gateway 容器做的，所以全落在签名一级。常用的只读操作（`pa
 里的快照要求）。`browser-dashboard.py` 还自己调 `sudo -n`，指望有缓存的口令或
 NOPASSWD；签名一级下每次开 dashboard 都要批一次。常用的话可以把它打包进系统
 profile，sudoers 只放 `/run/current-system/profile/bin/` 下的固定路径。它能操作
-OpenClaw 沙箱里的浏览器会话，放不放免口令待人定。
+OpenClaw 沙箱里的浏览器会话。11/17 定：放签名一级。
 
 ### System 部署
 
@@ -131,17 +131,54 @@ store 路径不可变，签了什么就执行什么。这一条留给第 5 步�
 - storie、hypie 上人也会远程敲 sudo（`browser-dashboard.py` 的 SSH 模式），每台
   主机都要有登记过的 passkey 公钥。公钥不是秘密，可以放进主机配置。
 
+## 日常用法
+
+人在主机终端跑了下面的统计，贴回了前 40 条（共 378 次）：
+
+```sh
+grep -hoE 'sudo( -[A-Za-z]+)* +[^ |;&]+( +[^ |;&-][^ |;&]*)?' ~/.bash_history \
+  | sort | uniq -c | sort -rn | head -40
+```
+
+| 类别 | 次数 | 主要命令 | 归哪级 |
+|---|---|---|---|
+| `herd` 状态和启停 | 178 | `herd restart` 81、`status` 47、`stop` 39、`start` 9、`logs` 2 | 免口令（不带参数时） |
+| System 部署 | 72 | `-E maak system-reconfigure` 41、`-E maak` 13、`guix time-machine` 14、`-E maak guix` 4 | 手机签名 |
+| 读写解密后的秘密 | 34 | `vim`/`cat /run/secrets/contained-agent/projects.scm` 20、`env SOPS_AGE_KEY_FILE=... sops` 8、`cat /run/secrets/strongswan/...` 4、`vim /run/secrets/paseo/config.yaml` 2 | 手机签名 |
+| 读日志和数据 | 28 | `cat .../new-api/traj-records/traj.jsonl` 12、`tail` 5、`rg` 5、`vim /var/log/...` 4、`grep` 2 | 手机签名，或改权限免 sudo |
+| 内核和硬件 | 17 | `dmesg` 8、`tcpdump` 5、`libinput debug-events` 5、`evtest` 2 | `dmesg` 免口令，其余签名 |
+| root shell | 9 | `-i` 5、`bash` 4 | 手机签名 |
+| 改 `/etc` 等 | 14 | `vim /etc/resolv.conf` 6、`vim /etc/hosts` 2、`mount` 2、`chmod` 2、`resolvconf` 2 | 手机签名 |
+| 其余 | 26 | `"$(command ...)"` 14、`reboot` 3、`ls /etc/guix/` 3、`btrfs filesystem` 2 | 见下 |
+
+结论：
+
+- 免口令一级覆盖约一半（`herd` 178、`dmesg` 8、`reboot` 3、`btrfs filesystem
+  show/usage/df` 2）。`herd restart` 里带参数的有多少没统计，guide 里只有换镜像
+  tag、relay commit 这几种，应该不多。
+- System 部署是签名一级最大的一块（72 次，约占全部的五分之一），调试配置时会连着
+  部署好几次。所以“一次批准管一段时间”对部署值得做，或者照上文“System 部署”签
+  store 路径，每次部署批一次但页面上看得清是什么。
+- 读日志和数据的 28 次可以用权限消掉：日志归档也保持 `log-readers` 组；new-api 的
+  traj 记录给一个只读组（它是模型调用记录，比系统日志敏感，不并进 `log-readers`
+  要人定）。之后 `tail`、`rg`、`vim` 不再要 sudo。用 `vim` 以 root 打开日志本身
+  就等于 root shell。
+- 改 `/run/secrets/` 下解密后的副本（20 多次）是在试配置：改动在 `sops-secrets`
+  重启后被覆盖，正式的改法是编辑 SOPS 密文再重启。签名一级下每次都要批，可以
+  接受；contained-agent 的项目配置以后要不要挪出 `/run/secrets/`，留给
+  contained-agent-v2。
+- `dmesg` 只放不带参数和 `-T`、`-w` 一类只读选项，`-C`、`-c` 会清空内核日志。
+  `reboot` 和停服务一样只是 DoS，lappie 上可以免口令，远程主机上签名（同上文
+  “停 `ssh-daemon`”的决定）。
+- `tcpdump` 能读全部流量，`-z` 还能执行命令，签名一级。
+- `sudo "$(command -v ...)"` 14 次不知道是什么，待人说明。
+
 ## 待人补充和待定
 
-- 日常实际敲的 sudo：guide 之外的不在这里。人在 lappie、storie 的终端里跑一下，
-  把结果（或者其中不想公开的部分去掉后）贴回来：
-
-  ```sh
-  grep -hoE 'sudo( -[A-Za-z]+)* +[^ |;&]+( +[^ |;&-][^ |;&]*)?' ~/.bash_history \
-    | sort | uniq -c | sort -rn | head -40
-  ```
-
-  这决定签名一级的频率，也就决定“一次批准管一段时间”值不值得做。
-- 远程主机上停 `ssh-daemon`、`networking`、strongSwan 要不要排除出免口令一级。
-- OpenClaw 的只读操作要不要做成 Shepherd action 放进免口令一级。
-- `browser-dashboard.py` 放哪一级。
+- 11/17 人定：远程主机上停 `ssh-daemon`、`networking`、strongSwan（以及 `reboot`）
+  不放免口令一级；OpenClaw 的只读操作做成 Shepherd action，放免口令一级。
+- 11/17 定：`browser-dashboard.py` 放手机签名一级。它把 OpenClaw 沙箱里浏览器的
+  dashboard 转发到本机，SSH 模式下把本地 checkout 里的 helper 代码经 SSH 参数传到
+  远端以 root 执行，等于 root shell；日常统计里没出现，签名的频率可以接受。
+- `sudo "$(command -v ...)"` 是什么。
+- new-api 的 traj 记录给哪个组读。
