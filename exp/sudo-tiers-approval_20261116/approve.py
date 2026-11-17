@@ -153,6 +153,11 @@ def cmd_register(args) -> int:
 
 
 def cmd_request(args) -> int:
+    if not args.notify:
+        print(
+            "--notify is empty; did decrypting the topic fail?", file=sys.stderr
+        )
+        return 2
     keys = load_keys(args.keys)
     if not keys:
         print(f"No keys in {args.keys}; run register first.", file=sys.stderr)

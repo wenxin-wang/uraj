@@ -12,7 +12,7 @@
 | 环节 | 状态 | 代码 |
 |---|---|---|
 | 分级 | 只有草案 | `src/guix/uraj/system/base.scm`（现有 sudoers） |
-| 审批通道 | 定为 passkey + 静态页 + ntfy；`arbiter` 已上线，ntfy 通知和打开页面在手机上通过；passkey 登记和签名没试 | `exp/sudo-tiers-approval_20261116/`；`wenxin-wang/arbiter` |
+| 审批通道 | 定为 passkey + 静态页 + ntfy；`arbiter` 已上线，ntfy 通知和打开页面在手机上通过；passkey 已登记（11/17），签名没试 | `exp/sudo-tiers-approval_20261116/`；`wenxin-wang/arbiter` |
 
 ## 下一步
 
@@ -54,7 +54,10 @@
 4. 发一个请求，手机收到通知后点开批准，终端打印 `Approved.` 后执行 `id`：
 
    ```sh
-   topic=$(sops -d --extract '["sudo-tiers"]["ntfy-topic"]' \
+   # 没有管理员卡时用 lappie 的 age identity（要 sudo）：
+   topic=$(sudo env SOPS_AGE_KEY_FILE=/var/lib/sops/age/keys.txt \
+     SOPS_GPG_EXEC=/run/current-system/profile/bin/false \
+     sops decrypt --extract '["sudo-tiers"]["ntfy-topic"]' \
      ../../secrets/shared/sudo-tiers.yaml)
    guix shell python python-cryptography -- \
      python3 approve.py request --notify "$topic" --exec -- id
