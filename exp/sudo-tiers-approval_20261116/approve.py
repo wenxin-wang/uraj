@@ -7,9 +7,12 @@ registered earlier.  ntfy and the page host are untrusted transport.
 
 Run inside: guix shell python python-cryptography -- python3 approve.py ...
 
-  approve.py register --page URL --reply TOPIC --keys FILE
-  approve.py request --page URL --notify TOPIC --reply TOPIC --keys FILE \
-      [--exec] [--script FILE] [--note TEXT] -- argv...
+  approve.py register
+  approve.py request --notify TOPIC [--exec] [--script FILE] [--note TEXT] \
+      -- argv...
+
+The reply topic is random per run unless --reply is given; it is part of the
+signed request, so nobody can redirect the reply.
 """
 
 import argparse
@@ -33,6 +36,8 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.serialization import load_der_public_key
 
 NTFY = "https://ntfy.sh"
+PAGE = "https://arbiter.wenxinwang.me/"
+KEYS = os.path.expanduser("~/.config/sudo-tiers/keys.json")
 
 
 def b64url(data: bytes) -> str:
@@ -212,9 +217,9 @@ def main() -> int:
     sub = parser.add_subparsers(dest="cmd", required=True)
     for name in ("register", "request"):
         p = sub.add_parser(name)
-        p.add_argument("--page", required=True, help="approval page URL")
-        p.add_argument("--reply", required=True, help="ntfy reply topic")
-        p.add_argument("--keys", required=True, help="registered keys JSON")
+        p.add_argument("--page", default=PAGE, help="approval page URL")
+        p.add_argument("--reply", help="ntfy reply topic (default: random)")
+        p.add_argument("--keys", default=KEYS, help="registered keys JSON")
         p.add_argument("--timeout", type=int, default=300, help="seconds")
     req = sub.choices["request"]
     req.add_argument("--notify", required=True, help="ntfy topic of phone")
@@ -225,6 +230,7 @@ def main() -> int:
     req.add_argument("argv", nargs="+")
     args = parser.parse_args()
     args.page = args.page.split("#")[0]
+    args.reply = args.reply or "arbiter-reply-" + secrets.token_hex(12)
     return cmd_register(args) if args.cmd == "register" else cmd_request(args)
 
 

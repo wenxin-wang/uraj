@@ -12,35 +12,55 @@
 | 环节 | 状态 | 代码 |
 |---|---|---|
 | 分级 | 只有草案 | `src/guix/uraj/system/base.scm`（现有 sudoers） |
-| 审批通道 | 定为 passkey + 静态页 + ntfy；原型写完，页面没在手机上跑过 | `exp/sudo-tiers-approval_20261116/`；页面在 `arbiter` 仓库（未建） |
+| 审批通道 | 定为 passkey + 静态页 + ntfy；`arbiter` 已上线，ntfy 通知和打开页面在手机上通过；passkey 登记和签名没试 | `exp/sudo-tiers-approval_20261116/`；`wenxin-wang/arbiter` |
 
 ## 下一步
 
-人在手机上试原型：
+人在手机上试原型（国内手机直连 ntfy.sh 和审批页都通过）：
 
-1. 建公开仓库 `arbiter`，放入静态页 `index.html`（PR #109 里从 uraj 删掉的那份，
-   agent 可以代建）。Settings → Pages 选 “Deploy from a branch”，`main`、`/`。
-   账号 Settings → Pages 验证 `arbiter.wenxinwang.me`（按提示加 TXT 记录）；DNS 加
-   CNAME `arbiter.wenxinwang.me` → `wenxin-wang.github.io`；仓库 Pages 填同一个
-   Custom domain，证书签下来后勾 “Enforce HTTPS”。
-2. 手机装 ntfy app，订阅一个自己起的通知 topic（下面的 `N`）；回复 topic 用另一个
-   （`R`）。topic 名不进仓库。
-3. 主机上登记 passkey，按提示在手机上打开链接、创建 passkey，核对指纹后输入 `y`：
+1. ~~`arbiter` 仓库和域名~~ 11/17 完成：`https://arbiter.wenxinwang.me/` 由 GitHub
+   签发证书，`wenxinwang.me` 已在账号里验证，DNS 不走 Cloudflare 代理（代理会解开
+   TLS、能改页面，Flexible 模式还是明文回源）。
+2. 手机装 ntfy app，订阅一个随机名字的通知 topic，打开 instant delivery（不走 FCM）。
+   名字在主机终端生成，不进对话和明文仓库：
+
+   ```sh
+   echo arbiter-$(head -c 15 /dev/urandom | base32 | tr -d = | tr A-Z a-z)
+   ```
+
+   存进 SOPS（在项目 Guix 环境里，要管理员卡；`.sops.yaml` 已有这个文件的规则）：
+
+   ```sh
+   sops secrets/shared/sudo-tiers.yaml
+   ```
+
+   编辑器里写：
+
+   ```yaml
+   sudo-tiers:
+     ntfy-topic: arbiter-...
+   ```
+
+   回复 topic 不用起名，`approve.py` 每次随机生成，写在被签名的请求里。
+
+3. 主机上登记 passkey，按提示在手机上打开链接、创建 passkey，核对指纹后输入 `y`。
+   公钥存到 `~/.config/sudo-tiers/keys.json`（公钥不是秘密）：
 
    ```sh
    cd exp/sudo-tiers-approval_20261116
-   guix shell python python-cryptography -- python3 approve.py register \
-     --page https://arbiter.wenxinwang.me/ --reply R \
-     --keys ~/.config/sudo-tiers/keys.json
+   guix shell python python-cryptography -- python3 approve.py register
    ```
 
 4. 发一个请求，手机收到通知后点开批准，终端打印 `Approved.` 后执行 `id`：
 
    ```sh
-   guix shell python python-cryptography -- python3 approve.py request \
-     --page https://arbiter.wenxinwang.me/ --notify N --reply R \
-     --keys ~/.config/sudo-tiers/keys.json --exec -- id
+   topic=$(sops -d --extract '["sudo-tiers"]["ntfy-topic"]' \
+     ../../secrets/shared/sudo-tiers.yaml)
+   guix shell python python-cryptography -- \
+     python3 approve.py request --notify "$topic" --exec -- id
    ```
+
+   再试一次拒绝，终端应打印 `Rejected.`、退出码 1。
 
 然后继续讨论 README 的待定项：回退到口令的 PAM 做法、`guix-deploy` 旁路。
 
