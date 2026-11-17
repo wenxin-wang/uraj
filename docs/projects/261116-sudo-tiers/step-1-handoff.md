@@ -19,8 +19,9 @@
 
 1. 和人讨论 README 的待定项：回退到口令的 PAM 做法（等签名的同时读终端输入）、
    `guix-deploy` 旁路要不要收紧、特权执行器和 PAM 模块是不是一个程序。
-2. 第 2 步（盘点 sudo 用法）可以并行：`grep -rn sudo docs/ env/`，按两级归类，
-   标出能间接执行任意代码的命令。
+2. 第 2 步（盘点 sudo 用法）guide 部分已写：
+   [sudo-inventory-review](sudo-inventory-review-20261117.md)。等人补 shell 历史、定文末
+   待定项。
 
 ## 原型怎么跑
 
