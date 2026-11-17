@@ -11,7 +11,7 @@
 
 | 环节 | 状态 | 代码 |
 |---|---|---|
-| 分级 | 定了两级，命令没盘点 | `src/guix/uraj/system/base.scm`（现有 sudoers） |
+| 分级 | 定了两级，命令盘点完（第 2 步） | `src/guix/uraj/system/base.scm`（现有 sudoers） |
 | 审批通道 | 原型在手机上通过（第 3 步，审批通道原型） | `exp/sudo-tiers-approval_20261116/`；`wenxin-wang/arbiter` |
 | 回退、旁路、特权执行器 | 只有建议 | |
 
@@ -19,8 +19,9 @@
 
 1. 和人讨论 README 的待定项：回退到口令的 PAM 做法（等签名的同时读终端输入）、
    `guix-deploy` 旁路要不要收紧、特权执行器和 PAM 模块是不是一个程序。
-2. 第 2 步（盘点 sudo 用法）已写：
-   [sudo-inventory-review](sudo-inventory-review-20261117.md)。剩文末两个待定项。
+2. 第 2 步（盘点 sudo 用法）已完成：
+   [sudo-inventory-review](sudo-inventory-review-20261117.md)。讨论“一次批准管一段时间”
+   时以它的统计为准（部署、agent 反复要的同一条命令）。
 
 ## 原型怎么跑
 

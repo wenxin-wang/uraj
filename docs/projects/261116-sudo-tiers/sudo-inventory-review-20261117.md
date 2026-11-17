@@ -160,8 +160,8 @@ grep -hoE 'sudo( -[A-Za-z]+)* +[^ |;&]+( +[^ |;&-][^ |;&]*)?' ~/.bash_history \
   部署好几次。所以“一次批准管一段时间”对部署值得做，或者照上文“System 部署”签
   store 路径，每次部署批一次但页面上看得清是什么。
 - 读日志和数据的 28 次可以用权限消掉：日志归档也保持 `log-readers` 组；new-api 的
-  traj 记录给一个只读组（它是模型调用记录，比系统日志敏感，不并进 `log-readers`
-  要人定）。之后 `tail`、`rg`、`vim` 不再要 sudo。用 `vim` 以 root 打开日志本身
+  traj 记录也归 `log-readers` 可读（11/17 定，见文末）。之后 `tail`、`rg`、`vim`
+  不再要 sudo。用 `vim` 以 root 打开日志本身
   就等于 root shell。
 - 改 `/run/secrets/` 下解密后的副本（20 多次）是在试配置：改动在 `sops-secrets`
   重启后被覆盖，正式的改法是编辑 SOPS 密文再重启。签名一级下每次都要批，可以
@@ -171,7 +171,8 @@ grep -hoE 'sudo( -[A-Za-z]+)* +[^ |;&]+( +[^ |;&-][^ |;&]*)?' ~/.bash_history \
   `reboot` 和停服务一样只是 DoS，lappie 上可以免口令，远程主机上签名（同上文
   “停 `ssh-daemon`”的决定）。
 - `tcpdump` 能读全部流量，`-z` 还能执行命令，签名一级。
-- `sudo "$(command -v ...)"` 14 次不知道是什么，待人说明。
+- `sudo "$(command -v libinput)" record` 14 次：人给 agent 当 harness 时 agent 要
+  的，人自己不常用。见文末。
 
 ## 待人补充和待定
 
@@ -180,5 +181,13 @@ grep -hoE 'sudo( -[A-Za-z]+)* +[^ |;&]+( +[^ |;&-][^ |;&]*)?' ~/.bash_history \
 - 11/17 定：`browser-dashboard.py` 放手机签名一级。它把 OpenClaw 沙箱里浏览器的
   dashboard 转发到本机，SSH 模式下把本地 checkout 里的 helper 代码经 SSH 参数传到
   远端以 root 执行，等于 root shell；日常统计里没出现，签名的频率可以接受。
-- `sudo "$(command -v ...)"` 是什么。
-- new-api 的 traj 记录给哪个组读。
+- 11/17 定：`sudo "$(command -v libinput)" record` 这类命令是 agent 某段任务里反复
+  要的，人不常用。归签名一级；agent 的请求可以“批准一次，同一条命令在一段时间内
+  不再问”，让 agent 接着干。这是“一次批准管一段时间”的第二个用处（第一个是部署），
+  范围按命令（`argv` 或解析后的路径加参数模式）和请求方（哪个盒子或 session）限定，
+  具体规则留给特权执行器的设计。`libinput record` 和 `debug-events` 一样读全部输入
+  事件，不放免口令。
+- 11/17 定：new-api 的 traj 记录归 `log-readers` 可读，不另开组。记录是模型调用的
+  输入输出，人会让 agent 读来优化 prompt；上游本来就能看到这些数据，人也不往里传
+  token 一类秘密，所以按日志对待。改 `src/guix/uraj/services/new-api.scm` 的目录
+  权限，放第 4 步（分级落地）或单独的 new-api PR。
