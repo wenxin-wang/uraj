@@ -174,9 +174,9 @@ Guix profile 提供，嵌套 Podman 跑得起 Postgres，盒子里访问发布�
     权限 Contents、Pull requests、Workflows 写；私钥进 SOPS，盒子管理服务按盒子策略
     现签一小时的 installation token，签时可再缩小仓库范围，经凭据 socket 给盒子。
   - Workflows 写权限等于能拿到仓库的 Actions secrets：agent 往任意分支推一个
-    workflow，`push` 事件就带着 secrets 跑，`main` 的 ruleset 挡不住。待定：agent
-    不需要改 CI 的仓库不给 Workflows；需要的仓库用 environment 保护 secrets（要求
-    审批，或只允许 `main` 用）。现在的仓库没有 Actions secrets 时没有影响。
+    workflow，`push` 事件就带着 secrets 跑，`main` 的 ruleset 挡不住。11/17 定：
+    App 保留 Workflows 写权限，有 Actions secrets 的仓库把 secrets 放进 environment
+    保护（要求审批，或只允许 `main` 用），不放仓库级 secrets。
   - `world`（fork、给别人的仓库提 PR）换成机器账号的 classic token：App 做不了用户
     身份的操作。scope 建议只给 `public_repo`，fork 和给公开仓库提 PR 够用；`repo`
     会让它对所有把机器账号加成协作者的仓库都有写权限。
