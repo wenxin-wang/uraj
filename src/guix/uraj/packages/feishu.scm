@@ -94,6 +94,7 @@
                                           "/opt/bytedance/feishu/bytedance-feishu"))
                      (wrapper (string-append bin "/feishu"))
                      (bash (assoc-ref inputs "bash-minimal"))
+                     (coreutils (assoc-ref inputs "coreutils"))
                      (nss-lib (string-append (assoc-ref inputs "nss")
                                              "/lib/nss")))
                 (mkdir-p bin)
@@ -124,7 +125,39 @@
                       "          --enable-wayland-ime\n"
                       "          --wayland-text-input-version=3)\n"
                       "fi\n"
-                      "exec \"" real "\" \"${flags[@]}\" \"$@\"\n")
+                      ;; Launchers such as noctalia discard the client's
+                      ;; output, so crashes leave no trace.  Unless
+                      ;; started from a terminal, keep one log per launch
+                      ;; under $XDG_STATE_HOME/feishu (newest 10), and
+                      ;; record the exit status, which shows the signal
+                      ;; when the main process dies.
+                      "if [ -t 2 ]; then\n"
+                      "  exec \"" real "\" \"${flags[@]}\" \"$@\"\n"
+                      "fi\n"
+                      "log_dir=\"${XDG_STATE_HOME:-$HOME/.local/state}/feishu\"\n"
+                      coreutils "/bin/mkdir -p \"$log_dir\"\n"
+                      "logs=(\"$log_dir\"/feishu-*.log)\n"
+                      "if [ -e \"${logs[0]}\" ] && [ ${#logs[@]} -ge 10 ]; then\n"
+                      "  " coreutils "/bin/rm -f -- "
+                      "\"${logs[@]:0:${#logs[@]}-9}\"\n"
+                      "fi\n"
+                      "printf -v stamp '%(%Y%m%d-%H%M%S)T' -1\n"
+                      "exec >>\"$log_dir/feishu-$stamp-$$.log\" 2>&1 </dev/null\n"
+                      "printf '%(%F %T)T start: %s\\n' -1 \"$*\"\n"
+                      "\"" real "\" \"${flags[@]}\" \"$@\" &\n"
+                      "pid=$!\n"
+                      "trap 'kill -TERM $pid 2>/dev/null' TERM INT HUP\n"
+                      "set +e\n"
+                      "while :; do\n"
+                      "  wait $pid; status=$?\n"
+                      "  kill -0 $pid 2>/dev/null || break\n"
+                      "done\n"
+                      "if [ $status -gt 128 ]; then\n"
+                      "  printf '%(%F %T)T exit: signal %d\\n' -1 $((status - 128))\n"
+                      "else\n"
+                      "  printf '%(%F %T)T exit: status %d\\n' -1 $status\n"
+                      "fi\n"
+                      "exit $status\n")
                      port)))
                 (chmod wrapper #o755))))
           (add-after 'install 'patch-desktop-entry
