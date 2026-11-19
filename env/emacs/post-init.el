@@ -1050,7 +1050,7 @@ dir is the directory of the buffer (param of my/project-try), when it's changed,
                     (append
                      (subdirs-if-exists "~/spaces/office/")
                      (subdirs-if-exists "~/spaces/" '("office"))
-		             '("~/src/pylon"))))
+		             '("~/src/personal/garden"))))
   :bind
   ;; ("C-c n c" . org-roam-capture)
   ;; ("C-c n d" . org-roam-dailies-goto-today)
