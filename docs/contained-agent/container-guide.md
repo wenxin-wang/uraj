@@ -26,6 +26,10 @@
   attachments such as PDFs. Only this subtree is exposed read-only; the
   remaining Paseo state stays private. This includes uploads from other
   sessions.
+- All agents can read `~/.agents` and `~/.local/share/pylon` when they
+  exist.  Both are read-only, like long-term memory, so a session cannot
+  plant instructions that later sessions load.  Codex and Pi still get a
+  session-only writable overlay of `~/.agents/skills`.
 - Clone temporary reference code into `/tmp/reference-code/`, or use an
   ignored `.reference-code/` directory in the current worktree to retain it.
   Read access to `~/src` does not grant permission to clone into it.
