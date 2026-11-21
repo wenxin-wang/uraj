@@ -143,11 +143,11 @@ Homes and the headless Homes."
     ;; Of the host's Git configuration, only the identity in
     ;; ~/.gitconfig.local: the rest is preferences, and applications write
     ;; ~/.gitconfig.  The container writes a ~/.gitconfig of its own.
-    ;; Shared agent files (skills in ~/.agents) and the pylon space are
-    ;; read-only for the same reason as long-term memory.
+    ;; Shared agent files (skills in ~/.agents) and ~/.local/share/agent-policies
+    ;; are read-only for the same reason as long-term memory.
     (expose "~/.cache/paseo-tmp" "~/.paseo/uploads"
             "~/src" "~/.llm-wiki" "~/.gitconfig.local"
-            "~/.agents" "~/.local/share/pylon")
+            "~/.agents" "~/.local/share/agent-policies")
     (preserve "TERM" "COLORTERM" "LANG" "LC_.*" "NO_COLOR" "PASEO_.*"
               "RUST_LOG")))
 
